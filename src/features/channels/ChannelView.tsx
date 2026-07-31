@@ -3,14 +3,18 @@ import { useState } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
 import { MemberList } from './MemberList'
+import { useMessages } from '../chat/useMessages'
+import { MessageList } from '../chat/MessageList'
+import { MessageComposer } from '../chat/MessageComposer'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
-  const { channel, members, loading, error, isGM, myMemberInfo, refetch } = useChannel(id)
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch } = useChannel(id)
+  const { messages, loading: messagesLoading, sendMessage, editMessage, deleteMessage } = useMessages(id)
   
   const [showSettings, setShowSettings] = useState(false)
 
-  if (loading) {
+  if (channelLoading || messagesLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -22,18 +26,16 @@ export function ChannelView() {
     return <Navigate to="/" replace />
   }
 
-  // If user is not in the members list (and somehow bypassed RLS to load this component), kick them out.
-  // Actually, RLS will hide the channel if they aren't a member (unless it's public, in which case they can see channel, but can't see private stuff).
-  // But wait, our RLS says "Public channels are viewable by everyone". 
-  // However, `channel_members` is only viewable by members of the same channel.
-  // If myMemberInfo is undefined, it means they haven't joined yet.
   if (!myMemberInfo && !isGM) {
     return <Navigate to={`/join/${channel.id}`} replace />
   }
 
+  // Omit the GM from the whisper target list (or omit the current user)
+  const whisperableMembers = members.filter(m => m.user_id !== myMemberInfo?.user_id)
+
   return (
     <div className="flex h-[calc(100vh-73px)] overflow-hidden bg-white">
-      {/* Main Chat Area (Placeholder) */}
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50 border-r border-gray-200">
         <div className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm z-10">
           <div>
@@ -75,11 +77,18 @@ export function ChannelView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="text-center text-gray-500 mt-20">
-            Chat Area (Phase 5)
-          </div>
-        </div>
+        <MessageList 
+          messages={messages} 
+          isGM={isGM} 
+          onEdit={editMessage} 
+          onDelete={deleteMessage} 
+        />
+        
+        <MessageComposer 
+          isGM={isGM} 
+          members={whisperableMembers} 
+          onSendMessage={sendMessage} 
+        />
       </div>
 
       {/* Sidebar */}
@@ -103,3 +112,4 @@ export function ChannelView() {
     </div>
   )
 }
+

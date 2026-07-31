@@ -1,0 +1,160 @@
+import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import type { Database } from '../../types/database'
+
+type Message = Database['public']['Tables']['messages']['Row'] & {
+  sender?: { display_name: string | null; avatar_url: string | null } | null
+  whisper_target?: { display_name: string | null; avatar_url: string | null } | null
+}
+
+interface MessageItemProps {
+  message: Message
+  currentUserId: string | undefined
+  isGM: boolean
+  onEdit: (id: string, newContent: string) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}
+
+export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete }: MessageItemProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(message.content)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isMe = message.sender_id === currentUserId
+  const isWhisper = !!message.whisper_to
+  const isScene = message.type === 'scene'
+  const isSystem = message.type === 'system'
+
+  // Check 15 min edit window
+  const canEdit = isMe && !message.is_deleted && message.type === 'regular' && 
+    (new Date().getTime() - new Date(message.created_at).getTime() < 15 * 60 * 1000)
+
+  const handleSaveEdit = async () => {
+    if (editContent.trim() === message.content) {
+      setIsEditing(false)
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      await onEdit(message.id, editContent)
+      setIsEditing(false)
+    } catch (err) {
+      console.error('Failed to edit message', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this message?')) return
+    setIsSubmitting(true)
+    try {
+      await onDelete(message.id)
+    } catch (err) {
+      console.error('Failed to delete message', err)
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isSystem) {
+    return (
+      <div className="flex justify-center my-4">
+        <div className="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full">
+          {message.content}
+        </div>
+      </div>
+    )
+  }
+
+  if (isScene) {
+    return (
+      <div className="my-6 px-4 py-6 bg-[#fdf6e3] border-y-2 border-[#e6d0a4] shadow-sm flex flex-col items-center">
+        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] space-y-4">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`group flex items-start space-x-3 my-4 px-4 ${isWhisper ? 'bg-purple-50 py-2 rounded-lg border border-purple-100' : ''}`}>
+      <div className="flex-shrink-0">
+        {message.sender?.avatar_url ? (
+          <img className="h-10 w-10 rounded-full" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500">
+            {message.sender?.display_name?.[0]?.toUpperCase() || '?'}
+          </div>
+        )}
+      </div>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline space-x-2">
+          <span className="text-sm font-medium text-gray-900">
+            {message.sender?.display_name || 'Unknown User'}
+          </span>
+          <span className="text-xs text-gray-500">
+            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {isWhisper && (
+            <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">
+              Whisper to {message.whisper_to === currentUserId ? 'You' : message.whisper_target?.display_name}
+            </span>
+          )}
+          {message.is_edited && !message.is_deleted && (
+            <span className="text-xs text-gray-400 italic">(edited)</span>
+          )}
+        </div>
+
+        <div className="mt-1 text-sm text-gray-800 prose prose-sm prose-indigo max-w-none">
+          {message.is_deleted ? (
+            <span className="text-gray-400 italic">This message was deleted.</span>
+          ) : isEditing ? (
+            <div className="mt-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                rows={3}
+              />
+              <div className="mt-2 flex space-x-2">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSubmitting || !editContent.trim()}
+                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  disabled={isSubmitting}
+                  className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          )}
+        </div>
+      </div>
+
+      {!message.is_deleted && !isEditing && (canEdit || isGM) && (
+        <div className="flex-shrink-0 opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity">
+          {canEdit && (
+            <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+            </button>
+          )}
+          {(canEdit || isGM) && (
+            <button onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
