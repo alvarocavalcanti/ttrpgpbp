@@ -8,6 +8,16 @@ vi.mock('./useChannel', () => ({
   useChannel: vi.fn()
 }))
 
+vi.mock('../chat/useMessages', () => ({
+  useMessages: vi.fn().mockReturnValue({
+    messages: [],
+    loading: false,
+    sendMessage: vi.fn(),
+    editMessage: vi.fn(),
+    deleteMessage: vi.fn()
+  })
+}))
+
 vi.mock('./ChannelSettings', () => ({
   ChannelSettings: ({ onClose }: any) => (
     <div data-testid="channel-settings">
@@ -18,6 +28,14 @@ vi.mock('./ChannelSettings', () => ({
 
 vi.mock('./MemberList', () => ({
   MemberList: () => <div data-testid="member-list" />
+}))
+
+vi.mock('../chat/MessageList', () => ({
+  MessageList: () => <div data-testid="message-list" />
+}))
+
+vi.mock('../chat/MessageComposer', () => ({
+  MessageComposer: () => <div data-testid="message-composer" />
 }))
 
 describe('ChannelView', () => {
