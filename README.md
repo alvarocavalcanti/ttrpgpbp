@@ -1,33 +1,32 @@
-# Tabletop RPG - Play-by-Post
+# React + TypeScript + Vite
 
-## Goal
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-This is a self-hosted web application for playing any Tabletop RPG (TTRPG) in a play-by-post style. It provides a real-time chat interface combined with features specifically designed to support long-term asynchronous tabletop gaming.
+Currently, two official plugins are available:
 
-## Key Highlights
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-- **Google account sign-in:** Quick access with no password management overhead.
-- **Channels with GM management:** Create private or public games, manage players, and provide links to maps and resources.
-- **Clickable dice notation & Roller UI:** GMs type notations, players click to roll inline. Both can use a UI dice roller. Roll history is maintained.
-- **Turn tracking & Notifications:** GMs can set active players to drive turn notifications (push, badge).
-- **Whisper messages:** Private messaging between GM and individual players in the same timeline.
-- **Scene messages:** Distinctly styled messages by the GM to set the scene or mark narrative breaks.
+## React Compiler
 
-For a full breakdown of the application features, please read [FEATURES.md](FEATURES.md).
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Tech Stack
+## Expanding the Oxlint configuration
 
-| Layer | Choice |
-|---|---|
-| Frontend | React 19 + Vite + TypeScript |
-| Styling | Tailwind CSS |
-| Backend | Supabase (free tier) |
-| Database | Supabase PostgreSQL |
-| Auth | Supabase Auth (Google OAuth) |
-| Real-time | Supabase Realtime (WebSocket) |
-| Search | PostgreSQL `tsvector` + GIN index |
-| Hosting | Cloudflare Pages |
-| Push notifications | Web Push API (PWA) |
-| Email | Resend (free tier) |
-| Testing | Vitest + React Testing Library + MSW |
-| CI | GitHub Actions |
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
+```
+
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
