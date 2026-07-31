@@ -17,13 +17,16 @@ export function useChannel(channelId: string | undefined) {
 
   useEffect(() => {
     let mounted = true
-    if (!channelId || !user) return
+    if (!channelId || !user) {
+      setLoading(false)
+      return
+    }
 
     async function fetchChannelData() {
       try {
         const [channelResponse, membersResponse] = await Promise.all([
-          supabase.from('channels').select('*').eq('id', channelId).single(),
-          supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId)
+          supabase.from('channels').select('*').eq('id', channelId as string).single(),
+          supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string)
         ])
 
         if (channelResponse.error) throw channelResponse.error
