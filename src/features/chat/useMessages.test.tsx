@@ -75,18 +75,14 @@ describe('useMessages', () => {
   it('handles realtime INSERT with joins', async () => {
     let realtimeCallback: any
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: { id: 'm3', sender: { display_name: 'JoinedUser' } } })
-    const mockEqJoin = vi.fn().mockReturnValue({ single: mockSingleJoin })
-    const mockSelectJoin = vi.fn().mockReturnValue({ eq: mockEqJoin })
 
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    vi.mocked(supabase.from).mockImplementation((_table: string) => {
       return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: mockOrder, single: mockSingleJoin }) }) } as any
     })
     
-    const mockOn = vi.fn().mockImplementation((event, filter, callback) => {
+    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
       realtimeCallback = callback
       return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
     })
@@ -108,18 +104,15 @@ describe('useMessages', () => {
   it('handles realtime INSERT with joins when data is null', async () => {
     let realtimeCallback: any
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     
     // Simulate failing join
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: null })
-    const mockEqJoin = vi.fn().mockReturnValue({ single: mockSingleJoin })
 
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    vi.mocked(supabase.from).mockImplementation((_table: string) => {
       return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: mockOrder, single: mockSingleJoin }) }) } as any
     })
     
-    const mockOn = vi.fn().mockImplementation((event, filter, callback) => {
+    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
       realtimeCallback = callback
       return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
     })
@@ -144,7 +137,7 @@ describe('useMessages', () => {
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
     
-    const mockOn = vi.fn().mockImplementation((event, filter, callback) => {
+    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
       realtimeCallback = callback
       return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
     })
@@ -172,7 +165,7 @@ describe('useMessages', () => {
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
     
-    const mockOn = vi.fn().mockImplementation((event, filter, callback) => {
+    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
       realtimeCallback = callback
       return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
     })
@@ -209,7 +202,7 @@ describe('useMessages', () => {
     const mockEqFetch = vi.fn().mockReturnValue({ order: mockOrder })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEqFetch })
 
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    vi.mocked(supabase.from).mockImplementation((_table: string) => {
       return { select: mockSelect, insert: mockInsert, update: mockUpdate } as any
     })
     

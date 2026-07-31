@@ -150,7 +150,7 @@ describe('MessageItem', () => {
     expect(screen.getByText('Whisper to You')).toBeInTheDocument()
 
     // Render from sender's perspective where whisper_to != currentUserId
-    const { unmount } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.getAllByText('Whisper to Target')[0]).toBeInTheDocument()
   })
 

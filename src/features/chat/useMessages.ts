@@ -26,7 +26,7 @@ export function useMessages(channelId: string | undefined) {
         const { data, error: fetchError } = await supabase
           .from('messages')
           .select('*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url)')
-          .eq('channel_id', channelId)
+          .eq('channel_id', channelId as string)
           .order('created_at', { ascending: true })
 
         if (fetchError) throw fetchError
