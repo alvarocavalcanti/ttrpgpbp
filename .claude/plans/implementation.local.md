@@ -89,7 +89,7 @@ src/
 
 ---
 
-### Phase 3: Auth & Profiles
+### Phase 3: Auth & Profiles (✅ DONE)
 
 1. Integrate Supabase Auth with Google OAuth
 2. Auto-create profile on first sign-in (DB trigger)
