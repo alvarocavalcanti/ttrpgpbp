@@ -24,3 +24,8 @@ dist-ssr
 *.sln
 *.sw?
 coverage
+
+# Environment variables
+.env
+.env.*
+!.env.example
