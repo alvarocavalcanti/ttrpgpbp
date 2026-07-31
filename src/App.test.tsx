@@ -55,7 +55,7 @@ describe('App', () => {
     render(<App />)
     
     expect(await screen.findByText('TTRPG Play-by-Post')).toBeInTheDocument()
-    expect(await screen.findByText('Lobby (Coming Soon)')).toBeInTheDocument()
+    expect(await screen.findByText('Campaigns Lobby')).toBeInTheDocument()
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Avatar' })).toBeInTheDocument()
   })

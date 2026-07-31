@@ -45,7 +45,6 @@ export interface Database {
           id: string
           name: string
           gm_id: string
-          password_hash: string | null
           is_public: boolean
           invite_code: string | null
           map_url: string | null
@@ -53,12 +52,12 @@ export interface Database {
           status_text: string | null
           created_at: string
           updated_at: string
+          has_password?: boolean
         }
         Insert: {
           id?: string
           name: string
           gm_id: string
-          password_hash?: string | null
           is_public?: boolean
           invite_code?: string | null
           map_url?: string | null
@@ -71,7 +70,6 @@ export interface Database {
           id?: string
           name?: string
           gm_id?: string
-          password_hash?: string | null
           is_public?: boolean
           invite_code?: string | null
           map_url?: string | null
@@ -85,6 +83,28 @@ export interface Database {
             foreignKeyName: "channels_gm_id_fkey"
             columns: ["gm_id"]
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      channel_secrets: {
+        Row: {
+          channel_id: string
+          password_hash: string | null
+        }
+        Insert: {
+          channel_id: string
+          password_hash?: string | null
+        }
+        Update: {
+          channel_id?: string
+          password_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_secrets_channel_id_fkey"
+            columns: ["channel_id"]
+            referencedRelation: "channels"
             referencedColumns: ["id"]
           }
         ]
@@ -287,7 +307,17 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      join_channel: {
+        Args: {
+          p_channel_id: string
+          p_character_name: string
+          p_character_avatar_url?: string
+          p_character_sheet_url?: string
+          p_password_hash?: string
+          p_invite_code?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
