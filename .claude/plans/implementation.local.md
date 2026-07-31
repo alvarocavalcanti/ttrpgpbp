@@ -104,7 +104,7 @@ src/
 
 ---
 
-### Phase 4: Channels
+### Phase 4: Channels (✅ DONE)
 
 1. Channel creation form (name, public/private, password, map URL, resources URL)
 2. Public channel lobby (list + join)
