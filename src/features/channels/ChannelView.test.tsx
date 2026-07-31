@@ -32,7 +32,8 @@ describe('ChannelView', () => {
       loading: true,
       error: null,
       isGM: false,
-      myMemberInfo: undefined
+      myMemberInfo: undefined,
+      refetch: vi.fn()
     })
 
     const { container } = render(
@@ -53,7 +54,8 @@ describe('ChannelView', () => {
       loading: false,
       error: new Error('Failed'),
       isGM: false,
-      myMemberInfo: undefined
+      myMemberInfo: undefined,
+      refetch: vi.fn()
     })
 
     render(
@@ -75,7 +77,8 @@ describe('ChannelView', () => {
       loading: false,
       error: null,
       isGM: false,
-      myMemberInfo: undefined
+      myMemberInfo: undefined,
+      refetch: vi.fn()
     })
 
     render(
@@ -97,7 +100,8 @@ describe('ChannelView', () => {
       loading: false,
       error: null,
       isGM: true,
-      myMemberInfo: { id: 'm1' } as any
+      myMemberInfo: { id: 'm1' } as any,
+      refetch: vi.fn()
     })
 
     render(
@@ -122,7 +126,8 @@ describe('ChannelView', () => {
       loading: false,
       error: null,
       isGM: true,
-      myMemberInfo: { id: 'm1' } as any
+      myMemberInfo: { id: 'm1' } as any,
+      refetch: vi.fn()
     })
 
     render(
