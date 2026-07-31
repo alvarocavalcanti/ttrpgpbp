@@ -1,0 +1,18 @@
+{
+  "body": "Great work on the join flow! I left a couple of inline suggestions regarding security and React best practices.",
+  "event": "COMMENT",
+  "comments": [
+    {
+      "path": "src/features/channels/JoinChannel.tsx",
+      "line": 32,
+      "side": "RIGHT",
+      "body": "Using `select('*')` retrieves the `password_hash` column to the client. This allows potential attackers to harvest hashes. It is safer to use a computed boolean column (e.g., `has_password`) or a secure view so hashes never leave the database."
+    },
+    {
+      "path": "src/features/channels/MemberList.tsx",
+      "line": 42,
+      "side": "RIGHT",
+      "body": "Calling `window.location.reload()` disrupts the SPA experience and clears local state. Consider passing an `onUpdate` callback or mutating the local state to trigger a re-render instead."
+    }
+  ]
+}

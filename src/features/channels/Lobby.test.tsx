@@ -8,6 +8,17 @@ vi.mock('./useChannels', () => ({
   useChannels: vi.fn()
 }))
 
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn()
+  }
+}))
+
+vi.mock('../auth/useAuth', () => ({
+  useAuth: vi.fn().mockReturnValue({ user: null, profile: null })
+}))
+
 describe('Lobby', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -39,8 +50,8 @@ describe('Lobby', () => {
   it('renders channels correctly', () => {
     vi.mocked(useChannels).mockReturnValue({
       publicChannels: [
-        { id: '1', name: 'Public One', is_public: true, password_hash: null } as any,
-        { id: '2', name: 'Locked Public', is_public: true, password_hash: 'hash' } as any
+        { id: '1', name: 'Public One', is_public: true, has_password: false } as any,
+        { id: '2', name: 'Locked Public', is_public: true, has_password: true } as any
       ],
       myChannels: [
         { id: '1', name: 'Public One', is_public: true, member: { character_name: 'Hero' } } as any

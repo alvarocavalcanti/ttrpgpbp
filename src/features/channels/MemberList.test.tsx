@@ -46,7 +46,7 @@ describe('MemberList', () => {
   })
 
   it('renders active and blocked members correctly', () => {
-    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" />)
+    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" onUpdate={vi.fn()} />)
     
     expect(screen.getByText('Players — 2')).toBeInTheDocument()
     expect(screen.getByText('Hero')).toBeInTheDocument()
@@ -61,8 +61,9 @@ describe('MemberList', () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} channelId="c1" myUserId="u1" />)
+    render(<MemberList members={mockMembers} isGM={false} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Edit Character'))
     
@@ -77,7 +78,7 @@ describe('MemberList', () => {
         character_sheet_url: 'http://sheet'
       })
       expect(mockEq).toHaveBeenCalledWith('id', 'm1')
-      expect(window.location.reload).toHaveBeenCalled()
+      expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
@@ -85,8 +86,9 @@ describe('MemberList', () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" />)
+    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Block Player'))
     
@@ -95,7 +97,7 @@ describe('MemberList', () => {
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalledWith({ is_blocked: true })
       expect(mockEq).toHaveBeenCalledWith('id', 'm2')
-      expect(window.location.reload).toHaveBeenCalled()
+      expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
@@ -104,8 +106,9 @@ describe('MemberList', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} channelId="c1" myUserId="u1" />)
+    render(<MemberList members={mockMembers} isGM={false} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Edit Character'))
     
@@ -116,6 +119,7 @@ describe('MemberList', () => {
 
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
 
@@ -124,13 +128,15 @@ describe('MemberList', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" />)
+    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Block Player'))
     
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
 })

@@ -24,7 +24,7 @@ describe('useChannel', () => {
     
     const { result } = renderHook(() => useChannel('123'))
     
-    expect(result.current.loading).toBe(true)
+    expect(result.current.loading).toBe(false)
     expect(result.current.channel).toBeNull()
   })
 

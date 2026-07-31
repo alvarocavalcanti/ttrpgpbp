@@ -66,8 +66,7 @@ describe('CreateChannelModal', () => {
         name: 'New Game',
         gm_id: 'u1',
         is_public: true,
-        invite_code: '12345678',
-        password_hash: 'hashed_password'
+        invite_code: '12345678'
       }))
       
       expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {

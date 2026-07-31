@@ -14,6 +14,9 @@ export function useChannel(channelId: string | undefined) {
   const [members, setMembers] = useState<ChannelMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [refetchTrigger, setRefetchTrigger] = useState(0)
+
+  const refetch = () => setRefetchTrigger(prev => prev + 1)
 
   useEffect(() => {
     let mounted = true
@@ -56,10 +59,10 @@ export function useChannel(channelId: string | undefined) {
     return () => {
       mounted = false
     }
-  }, [channelId, user])
+  }, [channelId, user, refetchTrigger])
 
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
 
-  return { channel, members, loading, error, isGM, myMemberInfo }
+  return { channel, members, loading, error, isGM, myMemberInfo, refetch }
 }

@@ -6,7 +6,7 @@ import { MemberList } from './MemberList'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
-  const { channel, members, loading, error, isGM, myMemberInfo } = useChannel(id)
+  const { channel, members, loading, error, isGM, myMemberInfo, refetch } = useChannel(id)
   
   const [showSettings, setShowSettings] = useState(false)
 
@@ -89,6 +89,7 @@ export function ChannelView() {
           isGM={isGM} 
           channelId={channel.id}
           myUserId={myMemberInfo?.user_id}
+          onUpdate={refetch}
         />
       </div>
 
@@ -96,6 +97,7 @@ export function ChannelView() {
         <ChannelSettings 
           channel={channel} 
           onClose={() => setShowSettings(false)} 
+          onUpdate={refetch}
         />
       )}
     </div>

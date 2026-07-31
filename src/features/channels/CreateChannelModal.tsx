@@ -38,7 +38,6 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
           name,
           gm_id: user.id,
           is_public: isPublic,
-          password_hash: passwordHash,
           invite_code: inviteCode
         })
         .select()
@@ -46,6 +45,17 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
 
       if (channelError) throw channelError
       if (!channel) throw new Error('Failed to create channel')
+
+      // 1.5 Create the channel_secrets row if a password is set
+      if (passwordHash) {
+        const { error: secretsError } = await supabase
+          .from('channel_secrets')
+          .insert({
+            channel_id: channel.id,
+            password_hash: passwordHash
+          })
+        if (secretsError) throw secretsError
+      }
 
       // 2. Join the channel using RPC
       const { error: rpcError } = await supabase.rpc('join_channel', {

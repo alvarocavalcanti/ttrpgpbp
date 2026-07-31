@@ -55,7 +55,7 @@ describe('JoinChannel', () => {
 
   it('renders form and joins successfully without password', async () => {
     const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', password_hash: null }, 
+      data: { id: '123', name: 'Test Channel', has_password: false }, 
       error: null 
     })
     const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
@@ -94,7 +94,7 @@ describe('JoinChannel', () => {
 
   it('handles password channel successfully', async () => {
     const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', password_hash: 'somehash' }, 
+      data: { id: '123', name: 'Test Channel', has_password: true }, 
       error: null 
     })
     const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
@@ -131,7 +131,7 @@ describe('JoinChannel', () => {
 
   it('handles join error', async () => {
     const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', password_hash: null }, 
+      data: { id: '123', name: 'Test Channel', has_password: false }, 
       error: null 
     })
     const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
@@ -161,7 +161,7 @@ describe('JoinChannel', () => {
 
   it('cancels join flow', async () => {
     const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', password_hash: null }, 
+      data: { id: '123', name: 'Test Channel', has_password: false }, 
       error: null 
     })
     const mockEq = vi.fn().mockReturnValue({ single: mockSingle })

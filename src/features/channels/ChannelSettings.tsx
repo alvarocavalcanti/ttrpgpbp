@@ -8,9 +8,10 @@ type Channel = Database['public']['Tables']['channels']['Row']
 interface ChannelSettingsProps {
   channel: Channel
   onClose: () => void
+  onUpdate: () => void
 }
 
-export function ChannelSettings({ channel, onClose }: ChannelSettingsProps) {
+export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsProps) {
   const [name, setName] = useState(channel.name)
   const [isPublic, setIsPublic] = useState(channel.is_public)
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
@@ -36,19 +37,37 @@ export function ChannelSettings({ channel, onClose }: ChannelSettingsProps) {
         resources_url: resourcesUrl || null
       }
 
-      if (changePassword) {
-        updates.password_hash = newPassword ? await hashPassword(newPassword) : null
-      }
-
       const { error: updateError } = await supabase
         .from('channels')
         .update(updates)
         .eq('id', channel.id)
 
       if (updateError) throw updateError
+
+      if (changePassword) {
+        const passwordHash = newPassword ? await hashPassword(newPassword) : null
+        
+        // Try to update first
+        const { data: updateData, error: secretUpdateError } = await supabase
+          .from('channel_secrets')
+          .update({ password_hash: passwordHash })
+          .eq('channel_id', channel.id)
+          .select()
+
+        // If no row existed, we need to insert it
+        if (!updateData || updateData.length === 0) {
+          const { error: insertError } = await supabase
+            .from('channel_secrets')
+            .insert({ channel_id: channel.id, password_hash: passwordHash })
+            
+          if (insertError) throw insertError
+        } else if (secretUpdateError) {
+           throw secretUpdateError
+        }
+      }
       
-      // Reload page to reflect changes in the parent component easily for now
-      window.location.reload()
+      onUpdate()
+      onClose()
     } catch (err: any) {
       console.error('Error updating channel:', err)
       setError('Failed to update channel settings.')
@@ -144,7 +163,7 @@ export function ChannelSettings({ channel, onClose }: ChannelSettingsProps) {
                   />
                 ) : (
                   <div className="mt-1 text-sm text-gray-500 italic">
-                    {channel.password_hash ? 'Password is set (hidden)' : 'No password currently set'}
+                    {channel.has_password ? 'Password is set (hidden)' : 'No password currently set'}
                   </div>
                 )}
               </div>

@@ -11,9 +11,10 @@ interface MemberListProps {
   isGM: boolean
   channelId: string
   myUserId?: string
+  onUpdate: () => void
 }
 
-export function MemberList({ members, isGM, myUserId }: MemberListProps) {
+export function MemberList({ members, isGM, myUserId, onUpdate }: MemberListProps) {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   
   // Local state for editing my own member info
@@ -39,7 +40,8 @@ export function MemberList({ members, isGM, myUserId }: MemberListProps) {
         .eq('id', memberId)
 
       if (error) throw error
-      window.location.reload()
+      setEditingMemberId(null)
+      onUpdate()
     } catch (err) {
       console.error('Error updating member:', err)
       setIsSubmitting(false)
@@ -56,7 +58,7 @@ export function MemberList({ members, isGM, myUserId }: MemberListProps) {
         .eq('id', memberId)
 
       if (error) throw error
-      window.location.reload()
+      onUpdate()
     } catch (err) {
       console.error('Error blocking member:', err)
     }
