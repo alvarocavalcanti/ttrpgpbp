@@ -62,14 +62,6 @@ ALTER TABLE channels ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public channels are viewable by everyone" 
   ON channels FOR SELECT USING (is_public = true);
 
-CREATE POLICY "Private channels viewable by members" 
-  ON channels FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM channel_members cm 
-      WHERE cm.channel_id = channels.id AND cm.user_id = auth.uid()
-    )
-  );
-
 CREATE POLICY "GM can insert channels" 
   ON channels FOR INSERT WITH CHECK (auth.uid() = gm_id);
 
@@ -117,6 +109,15 @@ CREATE POLICY "GM can manage all members"
   ON channel_members FOR ALL USING (
     EXISTS (
       SELECT 1 FROM channels WHERE id = channel_members.channel_id AND gm_id = auth.uid()
+    )
+  );
+
+-- Move policy here since it references channel_members
+CREATE POLICY "Private channels viewable by members" 
+  ON channels FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM channel_members cm 
+      WHERE cm.channel_id = channels.id AND cm.user_id = auth.uid()
     )
   );
 
