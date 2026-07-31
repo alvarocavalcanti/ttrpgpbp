@@ -124,7 +124,7 @@ src/
 
 ---
 
-### Phase 5: Chat & Messages
+### Phase 5: Chat & Messages (✅ DONE)
 
 1. Message list with real-time subscriptions (Supabase Realtime)
 2. Message composer with send

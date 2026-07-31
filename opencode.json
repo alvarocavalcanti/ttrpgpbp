@@ -25,6 +25,9 @@
       "ls *": "allow",
       "wrangler *": "allow",
       "direnv *": "allow",
+      "sed *": "allow",
+      "for *": "allow",
+      "chmod *": "allow",
       "*": "ask"
     }
   }
