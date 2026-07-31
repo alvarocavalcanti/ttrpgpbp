@@ -3,8 +3,6 @@ name: Apply Migrations
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'supabase/migrations/**'
 
 jobs:
   migrate:
