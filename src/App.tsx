@@ -4,6 +4,9 @@ import { useAuth } from './features/auth/useAuth'
 import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ProfileSettings } from './features/auth/ProfileSettings'
+import { Lobby } from './features/channels/Lobby'
+import { JoinChannel } from './features/channels/JoinChannel'
+import { ChannelView } from './features/channels/ChannelView'
 
 function AppNav() {
   const { user, profile, signOut } = useAuth()
@@ -51,13 +54,14 @@ function App() {
       <BrowserRouter>
         <div className="min-h-screen bg-gray-50 flex flex-col">
           <AppNav />
-          <main className="flex-1">
+          <main className="flex-1 flex flex-col">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<div className="p-4">Lobby (Coming Soon)</div>} />
-                <Route path="/channel/:id" element={<div className="p-4">Channel View (Coming Soon)</div>} />
+                <Route path="/" element={<Lobby />} />
+                <Route path="/join/:id" element={<JoinChannel />} />
+                <Route path="/channel/:id" element={<ChannelView />} />
                 <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Routes>
@@ -69,3 +73,4 @@ function App() {
 }
 
 export default App
+

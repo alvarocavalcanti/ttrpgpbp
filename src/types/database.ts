@@ -287,7 +287,17 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      join_channel: {
+        Args: {
+          p_channel_id: string
+          p_character_name: string
+          p_character_avatar_url?: string
+          p_character_sheet_url?: string
+          p_password_hash?: string
+          p_invite_code?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
