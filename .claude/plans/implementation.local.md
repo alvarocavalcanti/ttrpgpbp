@@ -8,7 +8,7 @@
 
 ---
 
-### Phase 0: Project Setup
+### Phase 0: Project Setup (✅ DONE)
 
 1. Initialize git repo in `/Users/alvaro.cavalcanti/Projects/Personal/ttrpgpbp`
 2. Create remote on GitHub via `gh repo create`
@@ -22,7 +22,7 @@
 
 ---
 
-### Phase 1: Frontend Scaffold
+### Phase 1: Frontend Scaffold (✅ DONE)
 
 1. Scaffold React + Vite + TypeScript project
 2. Install and configure Tailwind CSS
@@ -68,7 +68,7 @@ src/
 
 ---
 
-### Phase 2: Supabase Setup
+### Phase 2: Supabase Setup (✅ DONE)
 
 > **Prerequisite**: User must create Supabase project and provide Project URL + Anon key. User must configure Google OAuth in Supabase dashboard (requires Google Cloud Console OAuth credentials). **Status: Done.** Project URL: `https://kvqkkqfixzgmrtrcdkmw.supabase.co`. Anon key to be provided when needed.
 
