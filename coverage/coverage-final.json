@@ -1,0 +1,2 @@
+{"/Users/alvaro.cavalcanti/Projects/Personal/ttrpgpbp/src/App.tsx": {"path":"/Users/alvaro.cavalcanti/Projects/Personal/ttrpgpbp/src/App.tsx","statementMap":{"0":{"start":{"line":4,"column":2},"end":{"line":18,"column":null}}},"fnMap":{"0":{"name":"App","decl":{"start":{"line":3,"column":9},"end":{"line":3,"column":15}},"loc":{"start":{"line":3,"column":15},"end":{"line":20,"column":null}},"line":3}},"branchMap":{},"s":{"0":1},"f":{"0":1},"b":{},"meta":{"lastBranch":0,"lastFunction":1,"lastStatement":1,"seen":{"f:3:9:3:15":0,"s:4:2:18:Infinity":0},"fnNames":{}}}
+}
