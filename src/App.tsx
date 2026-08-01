@@ -14,12 +14,12 @@ function AppNav() {
   if (!user) return null
 
   return (
-    <header className="bg-white shadow-sm p-4 flex justify-between items-center">
-      <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">
+    <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2">
+      <Link to="/" className="text-lg sm:text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
         TTRPG Play-by-Post
       </Link>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3 sm:space-x-4 flex-shrink-0">
         <Link to="/settings" className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900">
           {profile?.avatar_url ? (
             <img 
