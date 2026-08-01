@@ -9,12 +9,12 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
 interface MemberListProps {
   members: ChannelMember[]
   isGM: boolean
-  channelId: string
+  gmId: string
   myUserId?: string
   onUpdate: () => void
 }
 
-export function MemberList({ members, isGM, myUserId, onUpdate }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberListProps) {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   
   // Local state for editing my own member info
@@ -134,9 +134,16 @@ export function MemberList({ members, isGM, myUserId, onUpdate }: MemberListProp
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {member.character_name}
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {member.character_name}
+                        </p>
+                        {member.user_id === gmId && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                            GM
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500 truncate">
                         {member.profile?.display_name}
                       </p>
