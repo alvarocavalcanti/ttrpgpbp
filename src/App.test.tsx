@@ -48,7 +48,8 @@ describe('App', () => {
       data: { id: '123', display_name: 'Test User', avatar_url: 'http://example.com/avatar.png' },
       error: null,
     })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockOrder = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle, order: mockOrder })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
 
@@ -74,7 +75,8 @@ describe('App', () => {
       data: { id: '123', display_name: null, avatar_url: null },
       error: null,
     })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockOrder = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle, order: mockOrder })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
 
