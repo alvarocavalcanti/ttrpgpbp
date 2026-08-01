@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Database } from '../../types/database'
@@ -16,12 +16,20 @@ interface MessageItemProps {
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string) => void
+  isHighlighted?: boolean
 }
 
-export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice }: MessageItemProps) {
+export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const itemRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isHighlighted && itemRef.current) {
+      itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [isHighlighted])
 
   const isMe = message.sender_id === currentUserId
   const isWhisper = !!message.whisper_to
@@ -118,7 +126,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
 
   if (isSystem) {
     return (
-      <div className="flex justify-center my-4">
+      <div ref={itemRef} className={`flex justify-center my-4 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 rounded-lg p-2' : ''}`}>
         <div className="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full">
           {message.content}
         </div>
@@ -128,7 +136,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
 
   if (isScene) {
     return (
-      <div className="my-6 px-4 py-6 bg-[#fdf6e3] border-y-2 border-[#e6d0a4] shadow-sm flex flex-col items-center">
+      <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] border-y-2 border-[#e6d0a4] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
         <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] prose-headings:text-[#4a3b31] prose-strong:text-[#4a3b31] prose-em:text-[#5c4a3d] prose-a:text-[#4a3b31] prose-blockquote:text-[#5c4a3d] prose-blockquote:border-[#e6d0a4] prose-ul:text-[#5c4a3d] prose-ol:text-[#5c4a3d] max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
         </div>
@@ -136,10 +144,9 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
     )
   }
 
-
   if (message.type === 'dice_roll') {
     return (
-      <div className="flex items-center space-x-3 my-4 px-4 bg-indigo-50 py-3 rounded-lg border border-indigo-100 shadow-sm mx-auto max-w-lg">
+      <div ref={itemRef} className={`flex items-center space-x-3 my-4 px-4 bg-indigo-50 py-3 rounded-lg border border-indigo-100 shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''}`}>
         <div className="flex-shrink-0 bg-indigo-200 p-2 rounded-full text-indigo-700">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -158,7 +165,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   }
 
   return (
-    <div className={`group flex items-start space-x-3 my-4 px-4 ${isWhisper ? 'bg-purple-50 py-2 rounded-lg border border-purple-100' : ''}`}>
+    <div ref={itemRef} className={`group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 rounded-lg border border-purple-100' : ''} ${isHighlighted ? 'bg-yellow-50 ring-2 ring-yellow-400 rounded-lg' : ''}`}>
       <div className="flex-shrink-0">
         {message.sender?.avatar_url ? (
           <img className="h-10 w-10 rounded-full" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />

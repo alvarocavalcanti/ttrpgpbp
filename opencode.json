@@ -41,7 +41,13 @@
       "sed *": "allow",
       "for *": "allow",
       "head *": "allow",
-      "chmod *": "allow"
+      "chmod *": "allow",
+      "gh pr create *": "allow",
+      "push_subscriptions *": "allow",
+      "notification_preferences *": "allow",
+      "push *": "allow",
+      "notificationclick *": "allow",
+      "tail *": "allow"
     }
   }
 }

@@ -14,16 +14,19 @@ interface MessageListProps {
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string) => void
+  highlightMessageId?: string | null
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive, unless we are highlighting a message
   useEffect(() => {
-    endOfListRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (!highlightMessageId) {
+      endOfListRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, highlightMessageId])
 
   if (messages.length === 0) {
     return (
@@ -44,6 +47,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice }: Me
           onEdit={onEdit}
           onDelete={onDelete}
           onRollDice={onRollDice}
+          isHighlighted={highlightMessageId === message.id}
         />
       ))}
       <div ref={endOfListRef} />
