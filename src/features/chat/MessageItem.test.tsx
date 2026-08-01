@@ -48,7 +48,7 @@ describe('MessageItem', () => {
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
     }
-    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     const checkBtn = screen.getByRole('button', { name: 'STR Check' })
     fireEvent.click(checkBtn)

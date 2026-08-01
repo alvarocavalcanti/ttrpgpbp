@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Database } from '../../types/database'
+import { DiceRoller } from '../dice/DiceRoller'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -9,9 +10,10 @@ interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
   onSendMessage: (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[] }) => Promise<void>
+  onRollDice?: (notation: string) => void
 }
 
-export function MessageComposer({ isGM, members, onSendMessage }: MessageComposerProps) {
+export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
@@ -54,6 +56,12 @@ export function MessageComposer({ isGM, members, onSendMessage }: MessageCompose
         <div className="flex flex-col space-y-2">
           {/* Controls row */}
           <div className="flex flex-wrap items-center gap-4 text-sm mb-2">
+            {onRollDice && (
+              <div className="shrink-0">
+                <DiceRoller onRoll={onRollDice} />
+              </div>
+            )}
+
             {isGM && (
               <label className="flex items-center space-x-2 cursor-pointer shrink-0">
                 <input
