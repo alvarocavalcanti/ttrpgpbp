@@ -230,7 +230,7 @@ src/
 
 ---
 
-### Phase 10: Polish & Deploy
+### Phase 10: Polish & Deploy (✅ DONE)
 
 1. Responsive design (mobile-first — players will use phones)
 2. PWA manifest, icons, install prompt
