@@ -83,4 +83,59 @@ describe('useChannel', () => {
     expect(console.error).toHaveBeenCalled()
     expect(result.current.error).toBeDefined()
   })
+
+  it('handles realtime updates', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1', status_text: 'Old' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', is_active_player: false, profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
+    let channelCallback: any
+    let membersCallback: any
+
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'channels') {
+        channelCallback = callback
+      } else if (config.table === 'channel_members') {
+        membersCallback = callback
+      }
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    // Simulate channel update
+    import('react').then(React => {
+        const { act } = React
+        act(() => {
+          channelCallback({ new: { status_text: 'New' } })
+          membersCallback({ new: { id: 'm1', is_active_player: true } })
+        })
+    })
+
+    await waitFor(() => {
+        expect(result.current.channel?.status_text).toBe('New')
+        expect(result.current.members[0].is_active_player).toBe(true)
+    })
+  })
 })
