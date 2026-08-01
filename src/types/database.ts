@@ -119,6 +119,7 @@ export interface Database {
           character_sheet_url: string | null
           is_active_player: boolean
           is_blocked: boolean
+          last_read_at?: string
           joined_at: string
         }
         Insert: {
@@ -130,6 +131,7 @@ export interface Database {
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
+          last_read_at?: string
           joined_at?: string
         }
         Update: {
@@ -141,6 +143,7 @@ export interface Database {
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
+          last_read_at?: string
           joined_at?: string
         }
         Relationships: [
@@ -296,6 +299,40 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          endpoint?: string
+          p256dh?: string
+          auth?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "profiles"
             referencedColumns: ["id"]

@@ -9,3 +9,14 @@ schemas = ["public", "graphql_public"]
 # Extra schemas to expose in PostgREST. public is always included.
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
+
+[functions.push-notifications]
+enabled = true
+verify_jwt = false
+import_map = "./functions/push-notifications/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/push-notifications/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/push-notifications/*.html" ]

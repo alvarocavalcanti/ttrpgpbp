@@ -195,16 +195,15 @@ src/
 
 1. **Push notifications** via Web Push API (service worker, VAPID keys)
 2. **In-app badge** refinement (unread count per channel)
-3. **Email notifications** via Resend (free tier)
-4. **Notification preferences** page (push on/off, badge on/off, email on/off)
-5. Distinct "It's your turn" notification type
-6. **Tests**:
+3. **Notification preferences** page (push on/off, badge on/off)
+4. Distinct "It's your turn" notification type
+5. **Tests**:
    - Notification preferences form (toggle states, save)
    - Badge count logic (unread messages, reset on channel open)
    - Push notification registration/permission flow (mocked)
    - "It's your turn" notification trigger logic
 
-> **MILESTONE — Testable**: Notifications work across all three channels (push, badge, email). Players get notified when it's their turn. Tests green, coverage meets threshold.
+> **MILESTONE — Testable**: Notifications work across channels (push, badge). Players get notified when it's their turn. Tests green, coverage meets threshold.
 
 ---
 
@@ -212,6 +211,16 @@ src/
 
 1. Search input in channel header
 2. Query PostgreSQL full-text search (`search_vector`)
+3. Render search results (click jumps to message, though full infinite scroll jump may be deferred)
+4. **Tests**: search trigger, debounce, render results
+
+---
+
+### Phase 10: Email Notifications (Deferred / Optional)
+
+1. Email notifications via external provider or Cloudflare Email
+2. Email routing / replying to emails
+3. Update Notification preferences page (email on/off)
 3. Results with message preview, sender, timestamp
 4. Click result to scroll to message in history
 5. **Tests**:

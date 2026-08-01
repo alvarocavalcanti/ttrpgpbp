@@ -64,6 +64,33 @@ describe('useChannel', () => {
     expect(result.current.myMemberInfo).toBeDefined()
   })
 
+  it('handles error gracefully when members fetch fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'c1' }, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: null, error: new Error('Member DB Error') })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(console.error).toHaveBeenCalled()
+    expect(result.current.error).toBeDefined()
+  })
+
   it('handles error gracefully', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -82,6 +109,45 @@ describe('useChannel', () => {
 
     expect(console.error).toHaveBeenCalled()
     expect(result.current.error).toBeDefined()
+  })
+
+  it('handles last_read_at update failure gracefully', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+    
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: new Error('Update failed') })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') {
+        return { 
+          select: mockSelectMembers,
+          update: mockUpdate
+        } as any
+      }
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith('Failed to update last_read_at', expect.any(Error))
+    })
   })
 
   it('handles realtime updates', async () => {

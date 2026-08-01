@@ -1,11 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { CreateChannelModal } from './CreateChannelModal'
+import { usePushNotifications } from '../auth/usePushNotifications'
 
 export function Lobby() {
   const { publicChannels, myChannels, loading } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const { preferences } = usePushNotifications()
+
+  useEffect(() => {
+    // Set App Badge if supported and enabled
+    if ('setAppBadge' in navigator && preferences?.badge_enabled !== false) {
+      const totalUnread = myChannels.reduce((sum, ch) => sum + (ch.unread_count || 0), 0)
+      if (totalUnread > 0) {
+        navigator.setAppBadge(totalUnread).catch(console.error)
+      } else {
+        navigator.clearAppBadge().catch(console.error)
+      }
+    } else if ('clearAppBadge' in navigator) {
+      navigator.clearAppBadge().catch(console.error)
+    }
+  }, [myChannels, preferences])
 
   if (loading) {
     return (
@@ -43,9 +59,16 @@ export function Lobby() {
                     <Link to={`/channel/${channel.id}`} className="block hover:bg-gray-50 transition-colors">
                       <div className="px-4 py-4 sm:px-6">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-indigo-600 truncate">
-                            {channel.name}
-                          </p>
+                          <div className="flex items-center space-x-3">
+                            <p className="text-sm font-medium text-indigo-600 truncate">
+                              {channel.name}
+                            </p>
+                            {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                {channel.unread_count} new
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="ml-2 flex-shrink-0 flex">
                             <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                               Joined as {channel.member.character_name}

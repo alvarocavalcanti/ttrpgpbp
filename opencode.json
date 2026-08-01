@@ -40,6 +40,7 @@
       "direnv *": "allow",
       "sed *": "allow",
       "for *": "allow",
+      "head *": "allow",
       "chmod *": "allow"
     }
   }

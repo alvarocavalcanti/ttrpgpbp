@@ -45,6 +45,18 @@ export function useChannel(channelId: string | undefined) {
           })) as ChannelMember[]
           
           setMembers(formattedMembers)
+
+          // Update last_read_at in background if we are a member
+          const myMember = formattedMembers.find(m => m.user_id === user?.id)
+          if (myMember) {
+            supabase
+              .from('channel_members')
+              .update({ last_read_at: new Date().toISOString() })
+              .eq('id', myMember.id)
+              .then(({ error }) => {
+                if (error) console.error('Failed to update last_read_at', error)
+              })
+          }
         }
       } catch (err: any) {
         console.error('Error fetching channel data:', err)
