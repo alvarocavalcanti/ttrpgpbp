@@ -107,7 +107,7 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId])
 
-  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string }) => {
+  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[] }) => {
     if (!channelId || !user) return
     const { error } = await supabase
       .from('messages')
@@ -119,6 +119,26 @@ export function useMessages(channelId: string | undefined) {
         whisper_to: payload.whisper_to || null,
       })
     if (error) throw error
+
+    // If active_player_ids is provided, update the channel_members table
+    if (payload.active_player_ids) {
+      // 1. Reset everyone to false
+      const { error: resetError } = await supabase
+        .from('channel_members')
+        .update({ is_active_player: false })
+        .eq('channel_id', channelId)
+      if (resetError) console.error('Failed to reset active players', resetError)
+      
+      // 2. Set selected to true
+      if (payload.active_player_ids.length > 0) {
+        const { error: setActiveError } = await supabase
+          .from('channel_members')
+          .update({ is_active_player: true })
+          .eq('channel_id', channelId)
+          .in('user_id', payload.active_player_ids)
+        if (setActiveError) console.error('Failed to set active players', setActiveError)
+      }
+    }
   }
 
   const editMessage = async (messageId: string, content: string) => {

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 
@@ -7,21 +7,23 @@ describe('MessageComposer', () => {
     { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } }
   ]
 
-  it('submits regular message', () => {
+  it('submits regular message', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
     fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
-    expect(mockOnSend).toHaveBeenCalledWith({
-      content: 'Hello',
-      type: 'regular',
-      whisper_to: undefined
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Hello',
+        type: 'regular',
+        whisper_to: undefined
+      })
     })
   })
 
-  it('allows GM to send scene', () => {
+  it('allows GM to send scene', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
     
@@ -29,14 +31,16 @@ describe('MessageComposer', () => {
     fireEvent.change(screen.getByPlaceholderText(/Describe the scene/i), { target: { value: 'A dark cave.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
-    expect(mockOnSend).toHaveBeenCalledWith({
-      content: 'A dark cave.',
-      type: 'scene',
-      whisper_to: undefined
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'A dark cave.',
+        type: 'scene',
+        whisper_to: undefined
+      })
     })
   })
 
-  it('allows sending whispers', () => {
+  it('allows sending whispers', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
@@ -44,10 +48,12 @@ describe('MessageComposer', () => {
     fireEvent.change(screen.getByPlaceholderText(/Type a private whisper/i), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
-    expect(mockOnSend).toHaveBeenCalledWith({
-      content: 'psst',
-      type: 'regular',
-      whisper_to: 'u1'
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'psst',
+        type: 'regular',
+        whisper_to: 'u1'
+      })
     })
   })
 
@@ -65,7 +71,7 @@ describe('MessageComposer', () => {
     expect(console.error).toHaveBeenCalled()
   })
 
-  it('sends message via cmd+enter', () => {
+  it('sends message via cmd+enter', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
@@ -73,10 +79,12 @@ describe('MessageComposer', () => {
     fireEvent.change(textarea, { target: { value: 'Cmd Enter' } })
     fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
     
-    expect(mockOnSend).toHaveBeenCalledWith({
-      content: 'Cmd Enter',
-      type: 'regular',
-      whisper_to: undefined
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Cmd Enter',
+        type: 'regular',
+        whisper_to: undefined
+      })
     })
   })
 

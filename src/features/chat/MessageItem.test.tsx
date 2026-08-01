@@ -28,7 +28,7 @@ describe('MessageItem', () => {
     expect(screen.getByText('Hero')).toBeInTheDocument()
   })
 
-  it('allows editing if author and within 15 min', () => {
+  it('allows editing if author and within 15 min', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
     const msg: any = { 
       id: 'm1',
@@ -49,7 +49,9 @@ describe('MessageItem', () => {
     fireEvent.change(textarea, { target: { value: 'Fixed' } })
     fireEvent.click(screen.getByText('Save'))
     
-    expect(mockOnEdit).toHaveBeenCalledWith('m1', 'Fixed')
+    await waitFor(() => {
+      expect(mockOnEdit).toHaveBeenCalledWith('m1', 'Fixed')
+    })
   })
 
   it('allows delete if GM', () => {

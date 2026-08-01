@@ -56,8 +56,33 @@ export function useChannel(channelId: string | undefined) {
 
     fetchChannelData()
 
+    const channelSubscription = supabase
+      .channel(`channel:${channelId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'channels',
+        filter: `id=eq.${channelId}`
+      }, (payload) => {
+        if (mounted) {
+          setChannel(prev => prev ? { ...prev, ...payload.new } as Channel : prev)
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'channel_members',
+        filter: `channel_id=eq.${channelId}`
+      }, (payload) => {
+        if (mounted) {
+          setMembers(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m))
+        }
+      })
+      .subscribe()
+
     return () => {
       mounted = false
+      channelSubscription.unsubscribe()
     }
   }, [channelId, user, refetchTrigger])
 

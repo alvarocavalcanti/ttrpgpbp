@@ -8,13 +8,14 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
 interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
-  onSendMessage: (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string }) => Promise<void>
+  onSendMessage: (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[] }) => Promise<void>
 }
 
 export function MessageComposer({ isGM, members, onSendMessage }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
+  const [activePlayerIds, setActivePlayerIds] = useState<string[] | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,11 +27,13 @@ export function MessageComposer({ isGM, members, onSendMessage }: MessageCompose
       await onSendMessage({
         content,
         type: isScene ? 'scene' : 'regular',
-        whisper_to: whisperTo || undefined
+        whisper_to: whisperTo || undefined,
+        active_player_ids: isGM ? activePlayerIds : undefined
       })
       setContent('')
       setIsScene(false)
       setWhisperTo('')
+      setActivePlayerIds(undefined)
     } catch (err) {
       console.error('Failed to send message:', err)
     } finally {
@@ -50,9 +53,9 @@ export function MessageComposer({ isGM, members, onSendMessage }: MessageCompose
       <form onSubmit={handleSubmit}>
         <div className="flex flex-col space-y-2">
           {/* Controls row */}
-          <div className="flex items-center space-x-4 text-sm">
+          <div className="flex flex-wrap items-center gap-4 text-sm mb-2">
             {isGM && (
-              <label className="flex items-center space-x-2 cursor-pointer">
+              <label className="flex items-center space-x-2 cursor-pointer shrink-0">
                 <input
                   type="checkbox"
                   checked={isScene}
@@ -63,8 +66,33 @@ export function MessageComposer({ isGM, members, onSendMessage }: MessageCompose
               </label>
             )}
             
+            {isGM && (
+              <div className="flex items-center space-x-2 shrink-0">
+                <label htmlFor="activePlayers" className="text-gray-700">Set Turn:</label>
+                <select
+                  id="activePlayers"
+                  value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (val === '') setActivePlayerIds(undefined)
+                    else if (val === 'clear') setActivePlayerIds([])
+                    else setActivePlayerIds([val])
+                  }}
+                  className="border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">(No change)</option>
+                  <option value="clear">Clear Turn</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.user_id}>
+                      {m.character_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {!isScene && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 shrink-0">
                 <label htmlFor="whisperTo" className="text-gray-700">Whisper:</label>
                 <select
                   id="whisperTo"

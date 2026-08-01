@@ -227,4 +227,39 @@ describe('useMessages', () => {
     })
     expect(mockUpdate).toHaveBeenCalledWith({ is_deleted: true })
   })
+
+  it('updates active_player_ids when sending a message', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockEqReset = vi.fn().mockResolvedValue({ error: null })
+    const mockEqSet = vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ error: null }) })
+    const mockUpdate = vi.fn().mockImplementation((payload) => {
+      if (payload.is_active_player === false) {
+        return { eq: mockEqReset }
+      }
+      return { eq: mockEqSet }
+    })
+    
+    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockEqFetch = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqFetch })
+
+    vi.mocked(supabase.from).mockImplementation((_table: string) => {
+      return { select: mockSelect, insert: mockInsert, update: mockUpdate } as any
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // Send with active_player_ids
+    await act(async () => {
+      await result.current.sendMessage({ content: 'test', type: 'regular', active_player_ids: ['u2'] })
+    })
+
+    // Expect reset query (is_active_player: false) to be called
+    expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: false })
+    // Expect set query (is_active_player: true) to be called
+    expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: true })
+  })
 })
