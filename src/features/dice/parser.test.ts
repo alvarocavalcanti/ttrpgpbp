@@ -107,6 +107,20 @@ describe('parseAndRoll', () => {
     expect(res.total).toBe(3) // 1+2
   })
   
+  it('handles keeping or dropping too many', () => {
+    // 2d20 but keep highest 3 (more than rolled) -> keeps all
+    expect(parseAndRoll('2d20kh3').rolls.length).toBe(2)
+    // 2d20 drop highest 3 -> drops all
+    const res = parseAndRoll('2d20dh3')
+    expect(res.dropped.length).toBe(2)
+    expect(res.total).toBe(0)
+
+    // 2d20 drop lowest 3 -> drops all
+    const res2 = parseAndRoll('2d20dl3')
+    expect(res2.dropped.length).toBe(2)
+    expect(res2.total).toBe(0)
+  })
+
   it('handles spaces correctly', () => {
     const res = parseAndRoll(' 2 d 20 kh 1 + 5 ')
     expect(res.rolls).toEqual([3, 19])

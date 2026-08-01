@@ -72,6 +72,36 @@ describe('MessageItem', () => {
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2')
   })
 
+  it('handles ability checks with zero modifiers', () => {
+    const mockOnRollDice = vi.fn()
+    vi.spyOn(window, 'prompt').mockReturnValue('0') 
+
+    const msg: any = { 
+      type: 'regular', 
+      content: 'Make a STR Check',
+      sender: { display_name: 'GM' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    
+    fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20')
+  })
+
+  it('handles ability checks with invalid modifiers', () => {
+    const mockOnRollDice = vi.fn()
+    vi.spyOn(window, 'prompt').mockReturnValue('abc') 
+
+    const msg: any = { 
+      type: 'regular', 
+      content: 'Make a STR Check',
+      sender: { display_name: 'GM' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    
+    fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20')
+  })
+
   it('handles ability checks when prompt is cancelled', () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue(null) // user clicked cancel
