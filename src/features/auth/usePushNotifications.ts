@@ -1,0 +1,170 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from './useAuth'
+import type { Database } from '../../types/database'
+
+type NotificationPrefs = Database['public']['Tables']['notification_preferences']['Row']
+
+// Helper to convert base64 url string to Uint8Array
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+export function usePushNotifications() {
+  const { user } = useAuth()
+  const [isSupported, setIsSupported] = useState(false)
+  const [permission, setPermission] = useState<NotificationPermission>('default')
+  const [isSubscribed, setIsSubscribed] = useState(false)
+  
+  const [preferences, setPreferences] = useState<NotificationPrefs | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setIsSupported(true)
+      setPermission(Notification.permission)
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    if (!user) return
+
+    async function fetchPrefsAndSub() {
+      try {
+        // Fetch preferences
+        const { data: prefData, error: prefError } = await supabase
+          .from('notification_preferences')
+          .select('*')
+          .eq('user_id', user!.id)
+          .single()
+
+        if (prefError && prefError.code !== 'PGRST116') {
+          console.error('Error fetching preferences:', prefError)
+        } else if (prefData && mounted) {
+          setPreferences(prefData)
+        } else if (!prefData && mounted) {
+          // Defaults if none
+          setPreferences({
+            id: 'temp',
+            user_id: user!.id,
+            push_enabled: true,
+            badge_enabled: true,
+            email_enabled: false
+          })
+        }
+
+        // Check if subscribed in SW
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready
+          const subscription = await registration.pushManager.getSubscription()
+          if (mounted) setIsSubscribed(!!subscription)
+        }
+      } catch (err) {
+        console.error('Error in fetchPrefsAndSub', err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    fetchPrefsAndSub()
+
+    return () => { mounted = false }
+  }, [user])
+
+  const subscribeToPush = async () => {
+    if (!isSupported || !user) throw new Error('Push not supported or not logged in')
+    
+    const permissionResult = await Notification.requestPermission()
+    setPermission(permissionResult)
+
+    if (permissionResult !== 'granted') {
+      throw new Error('Permission not granted for Notification')
+    }
+
+    const registration = await navigator.serviceWorker.ready
+    
+    // Subscribe
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    if (!vapidKey) throw new Error('Missing VAPID public key')
+
+    const convertedVapidKey = urlBase64ToUint8Array(vapidKey)
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    })
+
+    const subJson = subscription.toJSON()
+
+    // Save to Supabase
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert({
+        user_id: user.id,
+        endpoint: subJson.endpoint || '',
+        p256dh: subJson.keys?.p256dh || '',
+        auth: subJson.keys?.auth || ''
+      }, { onConflict: 'user_id,endpoint' })
+
+    if (error) throw error
+    
+    setIsSubscribed(true)
+  }
+
+  const unsubscribeFromPush = async () => {
+    if (!isSupported || !user) return
+
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    
+    if (subscription) {
+      await subscription.unsubscribe()
+      const subJson = subscription.toJSON()
+      
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .match({ user_id: user.id, endpoint: subJson.endpoint! })
+        
+      setIsSubscribed(false)
+    }
+  }
+
+  const updatePreferences = async (updates: Partial<NotificationPrefs>) => {
+    if (!user) return
+    
+    // Upsert preference
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .upsert({
+        user_id: user.id,
+        ...preferences,
+        ...updates
+      } as any)
+      .select()
+      .single()
+
+    if (error) throw error
+    setPreferences(data)
+  }
+
+  return {
+    isSupported,
+    permission,
+    isSubscribed,
+    preferences,
+    loading,
+    subscribeToPush,
+    unsubscribeFromPush,
+    updatePreferences
+  }
+}

@@ -9,7 +9,7 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row']
 export function useChannels() {
   const { user } = useAuth()
   const [publicChannels, setPublicChannels] = useState<Channel[]>([])
-  const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember })[]>([])
+  const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember, unread_count?: number })[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -40,25 +40,39 @@ export function useChannels() {
           setPublicChannels(publicData || [])
           
           // Format my channels
-          const formattedMyChannels = (memberData || []).map(row => {
+          const formattedMyChannels = await Promise.all((memberData || []).map(async row => {
             const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
+            const memberInfo = {
+              id: row.id,
+              channel_id: row.channel_id,
+              user_id: row.user_id,
+              character_name: row.character_name,
+              character_avatar_url: row.character_avatar_url,
+              character_sheet_url: row.character_sheet_url,
+              is_active_player: row.is_active_player,
+              is_blocked: row.is_blocked,
+              joined_at: row.joined_at,
+              last_read_at: row.last_read_at
+            } as ChannelMember
+
+            let unread_count = 0
+            if (memberInfo.last_read_at) {
+              const { count } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('channel_id', memberInfo.channel_id)
+                .gt('created_at', memberInfo.last_read_at)
+              unread_count = count || 0
+            }
+
             return {
               ...channelData,
-              member: {
-                id: row.id,
-                channel_id: row.channel_id,
-                user_id: row.user_id,
-                character_name: row.character_name,
-                character_avatar_url: row.character_avatar_url,
-                character_sheet_url: row.character_sheet_url,
-                is_active_player: row.is_active_player,
-                is_blocked: row.is_blocked,
-                joined_at: row.joined_at
-              }
+              member: memberInfo,
+              unread_count
             }
-          }) as (Channel & { member: ChannelMember })[]
+          })) as (Channel & { member: ChannelMember, unread_count?: number })[]
           
-          setMyChannels(formattedMyChannels)
+          if (mounted) setMyChannels(formattedMyChannels)
         }
       } catch (error) {
         console.error('Error fetching channels:', error)

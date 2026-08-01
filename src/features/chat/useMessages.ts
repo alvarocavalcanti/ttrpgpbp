@@ -121,6 +121,11 @@ export function useMessages(channelId: string | undefined) {
       })
     if (error) throw error
 
+    // Invoke push notifications function for new message
+    supabase.functions.invoke('push-notifications', {
+      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: payload.content, type: payload.type, whisper_to: payload.whisper_to } }
+    }).catch(err => console.error('Failed to trigger push for message', err))
+
     // If active_player_ids is provided, update the channel_members table
     if (payload.active_player_ids) {
       // 1. Reset everyone to false
@@ -132,12 +137,23 @@ export function useMessages(channelId: string | undefined) {
       
       // 2. Set selected to true
       if (payload.active_player_ids.length > 0) {
-        const { error: setActiveError } = await supabase
+        const { error: setActiveError, data: updatedMembers } = await supabase
           .from('channel_members')
           .update({ is_active_player: true })
           .eq('channel_id', channelId)
           .in('user_id', payload.active_player_ids)
+          .select()
+          
         if (setActiveError) console.error('Failed to set active players', setActiveError)
+        
+        // Trigger push for active players
+        if (updatedMembers) {
+          updatedMembers.forEach(member => {
+            supabase.functions.invoke('push-notifications', {
+              body: { table: 'channel_members', record: member }
+            }).catch(err => console.error('Failed to trigger push for turn', err))
+          })
+        }
       }
     }
   }
@@ -179,6 +195,11 @@ export function useMessages(channelId: string | undefined) {
       })
       
     if (rollError) throw rollError
+    
+    // Invoke push notifications function for new message
+    supabase.functions.invoke('push-notifications', {
+      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll' } }
+    }).catch(err => console.error('Failed to trigger push for message', err))
   }
 
   const editMessage = async (messageId: string, content: string) => {

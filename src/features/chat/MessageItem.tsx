@@ -60,7 +60,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   }
 
   const renderers = {
-    a: ({ node, href, children, ...props }: any) => {
+    a: ({ _node, href, children, ...props }: any) => {
       if (href?.startsWith('dice:')) {
         const notation = href.slice(5)
         return (
