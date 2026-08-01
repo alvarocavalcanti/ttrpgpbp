@@ -207,7 +207,7 @@ src/
 
 ---
 
-### Phase 9: Search
+### Phase 9: Search (✅ DONE)
 
 1. Search input in channel header
 2. Query PostgreSQL full-text search (`search_vector`)

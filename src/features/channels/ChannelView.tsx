@@ -1,5 +1,5 @@
 import { useParams, Navigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
 import { ChannelStatusBar } from './ChannelStatusBar'
@@ -9,6 +9,7 @@ import { MessageList } from '../chat/MessageList'
 import { MessageComposer } from '../chat/MessageComposer'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
+import { SearchModal } from '../search/SearchModal'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
@@ -17,7 +18,23 @@ export function ChannelView() {
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
+
+  // Clear highlight after a few seconds
+  useEffect(() => {
+    if (highlightMessageId) {
+      const timer = setTimeout(() => {
+        setHighlightMessageId(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [highlightMessageId])
+
+  const handleJumpToMessage = (messageId: string) => {
+    setHighlightMessageId(messageId)
+  }
 
   if (channelLoading || messagesLoading) {
     return (
@@ -60,6 +77,15 @@ export function ChannelView() {
           </div>
           
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowSearch(true)}
+              className="text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium bg-gray-50 hover:bg-gray-100 transition-colors flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Search
+            </button>
             {channel.resources_url && (
               <a 
                 href={channel.resources_url} 
@@ -112,6 +138,7 @@ export function ChannelView() {
           onEdit={editMessage} 
           onDelete={deleteMessage} 
           onRollDice={sendDiceRoll}
+          highlightMessageId={highlightMessageId}
         />
         
         <MessageComposer 
@@ -163,6 +190,14 @@ export function ChannelView() {
         <RollHistoryModal
           channelId={channel.id}
           onClose={() => setShowRollHistory(false)}
+        />
+      )}
+
+      {showSearch && (
+        <SearchModal
+          channelId={channel.id}
+          onClose={() => setShowSearch(false)}
+          onJumpToMessage={handleJumpToMessage}
         />
       )}
     </div>
