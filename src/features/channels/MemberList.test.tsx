@@ -45,12 +45,13 @@ describe('MemberList', () => {
     window.confirm = vi.fn().mockReturnValue(true)
   })
 
-  it('renders active and blocked members correctly', () => {
-    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" onUpdate={vi.fn()} />)
+  it('renders active and blocked members correctly with GM badge', () => {
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={vi.fn()} />)
     
     expect(screen.getByText('Players — 2')).toBeInTheDocument()
     expect(screen.getByText('Hero')).toBeInTheDocument()
     expect(screen.getByText('Player One')).toBeInTheDocument()
+    expect(screen.getByText('GM')).toBeInTheDocument() // Check GM badge
     expect(screen.getByText('Sheet')).toBeInTheDocument()
 
     expect(screen.getByText('Blocked — 1')).toBeInTheDocument()
@@ -63,21 +64,21 @@ describe('MemberList', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
+    render(<MemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u2" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Edit Character'))
     
-    const nameInput = screen.getByDisplayValue('Hero')
-    fireEvent.change(nameInput, { target: { value: 'Super Hero' } })
+    const nameInput = screen.getByDisplayValue('Sidekick')
+    fireEvent.change(nameInput, { target: { value: 'Super Sidekick' } })
 
     fireEvent.click(screen.getByText('Save'))
 
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalledWith({
-        character_name: 'Super Hero',
-        character_sheet_url: 'http://sheet'
+        character_name: 'Super Sidekick',
+        character_sheet_url: null
       })
-      expect(mockEq).toHaveBeenCalledWith('id', 'm1')
+      expect(mockEq).toHaveBeenCalledWith('id', 'm2')
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
@@ -88,7 +89,7 @@ describe('MemberList', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Block Player'))
     
@@ -108,7 +109,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
+    render(<MemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Edit Character'))
     
@@ -130,7 +131,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true} channelId="c1" myUserId="u1" onUpdate={mockOnUpdate} />)
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />)
     
     fireEvent.click(screen.getByText('Block Player'))
     

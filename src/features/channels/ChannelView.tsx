@@ -96,7 +96,7 @@ export function ChannelView() {
         <MemberList 
           members={members} 
           isGM={isGM} 
-          channelId={channel.id}
+          gmId={channel.gm_id}
           myUserId={myMemberInfo?.user_id}
           onUpdate={refetch}
         />
