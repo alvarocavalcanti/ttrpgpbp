@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
+import { parseAndRoll } from '../dice/parser'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
@@ -141,6 +142,45 @@ export function useMessages(channelId: string | undefined) {
     }
   }
 
+  const sendDiceRoll = async (notation: string) => {
+    if (!channelId || !user) return
+    
+    // Perform the roll calculation
+    const rollResult = parseAndRoll(notation)
+    
+    // Insert message first
+    const { data: message, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        channel_id: channelId,
+        sender_id: user.id,
+        content: `Rolled ${notation}: **${rollResult.total}**`,
+        type: 'dice_roll'
+      })
+      .select()
+      .single()
+      
+    if (messageError) throw messageError
+
+    // Insert dice roll log
+    const { error: rollError } = await supabase
+      .from('dice_rolls')
+      .insert({
+        message_id: message.id,
+        channel_id: channelId,
+        roller_id: user.id,
+        notation: notation,
+        result: rollResult.total,
+        breakdown: {
+          rolls: rollResult.rolls,
+          dropped: rollResult.dropped,
+          modifier: rollResult.modifier
+        }
+      })
+      
+    if (rollError) throw rollError
+  }
+
   const editMessage = async (messageId: string, content: string) => {
     const { error } = await supabase
       .from('messages')
@@ -158,5 +198,5 @@ export function useMessages(channelId: string | undefined) {
     if (error) throw error
   }
 
-  return { messages, loading, error, sendMessage, editMessage, deleteMessage }
+  return { messages, loading, error, sendMessage, sendDiceRoll, editMessage, deleteMessage }
 }

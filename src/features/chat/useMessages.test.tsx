@@ -262,4 +262,65 @@ describe('useMessages', () => {
     // Expect set query (is_active_player: true) to be called
     expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: true })
   })
+
+  it('sends a dice roll message and creates a dice_roll log', async () => {
+    // Mock the insert for the message to return the created message with ID
+    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg1' }, error: null })
+    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
+    
+    // Mock insert for both tables
+    const mockInsert = vi.fn().mockImplementation((payload) => {
+      // If it's a message insert, return select
+      if (payload.type === 'dice_roll') {
+        return { select: mockSelectMessage }
+      }
+      // If it's the dice_roll insert
+      return Promise.resolve({ error: null })
+    })
+
+    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockEqFetch = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqFetch })
+
+    vi.mocked(supabase.from).mockImplementation((_table: string) => {
+      return { select: mockSelect, insert: mockInsert } as any
+    })
+    
+    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+
+    // Mock Math.random for dice parser predictability
+    vi.spyOn(Math, 'random').mockReturnValue(0.5) // Floor(0.5 * 20) + 1 = 11
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendDiceRoll('1d20+5')
+    })
+
+    // First insert is into 'messages'
+    expect(mockInsert).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      channel_id: 'c1',
+      sender_id: 'u1',
+      content: 'Rolled 1d20+5: **16**', // 11 + 5
+      type: 'dice_roll'
+    }))
+
+    // Second insert is into 'dice_rolls'
+    expect(mockInsert).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      message_id: 'msg1',
+      channel_id: 'c1',
+      roller_id: 'u1',
+      notation: '1d20+5',
+      result: 16,
+      breakdown: {
+        rolls: [11],
+        dropped: [],
+        modifier: 5
+      }
+    }))
+    
+    vi.restoreAllMocks()
+  })
 })
