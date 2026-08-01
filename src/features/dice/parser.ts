@@ -7,6 +7,7 @@ export interface DiceRollResult {
 }
 
 const DICE_REGEX = /\b(\d+d\d+(?:kh\d+|kl\d+|dh\d+|dl\d+)?(?:[+-]\d+)?)\b/gi
+const CHECK_REGEX = /\b(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) Check\b/gi
 
 // Preprocesses text to turn dice notations into markdown links, skipping code blocks
 export function linkifyDice(text: string): string {
@@ -14,7 +15,9 @@ export function linkifyDice(text: string): string {
   const parts = text.split(/(```[\s\S]*?```|`[^`]*`)/g)
   for (let i = 0; i < parts.length; i++) {
     if (i % 2 === 0) { // outside code blocks
-      parts[i] = parts[i].replace(DICE_REGEX, '[$1](dice:$1)')
+      parts[i] = parts[i]
+        .replace(DICE_REGEX, '[$1](dice:$1)')
+        .replace(CHECK_REGEX, '[$1 Check](check:$1)')
     }
   }
   return parts.join('')

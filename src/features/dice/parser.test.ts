@@ -21,6 +21,11 @@ describe('linkifyDice', () => {
     const text = '1d20+5 and 2d6-1'
     expect(linkifyDice(text)).toBe('[1d20+5](dice:1d20+5) and [2d6-1](dice:2d6-1)')
   })
+
+  it('turns ability checks into markdown links', () => {
+    const text = 'Make a STR Check or a Dexterity Check.'
+    expect(linkifyDice(text)).toBe('Make a [STR Check](check:STR) or a [Dexterity Check](check:Dexterity).')
+  })
 })
 
 describe('parseAndRoll', () => {

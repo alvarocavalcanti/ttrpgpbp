@@ -39,6 +39,55 @@ describe('MessageItem', () => {
     expect(screen.getByText('Hero')).toBeInTheDocument()
   })
 
+  it('handles ability checks and sends dice roll', () => {
+    const mockOnRollDice = vi.fn()
+    vi.spyOn(window, 'prompt').mockReturnValue('3') // +3 modifier
+
+    const msg: any = { 
+      type: 'regular', 
+      content: 'Make a STR Check',
+      sender: { display_name: 'GM' }
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    
+    const checkBtn = screen.getByRole('button', { name: 'STR Check' })
+    fireEvent.click(checkBtn)
+    
+    expect(window.prompt).toHaveBeenCalledWith('Enter modifier for STR Check:', '0')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3')
+  })
+
+  it('handles ability checks with negative modifiers', () => {
+    const mockOnRollDice = vi.fn()
+    vi.spyOn(window, 'prompt').mockReturnValue('-2') 
+
+    const msg: any = { 
+      type: 'regular', 
+      content: 'Make a DEX Check',
+      sender: { display_name: 'GM' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    
+    fireEvent.click(screen.getByRole('button', { name: 'DEX Check' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2')
+  })
+
+  it('handles ability checks when prompt is cancelled', () => {
+    const mockOnRollDice = vi.fn()
+    vi.spyOn(window, 'prompt').mockReturnValue(null) // user clicked cancel
+
+    const msg: any = { 
+      type: 'regular', 
+      content: 'Make a STR Check',
+      sender: { display_name: 'GM' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    
+    fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
+    
+    expect(mockOnRollDice).not.toHaveBeenCalled()
+  })
+
   it('allows editing if author and within 15 min', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
     const msg: any = { 
