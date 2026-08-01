@@ -2,6 +2,7 @@ import { useParams, Navigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
+import { ChannelStatusBar } from './ChannelStatusBar'
 import { MemberList } from './MemberList'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
@@ -42,9 +43,6 @@ export function ChannelView() {
           <div className="flex justify-between w-full sm:w-auto items-center">
             <div>
               <h2 className="text-xl font-bold text-gray-900">{channel.name}</h2>
-              {channel.status_text && (
-                <p className="text-sm text-gray-500 mt-1">{channel.status_text}</p>
-              )}
             </div>
             
             {/* Mobile Sidebar Toggle */}
@@ -89,6 +87,14 @@ export function ChannelView() {
             )}
           </div>
         </div>
+
+        <ChannelStatusBar
+          channelId={channel.id}
+          statusText={channel.status_text}
+          activePlayers={members.filter(m => m.is_active_player && !m.is_blocked)}
+          isGM={isGM}
+          onUpdate={refetch}
+        />
 
         <MessageList 
           messages={messages} 

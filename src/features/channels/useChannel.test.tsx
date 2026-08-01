@@ -10,7 +10,12 @@ vi.mock('../auth/useAuth', () => ({
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
+    from: vi.fn(),
+    channel: vi.fn().mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+      unsubscribe: vi.fn()
+    })
   }
 }))
 

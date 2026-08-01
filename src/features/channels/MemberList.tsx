@@ -138,6 +138,11 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {member.character_name}
                         </p>
+                        {member.is_active_player && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">
+                            Turn
+                          </span>
+                        )}
                         {member.user_id === gmId && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
                             GM
