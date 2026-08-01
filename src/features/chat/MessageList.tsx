@@ -13,9 +13,10 @@ interface MessageListProps {
   isGM: boolean
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onRollDice?: (notation: string) => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -42,6 +43,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete }: MessageListPro
           isGM={isGM}
           onEdit={onEdit}
           onDelete={onDelete}
+          onRollDice={onRollDice}
         />
       ))}
       <div ref={endOfListRef} />

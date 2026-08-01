@@ -6,6 +6,20 @@ export interface DiceRollResult {
   modifier: number
 }
 
+const DICE_REGEX = /\b(\d+d\d+(?:kh\d+|kl\d+|dh\d+|dl\d+)?(?:[+-]\d+)?)\b/gi
+
+// Preprocesses text to turn dice notations into markdown links, skipping code blocks
+export function linkifyDice(text: string): string {
+  if (!text) return text
+  const parts = text.split(/(```[\s\S]*?```|`[^`]*`)/g)
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 0) { // outside code blocks
+      parts[i] = parts[i].replace(DICE_REGEX, '[$1](dice:$1)')
+    }
+  }
+  return parts.join('')
+}
+
 // Parses and evaluates dice notation
 export function parseAndRoll(notation: string): DiceRollResult {
   // normalize

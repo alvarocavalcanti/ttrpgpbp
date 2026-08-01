@@ -11,7 +11,7 @@ import { MessageComposer } from '../chat/MessageComposer'
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch } = useChannel(id)
-  const { messages, loading: messagesLoading, sendMessage, editMessage, deleteMessage } = useMessages(id)
+  const { messages, loading: messagesLoading, sendMessage, editMessage, deleteMessage, sendDiceRoll } = useMessages(id)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
@@ -101,6 +101,7 @@ export function ChannelView() {
           isGM={isGM} 
           onEdit={editMessage} 
           onDelete={deleteMessage} 
+          onRollDice={sendDiceRoll}
         />
         
         <MessageComposer 

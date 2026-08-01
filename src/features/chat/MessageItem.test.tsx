@@ -15,6 +15,17 @@ describe('MessageItem', () => {
     expect(screen.getByText('You enter a dark tavern')).toBeInTheDocument()
   })
 
+  it('renders dice_roll message correctly', () => {
+    const msg: any = { 
+      type: 'dice_roll', 
+      content: 'Rolled 1d20: **15**',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.getByText('Hero rolled dice')).toBeInTheDocument()
+    expect(screen.getByText('15').tagName).toBe('STRONG')
+  })
+
   it('renders regular message with markdown', () => {
     const msg: any = { 
       type: 'regular', 

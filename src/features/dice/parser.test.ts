@@ -1,5 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { parseAndRoll } from './parser'
+import { parseAndRoll, linkifyDice } from './parser'
+
+describe('linkifyDice', () => {
+  it('turns dice notation into markdown links', () => {
+    const text = 'Roll a 1d20+5 to hit.'
+    expect(linkifyDice(text)).toBe('Roll a [1d20+5](dice:1d20+5) to hit.')
+  })
+
+  it('skips dice notation inside inline code blocks', () => {
+    const text = 'Use `1d20` for attacks.'
+    expect(linkifyDice(text)).toBe('Use `1d20` for attacks.')
+  })
+
+  it('skips dice notation inside multiline code blocks', () => {
+    const text = '```\n1d20\n```\nBut outside 2d6 works.'
+    expect(linkifyDice(text)).toBe('```\n1d20\n```\nBut outside [2d6](dice:2d6) works.')
+  })
+
+  it('handles multiple dice notations', () => {
+    const text = '1d20+5 and 2d6-1'
+    expect(linkifyDice(text)).toBe('[1d20+5](dice:1d20+5) and [2d6-1](dice:2d6-1)')
+  })
+})
 
 describe('parseAndRoll', () => {
   beforeEach(() => {
