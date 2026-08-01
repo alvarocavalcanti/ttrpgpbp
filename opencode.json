@@ -10,11 +10,13 @@
     "task": "allow",
     "todowrite": "allow",
     "bash": {
+      "*": "ask",
       "git *": "allow",
       "git log *": "allow",
       "git fetch *": "allow",
       "git commit *": "allow",
       "git push *": "allow",
+      "git pull *": "allow",
       "git add *": "allow",
       "git stash *": "allow",
       "git stash pop *": "allow",
@@ -38,8 +40,7 @@
       "direnv *": "allow",
       "sed *": "allow",
       "for *": "allow",
-      "chmod *": "allow",
-      "*": "ask"
+      "chmod *": "allow"
     }
   }
 }
