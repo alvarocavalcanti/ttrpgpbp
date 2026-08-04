@@ -1,5 +1,16 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "cavecrew-builder": {
+      "mode": "subagent"
+    },
+    "cavecrew-investigator": {
+      "mode": "subagent"
+    },
+    "cavecrew-reviewer": {
+      "mode": "subagent"
+    }
+  },
   "permission": {
     "edit": "allow",
     "write": "allow",

@@ -16,6 +16,7 @@ interface MessageComposerProps {
 export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
+  const [loadImages, setLoadImages] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
   const [activePlayerIds, setActivePlayerIds] = useState<string[] | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -26,8 +27,14 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
     
     setIsSubmitting(true)
     try {
+      let finalContent = content
+      if (isGM && loadImages) {
+        // Basic match for raw image URLs to convert to markdown images
+        finalContent = finalContent.replace(/(^|\s)(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/gi, '$1![]($2)')
+      }
+
       await onSendMessage({
-        content,
+        content: finalContent,
         type: isScene ? 'scene' : 'regular',
         whisper_to: whisperTo || undefined,
         active_player_ids: isGM ? activePlayerIds : undefined
@@ -63,15 +70,34 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
             )}
 
             {isGM && (
-              <label className="flex items-center space-x-2 cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={isScene}
-                  onChange={(e) => setIsScene(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                />
-                <span className="text-gray-700">Scene Description</span>
-              </label>
+              <div className="flex items-center space-x-4 shrink-0">
+                <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Scene Description">
+                  <input
+                    type="checkbox"
+                    aria-label="Scene Description"
+                    checked={isScene}
+                    onChange={(e) => setIsScene(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                  <span className="hidden sm:inline">Scene</span>
+                </label>
+
+                <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Load Image URLs">
+                  <input
+                    type="checkbox"
+                    checked={loadImages}
+                    onChange={(e) => setLoadImages(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Load Images</span>
+                </label>
+              </div>
             )}
             
             {isGM && (
