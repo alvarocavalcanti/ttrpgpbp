@@ -182,7 +182,13 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
             {message.sender?.display_name || 'Unknown User'}
           </span>
           <span className="text-xs text-gray-500">
-            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {(() => {
+              const d = new Date(message.created_at);
+              const diffHours = (Date.now() - d.getTime()) / (1000 * 60 * 60);
+              return diffHours > 20
+                ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            })()}
           </span>
           {isWhisper && (
             <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">

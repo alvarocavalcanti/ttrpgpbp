@@ -33,7 +33,7 @@ export function Lobby() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center mb-8 gap-4 sm:flex-nowrap">
         <h2 className="text-2xl font-bold text-gray-900">Campaigns Lobby</h2>
         <button
           onClick={() => setIsCreateModalOpen(true)}
