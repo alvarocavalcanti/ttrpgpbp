@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
@@ -175,4 +175,20 @@ describe('Lobby', () => {
     expect(navigator.clearAppBadge).toHaveBeenCalled()
   })
 
+  it('renders create channel button and opens modal', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      publicChannels: [],
+      myChannels: [],
+      loading: false
+    })
+    
+    render(<Lobby />, { wrapper: MemoryRouter })
+    
+    const createBtn = screen.getByRole('button', { name: 'Create Channel' })
+    expect(createBtn).toBeInTheDocument()
+    
+    // Clicking should open the modal which has the heading 'Create a New Channel'
+    fireEvent.click(createBtn)
+    expect(screen.getByText('Create a New Channel')).toBeInTheDocument()
+  })
 })
