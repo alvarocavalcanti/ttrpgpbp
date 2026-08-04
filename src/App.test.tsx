@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App'
 import { supabase } from './lib/supabase'
@@ -55,8 +55,9 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('TTRPG Play-by-Post')).toBeInTheDocument()
+    expect(await screen.findByText('TTRPG')).toBeInTheDocument()
     expect(await screen.findByText('Campaigns Lobby')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Avatar' })).toBeInTheDocument()
   })
@@ -82,8 +83,9 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('TTRPG Play-by-Post')).toBeInTheDocument()
-    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(await screen.findByText('TTRPG')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('T')).toBeInTheDocument() // The placeholder 'T' from email
   })
 })
