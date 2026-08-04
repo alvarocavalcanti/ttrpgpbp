@@ -32,16 +32,12 @@ export function Lobby() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Campaigns Lobby</h2>
-      </div>
-
+    <div className="max-w-7xl mx-auto py-8 px-0 sm:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
       <div className="flex flex-col gap-8">
         {/* My Channels */}
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">My Channels</h3>
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 px-4 sm:px-0">My Channels</h3>
+          <div className="bg-white border-y border-gray-200 sm:border-none sm:shadow overflow-hidden sm:rounded-md">
             {myChannels.length === 0 ? (
               <div className="p-6 text-center text-gray-500 text-sm">
                 You haven't joined any channels yet.
@@ -87,8 +83,8 @@ export function Lobby() {
 
         {/* Public Channels */}
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Public Channels</h3>
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 px-4 sm:px-0">Public Channels</h3>
+          <div className="bg-white border-y border-gray-200 sm:border-none sm:shadow overflow-hidden sm:rounded-md">
             {publicChannels.length === 0 ? (
               <div className="p-6 text-center text-gray-500 text-sm">
                 No public channels available.
