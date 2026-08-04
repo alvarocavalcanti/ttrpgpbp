@@ -56,7 +56,7 @@ describe('App', () => {
     render(<App />)
     
     expect(await screen.findByText('TTRPG')).toBeInTheDocument()
-    expect(await screen.findByText('Campaigns Lobby')).toBeInTheDocument()
+    expect(await screen.findByText('My Channels')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Avatar' })).toBeInTheDocument()
