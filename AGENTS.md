@@ -17,4 +17,4 @@ Boundaries: code/commits/PRs written normal.
 <!-- caveman-end -->
 
 # Project Rules
-- **Testing**: Every code change MUST have tests. Goal is 100% coverage unless completely impossible. This includes adding tests for validations and edge cases.
+- **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases.
