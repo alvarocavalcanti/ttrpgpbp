@@ -88,6 +88,7 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
                 <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Load Image URLs">
                   <input
                     type="checkbox"
+                    aria-label="Load Image URLs"
                     checked={loadImages}
                     onChange={(e) => setLoadImages(e.target.checked)}
                     className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
