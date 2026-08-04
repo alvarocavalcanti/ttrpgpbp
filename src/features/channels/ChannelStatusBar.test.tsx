@@ -27,7 +27,7 @@ describe('ChannelStatusBar', () => {
 
   it('renders active players when provided', () => {
     render(<ChannelStatusBar channelId="c1" statusText={null} activePlayers={[{ character_name: 'Thor', user_id: 'u1' }]} isGM={false} onUpdate={vi.fn()} />)
-    expect(screen.getByText('Turn:')).toBeInTheDocument()
+    expect(screen.getByText('Active:')).toBeInTheDocument()
     expect(screen.getByText('Thor')).toBeInTheDocument()
   })
 

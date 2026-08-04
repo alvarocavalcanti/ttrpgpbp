@@ -49,7 +49,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
     <div className="bg-amber-50 border-b border-amber-200">
       {activePlayers.length > 0 && !isEditing && (
         <div className="px-4 py-1.5 sm:px-6 border-b border-amber-200 flex items-center space-x-2">
-          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Turn:</span>
+          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Active:</span>
           <span className="text-sm font-medium text-amber-900">
             {activePlayers.map(p => p.character_name).join(', ')}
           </span>
