@@ -44,5 +44,11 @@ describe('MessageList', () => {
     
     const dividers = screen.getAllByTestId('date-divider')
     expect(dividers).toHaveLength(2) // 1st day gets one, 2nd day gets one
+    
+    const expectedDate1 = new Date('2023-01-01T10:00:00Z').toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const expectedDate2 = new Date('2023-01-02T10:00:00Z').toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    
+    expect(screen.getByText(expectedDate1)).toBeInTheDocument()
+    expect(screen.getByText(expectedDate2)).toBeInTheDocument()
   })
 })
