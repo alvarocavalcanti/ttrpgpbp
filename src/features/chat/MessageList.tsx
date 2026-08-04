@@ -47,7 +47,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
         return (
           <Fragment key={message.id}>
             {showDivider && (
-              <div className="flex items-center my-6">
+              <div data-testid="date-divider" className="flex items-center my-6">
                 <div className="flex-grow border-t border-gray-300"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   {currentDate}

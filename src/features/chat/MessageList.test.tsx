@@ -33,4 +33,16 @@ describe('MessageList', () => {
     expect(screen.getByText('Msg 1')).toBeInTheDocument()
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
   })
+
+  it('renders date dividers correctly', () => {
+    const msgs: any = [
+      { id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' },
+      { id: '2', content: 'Msg 2', created_at: '2023-01-01T15:00:00Z' },
+      { id: '3', content: 'Msg 3', created_at: '2023-01-02T10:00:00Z' }
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    
+    const dividers = screen.getAllByTestId('date-divider')
+    expect(dividers).toHaveLength(2) // 1st day gets one, 2nd day gets one
+  })
 })
