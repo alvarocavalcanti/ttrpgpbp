@@ -166,4 +166,24 @@ describe('ChannelSettings', () => {
       expect(screen.getByText('Failed to update channel settings.')).toBeInTheDocument()
     })
   })
+
+  it('toggles password visibility', () => {
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('Change Password'))
+
+    // In ChannelSettings, it doesn't have an explicit label text but it is rendered as an input when changing password
+    const passwordInput = screen.getByPlaceholderText('Leave blank to remove password')
+    expect(passwordInput).toHaveAttribute('type', 'password')
+
+    const toggleBtn = screen.getByRole('button', { name: 'Show password' })
+    fireEvent.click(toggleBtn)
+
+    expect(passwordInput).toHaveAttribute('type', 'text')
+    
+    const hideBtn = screen.getByRole('button', { name: 'Hide password' })
+    fireEvent.click(hideBtn)
+
+    expect(passwordInput).toHaveAttribute('type', 'password')
+  })
 })
