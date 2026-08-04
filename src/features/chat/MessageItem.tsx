@@ -107,6 +107,18 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
         )
       }
       return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
+    },
+    img: ({ src, alt, ...props }: any) => {
+      return (
+        <img 
+          src={src} 
+          alt={alt || "Image"} 
+          className="max-w-full h-auto rounded-lg shadow-sm my-2 object-contain max-h-96" 
+          loading="lazy" 
+          referrerPolicy="no-referrer"
+          {...props} 
+        />
+      )
     }
   }
 

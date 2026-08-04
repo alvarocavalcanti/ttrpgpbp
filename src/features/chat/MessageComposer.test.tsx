@@ -98,4 +98,24 @@ describe('MessageComposer', () => {
     
     expect(mockOnSend).not.toHaveBeenCalled()
   })
+
+  it('transforms image urls to markdown if loadImages is true and user is GM', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+    
+    fireEvent.click(screen.getByLabelText('Load Image URLs'))
+    
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Check this: https://example.com/image.png' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Check this: ![](https://example.com/image.png)',
+        type: 'regular',
+        whisper_to: undefined,
+        active_player_ids: undefined
+      })
+    })
+  })
 })

@@ -259,4 +259,37 @@ describe('MessageItem', () => {
     fireEvent.click(screen.getByText('Cancel'))
     expect(screen.queryByText('Save')).not.toBeInTheDocument()
   })
+
+  it('renders img correctly with secure attributes', () => {
+    const msg: any = { 
+      type: 'regular', 
+      content: '![Alt text](https://example.com/test.png)',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    
+    const img = screen.getByRole('img', { name: 'Alt text' })
+    expect(img).toBeInTheDocument()
+    expect(img).toHaveAttribute('src', 'https://example.com/test.png')
+    expect(img).toHaveAttribute('loading', 'lazy')
+    expect(img).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+
+  it('sanitizes insecure URLs', () => {
+    const msg: any = {
+      type: 'regular',
+      content: '[Bad Link](javascript:alert(1)) and ![Bad Image](javascript:alert(2))',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    
+    const link = screen.getByText('Bad Link')
+    expect(link).toHaveAttribute('href', '')
+    
+    const img = screen.getByRole('img', { name: 'Bad Image' })
+    expect(img.getAttribute('src')).toBeFalsy()
+  })
 })
