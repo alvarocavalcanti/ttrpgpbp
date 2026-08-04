@@ -187,4 +187,43 @@ describe('JoinChannel', () => {
       expect(screen.getByTestId('lobby')).toBeInTheDocument()
     })
   })
+
+  it('toggles password visibility', async () => {
+    const mockChannel = {
+      id: '123',
+      name: 'Test Channel',
+      is_public: false,
+      has_password: true
+    }
+    
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <MemoryRouter initialEntries={['/join/123']}>
+        <Routes>
+          <Route path="/join/:id" element={<JoinChannel />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Channel Password')).toBeInTheDocument()
+    })
+
+    const passwordInput = screen.getByLabelText('Channel Password')
+    expect(passwordInput).toHaveAttribute('type', 'password')
+
+    const toggleBtn = screen.getByRole('button', { name: 'Show password' })
+    fireEvent.click(toggleBtn)
+
+    expect(passwordInput).toHaveAttribute('type', 'text')
+    
+    const hideBtn = screen.getByRole('button', { name: 'Hide password' })
+    fireEvent.click(hideBtn)
+
+    expect(passwordInput).toHaveAttribute('type', 'password')
+  })
 })

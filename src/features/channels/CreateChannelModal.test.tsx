@@ -184,4 +184,25 @@ describe('CreateChannelModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(mockOnClose).toHaveBeenCalled()
   })
+
+  it('toggles password visibility', () => {
+    render(
+      <MemoryRouter>
+        <CreateChannelModal onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+
+    const passwordInput = screen.getByLabelText('Password (Optional)')
+    expect(passwordInput).toHaveAttribute('type', 'password')
+
+    const toggleBtn = screen.getByRole('button', { name: 'Show password' })
+    fireEvent.click(toggleBtn)
+
+    expect(passwordInput).toHaveAttribute('type', 'text')
+    
+    const hideBtn = screen.getByRole('button', { name: 'Hide password' })
+    fireEvent.click(hideBtn)
+
+    expect(passwordInput).toHaveAttribute('type', 'password')
+  })
 })
