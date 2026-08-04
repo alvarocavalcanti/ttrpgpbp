@@ -276,4 +276,20 @@ describe('MessageItem', () => {
     expect(img).toHaveAttribute('loading', 'lazy')
     expect(img).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
+
+  it('sanitizes insecure URLs', () => {
+    const msg: any = {
+      type: 'regular',
+      content: '[Bad Link](javascript:alert(1)) and ![Bad Image](javascript:alert(2))',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    
+    const link = screen.getByText('Bad Link')
+    expect(link).toHaveAttribute('href', '')
+    
+    const img = screen.getByRole('img', { name: 'Bad Image' })
+    expect(img.getAttribute('src')).toBeFalsy()
+  })
 })
