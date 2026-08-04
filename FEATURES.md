@@ -26,6 +26,7 @@
 - **Two message types**:
   - **Regular** — normal conversation
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only**.
+- **Daily Dividers** — chat history is grouped by date visually
 - **Editable** within 15 minutes, marked as "edited"
 - **Deletable** — replaced with "deleted" marker
 - URLs posted as plain text with external link, no previews or embeds
