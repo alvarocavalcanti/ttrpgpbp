@@ -27,6 +27,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
     
+    fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('Scene Description'))
     fireEvent.change(screen.getByPlaceholderText(/Describe the scene/i), { target: { value: 'A dark cave.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
@@ -35,7 +36,8 @@ describe('MessageComposer', () => {
       expect(mockOnSend).toHaveBeenCalledWith({
         content: 'A dark cave.',
         type: 'scene',
-        whisper_to: undefined
+        whisper_to: undefined,
+        active_player_ids: undefined
       })
     })
   })
@@ -44,6 +46,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
+    fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.change(screen.getByLabelText('Whisper:'), { target: { value: 'u1' } })
     fireEvent.change(screen.getByPlaceholderText(/Type a private whisper/i), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
@@ -52,7 +55,8 @@ describe('MessageComposer', () => {
       expect(mockOnSend).toHaveBeenCalledWith({
         content: 'psst',
         type: 'regular',
-        whisper_to: 'u1'
+        whisper_to: 'u1',
+        active_player_ids: undefined
       })
     })
   })
@@ -67,7 +71,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     // Wait for the async submit handler to catch the error
-    await screen.findByText('Send') // Re-enables after finally block
+    await screen.findByRole('button', { name: 'Send' }) // Re-enables after finally block
     expect(console.error).toHaveBeenCalled()
   })
 
@@ -103,6 +107,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
     
+    fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('Load Image URLs'))
     
     const textarea = screen.getByPlaceholderText(/Type a message/i)

@@ -1,4 +1,4 @@
-import { useParams, Navigate } from 'react-router-dom'
+import { useParams, Navigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
@@ -56,12 +56,17 @@ export function ChannelView() {
   const whisperableMembers = members.filter(m => m.user_id !== myMemberInfo?.user_id)
 
   return (
-    <div className="flex h-[calc(100vh-73px)] overflow-hidden bg-white relative">
+    <div className="flex h-[100dvh] overflow-hidden bg-white relative">
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50 border-r border-gray-200">
         <div className="px-4 sm:px-6 py-4 bg-white border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-sm z-10 gap-3">
           <div className="flex justify-between w-full sm:w-auto items-center">
-            <div>
+            <div className="flex items-center space-x-3">
+              <Link to="/" className="text-gray-500 hover:text-indigo-600 transition-colors" aria-label="Back to Lobby">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </Link>
               <h2 className="text-xl font-bold text-gray-900">{channel.name}</h2>
             </div>
             

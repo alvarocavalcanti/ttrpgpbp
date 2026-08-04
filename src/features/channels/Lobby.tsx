@@ -32,22 +32,12 @@ export function Lobby() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap justify-between items-center mb-8 gap-4 sm:flex-nowrap">
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
+      <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900">Campaigns Lobby</h2>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center p-2 sm:px-4 sm:py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-          aria-label="Create Channel"
-        >
-          <svg className="h-5 w-5 sm:mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span className="hidden sm:inline">Create Channel</span>
-        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-8">
         {/* My Channels */}
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-4">My Channels</h3>
@@ -139,6 +129,16 @@ export function Lobby() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={() => setIsCreateModalOpen(true)}
+        className="fixed bottom-6 right-6 inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors z-40"
+        aria-label="Create Channel"
+      >
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
 
       {isCreateModalOpen && (
         <CreateChannelModal onClose={() => setIsCreateModalOpen(false)} />

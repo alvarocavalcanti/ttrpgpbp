@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { useAuth } from './features/auth/useAuth'
 import { LoginPage } from './features/auth/LoginPage'
@@ -10,39 +11,71 @@ import { ChannelView } from './features/channels/ChannelView'
 
 function AppNav() {
   const { user, profile, signOut } = useAuth()
+  const location = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  if (!user) return null
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  if (!user || location.pathname.startsWith('/channel/')) return null
 
   return (
-    <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2">
-      <Link to="/" className="text-lg sm:text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
-        TTRPG Play-by-Post
+    <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2 relative">
+      <Link to="/" className="text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
+        TTRPG
       </Link>
       
-      <div className="flex items-center space-x-3 sm:space-x-4 flex-shrink-0">
-        <Link to="/settings" className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-          {profile?.avatar_url ? (
-            <img 
-              src={profile.avatar_url} 
-              alt="Avatar" 
-              className="w-8 h-8 rounded-full object-cover shadow-sm"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 shadow-sm">
-              <span className="text-sm font-medium">
-                {profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
-              </span>
-            </div>
-          )}
-          <span className="hidden sm:inline-block">{profile?.display_name || 'Profile'}</span>
-        </Link>
+      <div className="flex items-center flex-shrink-0" ref={menuRef}>
         <button 
-          onClick={signOut}
-          className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="p-2 text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none"
+          aria-label="Menu"
         >
-          Sign Out
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
         </button>
+
+        {menuOpen && (
+          <div className="absolute right-4 top-14 mt-2 w-48 bg-white rounded-md shadow-lg py-1 border border-gray-200 z-50">
+            <Link 
+              to="/settings" 
+              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              <div className="mr-3 flex-shrink-0">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 shadow-sm">
+                    <span className="text-xs font-medium">
+                      {profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <span className="truncate">{profile?.display_name || 'Settings'}</span>
+            </Link>
+            <div className="border-t border-gray-100 my-1"></div>
+            <button 
+              onClick={() => {
+                setMenuOpen(false)
+                signOut()
+              }}
+              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
       </div>
     </header>
   )
