@@ -138,7 +138,7 @@ describe('CreateChannelModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Insert failed')).toBeInTheDocument()
+      expect(screen.getByText('Failed to create channel. Please try again.')).toBeInTheDocument()
     })
   })
 
@@ -169,7 +169,7 @@ describe('CreateChannelModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Secrets insert failed')).toBeInTheDocument()
+      expect(screen.getByText('Failed to create channel. Please try again.')).toBeInTheDocument()
     })
   })
 

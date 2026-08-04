@@ -67,7 +67,7 @@ export function JoinChannel() {
       navigate(`/channel/${id}`)
     } catch (err: any) {
       console.error('Error joining channel:', err)
-      setError(err.message || 'Failed to join channel. Invalid password or invite code.')
+      setError('Failed to join channel. Invalid password or invite code.')
     } finally {
       setIsSubmitting(false)
     }

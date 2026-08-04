@@ -29,3 +29,11 @@ jobs:
         
       - name: Run tests with coverage
         run: npx vitest run --coverage
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+          
+      - name: Verify Migrations (Dry Run)
+        run: supabase db start
