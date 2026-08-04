@@ -103,7 +103,7 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
             
             {isGM && (
               <div className="flex items-center space-x-2 shrink-0">
-                <label htmlFor="activePlayers" className="text-gray-700">Set Turn:</label>
+                <label htmlFor="activePlayers" className="text-gray-700">Active Player:</label>
                 <select
                   id="activePlayers"
                   value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
@@ -116,7 +116,7 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
                   className="border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="">(No change)</option>
-                  <option value="clear">Clear Turn</option>
+                  <option value="clear">Clear Active Player</option>
                   {members.map(m => (
                     <option key={m.id} value={m.user_id}>
                       {m.character_name}

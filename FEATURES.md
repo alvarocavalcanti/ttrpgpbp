@@ -56,7 +56,7 @@
 - **Push** — on by default
 - **In-app badge** — on by default
 - **Email** — off by default
-- Distinct notification for "It's your turn" (driven by active player state)
+- Distinct notification for active player (e.g. "It's your turn")
 
 ## Search
 - Full-text search within a channel's message history
