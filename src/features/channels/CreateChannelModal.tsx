@@ -71,7 +71,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
       
     } catch (err: any) {
       console.error('Error creating channel:', err)
-      setError(err.message || 'An unexpected error occurred')
+      setError('Failed to create channel. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

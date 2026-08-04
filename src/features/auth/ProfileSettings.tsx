@@ -58,7 +58,8 @@ export function ProfileSettings() {
         await subscribeToPush()
       }
     } catch (err: any) {
-      alert(`Push error: ${err.message}`)
+      console.error('Push notification error:', err)
+      alert('Failed to update push notification settings. Please try again.')
     }
   }
 
