@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, Fragment } from 'react'
 import { MessageItem } from './MessageItem'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -38,18 +38,35 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-2">
-      {messages.map((message) => (
-        <MessageItem
-          key={message.id}
-          message={message}
-          currentUserId={user?.id}
-          isGM={isGM}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onRollDice={onRollDice}
-          isHighlighted={highlightMessageId === message.id}
-        />
-      ))}
+      {messages.map((message, index) => {
+        const currentDate = new Date(message.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        const prevMessage = index > 0 ? messages[index - 1] : null
+        const prevDate = prevMessage ? new Date(prevMessage.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : null
+        const showDivider = currentDate !== prevDate
+
+        return (
+          <Fragment key={message.id}>
+            {showDivider && (
+              <div data-testid="date-divider" className="flex items-center my-6">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {currentDate}
+                </span>
+                <div className="flex-grow border-t border-gray-300"></div>
+              </div>
+            )}
+            <MessageItem
+              message={message}
+              currentUserId={user?.id}
+              isGM={isGM}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onRollDice={onRollDice}
+              isHighlighted={highlightMessageId === message.id}
+            />
+          </Fragment>
+        )
+      })}
       <div ref={endOfListRef} />
     </div>
   )
