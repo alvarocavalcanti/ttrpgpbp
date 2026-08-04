@@ -32,7 +32,7 @@ export function Lobby() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
+    <div className="w-full max-w-7xl mx-auto py-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
       <div className="flex flex-col gap-8">
         {/* My Channels */}
         <div>
