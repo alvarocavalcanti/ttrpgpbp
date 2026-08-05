@@ -59,7 +59,12 @@
       "push *": "allow",
       "notificationclick *": "allow",
       "tail *": "allow",
-      "rg *": "allow"
+      "rg *": "allow",
+      "gh issue create *": "allow",
+      "mv *": "allow",
+      "supabase *": "allow",
+      "node *": "allow",
+      "npm run test *": "allow"
     }
   }
 }

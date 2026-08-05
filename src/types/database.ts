@@ -46,6 +46,7 @@ export interface Database {
           name: string
           gm_id: string
           is_public: boolean
+          is_archived: boolean
           invite_code: string | null
           map_url: string | null
           resources_url: string | null
@@ -59,6 +60,7 @@ export interface Database {
           name: string
           gm_id: string
           is_public?: boolean
+          is_archived?: boolean
           invite_code?: string | null
           map_url?: string | null
           resources_url?: string | null
@@ -71,6 +73,7 @@ export interface Database {
           name?: string
           gm_id?: string
           is_public?: boolean
+          is_archived?: boolean
           invite_code?: string | null
           map_url?: string | null
           resources_url?: string | null

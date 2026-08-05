@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { useAuth } from './features/auth/useAuth'
@@ -8,10 +8,12 @@ import { ProfileSettings } from './features/auth/ProfileSettings'
 import { Lobby } from './features/channels/Lobby'
 import { JoinChannel } from './features/channels/JoinChannel'
 import { ChannelView } from './features/channels/ChannelView'
+import { ArchivedChannels } from './features/channels/ArchivedChannels'
 
 function AppNav() {
   const { user, profile, signOut } = useAuth()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -28,12 +30,30 @@ function AppNav() {
   if (!user || location.pathname.startsWith('/channel/')) return null
 
   return (
-    <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2 relative">
+    <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
       <Link to="/" className="text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
         RoleByPost
       </Link>
       
-      <div className="flex items-center flex-shrink-0" ref={menuRef}>
+      <div className="flex items-center flex-shrink-0 gap-2" ref={menuRef}>
+        {location.pathname === '/' && (
+          <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
+            <input 
+              type="text"
+              name="q"
+              placeholder="Search..."
+              value={searchParams.get('q') || ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setSearchParams({ q: e.target.value }, { replace: true })
+                } else {
+                  setSearchParams({}, { replace: true })
+                }
+              }}
+              className="w-24 sm:w-48 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </form>
+        )}
         <button 
           onClick={() => setMenuOpen(!menuOpen)}
           className="p-2 text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none"
@@ -64,6 +84,13 @@ function AppNav() {
               </div>
               <span className="truncate">{profile?.display_name || 'Settings'}</span>
             </Link>
+            <Link 
+              to="/archived" 
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              Archived Channels
+            </Link>
             <div className="border-t border-gray-100 my-1"></div>
             <button 
               onClick={() => {
@@ -93,6 +120,7 @@ function App() {
               
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Lobby />} />
+                <Route path="/archived" element={<ArchivedChannels />} />
                 <Route path="/join/:id" element={<JoinChannel />} />
                 <Route path="/channel/:id" element={<ChannelView />} />
                 <Route path="/settings" element={<ProfileSettings />} />

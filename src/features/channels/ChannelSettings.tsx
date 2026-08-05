@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
@@ -12,6 +13,7 @@ interface ChannelSettingsProps {
 }
 
 export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsProps) {
+  const navigate = useNavigate()
   const [name, setName] = useState(channel.name)
   const [isPublic, setIsPublic] = useState(channel.is_public)
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
@@ -72,6 +74,67 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
     } catch (err: any) {
       console.error('Error updating channel:', err)
       setError('Failed to update channel settings.')
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      setIsSubmitting(true)
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
+        .eq('channel_id', channel.id)
+        .order('created_at', { ascending: true })
+        .limit(5000)
+
+      if (messagesError) throw messagesError
+
+      if (messages.length === 5000) {
+        window.alert('This channel has more than 5000 messages. Export may be incomplete. Batch export coming soon.')
+      }
+
+      let markdown = `# Chat Log for ${channel.name}\n\n`
+      for (const msg of messages) {
+        const date = new Date(msg.created_at).toLocaleString()
+        const sender = (msg.sender as any)?.display_name || 'System/Unknown'
+        markdown += `**[${date}] ${sender}:**\n${msg.content}\n\n`
+      }
+
+      const blob = new Blob([markdown], { type: 'text/markdown' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${channel.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.md`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to export:', err)
+      setError('Failed to export channel.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleArchive = async () => {
+    if (!window.confirm('Are you sure you want to archive this channel? Remember to export the chat history first!')) {
+      return
+    }
+    
+    try {
+      setIsSubmitting(true)
+      const { error: archiveError } = await supabase
+        .from('channels')
+        .update({ is_archived: true })
+        .eq('id', channel.id)
+
+      if (archiveError) throw archiveError
+      
+      onClose()
+      navigate('/')
+    } catch (err) {
+      console.error('Failed to archive:', err)
+      setError('Failed to archive channel.')
       setIsSubmitting(false)
     }
   }
@@ -234,6 +297,28 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
                 >
                   Cancel
                 </button>
+              </div>
+              
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">Advanced Actions</h4>
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    disabled={isSubmitting}
+                    className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 transition-colors"
+                  >
+                    Export Chat to Markdown
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleArchive}
+                    disabled={isSubmitting}
+                    className="w-full inline-flex justify-center rounded-md border border-red-300 shadow-sm px-4 py-2 bg-red-50 text-base font-medium text-red-700 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm disabled:opacity-50 transition-colors"
+                  >
+                    Archive Channel
+                  </button>
+                </div>
               </div>
             </form>
           </div>

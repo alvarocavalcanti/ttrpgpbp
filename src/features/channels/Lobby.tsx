@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { CreateChannelModal } from './CreateChannelModal'
 import { usePushNotifications } from '../auth/usePushNotifications'
@@ -8,6 +8,8 @@ export function Lobby() {
   const { publicChannels, myChannels, loading } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { preferences } = usePushNotifications()
+  const [searchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'my' | 'public'>('my')
 
   useEffect(() => {
     // Set App Badge if supported and enabled
@@ -31,20 +33,53 @@ export function Lobby() {
     )
   }
 
+  const q = searchParams.get('q')?.toLowerCase() || ''
+  const filteredMy = myChannels.filter(c => c.name.toLowerCase().includes(q))
+  const filteredPublic = publicChannels.filter(c => c.name.toLowerCase().includes(q))
+
   return (
     <div className="w-full max-w-7xl mx-auto py-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
-      <div className="flex flex-col gap-8">
-        {/* My Channels */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4 px-4 md:px-0">My Channels</h3>
+      <div className="flex flex-col gap-6">
+        <div className="border-b border-gray-200 px-4 md:px-0">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('my')}
+              className={`${
+                activeTab === 'my'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              My Channels
+              <span className={`ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium md:inline-block ${activeTab === 'my' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-900'}`}>
+                {filteredMy.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('public')}
+              className={`${
+                activeTab === 'public'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Public Channels
+              <span className={`ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium md:inline-block ${activeTab === 'public' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-900'}`}>
+                {filteredPublic.length}
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        {activeTab === 'my' && (
           <div className="bg-white border-y border-gray-200 md:border-none md:shadow overflow-hidden md:rounded-md">
-            {myChannels.length === 0 ? (
+            {filteredMy.length === 0 ? (
               <div className="p-6 text-center text-gray-500 text-sm">
-                You haven't joined any channels yet.
+                {q ? 'No matching channels found.' : "You haven't joined any channels yet."}
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {myChannels.map((channel) => (
+                {filteredMy.map((channel) => (
                   <li key={channel.id}>
                     <Link to={`/channel/${channel.id}`} className="block hover:bg-gray-50 transition-colors">
                       <div className="px-4 py-4 sm:px-6">
@@ -79,19 +114,17 @@ export function Lobby() {
               </ul>
             )}
           </div>
-        </div>
+        )}
 
-        {/* Public Channels */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4 px-4 md:px-0">Public Channels</h3>
+        {activeTab === 'public' && (
           <div className="bg-white border-y border-gray-200 md:border-none md:shadow overflow-hidden md:rounded-md">
-            {publicChannels.length === 0 ? (
+            {filteredPublic.length === 0 ? (
               <div className="p-6 text-center text-gray-500 text-sm">
-                No public channels available.
+                {q ? 'No matching public channels found.' : 'No public channels available.'}
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {publicChannels.map((channel) => {
+                {filteredPublic.map((channel) => {
                   const isMember = myChannels.some(my => my.id === channel.id)
                   
                   return (
@@ -123,7 +156,7 @@ export function Lobby() {
               </ul>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       <button

@@ -52,6 +52,8 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     expect(screen.getByText("You haven't joined any channels yet.")).toBeInTheDocument()
+    
+    fireEvent.click(screen.getByText(/Public Channels/))
     expect(screen.getByText("No public channels available.")).toBeInTheDocument()
   })
 
@@ -80,6 +82,7 @@ describe('Lobby', () => {
     expect(screen.getByText('5 new')).toBeInTheDocument()
     
     // Public channels section
+    fireEvent.click(screen.getByText(/Public Channels/))
     expect(screen.getByText('Locked Public')).toBeInTheDocument()
     expect(document.querySelector('svg')).toBeInTheDocument() // The lock icon
   })

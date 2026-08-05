@@ -22,6 +22,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `gm_id` | UUID, FK → profiles | Creator, channel owner |
 | `password_hash` | text, nullable | Null = no password required |
 | `is_public` | boolean | `true` = listed in lobby |
+| `is_archived` | boolean | Default `false`. True = hidden from main lobby, read-only/hidden |
 | `invite_code` | text, unique | For invite link sharing |
 | `map_url` | text, nullable | External link |
 | `resources_url` | text, nullable | External link |
@@ -40,7 +41,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `character_avatar_url` | text, nullable | |
 | `character_sheet_url` | text, nullable | |
 | `is_active_player` | boolean | Default `false`. Multiple can be active. |
-| `is_blocked` | boolean | Default `false`. Blocked = can't rejoin. |
+| `is_blocked` | boolean | Default `false`. Retains row but blocks re-entry. (Kick deletes the row) |
 | `joined_at` | timestamptz | |
 
 **Constraints:** Unique constraint on (`channel_id`, `user_id`)

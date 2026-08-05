@@ -20,3 +20,15 @@ Boundaries: code/commits/PRs written normal.
 
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
+
+## Local Testing
+
+1. **Start Local DB:** `npx supabase start`
+2. **Apply Migrations:** `npx supabase migration up`
+3. **Start Dev Server:** `npm run dev`
+4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (http://localhost:54323) to create a mock user, or link your `.env.local` to the remote Supabase.
+
+## Git Hygiene
+
+- Don't leave uncommitted changes after creating a commit
+- If changes should not be committed, check with the user what to do. Add to .gitignore? Delete?

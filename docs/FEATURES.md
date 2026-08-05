@@ -5,13 +5,17 @@
 - Per-channel **character name** and **avatar**
 - Optional **character sheet URL** per user per channel
 
-## Channels
+## Channels & Lobby
 - Any user can create a channel (becomes GM)
-- **Public** (listed in a lobby) or **invite link**
+- **Lobby** displays joined and public channels via tabs
+- **Lobby search** allows fuzzy finding channels by name
+- Channels can be **Public** (listed in lobby) or private (invite link)
 - Optional **password** to join (joining is instant)
-- GM can revoke access or **block** a user
+- GM can **kick** (remove) or **block** a user (prevent return/interaction)
 - Optional **map URL** (external link)
 - **Resources URL** (single URL — GDrive folder, PDF, etc.)
+- **Export Chat** allows downloading the full message history to a Markdown file
+- GM can **Archive** a channel, removing it from the main lobby (viewable/restorable via side menu)
 
 ## Channel Status (persistent, collapsible)
 - **Free-form text** (markdown, emoji) — initiative order, timers, NPCs, etc.
