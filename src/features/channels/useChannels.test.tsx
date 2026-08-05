@@ -19,6 +19,7 @@ const createChain = (resolveVal: any) => {
     select: () => chain,
     eq: () => chain,
     order: () => Promise.resolve(resolveVal),
+    // eslint-disable-next-line unicorn/no-thenable
     then: (cb: any) => Promise.resolve(resolveVal).then(cb)
   };
   return chain;
@@ -90,7 +91,8 @@ describe('useChannels', () => {
       select: () => messageChain,
       eq: () => messageChain,
       gt: () => Promise.resolve({ count: 5, error: null }),
-      then: (cb: any) => Promise.resolve({ count: 5, error: null }).then(cb)
+      // eslint-disable-next-line unicorn/no-thenable
+    then: (cb: any) => Promise.resolve({ count: 5, error: null }).then(cb)
     };
 
     vi.mocked(supabase.from).mockImplementation((table) => {
