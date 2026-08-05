@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { CreateChannelModal } from './CreateChannelModal'
 import { usePushNotifications } from '../auth/usePushNotifications'
+import { PermissionBanner } from '../notifications/PermissionBanner'
 
 export function Lobby() {
   const { publicChannels, myChannels, loading } = useChannels()
@@ -40,6 +41,7 @@ export function Lobby() {
   return (
     <div className="w-full max-w-7xl mx-auto py-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
       <div className="flex flex-col gap-6">
+        <PermissionBanner />
         <div className="border-b border-gray-200 px-4 md:px-0">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button

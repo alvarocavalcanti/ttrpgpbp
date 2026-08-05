@@ -50,7 +50,8 @@ export default defineConfig({
         'src/vite-env.d.ts',
         'src/**/*.test.tsx',
         'src/**/*.test.ts',
-        'src/test/**'
+        'src/test/**',
+        'supabase/**'
       ],
       thresholds: {
         lines: 75,

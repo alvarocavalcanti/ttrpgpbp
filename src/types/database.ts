@@ -126,6 +126,9 @@ export interface Database {
           is_active_player: boolean
           is_blocked: boolean
           attributes: any
+          notify_all_messages: boolean
+          notify_gm_messages: boolean
+          notify_turn: boolean
           last_read_at?: string
           joined_at: string
         }
@@ -139,6 +142,9 @@ export interface Database {
           is_active_player?: boolean
           is_blocked?: boolean
           attributes?: any
+          notify_all_messages?: boolean
+          notify_gm_messages?: boolean
+          notify_turn?: boolean
           last_read_at?: string
           joined_at?: string
         }
@@ -152,6 +158,9 @@ export interface Database {
           is_active_player?: boolean
           is_blocked?: boolean
           attributes?: any
+          notify_all_messages?: boolean
+          notify_gm_messages?: boolean
+          notify_turn?: boolean
           last_read_at?: string
           joined_at?: string
         }
