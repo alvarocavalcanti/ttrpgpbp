@@ -15,9 +15,10 @@ interface MessageListProps {
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string) => void
   highlightMessageId?: string | null
+  members?: Array<{ user_id: string; character_name: string }>
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [] }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -63,6 +64,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onDelete={onDelete}
               onRollDice={onRollDice}
               isHighlighted={highlightMessageId === message.id}
+              members={members}
             />
           </Fragment>
         )

@@ -15,9 +15,9 @@ export default defineConfig({
       },
       includeAssets: ['favicon.svg', 'icons.svg'],
       manifest: {
-        name: 'TTRPG Play-by-Post',
-        short_name: 'TTRPG PbP',
-        description: 'A Play-by-Post TTRPG App',
+        name: 'RoleByPost',
+        short_name: 'RoleByPost',
+        description: 'A modern Play-by-Post App',
         theme_color: '#ffffff',
         icons: [
           {

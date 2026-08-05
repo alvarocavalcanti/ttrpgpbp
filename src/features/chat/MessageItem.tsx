@@ -17,13 +17,16 @@ interface MessageItemProps {
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string) => void
   isHighlighted?: boolean
+  members?: Array<{ user_id: string; character_name: string }>
 }
 
-export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted }: MessageItemProps) {
+export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const itemRef = useRef<HTMLDivElement>(null)
+
+  const senderName = members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
 
   useEffect(() => {
     if (isHighlighted && itemRef.current) {
@@ -166,10 +169,10 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <span className="text-xs font-semibold text-indigo-800 tracking-wide uppercase">
-            {message.sender?.display_name || 'Unknown User'} rolled dice
+            {senderName} rolled dice
           </span>
           <div className="text-gray-900 text-lg">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
         </div>
       </div>
@@ -183,7 +186,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           <img className="h-10 w-10 rounded-full" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
         ) : (
           <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500">
-            {message.sender?.display_name?.[0]?.toUpperCase() || '?'}
+            {senderName?.[0]?.toUpperCase() || '?'}
           </div>
         )}
       </div>
@@ -191,7 +194,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline space-x-2">
           <span className="text-sm font-medium text-gray-900">
-            {message.sender?.display_name || 'Unknown User'}
+            {senderName}
           </span>
           <span className="text-xs text-gray-500">
             {(() => {

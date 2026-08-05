@@ -13,7 +13,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const navigate = useNavigate()
   
   const [name, setName] = useState('')
-  const [isPublic, setIsPublic] = useState(true)
+  const [isPublic, setIsPublic] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [characterName, setCharacterName] = useState(profile?.display_name || '')

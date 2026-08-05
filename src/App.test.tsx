@@ -55,7 +55,7 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('TTRPG')).toBeInTheDocument()
+    expect(await screen.findByText('RoleByPost')).toBeInTheDocument()
     expect(await screen.findByText('My Channels')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Test User')).toBeInTheDocument()
@@ -83,7 +83,7 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('TTRPG')).toBeInTheDocument()
+    expect(await screen.findByText('RoleByPost')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('T')).toBeInTheDocument() // The placeholder 'T' from email
