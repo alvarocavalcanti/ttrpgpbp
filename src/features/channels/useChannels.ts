@@ -6,6 +6,20 @@ import { useAuth } from '../auth/useAuth'
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
 
+// Sorts by most recent message, falling back to creation time. Channels with
+// no messages always sort last. Deterministic so lobby order is stable across refreshes.
+function byRecentActivity(a: { last_message_at?: string | null, created_at?: string }, b: { last_message_at?: string | null, created_at?: string }) {
+  const aHasMessage = Boolean(a.last_message_at)
+  const bHasMessage = Boolean(b.last_message_at)
+  if (aHasMessage && bHasMessage) {
+    if (a.last_message_at !== b.last_message_at) return (b.last_message_at || '').localeCompare(a.last_message_at || '')
+    return (b.created_at || '').localeCompare(a.created_at || '')
+  }
+  if (aHasMessage) return -1
+  if (bHasMessage) return 1
+  return (b.created_at || '').localeCompare(a.created_at || '')
+}
+
 export function useChannels() {
   const { user } = useAuth()
   const [publicChannels, setPublicChannels] = useState<Channel[]>([])
@@ -25,7 +39,6 @@ export function useChannels() {
           .select('*')
           .eq('is_public', true)
           .eq('is_archived', false)
-          .order('created_at', { ascending: false })
 
         if (publicError) throw publicError
 
@@ -39,7 +52,7 @@ export function useChannels() {
         if (memberError) throw memberError
 
         if (mounted) {
-          setPublicChannels(publicData || [])
+          setPublicChannels((publicData || []).sort(byRecentActivity))
           
           // Format my channels
           const formattedMyChannels = await Promise.all((memberData || []).map(async row => {
@@ -74,7 +87,7 @@ export function useChannels() {
             }
           })) as (Channel & { member: ChannelMember, unread_count?: number })[]
           
-          if (mounted) setMyChannels(formattedMyChannels)
+          if (mounted) setMyChannels(formattedMyChannels.sort(byRecentActivity))
         }
       } catch (error) {
         console.error('Error fetching channels:', error)

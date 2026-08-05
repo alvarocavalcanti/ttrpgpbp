@@ -52,6 +52,7 @@ export interface Database {
           map_url: string | null
           resources_url: string | null
           status_text: string | null
+          last_message_at: string | null
           created_at: string
           updated_at: string
           has_password?: boolean
@@ -67,6 +68,7 @@ export interface Database {
           map_url?: string | null
           resources_url?: string | null
           status_text?: string | null
+          last_message_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -81,6 +83,7 @@ export interface Database {
           map_url?: string | null
           resources_url?: string | null
           status_text?: string | null
+          last_message_at?: string | null
           created_at?: string
           updated_at?: string
         }
