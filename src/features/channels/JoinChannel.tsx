@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
 import type { Database } from '../../types/database'
+import { getSystemAttributes } from '../../game-systems'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
@@ -20,6 +21,7 @@ export function JoinChannel() {
   const [error, setError] = useState<string | null>(null)
   
   const [characterName, setCharacterName] = useState(profile?.display_name || '')
+  const [attributes, setAttributes] = useState<any>({})
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -64,6 +66,14 @@ export function JoinChannel() {
       })
       
       if (rpcError) throw rpcError
+
+      if (Object.keys(attributes).length > 0) {
+        await supabase
+          .from('channel_members')
+          .update({ attributes })
+          .eq('channel_id', id)
+          .eq('user_id', user.id)
+      }
       
       navigate(`/channel/${id}`)
     } catch (err: any) {
@@ -73,6 +83,16 @@ export function JoinChannel() {
       setIsSubmitting(false)
     }
   }
+
+  const handleAttributeChange = (attr: string, value: string) => {
+    const num = parseInt(value, 10)
+    setAttributes((prev: any) => ({
+      ...prev,
+      [attr]: isNaN(num) ? 0 : num
+    }))
+  }
+
+  const systemAttributes = getSystemAttributes(channel?.game_system)
 
   if (loading) {
     return (
@@ -120,6 +140,27 @@ export function JoinChannel() {
               placeholder="Who will you play as?"
             />
           </div>
+
+          {systemAttributes.length > 0 && (
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Attributes (Modifiers) - Optional</h4>
+              <div className="grid grid-cols-3 gap-4">
+                {systemAttributes.map(attr => (
+                  <div key={attr}>
+                    <label htmlFor={attr} className="block text-xs font-medium text-gray-700">{attr}</label>
+                    <input
+                      type="number"
+                      id={attr}
+                      value={attributes[attr] ?? ''}
+                      onChange={(e) => handleAttributeChange(attr, e.target.value)}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">Enter your modifiers (e.g. -2, 0, 3), not your base scores.</p>
+            </div>
+          )}
 
           {channel.has_password && !inviteCode && (
             <div>

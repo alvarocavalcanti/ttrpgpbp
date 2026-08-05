@@ -15,10 +15,11 @@ interface MessageListProps {
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string) => void
   highlightMessageId?: string | null
-  members?: Array<{ user_id: string; character_name: string }>
+  members?: Array<{ user_id: string; character_name: string; attributes?: any }>
+  gameSystem?: string
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [] }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none' }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -65,6 +66,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onRollDice={onRollDice}
               isHighlighted={highlightMessageId === message.id}
               members={members}
+              gameSystem={gameSystem}
             />
           </Fragment>
         )

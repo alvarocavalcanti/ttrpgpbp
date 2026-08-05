@@ -145,6 +145,7 @@ export function ChannelView() {
           onRollDice={sendDiceRoll}
           highlightMessageId={highlightMessageId}
           members={members}
+          gameSystem={channel.game_system}
         />
         
         <MessageComposer 
@@ -181,6 +182,7 @@ export function ChannelView() {
           gmId={channel.gm_id}
           myUserId={myMemberInfo?.user_id}
           onUpdate={refetch}
+          gameSystem={channel.game_system}
         />
       </div>
 
