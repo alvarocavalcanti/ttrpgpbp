@@ -25,6 +25,9 @@ dist-ssr
 *.sw?
 coverage
 
+# Scratch / patch scripts
+patch*.mjs
+
 # Environment variables
 .env
 .env.*
