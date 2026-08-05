@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 
@@ -15,7 +16,16 @@ interface MemberListProps {
 }
 
 export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberListProps) {
+  const navigate = useNavigate()
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClick = () => setOpenMenuId(null)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
   
   // Local state for editing my own member info
   const [characterName, setCharacterName] = useState('')
@@ -64,6 +74,38 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
     }
   }
 
+  const handleKickMember = async (memberId: string) => {
+    if (!confirm('Are you sure you want to kick this player?')) return
+    
+    try {
+      const { error } = await supabase
+        .from('channel_members')
+        .delete()
+        .eq('id', memberId)
+
+      if (error) throw error
+      onUpdate()
+    } catch (err) {
+      console.error('Error kicking member:', err)
+    }
+  }
+
+  const handleLeaveChannel = async (memberId: string) => {
+    if (!confirm('Are you sure you want to leave this channel?')) return
+    
+    try {
+      const { error } = await supabase
+        .from('channel_members')
+        .delete()
+        .eq('id', memberId)
+
+      if (error) throw error
+      navigate('/')
+    } catch (err) {
+      console.error('Error leaving channel:', err)
+    }
+  }
+
   const activeMembers = members.filter(m => !m.is_blocked)
   const blockedMembers = members.filter(m => m.is_blocked)
 
@@ -83,7 +125,7 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
           return (
             <li key={member.id} className="group p-2 rounded-md hover:bg-gray-50 transition-colors">
               <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 relative">
                   {member.character_avatar_url || member.profile?.avatar_url ? (
                     <img 
                       className="h-10 w-10 rounded-full object-cover" 
@@ -165,28 +207,60 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
                     </>
                   )}
                 </div>
-              </div>
 
-              {!isEditing && (isMe || (isGM && !isMe)) && (
-                <div className="mt-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity pl-13">
-                  {isMe && (
+                {!isEditing && (isMe || isGM) && (
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
                     <button
-                      onClick={() => startEditing(member)}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                      data-testid={`menu-btn-${member.id}`}
+                      onClick={() => setOpenMenuId(openMenuId === member.id ? null : member.id)}
+                      className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none"
                     >
-                      Edit Character
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
                     </button>
-                  )}
-                  {isGM && !isMe && (
-                    <button
-                      onClick={() => handleBlockMember(member.id)}
-                      className="text-xs text-red-600 hover:text-red-800"
-                    >
-                      Block Player
-                    </button>
-                  )}
-                </div>
-              )}
+                    
+                    {openMenuId === member.id && (
+                      <div className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div className="py-1">
+                          {isMe && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); startEditing(member); }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Edit Character
+                            </button>
+                          )}
+                          {isGM && !isMe && (
+                            <>
+                              <button
+                                onClick={() => { setOpenMenuId(null); handleKickMember(member.id); }}
+                                className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-gray-100"
+                              >
+                                Kick Player
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); handleBlockMember(member.id); }}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                Block Player
+                              </button>
+                            </>
+                          )}
+                          {isMe && member.user_id !== gmId && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); handleLeaveChannel(member.id); }}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            >
+                              Leave Channel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </li>
           )
         })}

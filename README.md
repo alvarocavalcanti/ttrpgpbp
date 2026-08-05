@@ -18,7 +18,7 @@ A modern, mobile-friendly Play-by-Post application built for asynchronous tablet
 - **Push Notifications:** Web Push integration with in-app badging for new messages and active turns.
 - **Mobile First:** Designed to feel like a native chat application (WhatsApp/Telegram style) on mobile viewports.
 
-For a comprehensive feature breakdown, see [FEATURES.md](./FEATURES.md).
+For a comprehensive feature breakdown, see [FEATURES.md](docs/FEATURES.md).
 
 ## Development Setup
 

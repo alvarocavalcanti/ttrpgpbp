@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemberList } from './MemberList'
 import { supabase } from '../../lib/supabase'
@@ -46,7 +47,7 @@ describe('MemberList', () => {
   })
 
   it('renders active and blocked members correctly with GM badge', () => {
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={vi.fn()} />)
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     expect(screen.getByText('Players — 2')).toBeInTheDocument()
     expect(screen.getByText('Hero')).toBeInTheDocument()
@@ -64,8 +65,9 @@ describe('MemberList', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u2" onUpdate={mockOnUpdate} />)
-    
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Edit Character'))
     
     const nameInput = screen.getByDisplayValue('Sidekick')
@@ -89,8 +91,9 @@ describe('MemberList', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />)
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
     
     expect(window.confirm).toHaveBeenCalled()
@@ -109,8 +112,9 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />)
-    
+    render(<MemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m1'))
     fireEvent.click(screen.getByText('Edit Character'))
     
     const nameInput = screen.getByDisplayValue('Hero')
@@ -131,8 +135,9 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />)
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
     
     await waitFor(() => {
@@ -140,4 +145,71 @@ describe('MemberList', () => {
       expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
+
+  it('allows GM to kick player', async () => {
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
+    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn() } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Kick Player'))
+    
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalled()
+      expect(mockOnUpdate).toHaveBeenCalled()
+    })
+  })
+
+  it('allows player to leave channel', async () => {
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
+    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn() } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Leave Channel'))
+    
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalled()
+    })
+  })
+
+
+  it('handles kick member error', async () => {
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: new Error('err') }) })
+    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn() } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Kick Player'))
+    
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalled()
+    })
+  })
+
+  it('handles leave channel error', async () => {
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: new Error('err') }) })
+    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn() } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Leave Channel'))
+    
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalled()
+    })
+  })
+
 })

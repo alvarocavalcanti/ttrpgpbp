@@ -24,6 +24,7 @@ export function useChannels() {
           .from('channels')
           .select('*')
           .eq('is_public', true)
+          .eq('is_archived', false)
           .order('created_at', { ascending: false })
 
         if (publicError) throw publicError
@@ -31,8 +32,9 @@ export function useChannels() {
         // Fetch my channels (via channel_members)
         const { data: memberData, error: memberError } = await supabase
           .from('channel_members')
-          .select('*, channel:channels(*)')
+          .select('*, channel:channels!inner(*)')
           .eq('user_id', user.id)
+          .eq('channel.is_archived', false)
 
         if (memberError) throw memberError
 

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
 import { supabase } from '../../lib/supabase'
@@ -40,7 +41,7 @@ describe('ChannelSettings', () => {
   })
 
   it('renders correctly', () => {
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     expect(screen.getByDisplayValue('Game Room')).toBeInTheDocument()
     expect(screen.getByDisplayValue('http://map')).toBeInTheDocument()
@@ -48,7 +49,7 @@ describe('ChannelSettings', () => {
   })
 
   it('copies invite link to clipboard', () => {
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost/join/c1?code=123')
@@ -61,7 +62,7 @@ describe('ChannelSettings', () => {
     const mockOnUpdate = vi.fn()
     const mockOnClose = vi.fn()
 
-    render(<ChannelSettings channel={mockChannel} onClose={mockOnClose} onUpdate={mockOnUpdate} />)
+    render(<ChannelSettings channel={mockChannel} onClose={mockOnClose} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Name' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
@@ -94,7 +95,7 @@ describe('ChannelSettings', () => {
     })
 
     const mockOnUpdate = vi.fn()
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByText('Change Password'))
     
@@ -126,7 +127,7 @@ describe('ChannelSettings', () => {
     })
 
     const mockOnUpdate = vi.fn()
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByText('Change Password'))
     
@@ -157,7 +158,7 @@ describe('ChannelSettings', () => {
       return {} as any
     })
 
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByText('Change Password'))
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
@@ -168,7 +169,7 @@ describe('ChannelSettings', () => {
   })
 
   it('toggles password visibility', () => {
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByText('Change Password'))
 
@@ -186,4 +187,35 @@ describe('ChannelSettings', () => {
 
     expect(passwordInput).toHaveAttribute('type', 'password')
   })
+
+  it('handles archive channel', async () => {
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByText('Archive Channel'))
+    
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({ is_archived: true })
+    })
+  })
+
+  it('handles export chat', async () => {
+    // Basic coverage for the button click
+    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [{ content: 'msg', created_at: '2023-01-01', sender: { display_name: 'test' } }], error: null }) }) }) })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() })
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByText('Export Chat to Markdown'))
+    
+    await waitFor(() => {
+      expect(mockSelect).toHaveBeenCalled()
+    })
+  })
+
 })
