@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
+import { resolvePushTargets } from "./filter.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,15 +23,14 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // The payload comes from a database webhook on the 'messages' or 'channel_members' table
+    // The payload comes from the client invoking this function directly
     const payload = await req.json()
-    const record = payload.record || payload // Handle both webhook format and direct invocation
+    const record = payload.record || payload
     const table = payload.table || (record.content ? 'messages' : 'channel_members')
 
-    let title = ''
-    let body = ''
-    let targetUserIds: string[] = []
-    let url = ''
+    let event
+    let channelId: string
+    let members: Array<{ user_id: string; notify_all_messages?: boolean; notify_gm_messages?: boolean; notify_turn?: boolean; is_blocked?: boolean }> | null = null
 
     if (table === 'messages') {
       const message = record
@@ -41,48 +41,47 @@ serve(async (req) => {
         })
       }
 
-      // Get channel info
-      const { data: channel } = await supabase
-        .from('channels')
-        .select('name')
-        .eq('id', message.channel_id)
-        .single()
+      channelId = message.channel_id
 
-      // Get sender info
-      const { data: sender } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('id', message.sender_id)
-        .single()
+      const [{ data: channel }, { data: sender }, { data: whisperTarget }] = await Promise.all([
+        supabase
+          .from('channels')
+          .select('name, gm_id')
+          .eq('id', channelId)
+          .single(),
+        supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', message.sender_id)
+          .single(),
+        message.whisper_to
+          ? supabase
+              .from('profiles')
+              .select('display_name')
+              .eq('id', message.whisper_to)
+              .single()
+          : Promise.resolve({ data: null })
+      ])
 
-      const senderName = sender?.display_name || 'Someone'
-      const channelName = channel?.name || 'A channel'
+      const { data: fetchedMembers } = await supabase
+        .from('channel_members')
+        .select('user_id, notify_all_messages, notify_gm_messages, notify_turn, is_blocked')
+        .eq('channel_id', channelId)
 
-      url = `/channel/${message.channel_id}`
-      title = `New message in ${channelName}`
-      body = `${senderName}: ${message.content}`
-      
-      if (message.type === 'scene') {
-        title = `New Scene in ${channelName}`
-        body = message.content
-      } else if (message.type === 'dice_roll') {
-        title = `${senderName} rolled dice`
+      members = fetchedMembers
+
+      event = {
+        kind: 'message',
+        channel_id: channelId,
+        channel_name: channel?.name,
+        sender_id: message.sender_id,
+        sender_name: sender?.display_name,
+        content: message.content,
+        type: message.type,
+        whisper_to: message.whisper_to,
+        whisper_target_name: whisperTarget?.display_name,
+        gm_id: channel?.gm_id
       }
-
-      if (message.whisper_to) {
-        targetUserIds = [message.whisper_to]
-        title = `New whisper from ${senderName}`
-      } else {
-        const { data: members } = await supabase
-          .from('channel_members')
-          .select('user_id')
-          .eq('channel_id', message.channel_id)
-        
-        targetUserIds = (members || [])
-          .map(m => m.user_id)
-          .filter(uid => uid !== message.sender_id)
-      }
-
     } else if (table === 'channel_members') {
       const member = record
       
@@ -100,22 +99,35 @@ serve(async (req) => {
         })
       }
 
+      channelId = member.channel_id
+
       const { data: channel } = await supabase
         .from('channels')
         .select('name')
-        .eq('id', member.channel_id)
+        .eq('id', channelId)
         .single()
 
-      url = `/channel/${member.channel_id}`
-      title = `It's your turn!`
-      body = `It is now your turn in ${channel?.name || 'a channel'}.`
-      targetUserIds = [member.user_id]
+      const { data: fetchedTurnMembers } = await supabase
+        .from('channel_members')
+        .select('user_id, notify_all_messages, notify_gm_messages, notify_turn, is_blocked')
+        .eq('channel_id', channelId)
+
+      members = fetchedTurnMembers
+
+      event = {
+        kind: 'turn',
+        channel_id: channelId,
+        channel_name: channel?.name,
+        user_id: member.user_id
+      }
     } else {
       return new Response(JSON.stringify({ error: "Unknown table" }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
+
+    const { targetUserIds, title, body, url } = resolvePushTargets(event, members || [])
 
     if (targetUserIds.length === 0) {
       return new Response(JSON.stringify({ success: true, message: "No targets" }), {
@@ -167,11 +179,6 @@ serve(async (req) => {
       vapidPublic,
       vapidPrivate
     )
-
-    // Check if it's someone's turn (they became active player recently)
-    // Wait, the active_player is updated separately from the message insert.
-    // However, if the active_players changed, the client can call another function or we can
-    // infer it here if we passed it in the payload. But we only trigger on messages.
 
     const pushPromises = subs.map(async (sub) => {
       const pushPayload = JSON.stringify({

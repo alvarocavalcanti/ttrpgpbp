@@ -10,6 +10,7 @@ import { MessageComposer } from '../chat/MessageComposer'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
+import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
@@ -19,6 +20,7 @@ export function ChannelView() {
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
 
@@ -184,7 +186,24 @@ export function ChannelView() {
           onUpdate={refetch}
           gameSystem={channel.game_system}
         />
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={() => setShowNotificationSettings(true)}
+            className="w-full text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-center"
+          >
+            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            Notifications
+          </button>
+        </div>
       </div>
+
+      {showNotificationSettings && (
+        <ChannelNotificationSettingsModal
+          channelId={channel.id}
+          myMemberId={myMemberInfo?.id}
+          onClose={() => setShowNotificationSettings(false)}
+        />
+      )}
 
       {showSettings && isGM && (
         <ChannelSettings 

@@ -62,6 +62,11 @@
 - **In-app badge** — on by default
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")
+- **Permission banner** — prompts to enable push notifications on first load
+- **Per-channel settings** — each member controls which notifications they receive per channel:
+  - All new messages
+  - GM messages only
+  - "It's your turn" alerts
 
 ## Search
 - Full-text search within a channel's message history

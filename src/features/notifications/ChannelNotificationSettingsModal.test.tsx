@@ -1,0 +1,72 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { ChannelNotificationSettingsModal } from './ChannelNotificationSettingsModal'
+import { useChannelNotificationPrefs } from './useChannelNotificationPrefs'
+
+vi.mock('./useChannelNotificationPrefs', () => ({
+  useChannelNotificationPrefs: vi.fn()
+}))
+
+describe('ChannelNotificationSettingsModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useChannelNotificationPrefs).mockReturnValue({
+      prefs: { notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
+      loading: false,
+      saving: false,
+      updatePrefs: vi.fn().mockResolvedValue(undefined)
+    } as any)
+  })
+
+  it('renders toggles', () => {
+    render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('All new messages')).toBeInTheDocument()
+    expect(screen.getByLabelText('GM messages')).toBeInTheDocument()
+    expect(screen.getByLabelText("It's my turn")).toBeInTheDocument()
+  })
+
+  it('shows loading state', () => {
+    vi.mocked(useChannelNotificationPrefs).mockReturnValue({
+      prefs: { notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
+      loading: true,
+      saving: false,
+      updatePrefs: vi.fn()
+    } as any)
+
+    render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={vi.fn()} />)
+    expect(screen.queryByLabelText('All new messages')).not.toBeInTheDocument()
+  })
+
+  it('saves pref changes on toggle', () => {
+    const updatePrefs = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useChannelNotificationPrefs).mockReturnValue({
+      prefs: { notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
+      loading: false,
+      saving: false,
+      updatePrefs
+    } as any)
+
+    render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('All new messages'))
+
+    expect(updatePrefs).toHaveBeenCalledWith({ notify_all_messages: false })
+  })
+
+  it('closes on backdrop click', () => {
+    const onClose = vi.fn()
+    render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={onClose} />)
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(dialog.parentElement!)
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('closes on close button', () => {
+    const onClose = vi.fn()
+    render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={onClose} />)
+
+    fireEvent.click(screen.getByLabelText('Close notification settings'))
+    expect(onClose).toHaveBeenCalled()
+  })
+})
