@@ -22,7 +22,7 @@ describe('EditCharacterModal', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
-    render(<EditCharacterModal member={mockMember} gameSystem="Shadowdark" onClose={vi.fn()} onUpdate={vi.fn()} />)
+    render(<EditCharacterModal member={mockMember} gameSystem="shadowdark" onClose={vi.fn()} onUpdate={vi.fn()} />)
     expect(screen.getByText('Attributes (Modifiers)')).toBeInTheDocument()
     
     const strInput = screen.getByLabelText('STR')
