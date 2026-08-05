@@ -27,3 +27,8 @@ Boundaries: code/commits/PRs written normal.
 2. **Apply Migrations:** `npx supabase migration up`
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (http://localhost:54323) to create a mock user, or link your `.env.local` to the remote Supabase.
+
+## Git Hygiene
+
+- Don't leave uncommitted changes after creating a commit
+- If changes should not be committed, check with the user what to do. Add to .gitignore? Delete?
