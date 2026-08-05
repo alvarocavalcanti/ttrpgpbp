@@ -27,6 +27,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `map_url` | text, nullable | External link |
 | `resources_url` | text, nullable | External link |
 | `status_text` | text, nullable | Free-form markdown (initiative, timers, etc.) |
+| `last_message_at` | timestamptz, nullable | Set on message insert via trigger; used for lobby ordering |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
 
