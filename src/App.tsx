@@ -30,7 +30,7 @@ function AppNav() {
   return (
     <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2 relative">
       <Link to="/" className="text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
-        TTRPG
+        RoleByPost
       </Link>
       
       <div className="flex items-center flex-shrink-0" ref={menuRef}>

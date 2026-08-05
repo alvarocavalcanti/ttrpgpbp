@@ -19,3 +19,4 @@ Boundaries: code/commits/PRs written normal.
 # Project Rules
 
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
+- **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating

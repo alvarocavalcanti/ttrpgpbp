@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
 
   try {
     const data = event.data.json()
-    const title = data.title || 'TTRPG Play-by-Post'
+    const title = data.title || 'RoleByPost'
     const options = {
       body: data.body || '',
       icon: '/pwa-192x192.png',

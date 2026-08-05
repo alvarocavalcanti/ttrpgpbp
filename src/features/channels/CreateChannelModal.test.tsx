@@ -65,8 +65,7 @@ describe('CreateChannelModal', () => {
       expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
         name: 'New Game',
         gm_id: 'u1',
-        is_public: true,
-        invite_code: '12345678'
+        is_public: false,
       }))
       
       expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {
@@ -104,8 +103,7 @@ describe('CreateChannelModal', () => {
       expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
         name: 'New Game',
         gm_id: 'u1',
-        is_public: true,
-        invite_code: '12345678'
+        is_public: false,
       }))
       
       expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {

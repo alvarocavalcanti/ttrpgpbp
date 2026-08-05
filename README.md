@@ -1,4 +1,4 @@
-# TTRPG Play-by-Post
+# RoleByPost
 
 A modern, mobile-friendly Play-by-Post application built for asynchronous tabletop roleplaying games. Combines chat-like responsiveness with structured RPG tools like dice rolling, scene prompts, character tracking, and active-player status.
 

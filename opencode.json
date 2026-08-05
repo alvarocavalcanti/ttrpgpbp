@@ -58,7 +58,8 @@
       "notification_preferences *": "allow",
       "push *": "allow",
       "notificationclick *": "allow",
-      "tail *": "allow"
+      "tail *": "allow",
+      "rg *": "allow"
     }
   }
 }

@@ -144,6 +144,7 @@ export function ChannelView() {
           onDelete={deleteMessage} 
           onRollDice={sendDiceRoll}
           highlightMessageId={highlightMessageId}
+          members={members}
         />
         
         <MessageComposer 
