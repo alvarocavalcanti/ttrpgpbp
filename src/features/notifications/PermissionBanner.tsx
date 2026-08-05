@@ -26,7 +26,7 @@ export function PermissionBanner() {
   }
 
   return (
-    <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4" role="region" aria-label="Notification permission">
+    <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4 mx-4 md:mx-0" role="region" aria-label="Notification permission">
       <p className="text-sm text-indigo-900">
         Enable push notifications to get notified of new messages, even when the app is closed.
       </p>
