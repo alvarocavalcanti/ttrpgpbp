@@ -26,7 +26,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   const [isSubmitting, setIsSubmitting] = useState(false)
   const itemRef = useRef<HTMLDivElement>(null)
 
-  const senderName = members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name || 'Unknown User'
+  const senderName = members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
 
   useEffect(() => {
     if (isHighlighted && itemRef.current) {
