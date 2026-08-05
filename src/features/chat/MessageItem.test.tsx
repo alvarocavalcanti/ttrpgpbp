@@ -292,4 +292,22 @@ describe('MessageItem', () => {
     const img = screen.getByRole('img', { name: 'Bad Image' })
     expect(img.getAttribute('src')).toBeFalsy()
   })
+
+  it('renders check correctly for Shadowdark missing modifier', async () => {
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('3'))
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: '[DEX Check](check:DEX)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} />)
+    fireEvent.click(screen.getByText('DEX Check'))
+    expect(mockOnRoll).toHaveBeenCalled()
+  })
+
+  it('renders check correctly for Shadowdark with modifier', async () => {
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 4 }}]} />)
+    fireEvent.click(screen.getByText('STR Check'))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4')
+  })
+
 })

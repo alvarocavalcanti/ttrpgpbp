@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 
+import { EditCharacterModal } from './EditCharacterModal'
+
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
 }
@@ -12,10 +14,11 @@ interface MemberListProps {
   isGM: boolean
   gmId: string
   myUserId?: string
+  gameSystem?: string
   onUpdate: () => void
 }
 
-export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', onUpdate }: MemberListProps) {
   const navigate = useNavigate()
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -27,35 +30,8 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
     return () => document.removeEventListener('click', handleClick)
   }, [])
   
-  // Local state for editing my own member info
-  const [characterName, setCharacterName] = useState('')
-  const [characterSheetUrl, setCharacterSheetUrl] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
   const startEditing = (member: ChannelMember) => {
     setEditingMemberId(member.id)
-    setCharacterName(member.character_name)
-    setCharacterSheetUrl(member.character_sheet_url || '')
-  }
-
-  const handleSaveMember = async (memberId: string) => {
-    setIsSubmitting(true)
-    try {
-      const { error } = await supabase
-        .from('channel_members')
-        .update({
-          character_name: characterName,
-          character_sheet_url: characterSheetUrl || null
-        })
-        .eq('id', memberId)
-
-      if (error) throw error
-      setEditingMemberId(null)
-      onUpdate()
-    } catch (err) {
-      console.error('Error updating member:', err)
-      setIsSubmitting(false)
-    }
   }
 
   const handleBlockMember = async (memberId: string) => {
@@ -130,7 +106,7 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
       <ul className="space-y-4 px-2">
         {activeMembers.map(member => {
           const isMe = member.user_id === myUserId
-          const isEditing = editingMemberId === member.id
+          
 
           return (
             <li key={member.id} className="group p-2 rounded-md hover:bg-gray-50 transition-colors">
@@ -151,40 +127,6 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={characterName}
-                        onChange={(e) => setCharacterName(e.target.value)}
-                        className="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Character Name"
-                      />
-                      <input
-                        type="url"
-                        value={characterSheetUrl}
-                        onChange={(e) => setCharacterSheetUrl(e.target.value)}
-                        className="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Sheet URL"
-                      />
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleSaveMember(member.id)}
-                          disabled={isSubmitting || !characterName.trim()}
-                          className="text-xs text-white bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded disabled:opacity-50"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingMemberId(null)}
-                          disabled={isSubmitting}
-                          className="text-xs text-gray-700 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
                     <>
                       <div className="flex items-center space-x-2">
                         <p className="text-sm font-medium text-gray-900 truncate">
@@ -215,10 +157,9 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
                         </a>
                       )}
                     </>
-                  )}
                 </div>
 
-                {!isEditing && (isMe || isGM) && (
+                {(isMe || isGM) && (
                   <div className="relative" onClick={(e) => e.stopPropagation()}>
                     <button
                       data-testid={`menu-btn-${member.id}`}
@@ -306,6 +247,16 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
           </ul>
         </div>
       )}
+
+      {editingMemberId && (
+        <EditCharacterModal
+          member={members.find(m => m.id === editingMemberId)!}
+          gameSystem={gameSystem}
+          onClose={() => setEditingMemberId(null)}
+          onUpdate={onUpdate}
+        />
+      )}
     </div>
   )
 }
+

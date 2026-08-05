@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
+import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 
 interface CreateChannelModalProps {
   onClose: () => void
@@ -14,6 +15,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   
   const [name, setName] = useState('')
   const [isPublic, setIsPublic] = useState(false)
+  const [gameSystem, setGameSystem] = useState('none')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [characterName, setCharacterName] = useState(profile?.display_name || '')
@@ -39,6 +41,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
           name,
           gm_id: user.id,
           is_public: isPublic,
+          game_system: gameSystem,
           invite_code: inviteCode
         })
         .select()
@@ -132,6 +135,20 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   <label htmlFor="isPublic" className="font-medium text-gray-700">Public Channel</label>
                   <p className="text-gray-500">List this channel in the public lobby.</p>
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="gameSystem" className="block text-sm font-medium text-gray-700">Game System</label>
+                <select
+                  id="gameSystem"
+                  value={gameSystem}
+                  onChange={(e) => setGameSystem(e.target.value)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                >
+                  {GAME_SYSTEM_OPTIONS.map(sys => (
+                    <option key={sys.id} value={sys.id}>{sys.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

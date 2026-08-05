@@ -1,0 +1,5 @@
+{
+  "id": "shadowdark",
+  "name": "Shadowdark",
+  "attributes": ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
+}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
+import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
@@ -16,6 +17,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const navigate = useNavigate()
   const [name, setName] = useState(channel.name)
   const [isPublic, setIsPublic] = useState(channel.is_public)
+  const [gameSystem, setGameSystem] = useState(channel.game_system || 'none')
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
   const [resourcesUrl, setResourcesUrl] = useState(channel.resources_url || '')
   
@@ -36,6 +38,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
       const updates: any = {
         name,
         is_public: isPublic,
+        game_system: gameSystem,
         map_url: mapUrl || null,
         resources_url: resourcesUrl || null
       }
@@ -199,6 +202,20 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
                 <div className="ml-3 text-sm">
                   <label htmlFor="isPublic" className="font-medium text-gray-700">Public Channel</label>
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="gameSystem" className="block text-sm font-medium text-gray-700">Game System</label>
+                <select
+                  id="gameSystem"
+                  value={gameSystem}
+                  onChange={(e) => setGameSystem(e.target.value)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                >
+                  {GAME_SYSTEM_OPTIONS.map(sys => (
+                    <option key={sys.id} value={sys.id}>{sys.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="pt-2">

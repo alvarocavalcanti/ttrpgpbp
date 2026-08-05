@@ -47,6 +47,7 @@ export interface Database {
           gm_id: string
           is_public: boolean
           is_archived: boolean
+          game_system: string
           invite_code: string | null
           map_url: string | null
           resources_url: string | null
@@ -61,6 +62,7 @@ export interface Database {
           gm_id: string
           is_public?: boolean
           is_archived?: boolean
+          game_system?: string
           invite_code?: string | null
           map_url?: string | null
           resources_url?: string | null
@@ -74,6 +76,7 @@ export interface Database {
           gm_id?: string
           is_public?: boolean
           is_archived?: boolean
+          game_system?: string
           invite_code?: string | null
           map_url?: string | null
           resources_url?: string | null
@@ -122,6 +125,7 @@ export interface Database {
           character_sheet_url: string | null
           is_active_player: boolean
           is_blocked: boolean
+          attributes: any
           last_read_at?: string
           joined_at: string
         }
@@ -134,6 +138,7 @@ export interface Database {
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
+          attributes?: any
           last_read_at?: string
           joined_at?: string
         }
@@ -146,6 +151,7 @@ export interface Database {
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
+          attributes?: any
           last_read_at?: string
           joined_at?: string
         }

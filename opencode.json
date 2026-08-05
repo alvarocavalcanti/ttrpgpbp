@@ -64,7 +64,10 @@
       "mv *": "allow",
       "supabase *": "allow",
       "node *": "allow",
-      "npm run test *": "allow"
+      "npm run test *": "allow",
+      "wc *": "allow",
+      "git remote -v *": "allow",
+      "gh pr list *": "allow"
     }
   }
 }

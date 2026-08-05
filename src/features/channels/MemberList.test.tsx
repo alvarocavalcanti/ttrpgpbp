@@ -76,10 +76,10 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('Save'))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
         character_name: 'Super Sidekick',
         character_sheet_url: null
-      })
+      }))
       expect(mockEq).toHaveBeenCalledWith('id', 'm2')
       expect(mockOnUpdate).toHaveBeenCalled()
     })

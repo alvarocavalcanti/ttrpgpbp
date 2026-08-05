@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Database } from '../../types/database'
 import { linkifyDice } from '../dice/parser'
+import { getSystemAttributes } from '../../game-systems'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
@@ -17,10 +18,11 @@ interface MessageItemProps {
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string) => void
   isHighlighted?: boolean
-  members?: Array<{ user_id: string; character_name: string }>
+  members?: Array<{ user_id: string; character_name: string; attributes?: any }>
+  gameSystem?: string
 }
 
-export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members }: MessageItemProps) {
+export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none' }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -94,11 +96,35 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           <button
             onClick={(e) => {
               e.preventDefault()
-              const modifierStr = window.prompt(`Enter modifier for ${ability} Check:`, '0')
-              if (modifierStr !== null) {
-                const modifier = parseInt(modifierStr, 10) || 0
-                const sign = modifier >= 0 ? '+' : ''
-                onRollDice?.(`1d20${modifier !== 0 ? `${sign}${modifier}` : ''}`)
+              let finalModifier: number | null = null
+              let isMissingMod = false
+              
+              const systemAttributes = getSystemAttributes(gameSystem)
+
+              if (systemAttributes.includes(ability)) {
+                const myMember = members?.find(m => m.user_id === currentUserId)
+                const myAttributes = myMember?.attributes || {}
+                
+                if (typeof myAttributes[ability] === 'number') {
+                  finalModifier = myAttributes[ability]
+                } else {
+                  isMissingMod = true
+                  const modifierStr = window.prompt(`Enter modifier for ${ability} Check (Missing in profile!):`, '0')
+                  if (modifierStr !== null) {
+                    finalModifier = parseInt(modifierStr, 10) || 0
+                  }
+                }
+              } else {
+                const modifierStr = window.prompt(`Enter modifier for ${ability} Check:`, '0')
+                if (modifierStr !== null) {
+                  finalModifier = parseInt(modifierStr, 10) || 0
+                }
+              }
+
+              if (finalModifier !== null) {
+                const sign = finalModifier >= 0 ? '+' : ''
+                const warning = isMissingMod ? `\n\n*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
+                onRollDice?.(`1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}${warning}`)
               }
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-200 shadow-sm"
