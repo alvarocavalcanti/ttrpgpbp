@@ -59,6 +59,11 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
   }
 
   const handleBlockMember = async (memberId: string) => {
+    const targetMember = members.find(m => m.id === memberId)
+    if (targetMember?.user_id === gmId) {
+      alert('Cannot block the GM.')
+      return
+    }
     if (!confirm('Are you sure you want to block this player?')) return
     
     try {
@@ -75,6 +80,11 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
   }
 
   const handleKickMember = async (memberId: string) => {
+    const targetMember = members.find(m => m.id === memberId)
+    if (targetMember?.user_id === gmId) {
+      alert('Cannot kick the GM.')
+      return
+    }
     if (!confirm('Are you sure you want to kick this player?')) return
     
     try {
@@ -231,7 +241,7 @@ export function MemberList({ members, isGM, gmId, myUserId, onUpdate }: MemberLi
                               Edit Character
                             </button>
                           )}
-                          {isGM && !isMe && (
+                          {isGM && !isMe && member.user_id !== gmId && (
                             <>
                               <button
                                 onClick={() => { setOpenMenuId(null); handleKickMember(member.id); }}
