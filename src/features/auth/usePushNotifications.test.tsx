@@ -188,6 +188,11 @@ describe('usePushNotifications', () => {
       await result.current.updatePreferences({ push_enabled: false })
     })
 
+    // The 'temp' id from default fallback should be omitted
+    const calledArg = mockUpsert.mock.calls[0][0]
+    expect(calledArg).not.toHaveProperty('id', 'temp')
+    expect(calledArg.id).toBeUndefined()
+
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: 'u1',

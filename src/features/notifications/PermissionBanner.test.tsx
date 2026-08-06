@@ -33,7 +33,21 @@ describe('PermissionBanner', () => {
 
   it('renders nothing when push not supported', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true,
       isSupported: false,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    render(<PermissionBanner />)
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('renders nothing when not configured', () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: false,
+      isSupported: true,
       permission: 'default',
       isSubscribed: false,
       subscribeToPush: vi.fn()

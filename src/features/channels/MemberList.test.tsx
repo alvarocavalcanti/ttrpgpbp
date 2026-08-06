@@ -193,6 +193,7 @@ describe('MemberList', () => {
     
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalled()
+      expect(screen.getByText('Failed to kick member.')).toBeInTheDocument()
     })
   })
 
@@ -209,7 +210,7 @@ describe('MemberList', () => {
     
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalled()
+      expect(screen.getByText('Failed to leave channel.')).toBeInTheDocument()
     })
   })
-
 })

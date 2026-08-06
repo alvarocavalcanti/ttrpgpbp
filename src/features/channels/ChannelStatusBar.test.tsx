@@ -91,6 +91,7 @@ describe('ChannelStatusBar', () => {
 
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to save status.')).toBeInTheDocument()
     })
   })
 })

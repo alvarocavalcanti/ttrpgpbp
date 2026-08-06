@@ -54,10 +54,10 @@ export default defineConfig({
         'supabase/**'
       ],
       thresholds: {
-        lines: 75,
-        functions: 75,
-        branches: 75,
-        statements: 75
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80
       }
     }
   }
