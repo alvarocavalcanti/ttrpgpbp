@@ -29,44 +29,43 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const [showPassword, setShowPassword] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
 
   const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
 
   const handleCopy = async () => {
+    let textArea: HTMLTextAreaElement | null = null
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(inviteLink)
       } else {
-        const textArea = document.createElement("textarea")
+        textArea = document.createElement("textarea")
         textArea.value = inviteLink
         textArea.style.position = "absolute"
         textArea.style.left = "-999999px"
         document.body.appendChild(textArea)
         textArea.focus()
         textArea.select()
-        try {
-          document.execCommand('copy')
-        } catch (err) {
-          console.error('Fallback: Oops, unable to copy', err)
-          addToast('Failed to copy invite link', 'error')
-          document.body.removeChild(textArea)
-          return
+        // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
+        const success = document.execCommand('copy')
+        if (!success) {
+          throw new Error('execCommand returned false')
         }
-        document.body.removeChild(textArea)
       }
       addToast('Invite link copied!', 'success')
     } catch (err) {
       console.error('Failed to copy', err)
       addToast('Failed to copy invite link', 'error')
+    } finally {
+      if (textArea?.isConnected) {
+        document.body.removeChild(textArea)
+      }
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    setError(null)
 
     try {
       const updates: any = {
@@ -111,7 +110,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
       onClose()
     } catch (err: any) {
       console.error('Error updating channel:', err)
-      setError('Failed to update channel settings.')
+      addToast('Failed to update channel settings.', 'error')
       setIsSubmitting(false)
     }
   }
@@ -119,7 +118,6 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const handleExport = async () => {
     try {
       setIsSubmitting(true)
-      setError(null)
       setWarning(null)
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
@@ -151,7 +149,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
       addToast('Chat exported successfully', 'success')
     } catch (err) {
       console.error('Failed to export:', err)
-      setError('Failed to export channel.')
+      addToast('Failed to export channel.', 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -175,7 +173,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
       navigate('/')
     } catch (err) {
       console.error('Failed to archive:', err)
-      setError('Failed to archive channel.')
+      addToast('Failed to archive channel.', 'error')
       setIsSubmitting(false)
     }
   }
@@ -328,11 +326,6 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
                 />
               </div>
 
-              {error && (
-                <div className="text-sm text-red-600">
-                  {error}
-                </div>
-              )}
               {warning && (
                 <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
                   {warning}

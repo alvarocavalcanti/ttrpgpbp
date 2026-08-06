@@ -4,6 +4,7 @@ import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { ToastProvider } from '../../contexts/ToastContext'
 
 vi.mock('./useChannel', () => ({
   useChannel: vi.fn()
@@ -15,12 +16,6 @@ vi.mock('../chat/useMessages', () => ({
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: { id: 'user1' } })
-}))
-
-vi.mock('../../contexts/ToastContext', () => ({
-  useToast: vi.fn().mockReturnValue({
-    addToast: vi.fn()
-  })
 }))
 
 vi.mock('../search/SearchModal', () => ({
@@ -57,11 +52,13 @@ describe('ChannelView search functionality', () => {
 
   it('toggles search modal', () => {
     render(
-      <MemoryRouter initialEntries={['/channel/c1']}>
-        <Routes>
-          <Route path="/channel/:id" element={<ChannelView />} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     )
 
     // Initially modal is not there
@@ -78,11 +75,13 @@ describe('ChannelView search functionality', () => {
 
   it('handles jump to message', () => {
     render(
-      <MemoryRouter initialEntries={['/channel/c1']}>
-        <Routes>
-          <Route path="/channel/:id" element={<ChannelView />} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     )
 
     fireEvent.click(screen.getByText('Search'))
@@ -107,11 +106,13 @@ describe('ChannelView search functionality', () => {
     } as any)
 
     const { container } = render(
-      <MemoryRouter initialEntries={['/channel/c1']}>
-        <Routes>
-          <Route path="/channel/:id" element={<ChannelView />} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     )
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
@@ -128,11 +129,13 @@ describe('ChannelView search functionality', () => {
     } as any)
 
     render(
-      <MemoryRouter initialEntries={['/channel/c1']}>
-        <Routes>
-          <Route path="/channel/:id" element={<ChannelView />} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     )
     // redirects to /
   })
@@ -149,11 +152,13 @@ describe('ChannelView search functionality', () => {
     } as any)
 
     render(
-      <MemoryRouter initialEntries={['/channel/c1']}>
-        <Routes>
-          <Route path="/channel/:id" element={<ChannelView />} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     )
 
     fireEvent.click(screen.getByText('Settings'))
@@ -162,11 +167,13 @@ describe('ChannelView search functionality', () => {
 
   it('toggles rolls modal', () => {
     render(
-      <MemoryRouter initialEntries={['/channel/c1']}>
-        <Routes>
-          <Route path="/channel/:id" element={<ChannelView />} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     )
 
     fireEvent.click(screen.getByText('Rolls'))

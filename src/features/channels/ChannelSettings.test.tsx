@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
 import { supabase } from '../../lib/supabase'
 
@@ -14,10 +14,12 @@ vi.mock('../../lib/crypto', () => ({
   hashPassword: vi.fn().mockResolvedValue('hashed_password')
 }))
 
+const mockAddToast = vi.fn()
+
 vi.mock('../../contexts/ToastContext', () => ({
-  useToast: vi.fn().mockReturnValue({
-    addToast: vi.fn()
-  })
+  useToast: vi.fn(() => ({
+    addToast: mockAddToast
+  }))
 }))
 
 describe('ChannelSettings', () => {
@@ -33,6 +35,7 @@ describe('ChannelSettings', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAddToast.mockClear()
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: { 
@@ -51,6 +54,10 @@ describe('ChannelSettings', () => {
     document.execCommand = vi.fn()
   })
 
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('renders correctly', () => {
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
@@ -59,11 +66,15 @@ describe('ChannelSettings', () => {
     expect(screen.getByDisplayValue('http://localhost/join/c1?code=123')).toBeInTheDocument()
   })
 
-  it('copies invite link to clipboard', () => {
+  it('copies invite link to clipboard', async () => {
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost/join/c1?code=123')
+    
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost/join/c1?code=123')
+      expect(mockAddToast).toHaveBeenCalledWith('Invite link copied!', 'success')
+    })
   })
 
   it('saves changes without password update', async () => {
@@ -87,6 +98,7 @@ describe('ChannelSettings', () => {
         resources_url: 'http://resources'
       })
       expect(mockEq).toHaveBeenCalledWith('id', 'c1')
+      expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
       expect(mockOnUpdate).toHaveBeenCalled()
       expect(mockOnClose).toHaveBeenCalled()
     })
@@ -176,7 +188,7 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to update channel settings.')).toBeInTheDocument()
+      expect(mockAddToast).toHaveBeenCalledWith('Failed to update channel settings.', 'error')
     })
   })
 
@@ -225,7 +237,7 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByText('Archive Channel'))
     
     await waitFor(() => {
-      expect(screen.getByText('Failed to archive channel.')).toBeInTheDocument()
+      expect(mockAddToast).toHaveBeenCalledWith('Failed to archive channel.', 'error')
     })
   })
 
@@ -239,7 +251,7 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByText('Export Chat to Markdown'))
     
     await waitFor(() => {
-      expect(screen.getByText('Failed to export channel.')).toBeInTheDocument()
+      expect(mockAddToast).toHaveBeenCalledWith('Failed to export channel.', 'error')
     })
   })
 
@@ -271,33 +283,34 @@ describe('ChannelSettings', () => {
     
     await waitFor(() => {
       expect(mockSelect).toHaveBeenCalled()
+      expect(mockAddToast).toHaveBeenCalledWith('Chat exported successfully', 'success')
     })
   })
 
-
-  it('handles archive channel', async () => {
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
-
+  it('handles copy fallback when not in secure context (success)', async () => {
+    Object.defineProperty(window, 'isSecureContext', { value: false })
+    document.execCommand = vi.fn().mockReturnValue(true)
+    
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
-    fireEvent.click(screen.getByText('Archive Channel'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ is_archived: true })
+      expect(document.execCommand).toHaveBeenCalledWith('copy')
+      expect(mockAddToast).toHaveBeenCalledWith('Invite link copied!', 'success')
     })
   })
 
-  it('handles export chat', async () => {
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [{ content: 'msg', created_at: '2023-01-01', sender: { display_name: 'test' } }], error: null }) }) }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.stubGlobal('URL', { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() })
-
+  it('handles copy fallback when not in secure context (failure)', async () => {
+    Object.defineProperty(window, 'isSecureContext', { value: false })
+    document.execCommand = vi.fn().mockReturnValue(false) // returns false on failure
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
-    fireEvent.click(screen.getByText('Export Chat to Markdown'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     
     await waitFor(() => {
-      expect(mockSelect).toHaveBeenCalled()
+      expect(document.execCommand).toHaveBeenCalledWith('copy')
+      expect(mockAddToast).toHaveBeenCalledWith('Failed to copy invite link', 'error')
     })
   })
 

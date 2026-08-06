@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 
 export type ToastType = 'success' | 'error' | 'info'
 
@@ -10,29 +10,61 @@ interface Toast {
 
 interface ToastContextType {
   addToast: (message: string, type?: ToastType) => void
+  removeToast: (id: string) => void
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
+const MAX_TOASTS = 5
+const TOAST_AUTO_DISMISS_MS = 3000
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
-
-  const addToast = useCallback((message: string, type: ToastType = 'success') => {
-    const id = Math.random().toString(36).substring(2, 9)
-    setToasts(prev => [...prev, { id, message, type }])
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-      setToasts(prev => prev.filter(toast => toast.id !== id))
-    }, 3000)
-  }, [])
+  const [timers] = useState(() => new Map<string, ReturnType<typeof setTimeout>>())
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
-  }, [])
+    const timer = timers.get(id)
+    if (timer) {
+      clearTimeout(timer)
+      timers.delete(id)
+    }
+  }, [timers])
+
+  const addToast = useCallback((message: string, type: ToastType = 'success') => {
+    const id = crypto.randomUUID()
+    setToasts(prev => {
+      const newToasts = [...prev, { id, message, type }]
+      const kept = newToasts.slice(-MAX_TOASTS) // keep only the latest MAX_TOASTS
+      if (kept.length < newToasts.length) {
+        newToasts.slice(0, newToasts.length - MAX_TOASTS).forEach(evicted => {
+          const timer = timers.get(evicted.id)
+          if (timer) {
+            clearTimeout(timer)
+            timers.delete(evicted.id)
+          }
+        })
+      }
+      return kept
+    })
+
+    // Auto remove after 3 seconds
+    const timer = setTimeout(() => {
+      removeToast(id)
+    }, TOAST_AUTO_DISMISS_MS)
+    timers.set(id, timer)
+  }, [removeToast, timers])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      timers.forEach(timer => clearTimeout(timer))
+      timers.clear()
+    }
+  }, [timers])
 
   return (
-    <ToastContext.Provider value={{ addToast }}>
+    <ToastContext.Provider value={{ addToast, removeToast }}>
       {children}
       
       {/* Toast Container */}
@@ -45,7 +77,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               toast.type === 'error' ? 'bg-red-600' :
               'bg-blue-600'
             }`}
-            role="alert"
+            role={toast.type === 'error' ? 'alert' : 'status'}
+            aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
           >
             <span>{toast.message}</span>
             <button
