@@ -1,23 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { Database } from '../../types/database'
 import { linkifyDice } from '../dice/parser'
 import { getSystemAttributes } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
+import type { ChatMessage } from './types'
 
-type Message = Database['public']['Tables']['messages']['Row'] & {
-  sender?: { display_name: string | null; avatar_url: string | null } | null
-  whisper_target?: { display_name: string | null; avatar_url: string | null } | null
-  reply?: {
-    id: string
-    content: string
-    sender_id: string | null
-    is_deleted: boolean
-    type: string
-  } | null
-}
+type Message = ChatMessage
 
 interface MessageItemProps {
   message: Message

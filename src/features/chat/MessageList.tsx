@@ -1,13 +1,10 @@
 import { useEffect, useRef, Fragment } from 'react'
 import { MessageItem } from './MessageItem'
-import type { Database } from '../../types/database'
 import type { ReactionSummary } from './useMessages'
+import type { ChatMessage } from './types'
 import { useAuth } from '../auth/useAuth'
 
-type Message = Database['public']['Tables']['messages']['Row'] & {
-  sender?: { display_name: string | null; avatar_url: string | null } | null
-  whisper_target?: { display_name: string | null; avatar_url: string | null } | null
-}
+type Message = ChatMessage
 
 interface MessageListProps {
   messages: Message[]

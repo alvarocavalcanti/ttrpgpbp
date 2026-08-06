@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import { parseAndRoll } from '../dice/parser'
+import type { ChatMessage } from './types'
 
 export interface ReactionSummary {
   emoji: string
@@ -12,17 +13,7 @@ export interface ReactionSummary {
 
 type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
 
-type Message = Database['public']['Tables']['messages']['Row'] & {
-  sender?: { display_name: string | null; avatar_url: string | null } | null
-  whisper_target?: { display_name: string | null; avatar_url: string | null } | null
-  reply?: {
-    id: string
-    content: string
-    sender_id: string | null
-    is_deleted: boolean
-    type: string
-  } | null
-}
+type Message = ChatMessage
 
 const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:messages!messages_reply_to_fkey(id, content, sender_id, is_deleted, type)'
 
@@ -118,12 +109,18 @@ export function useMessages(channelId: string | undefined) {
     }
 
     async function fetchReactions() {
-      const { data } = await supabase
-        .from('message_reactions')
-        .select('*')
-        .eq('channel_id', channelId as string)
-      if (mounted) {
-        setReactions(buildReactionMap(data || [], user?.id))
+      try {
+        const { data, error } = await supabase
+          .from('message_reactions')
+          .select('*')
+          .eq('channel_id', channelId as string)
+        if (error) throw error
+        if (mounted) {
+          setReactions(buildReactionMap(data || [], user?.id))
+        }
+      } catch (err: any) {
+        // Reactions are non-critical; log without failing the channel view.
+        console.error('Error fetching reactions:', err)
       }
     }
 

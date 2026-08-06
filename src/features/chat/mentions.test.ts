@@ -56,6 +56,16 @@ describe('linkifyMentions', () => {
     expect(mentioned_user_ids).toEqual([])
   })
 
+  it('collapses duplicate character names to the first member', () => {
+    const dupes = [
+      { user_id: 'u1', character_name: 'Bob' },
+      { user_id: 'u2', character_name: 'Bob' },
+    ]
+    const { content, mentioned_user_ids } = linkifyMentions('@Bob', dupes)
+    expect(content).toBe('[@Bob](user:u1)')
+    expect(mentioned_user_ids).toEqual(['u1'])
+  })
+
   it('returns unchanged text when no members', () => {
     const { content, mentioned_user_ids } = linkifyMentions('Hello @Hero', [])
     expect(content).toBe('Hello @Hero')

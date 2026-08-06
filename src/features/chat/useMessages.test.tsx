@@ -235,6 +235,24 @@ describe('useMessages', () => {
     }))
   })
 
+  it('handles reactions fetch error without failing the view', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: null, error: new Error('Reactions DB Error') }) })
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(console.error).toHaveBeenCalledWith('Error fetching reactions:', expect.any(Error))
+    })
+    // Channel-level error must NOT be set (would redirect away from the view)
+    expect(result.current.error).toBeNull()
+  })
+
   it('fetches reactions and builds summaries', async () => {
     const reactionsData = [
       { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u1', emoji: '👍', created_at: '' },
