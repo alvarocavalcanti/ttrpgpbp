@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import { useAuth } from './features/auth/useAuth'
 import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -110,26 +111,28 @@ function AppNav() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-          <AppNav />
-          <main className="flex-1 flex flex-col">
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              
-              <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Lobby />} />
-                <Route path="/archived" element={<ArchivedChannels />} />
-                <Route path="/join/:id" element={<JoinChannel />} />
-                <Route path="/channel/:id" element={<ChannelView />} />
-                <Route path="/settings" element={<ProfileSettings />} />
-              </Route>
-            </Routes>
-          </main>
-        </div>
-      </BrowserRouter>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="min-h-screen bg-gray-50 flex flex-col">
+            <AppNav />
+            <main className="flex-1 flex flex-col">
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/" element={<Lobby />} />
+                  <Route path="/archived" element={<ArchivedChannels />} />
+                  <Route path="/join/:id" element={<JoinChannel />} />
+                  <Route path="/channel/:id" element={<ChannelView />} />
+                  <Route path="/settings" element={<ProfileSettings />} />
+                </Route>
+              </Routes>
+            </main>
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
+    </ToastProvider>
   )
 }
 

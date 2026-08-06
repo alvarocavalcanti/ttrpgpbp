@@ -14,6 +14,12 @@ vi.mock('../../lib/crypto', () => ({
   hashPassword: vi.fn().mockResolvedValue('hashed_password')
 }))
 
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: vi.fn().mockReturnValue({
+    addToast: vi.fn()
+  })
+}))
+
 describe('ChannelSettings', () => {
   const mockChannel: any = {
     id: 'c1',
@@ -36,8 +42,13 @@ describe('ChannelSettings', () => {
     })
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
-      value: { writeText: vi.fn() }
+      value: { writeText: vi.fn().mockResolvedValue(undefined) }
     })
+    Object.defineProperty(window, 'isSecureContext', {
+      configurable: true,
+      value: true
+    })
+    document.execCommand = vi.fn()
   })
 
   it('renders correctly', () => {
