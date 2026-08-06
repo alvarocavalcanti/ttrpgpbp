@@ -46,6 +46,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
         textArea.focus()
         textArea.select()
         try {
+          // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
           const success = document.execCommand('copy')
           if (!success) {
             throw new Error('execCommand returned false')

@@ -16,6 +16,7 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 const MAX_TOASTS = 5
+const TOAST_AUTO_DISMISS_MS = 3000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -31,16 +32,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addToast = useCallback((message: string, type: ToastType = 'success') => {
-    const id = Math.random().toString(36).substring(2, 9)
+    const id = crypto.randomUUID()
     setToasts(prev => {
       const newToasts = [...prev, { id, message, type }]
-      return newToasts.slice(-MAX_TOASTS) // keep only the latest MAX_TOASTS
+      const kept = newToasts.slice(-MAX_TOASTS) // keep only the latest MAX_TOASTS
+      if (kept.length < newToasts.length) {
+        newToasts.slice(0, newToasts.length - MAX_TOASTS).forEach(evicted => {
+          const timer = timersRef.current.get(evicted.id)
+          if (timer) {
+            clearTimeout(timer)
+            timersRef.current.delete(evicted.id)
+          }
+        })
+      }
+      return kept
     })
     
     // Auto remove after 3 seconds
     const timer = setTimeout(() => {
       removeToast(id)
-    }, 3000)
+    }, TOAST_AUTO_DISMISS_MS)
     timersRef.current.set(id, timer)
   }, [removeToast])
 
