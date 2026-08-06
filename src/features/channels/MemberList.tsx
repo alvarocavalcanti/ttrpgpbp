@@ -196,7 +196,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               Edit Character
                             </button>
                           )}
-                          {isGM && !isMe && (
+                          {isGM && !isMe && member.user_id !== gmId && (
                             <>
                               <button
                                 onClick={() => { setOpenMenuId(null); handleKickMember(member.id); }}

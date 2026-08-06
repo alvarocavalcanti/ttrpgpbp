@@ -215,18 +215,15 @@ describe('MemberList', () => {
     })
   })
 
-  it('shows error when trying to block GM', () => {
+  it('hides kick and block options for GM', () => {
     // Setup where we are isGM but the GM ID is set to another user (edge case/co-GM)
     render(<MemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
-    fireEvent.click(screen.getByTestId('menu-btn-m2')) // m2 has user_id u2
-    fireEvent.click(screen.getByText('Block Player'))
-    expect(screen.getByText('Cannot block the GM.')).toBeInTheDocument()
-  })
-
-  it('shows error when trying to kick GM', () => {
-    render(<MemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    
+    // Open menu for m2 (who is the GM here)
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
-    fireEvent.click(screen.getByText('Kick Player'))
-    expect(screen.getByText('Cannot kick the GM.')).toBeInTheDocument()
+    
+    // The options should not exist in the DOM
+    expect(screen.queryByText('Block Player')).not.toBeInTheDocument()
+    expect(screen.queryByText('Kick Player')).not.toBeInTheDocument()
   })
 })
