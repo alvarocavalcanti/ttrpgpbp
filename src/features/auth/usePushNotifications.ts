@@ -142,14 +142,20 @@ export function usePushNotifications() {
   const updatePreferences = async (updates: Partial<NotificationPrefs>) => {
     if (!user) return
     
+    const payload = {
+      user_id: user.id,
+      ...preferences,
+      ...updates
+    } as any
+
+    if (payload.id === 'temp') {
+      delete payload.id
+    }
+
     // Upsert preference
     const { data, error } = await supabase
       .from('notification_preferences')
-      .upsert({
-        user_id: user.id,
-        ...preferences,
-        ...updates
-      } as any)
+      .upsert(payload, { onConflict: 'user_id' })
       .select()
       .single()
 
