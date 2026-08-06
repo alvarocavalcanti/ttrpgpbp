@@ -28,7 +28,7 @@ jobs:
         run: npm run build
         
       - name: Run tests with coverage
-        run: npx vitest run --coverage
+        run: npm run test:coverage
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1

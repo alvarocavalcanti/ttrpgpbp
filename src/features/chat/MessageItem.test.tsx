@@ -188,6 +188,7 @@ describe('MessageItem', () => {
     
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to edit message.')).toBeInTheDocument()
     })
   })
 
@@ -210,6 +211,7 @@ describe('MessageItem', () => {
     
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to delete message.')).toBeInTheDocument()
     })
   })
 

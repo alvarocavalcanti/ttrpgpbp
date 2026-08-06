@@ -73,6 +73,7 @@ describe('MessageComposer', () => {
     // Wait for the async submit handler to catch the error
     await screen.findByRole('button', { name: 'Send' }) // Re-enables after finally block
     expect(console.error).toHaveBeenCalled()
+    expect(screen.getByText('Failed to send message. Please try again.')).toBeInTheDocument()
   })
 
   it('sends message via cmd+enter', async () => {

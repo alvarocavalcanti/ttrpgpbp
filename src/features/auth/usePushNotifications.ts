@@ -143,14 +143,12 @@ export function usePushNotifications() {
     if (!user) return
     
     const payload = {
-      user_id: user.id,
       ...preferences,
-      ...updates
+      ...updates,
+      user_id: user.id
     } as any
 
-    if (payload.id === 'temp') {
-      delete payload.id
-    }
+    delete payload.id
 
     // Upsert preference
     const { data, error } = await supabase
@@ -163,8 +161,11 @@ export function usePushNotifications() {
     setPreferences(data)
   }
 
+  const isConfigured = !!import.meta.env.VITE_VAPID_PUBLIC_KEY
+
   return {
     isSupported,
+    isConfigured,
     permission,
     isSubscribed,
     preferences,

@@ -28,7 +28,7 @@ describe('ProfileSettings', () => {
     vi.clearAllMocks()
 
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'granted',
       isSubscribed: false,
       preferences: { push_enabled: true, badge_enabled: true } as any,
@@ -179,7 +179,7 @@ describe('ProfileSettings', () => {
 
     // Rerender with isSubscribed = true
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'granted',
       isSubscribed: true,
       preferences: { push_enabled: true, badge_enabled: true } as any,
@@ -193,5 +193,32 @@ describe('ProfileSettings', () => {
     
     fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
     expect(mockUnsubscribe).toHaveBeenCalled()
+  })
+
+  it('shows not configured message when isConfigured is false', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: false,
+      isSupported: true,
+      permission: 'granted',
+      isSubscribed: false,
+      preferences: { push_enabled: true, badge_enabled: true } as any,
+      loading: false,
+      subscribeToPush: mockSubscribe,
+      unsubscribeFromPush: mockUnsubscribe,
+      updatePreferences: mockUpdatePreferences
+    })
+
+    render(<ProfileSettings />)
+    expect(screen.getByText('Push notifications are not configured on the server.')).toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'Use push notifications' })).not.toBeInTheDocument()
   })
 })

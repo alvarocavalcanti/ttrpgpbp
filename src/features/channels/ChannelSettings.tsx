@@ -28,6 +28,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,6 +85,8 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const handleExport = async () => {
     try {
       setIsSubmitting(true)
+      setError(null)
+      setWarning(null)
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
         .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
@@ -94,7 +97,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
       if (messagesError) throw messagesError
 
       if (messages.length === 5000) {
-        window.alert('This channel has more than 5000 messages. Export may be incomplete. Batch export coming soon.')
+        setWarning('This channel has more than 5000 messages. Export may be incomplete. Batch export coming soon.')
       }
 
       let markdown = `# Chat Log for ${channel.name}\n\n`
@@ -295,6 +298,11 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
               {error && (
                 <div className="text-sm text-red-600">
                   {error}
+                </div>
+              )}
+              {warning && (
+                <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
+                  {warning}
                 </div>
               )}
 

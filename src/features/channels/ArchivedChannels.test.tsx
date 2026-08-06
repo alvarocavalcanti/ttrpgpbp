@@ -52,4 +52,29 @@ describe('ArchivedChannels', () => {
     })
   })
 
+  it('handles restore error', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    const mockOrder = vi.fn().mockResolvedValue({ data: [{ id: '1', name: 'Archived', created_at: '2023-01-01' }], error: null })
+    const mockEq2 = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 })
+    
+    const mockUpdateEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockUpdateEq })
+    
+    vi.mocked(supabase.from).mockReturnValue({ 
+      select: vi.fn().mockReturnValue({ eq: mockEq1 }),
+      update: mockUpdate
+    } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<ArchivedChannels />, { wrapper: MemoryRouter })
+    await waitFor(() => expect(screen.getByText('Archived')).toBeInTheDocument())
+    
+    fireEvent.click(screen.getByText('Restore'))
+    
+    await waitFor(() => {
+      expect(screen.getByText('Failed to restore channel.')).toBeInTheDocument()
+    })
+  })
+
 })

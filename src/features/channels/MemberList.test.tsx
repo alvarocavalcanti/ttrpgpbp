@@ -142,6 +142,7 @@ describe('MemberList', () => {
     
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to block member.')).toBeInTheDocument()
       expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
@@ -193,6 +194,7 @@ describe('MemberList', () => {
     
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalled()
+      expect(screen.getByText('Failed to kick member.')).toBeInTheDocument()
     })
   })
 
@@ -209,7 +211,19 @@ describe('MemberList', () => {
     
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalled()
+      expect(screen.getByText('Failed to leave channel.')).toBeInTheDocument()
     })
   })
 
+  it('hides kick and block options for GM', () => {
+    // Setup where we are isGM but the GM ID is set to another user (edge case/co-GM)
+    render(<MemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    
+    // Open menu for m2 (who is the GM here)
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    
+    // The options should not exist in the DOM
+    expect(screen.queryByText('Block Player')).not.toBeInTheDocument()
+    expect(screen.queryByText('Kick Player')).not.toBeInTheDocument()
+  })
 })

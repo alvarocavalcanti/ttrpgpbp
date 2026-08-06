@@ -188,6 +188,11 @@ describe('usePushNotifications', () => {
       await result.current.updatePreferences({ push_enabled: false })
     })
 
+    // The 'temp' id from default fallback should be omitted
+    const calledArg = mockUpsert.mock.calls[0][0]
+    expect(calledArg).not.toHaveProperty('id', 'temp')
+    expect(calledArg.id).toBeUndefined()
+
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: 'u1',
@@ -196,5 +201,24 @@ describe('usePushNotifications', () => {
       { onConflict: 'user_id' }
     )
     expect(result.current.preferences?.push_enabled).toBe(false)
+  })
+
+  it('exposes isConfigured correctly based on VAPID key', () => {
+    const original = import.meta.env.VITE_VAPID_PUBLIC_KEY
+
+    // Test when key exists
+    import.meta.env.VITE_VAPID_PUBLIC_KEY = 'test_key'
+    const { result: r1, unmount: u1 } = renderHook(() => usePushNotifications())
+    expect(r1.current.isConfigured).toBe(true)
+    u1()
+
+    // Test when key is missing
+    import.meta.env.VITE_VAPID_PUBLIC_KEY = ''
+    const { result: r2, unmount: u2 } = renderHook(() => usePushNotifications())
+    expect(r2.current.isConfigured).toBe(false)
+    u2()
+
+    // Restore original
+    import.meta.env.VITE_VAPID_PUBLIC_KEY = original
   })
 })

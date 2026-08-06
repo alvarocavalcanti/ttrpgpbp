@@ -4,11 +4,11 @@ import { usePushNotifications } from '../auth/usePushNotifications'
 
 export function PermissionBanner() {
   const { user } = useAuth()
-  const { isSupported, permission, isSubscribed, subscribeToPush } = usePushNotifications()
+  const { isSupported, isConfigured, permission, isSubscribed, subscribeToPush } = usePushNotifications()
   const [dismissed, setDismissed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!user || dismissed || !isSupported || permission !== 'default' || isSubscribed) {
+  if (!user || dismissed || !isConfigured || !isSupported || permission !== 'default' || isSubscribed) {
     return null
   }
 

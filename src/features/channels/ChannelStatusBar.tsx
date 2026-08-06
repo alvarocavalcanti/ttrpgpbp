@@ -21,21 +21,24 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(statusText || '')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSave = async () => {
     setIsSubmitting(true)
+    setError(null)
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('channels')
         .update({ status_text: editContent || null })
         .eq('id', channelId)
 
-      if (error) throw error
+      if (updateError) throw updateError
       
       setIsEditing(false)
       onUpdate()
     } catch (err) {
       console.error('Error saving status:', err)
+      setError('Failed to save status.')
     } finally {
       setIsSubmitting(false)
     }
@@ -67,6 +70,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                 className="w-full border-amber-300 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white p-2"
                 rows={4}
               />
+              {error && <div className="text-red-600 text-xs mt-1">{error}</div>}
               <div className="flex space-x-2">
                 <button
                   onClick={handleSave}

@@ -22,6 +22,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   const navigate = useNavigate()
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   
   // Close menu on click outside
   useEffect(() => {
@@ -35,9 +36,10 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   }
 
   const handleBlockMember = async (memberId: string) => {
+    setError(null)
     const targetMember = members.find(m => m.id === memberId)
     if (targetMember?.user_id === gmId) {
-      alert('Cannot block the GM.')
+      setError('Cannot block the GM.')
       return
     }
     if (!confirm('Are you sure you want to block this player?')) return
@@ -52,13 +54,15 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       onUpdate()
     } catch (err) {
       console.error('Error blocking member:', err)
+      setError('Failed to block member.')
     }
   }
 
   const handleKickMember = async (memberId: string) => {
+    setError(null)
     const targetMember = members.find(m => m.id === memberId)
     if (targetMember?.user_id === gmId) {
-      alert('Cannot kick the GM.')
+      setError('Cannot kick the GM.')
       return
     }
     if (!confirm('Are you sure you want to kick this player?')) return
@@ -73,10 +77,12 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       onUpdate()
     } catch (err) {
       console.error('Error kicking member:', err)
+      setError('Failed to kick member.')
     }
   }
 
   const handleLeaveChannel = async (memberId: string) => {
+    setError(null)
     if (!confirm('Are you sure you want to leave this channel?')) return
     
     try {
@@ -89,6 +95,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       navigate('/')
     } catch (err) {
       console.error('Error leaving channel:', err)
+      setError('Failed to leave channel.')
     }
   }
 
@@ -97,6 +104,13 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
 
   return (
     <div className="py-4">
+      {error && (
+        <div className="px-4 mb-4">
+          <div className="p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+            {error}
+          </div>
+        </div>
+      )}
       <div className="px-4 mb-4">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
           Players — {activeMembers.length}
