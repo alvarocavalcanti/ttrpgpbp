@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
 import { supabase } from '../../lib/supabase'
 
@@ -52,6 +52,10 @@ describe('ChannelSettings', () => {
       value: true
     })
     document.execCommand = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('renders correctly', () => {

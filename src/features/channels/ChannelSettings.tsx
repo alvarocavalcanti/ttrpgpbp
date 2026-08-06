@@ -34,35 +34,32 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
 
   const handleCopy = async () => {
+    let textArea: HTMLTextAreaElement | null = null
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(inviteLink)
       } else {
-        const textArea = document.createElement("textarea")
+        textArea = document.createElement("textarea")
         textArea.value = inviteLink
         textArea.style.position = "absolute"
         textArea.style.left = "-999999px"
         document.body.appendChild(textArea)
         textArea.focus()
         textArea.select()
-        try {
-          // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
-          const success = document.execCommand('copy')
-          if (!success) {
-            throw new Error('execCommand returned false')
-          }
-        } catch (err) {
-          console.error('Fallback: Oops, unable to copy', err)
-          addToast('Failed to copy invite link', 'error')
-          document.body.removeChild(textArea)
-          return
+        // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
+        const success = document.execCommand('copy')
+        if (!success) {
+          throw new Error('execCommand returned false')
         }
-        document.body.removeChild(textArea)
       }
       addToast('Invite link copied!', 'success')
     } catch (err) {
       console.error('Failed to copy', err)
       addToast('Failed to copy invite link', 'error')
+    } finally {
+      if (textArea?.isConnected) {
+        document.body.removeChild(textArea)
+      }
     }
   }
 

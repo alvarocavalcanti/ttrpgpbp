@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ToastProvider, useToast } from './ToastContext'
 
 const TestComponent = () => {
@@ -22,6 +22,14 @@ const TestComponent = () => {
 }
 
 describe('ToastContext', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('throws error when used outside provider', () => {
     // Suppress console.error for expected React error
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -38,12 +46,44 @@ describe('ToastContext', () => {
 
     act(() => { screen.getByText('Add Success').click() })
     expect(screen.getByText('Success!')).toBeInTheDocument()
-    
+
     act(() => { screen.getByText('Add Error').click() })
     expect(screen.getByText('Error!')).toBeInTheDocument()
-    
+
     act(() => { screen.getByText('Add Info').click() })
     expect(screen.getByText('Info!')).toBeInTheDocument()
+  })
+
+  it('auto-dismisses toast after 3 seconds', () => {
+    render(
+      <ToastProvider>
+        <TestComponent />
+      </ToastProvider>
+    )
+
+    act(() => { screen.getByText('Add Success').click() })
+    expect(screen.getByText('Success!')).toBeInTheDocument()
+
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(screen.queryByText('Success!')).not.toBeInTheDocument()
+  })
+
+  it('removes toast when close button is clicked', () => {
+    render(
+      <ToastProvider>
+        <TestComponent />
+      </ToastProvider>
+    )
+
+    act(() => { screen.getByText('Add Success').click() })
+    expect(screen.getByText('Success!')).toBeInTheDocument()
+
+    act(() => { screen.getByRole('button', { name: 'Close' }).click() })
+    expect(screen.queryByText('Success!')).not.toBeInTheDocument()
+
+    // timer for the removed toast should be cleared
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(screen.queryByText('Success!')).not.toBeInTheDocument()
   })
 
   it('limits to 5 toasts', () => {
@@ -54,7 +94,7 @@ describe('ToastContext', () => {
     )
 
     act(() => { screen.getByText('Add Many').click() })
-    
+
     // It should have 2 through 6
     expect(screen.queryByText('Success 1')).not.toBeInTheDocument()
     expect(screen.getByText('Success 2')).toBeInTheDocument()

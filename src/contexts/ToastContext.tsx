@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 
 export type ToastType = 'success' | 'error' | 'info'
 
@@ -20,16 +20,16 @@ const TOAST_AUTO_DISMISS_MS = 3000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
-  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const [timers] = useState(() => new Map<string, ReturnType<typeof setTimeout>>())
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
-    const timer = timersRef.current.get(id)
+    const timer = timers.get(id)
     if (timer) {
       clearTimeout(timer)
-      timersRef.current.delete(id)
+      timers.delete(id)
     }
-  }, [])
+  }, [timers])
 
   const addToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = crypto.randomUUID()
@@ -38,30 +38,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const kept = newToasts.slice(-MAX_TOASTS) // keep only the latest MAX_TOASTS
       if (kept.length < newToasts.length) {
         newToasts.slice(0, newToasts.length - MAX_TOASTS).forEach(evicted => {
-          const timer = timersRef.current.get(evicted.id)
+          const timer = timers.get(evicted.id)
           if (timer) {
             clearTimeout(timer)
-            timersRef.current.delete(evicted.id)
+            timers.delete(evicted.id)
           }
         })
       }
       return kept
     })
-    
+
     // Auto remove after 3 seconds
     const timer = setTimeout(() => {
       removeToast(id)
     }, TOAST_AUTO_DISMISS_MS)
-    timersRef.current.set(id, timer)
-  }, [removeToast])
+    timers.set(id, timer)
+  }, [removeToast, timers])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      timersRef.current.forEach(timer => clearTimeout(timer))
-      timersRef.current.clear()
+      timers.forEach(timer => clearTimeout(timer))
+      timers.clear()
     }
-  }, [])
+  }, [timers])
 
   return (
     <ToastContext.Provider value={{ addToast, removeToast }}>
