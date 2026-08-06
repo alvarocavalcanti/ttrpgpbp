@@ -188,10 +188,13 @@ describe('usePushNotifications', () => {
       await result.current.updatePreferences({ push_enabled: false })
     })
 
-    expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({
-      user_id: 'u1',
-      push_enabled: false
-    }))
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'u1',
+        push_enabled: false
+      }),
+      { onConflict: 'user_id' }
+    )
     expect(result.current.preferences?.push_enabled).toBe(false)
   })
 })
