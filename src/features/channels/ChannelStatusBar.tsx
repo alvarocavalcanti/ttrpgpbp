@@ -27,12 +27,12 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
     setIsSubmitting(true)
     setError(null)
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('channels')
         .update({ status_text: editContent || null })
         .eq('id', channelId)
 
-      if (error) throw error
+      if (updateError) throw updateError
       
       setIsEditing(false)
       onUpdate()

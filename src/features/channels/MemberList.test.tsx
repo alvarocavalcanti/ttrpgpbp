@@ -142,6 +142,7 @@ describe('MemberList', () => {
     
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to block member.')).toBeInTheDocument()
       expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
@@ -212,5 +213,20 @@ describe('MemberList', () => {
       expect(mockDelete).toHaveBeenCalled()
       expect(screen.getByText('Failed to leave channel.')).toBeInTheDocument()
     })
+  })
+
+  it('shows error when trying to block GM', () => {
+    // Setup where we are isGM but the GM ID is set to another user (edge case/co-GM)
+    render(<MemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    fireEvent.click(screen.getByTestId('menu-btn-m2')) // m2 has user_id u2
+    fireEvent.click(screen.getByText('Block Player'))
+    expect(screen.getByText('Cannot block the GM.')).toBeInTheDocument()
+  })
+
+  it('shows error when trying to kick GM', () => {
+    render(<MemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Kick Player'))
+    expect(screen.getByText('Cannot kick the GM.')).toBeInTheDocument()
   })
 })

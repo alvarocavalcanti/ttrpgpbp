@@ -70,6 +70,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
     setError(null)
     try {
       await onDelete(message.id)
+      setIsSubmitting(false)
     } catch (err) {
       console.error('Failed to delete message', err)
       setError('Failed to delete message.')
