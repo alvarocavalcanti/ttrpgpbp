@@ -4,6 +4,7 @@ import { ProfileSettings } from './ProfileSettings'
 import { useAuth } from './useAuth'
 import { usePushNotifications } from './usePushNotifications'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../contexts/ToastContext'
 
 vi.mock('./useAuth', () => ({
   useAuth: vi.fn(),
@@ -17,6 +18,12 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
   },
+}))
+
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: vi.fn().mockReturnValue({
+    addToast: vi.fn()
+  })
 }))
 
 describe('ProfileSettings', () => {
@@ -108,7 +115,7 @@ describe('ProfileSettings', () => {
     expect(mockEq).toHaveBeenCalledWith('id', '123')
 
     await waitFor(() => {
-      expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument()
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Profile updated successfully.', 'success')
     })
   })
 
@@ -138,7 +145,7 @@ describe('ProfileSettings', () => {
     fireEvent.click(saveButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to update profile. Please try again.')).toBeInTheDocument()
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Failed to update profile. Please try again.', 'error')
     })
   })
 

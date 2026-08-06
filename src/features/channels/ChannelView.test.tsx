@@ -17,6 +17,12 @@ vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: { id: 'user1' } })
 }))
 
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: vi.fn().mockReturnValue({
+    addToast: vi.fn()
+  })
+}))
+
 vi.mock('../search/SearchModal', () => ({
   SearchModal: ({ onClose, onJumpToMessage }: any) => (
     <div data-testid="search-modal">

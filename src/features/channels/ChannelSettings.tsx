@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
+import { useToast } from '../../contexts/ToastContext'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
@@ -15,6 +16,7 @@ interface ChannelSettingsProps {
 
 export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsProps) {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [name, setName] = useState(channel.name)
   const [isPublic, setIsPublic] = useState(channel.is_public)
   const [gameSystem, setGameSystem] = useState(channel.game_system || 'none')
@@ -29,6 +31,37 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
+
+  const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
+
+  const handleCopy = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(inviteLink)
+      } else {
+        const textArea = document.createElement("textarea")
+        textArea.value = inviteLink
+        textArea.style.position = "absolute"
+        textArea.style.left = "-999999px"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        try {
+          document.execCommand('copy')
+        } catch (err) {
+          console.error('Fallback: Oops, unable to copy', err)
+          addToast('Failed to copy invite link', 'error')
+          document.body.removeChild(textArea)
+          return
+        }
+        document.body.removeChild(textArea)
+      }
+      addToast('Invite link copied!', 'success')
+    } catch (err) {
+      console.error('Failed to copy', err)
+      addToast('Failed to copy invite link', 'error')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,6 +106,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
         }
       }
       
+      addToast('Channel settings saved successfully', 'success')
       onUpdate()
       onClose()
     } catch (err: any) {
@@ -114,6 +148,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
       a.download = `${channel.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.md`
       a.click()
       window.URL.revokeObjectURL(url)
+      addToast('Chat exported successfully', 'success')
     } catch (err) {
       console.error('Failed to export:', err)
       setError('Failed to export channel.')
@@ -145,8 +180,6 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
     }
   }
 
-  const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
-
   return (
     <div className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -172,7 +205,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
                   />
                   <button
                     type="button"
-                    onClick={() => navigator.clipboard.writeText(inviteLink)}
+                    onClick={handleCopy}
                     className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 sm:text-sm hover:bg-gray-100"
                   >
                     Copy
