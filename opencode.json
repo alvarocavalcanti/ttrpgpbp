@@ -71,7 +71,9 @@
       "wc *": "allow",
       "git remote -v *": "allow",
       "gh pr list *": "allow",
-      "env *": "allow"
+      "env *": "allow",
+      "docker ps *": "allow",
+      "perl *": "allow"
     }
   }
 }
