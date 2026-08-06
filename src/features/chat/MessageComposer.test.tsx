@@ -124,4 +124,66 @@ describe('MessageComposer', () => {
       })
     })
   })
+
+  it('sends reply_to and clears reply on cancel', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    const mockOnCancelReply = vi.fn()
+    const replyTo = { id: 'm1', content: 'original message', senderName: 'Hero' }
+    render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} replyTo={replyTo} onCancelReply={mockOnCancelReply} />)
+    
+    expect(screen.getByText(/Replying to Hero/)).toBeInTheDocument()
+    
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'my reply' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'my reply',
+        type: 'regular',
+        whisper_to: undefined,
+        reply_to: 'm1'
+      })
+    })
+    expect(mockOnCancelReply).toHaveBeenCalled()
+  })
+
+  it('cancels reply via the cancel button', () => {
+    const mockOnCancelReply = vi.fn()
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} replyTo={{ id: 'm1', content: 'x', senderName: 'Hero' }} onCancelReply={mockOnCancelReply} />)
+    fireEvent.click(screen.getByLabelText('Cancel reply'))
+    expect(mockOnCancelReply).toHaveBeenCalled()
+  })
+
+  it('linkifies mentions and passes mention_user_ids', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
+    
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @Hero!' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Hi [@Hero](user:u1)!',
+        type: 'regular',
+        whisper_to: undefined,
+        mention_user_ids: ['u1']
+      })
+    })
+  })
+
+  it('shows mention autocomplete and inserts selected mention', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
+    
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Hi @He', selectionStart: 5 } })
+    
+    expect(screen.getByText('Hero')).toBeInTheDocument()
+    
+    fireEvent.mouseDown(screen.getByRole('button', { name: /Hero/ }))
+    
+    await waitFor(() => {
+      expect((textarea as HTMLTextAreaElement).value).toContain('@Hero ')
+    })
+  })
 })

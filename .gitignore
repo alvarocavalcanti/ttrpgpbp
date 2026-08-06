@@ -36,3 +36,6 @@ patch*.mjs
 # Supabase
 supabase/.branches/
 supabase/.temp/
+
+# OpenCode Plans
+.opencode/plans/

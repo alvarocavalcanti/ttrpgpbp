@@ -4,10 +4,19 @@ import remarkGfm from 'remark-gfm'
 import type { Database } from '../../types/database'
 import { linkifyDice } from '../dice/parser'
 import { getSystemAttributes } from '../../game-systems'
+import { EmojiPicker } from './EmojiPicker'
+import type { ReactionSummary } from './useMessages'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
   whisper_target?: { display_name: string | null; avatar_url: string | null } | null
+  reply?: {
+    id: string
+    content: string
+    sender_id: string | null
+    is_deleted: boolean
+    type: string
+  } | null
 }
 
 interface MessageItemProps {
@@ -20,9 +29,21 @@ interface MessageItemProps {
   isHighlighted?: boolean
   members?: Array<{ user_id: string; character_name: string; attributes?: any }>
   gameSystem?: string
+  reactions?: ReactionSummary[]
+  onToggleReaction?: (messageId: string, emoji: string) => void
+  onReply?: (message: Message) => void
+  onJumpToMessage?: (messageId: string) => void
 }
 
-export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none' }: MessageItemProps) {
+function snippet(text: string): string {
+  return text
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[*_`#]/g, '')
+    .trim()
+}
+
+export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -30,6 +51,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   const itemRef = useRef<HTMLDivElement>(null)
 
   const senderName = members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
+  const replySenderName = message.reply?.sender_id ? members?.find(m => m.user_id === message.reply?.sender_id)?.character_name : undefined
 
   useEffect(() => {
     if (isHighlighted && itemRef.current) {
@@ -76,6 +98,10 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
       setError('Failed to delete message.')
       setIsSubmitting(false)
     }
+  }
+
+  const handleToggleReaction = (emoji: string) => {
+    onToggleReaction?.(message.id, emoji)
   }
 
   const renderers = {
@@ -141,6 +167,13 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           </button>
         )
       }
+      if (href?.startsWith('user:')) {
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium text-xs border border-indigo-100">
+            {children}
+          </span>
+        )
+      }
       return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
     },
     img: ({ src, alt, ...props }: any) => {
@@ -158,7 +191,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   }
 
   const urlTransform = (url: string) => {
-    if (url.startsWith('dice:') || url.startsWith('check:')) return url
+    if (url.startsWith('dice:') || url.startsWith('check:') || url.startsWith('user:')) return url
     // Basic sanitization for other URLs, matching react-markdown defaults roughly
     const protocols = ['http', 'https', 'mailto', 'tel']
     try {
@@ -170,6 +203,43 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
     }
     return ''
   }
+
+  const replyBlock = message.reply?.id ? (
+    <button
+      type="button"
+      onClick={() => onJumpToMessage?.(message.reply!.id)}
+      disabled={!onJumpToMessage}
+      className="mt-1 w-full text-left px-2 py-1.5 rounded-md bg-gray-50 border-l-2 border-indigo-300 hover:bg-indigo-50 transition-colors"
+    >
+      <span className="text-xs font-medium text-indigo-700">
+        Replying to {replySenderName || 'someone'}
+      </span>
+      <span className="block text-xs text-gray-500 truncate">
+        {message.reply!.is_deleted ? 'This message was deleted.' : snippet(message.reply!.content) || '(no text)'}
+      </span>
+    </button>
+  ) : null
+
+  const reactionsRow = reactions && reactions.length > 0 ? (
+    <div className="flex flex-wrap gap-1">
+      {reactions.map(r => (
+        <button
+          key={r.emoji}
+          type="button"
+          onClick={() => handleToggleReaction(r.emoji)}
+          className={`px-1.5 py-0.5 rounded-full text-xs border transition-colors ${r.hasReacted ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}
+          aria-label={`Reaction ${r.emoji}, ${r.count}`}
+        >
+          <span className="mr-0.5">{r.emoji}</span>
+          <span>{r.count}</span>
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  const reactionPicker = onToggleReaction ? (
+    <EmojiPicker onPick={handleToggleReaction} />
+  ) : null
 
   if (isSystem) {
     return (
@@ -200,6 +270,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           </svg>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
+          {replyBlock}
           <span className="text-xs font-semibold text-indigo-800 tracking-wide uppercase">
             {senderName} rolled dice
           </span>
@@ -247,6 +318,8 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           )}
         </div>
 
+        {replyBlock}
+
         <div className="mt-1 text-sm text-gray-800 prose prose-sm prose-indigo max-w-none">
           {message.is_deleted ? (
             <span className="text-gray-400 italic">This message was deleted.</span>
@@ -280,10 +353,22 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           )}
           {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
         </div>
+
+        {!message.is_deleted && !isEditing && (
+          <div className="mt-1 flex items-center gap-0.5">
+            {reactionsRow}
+            {reactionPicker}
+          </div>
+        )}
       </div>
 
-      {!message.is_deleted && !isEditing && (canEdit || isGM) && (
+      {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
         <div className="flex-shrink-0 opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity">
+          {onReply && (
+            <button onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+            </button>
+          )}
           {canEdit && (
             <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, Fragment } from 'react'
 import { MessageItem } from './MessageItem'
 import type { Database } from '../../types/database'
+import type { ReactionSummary } from './useMessages'
 import { useAuth } from '../auth/useAuth'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
@@ -17,9 +18,13 @@ interface MessageListProps {
   highlightMessageId?: string | null
   members?: Array<{ user_id: string; character_name: string; attributes?: any }>
   gameSystem?: string
+  reactionsByMessage?: Record<string, ReactionSummary[]>
+  onToggleReaction?: (messageId: string, emoji: string) => void
+  onReply?: (message: Message) => void
+  onJumpToMessage?: (messageId: string) => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none' }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -67,6 +72,10 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               isHighlighted={highlightMessageId === message.id}
               members={members}
               gameSystem={gameSystem}
+              reactions={reactionsByMessage?.[message.id]}
+              onToggleReaction={onToggleReaction}
+              onReply={onReply}
+              onJumpToMessage={onJumpToMessage}
             />
           </Fragment>
         )

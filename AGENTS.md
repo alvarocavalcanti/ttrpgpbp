@@ -33,3 +33,12 @@ Boundaries: code/commits/PRs written normal.
 - Don't leave uncommitted changes after creating a commit
 - If changes should not be committed, check with the user what to do. Add to .gitignore? Delete?
 - Clean up scratch files (`patch*.mjs`, temp scripts, etc.) before committing. Never commit them — they are tooling artifacts, not source
+
+## Documentation Maintenance
+
+- Keep [FEATURES.md](docs/FEATURES.md) up to date on new, updated and removed features
+
+## Release Management
+
+- When instructed to generate a new version, update the version in all relevant files
+- Add a new section to [CHANGELOG.md](docs/CHANGELOG.md)

@@ -18,6 +18,38 @@ vi.mock('../../lib/supabase', () => ({
   }
 }))
 
+// Builds a mock `from()` chain. For 'messages' it uses fetchBuilder, for
+// 'message_reactions' it returns an empty list (override with reactionsBuilder).
+function mockFrom({
+  fetchBuilder = () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+  reactionsBuilder = () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+  tableHandler,
+}: {
+  fetchBuilder?: () => any
+  reactionsBuilder?: () => any
+  tableHandler?: (table: string) => any
+} = {}) {
+  vi.mocked(supabase.from).mockImplementation((table: string) => {
+    if (tableHandler) return tableHandler(table)
+    if (table === 'message_reactions') return { select: reactionsBuilder } as any
+    return { select: fetchBuilder } as any
+  })
+}
+
+// Captures the realtime callback for the messages channel (the first channel).
+function mockChannels() {
+  const callbacks: Record<string, any> = {}
+  vi.mocked(supabase.channel).mockImplementation((name: string) => {
+    return {
+      on: vi.fn().mockImplementation((_event: any, _filter: any, callback: any) => {
+        callbacks[name] = callback
+        return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
+      })
+    } as any
+  })
+  return callbacks
+}
+
 describe('useMessages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -31,14 +63,8 @@ describe('useMessages', () => {
 
   it('fetches messages and subscribes', async () => {
     const mockOrder = vi.fn().mockResolvedValue({ data: [{ id: 'm1', sender: [{ display_name: 'Hero' }] }], error: null })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    
-    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
-    const mockOn = vi.fn().mockReturnValue({ subscribe: mockSubscribe })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    const callbacks = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -48,23 +74,15 @@ describe('useMessages', () => {
       expect(result.current.messages[0].sender?.display_name).toBe('Hero')
     })
 
-    expect(mockOn).toHaveBeenCalledWith(
-      'postgres_changes',
-      expect.any(Object),
-      expect.any(Function)
-    )
+    expect(callbacks['messages:c1']).toBeDefined()
+    expect(callbacks['reactions:c1']).toBeDefined()
   })
 
   it('handles fetch error gracefully', async () => {
-    const mockOrder = vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    
-    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
-    const mockOn = vi.fn().mockReturnValue({ subscribe: mockSubscribe })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') }) }) })
+    })
+    mockChannels()
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -76,28 +94,20 @@ describe('useMessages', () => {
   })
 
   it('handles realtime INSERT with joins', async () => {
-    let realtimeCallback: any
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: { id: 'm3', sender: { display_name: 'JoinedUser' } } })
 
-    vi.mocked(supabase.from).mockImplementation((_table: string) => {
-      return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: mockOrder, single: mockSingleJoin }) }) } as any
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
     })
-    
-    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
-      realtimeCallback = callback
-      return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
-    })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    const callbacks = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    // Trigger INSERT with sender_id which forces a join fetch
     await act(async () => {
-      await realtimeCallback({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
+      await callbacks['messages:c1']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
     })
 
     expect(result.current.messages).toHaveLength(1)
@@ -105,56 +115,36 @@ describe('useMessages', () => {
   })
 
   it('handles realtime INSERT with joins when data is null', async () => {
-    let realtimeCallback: any
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    
-    // Simulate failing join
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: null })
 
-    vi.mocked(supabase.from).mockImplementation((_table: string) => {
-      return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: mockOrder, single: mockSingleJoin }) }) } as any
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
     })
-    
-    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
-      realtimeCallback = callback
-      return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
-    })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    const callbacks = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await realtimeCallback({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
+      await callbacks['messages:c1']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
     })
 
-    // Should not have inserted it since the join fetch returned null
     expect(result.current.messages).toHaveLength(0)
   })
 
   it('handles realtime INSERT without joins', async () => {
-    let realtimeCallback: any
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    
-    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
-      realtimeCallback = callback
-      return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
-    })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    const callbacks = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false)
-    })
+    await waitFor(() => expect(result.current.loading).toBe(false))
 
-    // Trigger INSERT
     await act(async () => {
-      await realtimeCallback({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
+      await callbacks['messages:c1']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
     })
 
     expect(result.current.messages).toHaveLength(1)
@@ -162,34 +152,22 @@ describe('useMessages', () => {
   })
 
   it('handles realtime UPDATE and DELETE', async () => {
-    let realtimeCallback: any
     const mockOrder = vi.fn().mockResolvedValue({ data: [{ id: 'm1', content: 'hello' }], error: null })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    
-    const mockOn = vi.fn().mockImplementation((_event, _filter, callback) => {
-      realtimeCallback = callback
-      return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
-    })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    const callbacks = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false)
-    })
+    await waitFor(() => expect(result.current.loading).toBe(false))
 
-    // UPDATE
     await act(async () => {
-      await realtimeCallback({ eventType: 'UPDATE', new: { id: 'm1', content: 'edited' } })
+      await callbacks['messages:c1']({ eventType: 'UPDATE', new: { id: 'm1', content: 'edited' } })
     })
 
     expect(result.current.messages[0].content).toBe('edited')
 
-    // DELETE
     await act(async () => {
-      await realtimeCallback({ eventType: 'DELETE', old: { id: 'm1' } })
+      await callbacks['messages:c1']({ eventType: 'DELETE', old: { id: 'm1' } })
     })
 
     expect(result.current.messages).toHaveLength(0)
@@ -199,17 +177,17 @@ describe('useMessages', () => {
     const mockInsert = vi.fn().mockResolvedValue({ error: null })
     const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
-    
-    // For the initial fetch
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockEqFetch = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqFetch })
 
-    vi.mocked(supabase.from).mockImplementation((_table: string) => {
-      return { select: mockSelect, insert: mockInsert, update: mockUpdate } as any
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
     })
-    
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+    mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -231,19 +209,123 @@ describe('useMessages', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ is_deleted: true })
   })
 
+  it('sends reply_to when replying', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'reply', type: 'regular', reply_to: 'm1', mention_user_ids: ['u2'] })
+    })
+
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ reply_to: 'm1' }))
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('push-notifications', expect.objectContaining({
+      body: expect.objectContaining({ record: expect.objectContaining({ mention_user_ids: ['u2'] }) })
+    }))
+  })
+
+  it('fetches reactions and builds summaries', async () => {
+    const reactionsData = [
+      { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u1', emoji: '👍', created_at: '' },
+      { id: 'r2', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍', created_at: '' },
+      { id: 'r3', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '🔥', created_at: '' },
+    ]
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: reactionsData, error: null }) })
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.reactions['m1']).toHaveLength(2)
+    })
+
+    const thumbsUp = result.current.reactions['m1'].find(r => r.emoji === '👍')
+    expect(thumbsUp).toMatchObject({ count: 2, hasReacted: true })
+    const fire = result.current.reactions['m1'].find(r => r.emoji === '🔥')
+    expect(fire).toMatchObject({ count: 1, hasReacted: false })
+  })
+
+  it('updates reactions on realtime INSERT and DELETE', async () => {
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) })
+    })
+    const callbacks = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await callbacks['reactions:c1']({ eventType: 'INSERT', new: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
+    })
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false }])
+
+    await act(async () => {
+      await callbacks['reactions:c1']({ eventType: 'DELETE', old: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
+    })
+    expect(result.current.reactions['m1']).toBeUndefined()
+  })
+
+  it('adds and removes reactions', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
+    const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
+
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return { select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.addReaction('m1', '👍')
+    })
+    expect(mockInsert).toHaveBeenCalledWith({ message_id: 'm1', channel_id: 'c1', user_id: 'u1', emoji: '👍' })
+
+    await act(async () => {
+      await result.current.removeReaction('m1', '👍')
+    })
+    expect(mockDelete).toHaveBeenCalled()
+    expect(mockMatchDelete).toHaveBeenCalledWith({ message_id: 'm1', user_id: 'u1', emoji: '👍' })
+  })
+
   it('catches push-notification edge function error on sendMessage', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockInsert = vi.fn().mockResolvedValue({ error: null })
-    
-    vi.mocked(supabase.from).mockImplementation(() => ({
-      insert: mockInsert,
-      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) })
-    }) as any)
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
 
     vi.mocked(supabase.functions.invoke).mockRejectedValue(new Error('Edge Error'))
 
     const { result } = renderHook(() => useMessages('c1'))
-    
+
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -255,29 +337,26 @@ describe('useMessages', () => {
 
   it('catches push-notification edge function error on sendDiceRoll', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    
-    // First insert is message, second is dice roll
-    let insertCount = 0
+
     const mockSelectMsg = vi.fn().mockResolvedValue({ data: { id: 'm1' }, error: null })
     const mockInsertMsg = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSelectMsg }) })
     const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
-    
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'messages') {
-        if (insertCount === 0) {
-          insertCount++
-          return { insert: mockInsertMsg, select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) } as any
-        }
-        return { insert: mockInsertMsg } as any
+
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsertMsg, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
       }
-      if (table === 'dice_rolls') return { insert: mockInsertDice } as any
-      return {} as any
     })
+    mockChannels()
 
     vi.mocked(supabase.functions.invoke).mockRejectedValue(new Error('Edge Error'))
 
     const { result } = renderHook(() => useMessages('c1'))
-    
+
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -299,17 +378,18 @@ describe('useMessages', () => {
       }
       return { eq: mockEqSet }
     })
-    
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'messages') return { 
-        insert: mockInsert,
-        select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) })
-      } as any
-      if (table === 'channel_members') return { update: mockUpdate } as any
-      return {} as any
-    })
 
-    // Fail specifically on the active player change push notification
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'channel_members') return { update: mockUpdate }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
     vi.mocked(supabase.functions.invoke).mockImplementation((_name: string, args: any) => {
       if (args?.body?.table === 'channel_members') {
         return Promise.reject(new Error('Edge Error Turn Change'))
@@ -318,7 +398,7 @@ describe('useMessages', () => {
     })
 
     const { result } = renderHook(() => useMessages('c1'))
-    
+
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -339,58 +419,54 @@ describe('useMessages', () => {
       }
       return { eq: mockEqSet }
     })
-    
-    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockEqFetch = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqFetch })
 
-    vi.mocked(supabase.from).mockImplementation((_table: string) => {
-      return { select: mockSelect, insert: mockInsert, update: mockUpdate } as any
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'channel_members') return { update: mockUpdate }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
     })
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+    mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    // Send with active_player_ids
     await act(async () => {
       await result.current.sendMessage({ content: 'test', type: 'regular', active_player_ids: ['u2'] })
     })
 
-    // Expect reset query (is_active_player: false) to be called
     expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: false })
-    // Expect set query (is_active_player: true) to be called
     expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: true })
   })
 
   it('sends a dice roll message and creates a dice_roll log', async () => {
-    // Mock the insert for the message to return the created message with ID
     const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg1' }, error: null })
     const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
-    
-    // Mock insert for both tables
+    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
+
     const mockInsert = vi.fn().mockImplementation((payload) => {
-      // If it's a message insert, return select
       if (payload.type === 'dice_roll') {
         return { select: mockSelectMessage }
       }
-      // If it's the dice_roll insert
       return Promise.resolve({ error: null })
     })
 
-    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockEqFetch = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqFetch })
-
-    vi.mocked(supabase.from).mockImplementation((_table: string) => {
-      return { select: mockSelect, insert: mockInsert } as any
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
     })
-    
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+    mockChannels()
 
-    // Mock Math.random for dice parser predictability
-    vi.spyOn(Math, 'random').mockReturnValue(0.5) // Floor(0.5 * 20) + 1 = 11
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -400,16 +476,14 @@ describe('useMessages', () => {
       await result.current.sendDiceRoll('1d20+5')
     })
 
-    // First insert is into 'messages'
-    expect(mockInsert).toHaveBeenNthCalledWith(1, expect.objectContaining({
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
       channel_id: 'c1',
       sender_id: 'u1',
-      content: 'Rolled 1d20+5: **16**', // 11 + 5
+      content: 'Rolled 1d20+5: **16**',
       type: 'dice_roll'
     }))
 
-    // Second insert is into 'dice_rolls'
-    expect(mockInsert).toHaveBeenNthCalledWith(2, expect.objectContaining({
+    expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({
       message_id: 'msg1',
       channel_id: 'c1',
       roller_id: 'u1',
@@ -421,7 +495,7 @@ describe('useMessages', () => {
         modifier: 5
       }
     }))
-    
+
     vi.restoreAllMocks()
   })
 })

@@ -23,6 +23,7 @@ export interface PushEvent {
   type?: string
   whisper_to?: string | null
   whisper_target_name?: string | null
+  mention_user_ids?: string[]
   gm_id?: string
   // turn events
   user_id?: string
@@ -86,7 +87,12 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
   }
 
   let targetUserIds: string[] = []
-  if (event.whisper_to) {
+  if (event.mention_user_ids?.length) {
+    // Mentions route only to the mentioned users (excluding the sender).
+    title = `${senderName} mentioned you`
+    body = event.content || ''
+    targetUserIds = event.mention_user_ids.filter(uid => uid !== event.sender_id)
+  } else if (event.whisper_to) {
     targetUserIds = [event.whisper_to]
   } else {
     const isGM = event.sender_id === event.gm_id
