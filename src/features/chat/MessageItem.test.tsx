@@ -312,4 +312,99 @@ describe('MessageItem', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+4')
   })
 
+  it('renders mention chips for user: links', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: '[@Hero](user:u1) is here',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.getByText('@Hero')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('renders reply block and jumps to parent on click', () => {
+    const mockOnJump = vi.fn()
+    const msg: any = {
+      id: 'm2',
+      type: 'regular',
+      content: 'my reply',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      reply: { id: 'm1', content: 'original text', sender_id: 'u1', is_deleted: false, type: 'regular' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onJumpToMessage={mockOnJump} members={[{ user_id: 'u1', character_name: 'Hero' }]} />)
+    expect(screen.getByText('Replying to Hero')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Replying to Hero'))
+    expect(mockOnJump).toHaveBeenCalledWith('m1')
+  })
+
+  it('renders deleted parent reply as deleted placeholder', () => {
+    const msg: any = {
+      id: 'm2',
+      type: 'regular',
+      content: 'my reply',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      reply: { id: 'm1', content: 'gone', sender_id: 'u1', is_deleted: true, type: 'regular' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.getByText('This message was deleted.')).toBeInTheDocument()
+  })
+
+  it('renders reactions and toggles on click', () => {
+    const mockOnToggle = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        reactions={[{ emoji: '👍', count: 2, hasReacted: true }]}
+        onToggleReaction={mockOnToggle}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Reaction 👍, 2/ }))
+    expect(mockOnToggle).toHaveBeenCalledWith('m1', '👍')
+  })
+
+  it('opens emoji picker and adds reaction', () => {
+    const mockOnToggle = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={mockOnToggle} />)
+    fireEvent.click(screen.getByLabelText('Add reaction'))
+    fireEvent.click(screen.getByText('👍'))
+    expect(mockOnToggle).toHaveBeenCalledWith('m1', '👍')
+  })
+
+  it('calls onReply when reply button clicked', () => {
+    const mockOnReply = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={mockOnReply} />)
+    fireEvent.click(screen.getByLabelText('Reply'))
+    expect(mockOnReply).toHaveBeenCalledWith(msg)
+  })
+
 })

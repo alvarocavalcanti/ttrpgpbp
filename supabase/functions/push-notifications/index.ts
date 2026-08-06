@@ -80,6 +80,7 @@ serve(async (req) => {
         type: message.type,
         whisper_to: message.whisper_to,
         whisper_target_name: whisperTarget?.display_name,
+        mention_user_ids: message.mention_user_ids,
         gm_id: channel?.gm_id
       }
     } else if (table === 'channel_members') {

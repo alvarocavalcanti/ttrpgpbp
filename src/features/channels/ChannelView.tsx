@@ -6,7 +6,7 @@ import { ChannelStatusBar } from './ChannelStatusBar'
 import { MemberList } from './MemberList'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
-import { MessageComposer } from '../chat/MessageComposer'
+import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
@@ -15,7 +15,7 @@ import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotifi
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch } = useChannel(id)
-  const { messages, loading: messagesLoading, sendMessage, editMessage, deleteMessage, sendDiceRoll } = useMessages(id)
+  const { messages, reactions, loading: messagesLoading, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -23,6 +23,7 @@ export function ChannelView() {
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
 
   // Clear highlight after a few seconds
   useEffect(() => {
@@ -36,6 +37,24 @@ export function ChannelView() {
 
   const handleJumpToMessage = (messageId: string) => {
     setHighlightMessageId(messageId)
+  }
+
+  const handleReply = (message: any) => {
+    const senderName = members.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name || null
+    setReplyTo({ id: message.id, content: message.content, senderName })
+  }
+
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const summary = reactions[messageId]?.find(r => r.emoji === emoji)
+      if (summary?.hasReacted) {
+        await removeReaction(messageId, emoji)
+      } else {
+        await addReaction(messageId, emoji)
+      }
+    } catch (err) {
+      console.error('Failed to toggle reaction:', err)
+    }
   }
 
   if (channelLoading || messagesLoading) {
@@ -148,6 +167,10 @@ export function ChannelView() {
           highlightMessageId={highlightMessageId}
           members={members}
           gameSystem={channel.game_system}
+          reactionsByMessage={reactions}
+          onToggleReaction={handleToggleReaction}
+          onReply={handleReply}
+          onJumpToMessage={handleJumpToMessage}
         />
         
         <MessageComposer 
@@ -155,6 +178,8 @@ export function ChannelView() {
           members={whisperableMembers} 
           onSendMessage={sendMessage} 
           onRollDice={sendDiceRoll}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
         />
       </div>
 

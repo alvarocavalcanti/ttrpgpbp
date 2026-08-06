@@ -93,6 +93,41 @@ describe('resolvePushTargets', () => {
       expect(result.title).toBe('New whisper from GM')
     })
 
+    it('routes mentions only to mentioned users, excluding sender', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content: 'Hey [@Hero](user:u2) and [@Me](user:u1)',
+        type: 'regular',
+        mention_user_ids: ['u1', 'u2', 'u3'],
+        gm_id: 'u9'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u2', 'u3'])
+      expect(result.title).toBe('Alv mentioned you')
+      expect(result.body).toContain('[@Hero]')
+    })
+
+    it('falls back to normal routing when mention list is empty', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content: 'hello',
+        type: 'regular',
+        mention_user_ids: [],
+        gm_id: 'u9'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u2', 'u4'])
+      expect(result.title).toBe('New message in The Den')
+    })
+
     it('excludes blocked members', () => {
       const members = [
         { user_id: 'u1', notify_all_messages: true },

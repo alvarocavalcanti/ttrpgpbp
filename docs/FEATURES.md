@@ -35,6 +35,9 @@
 - **Editable** within 15 minutes, marked as "edited"
 - **Deletable** — replaced with "deleted" marker
 - URLs posted as plain text with external link, no previews or embeds
+- **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
+- **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification
+- **Emoji reactions** — react to any message from a quick-emoji picker; counts update live and toggle per user
 
 ## Whispers
 - Messages visible only to GM + one specific player

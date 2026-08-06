@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
@@ -27,6 +27,8 @@ vi.mock('../search/SearchModal', () => ({
   )
 }))
 
+const useMessagesMock = () => (useMessages as unknown as () => any)()
+
 describe('ChannelView search functionality', () => {
   beforeEach(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
@@ -42,11 +44,14 @@ describe('ChannelView search functionality', () => {
 
     vi.mocked(useMessages).mockReturnValue({
       messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: {},
       loading: false,
       sendMessage: vi.fn(),
       editMessage: vi.fn(),
       deleteMessage: vi.fn(),
-      sendDiceRoll: vi.fn()
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
     } as any)
   })
 
@@ -178,5 +183,105 @@ describe('ChannelView search functionality', () => {
 
     fireEvent.click(screen.getByText('Rolls'))
     // RollHistoryModal should open
+  })
+
+  it('starts a reply from a message and sends reply_to', async () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByLabelText('Reply'))
+    expect(screen.getByText(/Replying to Hero/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'my reply' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(useMessagesMock().sendMessage).toHaveBeenCalledWith(expect.objectContaining({ reply_to: 'msg1', content: 'my reply' }))
+    })
+    // Reply bar clears after send
+    await waitFor(() => {
+      expect(screen.queryByText(/Replying to Hero/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('cancels a reply and clears the reply bar', async () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByLabelText('Reply'))
+    fireEvent.click(screen.getByLabelText('Cancel reply'))
+    expect(screen.queryByText(/Replying to Hero/)).not.toBeInTheDocument()
+  })
+
+  it('adds a reaction when not already reacted', async () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: { msg1: [{ emoji: '👍', count: 1, hasReacted: false }] },
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reaction 👍, 1/ }))
+    await waitFor(() => {
+      expect(useMessagesMock().addReaction).toHaveBeenCalledWith('msg1', '👍')
+    })
+  })
+
+  it('removes a reaction when already reacted', async () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: { msg1: [{ emoji: '👍', count: 1, hasReacted: true }] },
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reaction 👍, 1/ }))
+    await waitFor(() => {
+      expect(useMessagesMock().removeReaction).toHaveBeenCalledWith('msg1', '👍')
+    })
   })
 })

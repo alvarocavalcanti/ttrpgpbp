@@ -3,15 +3,80 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import { parseAndRoll } from '../dice/parser'
+import type { ChatMessage } from './types'
 
-type Message = Database['public']['Tables']['messages']['Row'] & {
-  sender?: { display_name: string | null; avatar_url: string | null } | null
-  whisper_target?: { display_name: string | null; avatar_url: string | null } | null
+export interface ReactionSummary {
+  emoji: string
+  count: number
+  hasReacted: boolean
+}
+
+type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
+
+type Message = ChatMessage
+
+const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:messages!messages_reply_to_fkey(id, content, sender_id, is_deleted, type)'
+
+function formatMessage(m: any): Message {
+  return {
+    ...m,
+    sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
+    whisper_target: Array.isArray(m.whisper_target) ? m.whisper_target[0] : m.whisper_target,
+    reply: Array.isArray(m.reply) ? m.reply[0] : m.reply,
+  }
+}
+
+// Aggregates reaction rows into per-message summaries.
+function buildReactionMap(rows: ReactionRow[], userId: string | undefined): Record<string, ReactionSummary[]> {
+  const map: Record<string, ReactionSummary[]> = {}
+  for (const row of rows) {
+    const list = (map[row.message_id] ??= [])
+    let entry = list.find(e => e.emoji === row.emoji)
+    if (!entry) {
+      entry = { emoji: row.emoji, count: 0, hasReacted: false }
+      list.push(entry)
+    }
+    entry.count += 1
+    if (row.user_id === userId) entry.hasReacted = true
+  }
+  return map
+}
+
+function upsertReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, userId: string | undefined) {
+  const next = structuredClone(map)
+  const list = (next[row.message_id] ??= [])
+  let entry = list.find(e => e.emoji === row.emoji)
+  if (!entry) {
+    entry = { emoji: row.emoji, count: 0, hasReacted: false }
+    list.push(entry)
+  }
+  entry.count += 1
+  if (row.user_id === userId) entry.hasReacted = true
+  return next
+}
+
+function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, userId: string | undefined) {
+  const list = map[row.message_id]
+  if (!list) return map
+  const entry = list.find(e => e.emoji === row.emoji)
+  if (!entry) return map
+  const next = structuredClone(map)
+  const nextList = next[row.message_id]
+  const nextEntry = nextList.find(e => e.emoji === row.emoji)!
+  nextEntry.count = Math.max(0, nextEntry.count - 1)
+  if (row.user_id === userId) nextEntry.hasReacted = false
+  if (nextEntry.count === 0) {
+    const remaining = nextList.filter(e => e.emoji !== row.emoji)
+    if (remaining.length === 0) delete next[row.message_id]
+    else next[row.message_id] = remaining
+  }
+  return next
 }
 
 export function useMessages(channelId: string | undefined) {
   const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
+  const [reactions, setReactions] = useState<Record<string, ReactionSummary[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -26,20 +91,14 @@ export function useMessages(channelId: string | undefined) {
       try {
         const { data, error: fetchError } = await supabase
           .from('messages')
-          .select('*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url)')
+          .select(MESSAGE_SELECT)
           .eq('channel_id', channelId as string)
           .order('created_at', { ascending: true })
 
         if (fetchError) throw fetchError
 
         if (mounted) {
-          const formattedData = data.map(m => ({
-            ...m,
-            sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
-            whisper_target: Array.isArray(m.whisper_target) ? m.whisper_target[0] : m.whisper_target,
-          })) as Message[]
-          
-          setMessages(formattedData)
+          setMessages((data || []).map(formatMessage))
         }
       } catch (err: any) {
         console.error('Error fetching messages:', err)
@@ -49,7 +108,24 @@ export function useMessages(channelId: string | undefined) {
       }
     }
 
+    async function fetchReactions() {
+      try {
+        const { data, error } = await supabase
+          .from('message_reactions')
+          .select('*')
+          .eq('channel_id', channelId as string)
+        if (error) throw error
+        if (mounted) {
+          setReactions(buildReactionMap(data || [], user?.id))
+        }
+      } catch (err: any) {
+        // Reactions are non-critical; log without failing the channel view.
+        console.error('Error fetching reactions:', err)
+      }
+    }
+
     fetchMessages()
+    fetchReactions()
 
     const subscription = supabase
       .channel(`messages:${channelId}`)
@@ -64,27 +140,22 @@ export function useMessages(channelId: string | undefined) {
         // or just update local state if it's an UPDATE or DELETE.
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as Message
-          
+
           if (newMsg.sender_id || newMsg.whisper_to) {
             // Re-fetch this single message with joins
             const { data } = await supabase
               .from('messages')
-              .select('*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url)')
+              .select(MESSAGE_SELECT)
               .eq('id', newMsg.id)
               .single()
-              
+
             if (data && mounted) {
-              const formatted = {
-                ...data,
-                sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
-                whisper_target: Array.isArray(data.whisper_target) ? data.whisper_target[0] : data.whisper_target,
-              } as Message
-              setMessages(prev => [...prev, formatted])
+              setMessages(prev => [...prev, formatMessage(data)])
             }
           } else {
-             if (mounted) {
-               setMessages(prev => [...prev, newMsg])
-             }
+            if (mounted) {
+              setMessages(prev => [...prev, newMsg])
+            }
           }
         } else if (payload.eventType === 'UPDATE') {
           const updatedMsg = payload.new as Message
@@ -102,13 +173,33 @@ export function useMessages(channelId: string | undefined) {
       })
       .subscribe()
 
+    const reactionSubscription = supabase
+      .channel(`reactions:${channelId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'message_reactions',
+        filter: `channel_id=eq.${channelId}`
+      }, (payload) => {
+        if (!mounted) return
+        if (payload.eventType === 'INSERT') {
+          const row = payload.new as ReactionRow
+          setReactions(prev => upsertReaction(prev, row, user?.id))
+        } else if (payload.eventType === 'DELETE') {
+          const row = payload.old as ReactionRow
+          setReactions(prev => dropReaction(prev, row, user?.id))
+        }
+      })
+      .subscribe()
+
     return () => {
       mounted = false
       subscription.unsubscribe()
+      reactionSubscription.unsubscribe()
     }
-  }, [channelId])
+  }, [channelId, user?.id])
 
-  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[] }) => {
+  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[] }) => {
     if (!channelId || !user) return
     const { error } = await supabase
       .from('messages')
@@ -118,12 +209,13 @@ export function useMessages(channelId: string | undefined) {
         content: payload.content,
         type: payload.type,
         whisper_to: payload.whisper_to || null,
+        reply_to: payload.reply_to || null,
       })
     if (error) throw error
 
     // Invoke push notifications function for new message
     supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: payload.content, type: payload.type, whisper_to: payload.whisper_to } }
+      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: payload.content, type: payload.type, whisper_to: payload.whisper_to, mention_user_ids: payload.mention_user_ids } }
     }).catch(err => console.error('Failed to trigger push for message', err))
 
     // If active_player_ids is provided, update the channel_members table
@@ -134,7 +226,7 @@ export function useMessages(channelId: string | undefined) {
         .update({ is_active_player: false })
         .eq('channel_id', channelId)
       if (resetError) console.error('Failed to reset active players', resetError)
-      
+
       // 2. Set selected to true
       if (payload.active_player_ids.length > 0) {
         const { error: setActiveError, data: updatedMembers } = await supabase
@@ -143,9 +235,9 @@ export function useMessages(channelId: string | undefined) {
           .eq('channel_id', channelId)
           .in('user_id', payload.active_player_ids)
           .select()
-          
+
         if (setActiveError) console.error('Failed to set active players', setActiveError)
-        
+
         // Trigger push for active players
         if (updatedMembers) {
           updatedMembers.forEach(member => {
@@ -160,10 +252,10 @@ export function useMessages(channelId: string | undefined) {
 
   const sendDiceRoll = async (notation: string) => {
     if (!channelId || !user) return
-    
+
     // Perform the roll calculation
     const rollResult = parseAndRoll(notation)
-    
+
     // Insert message first
     const { data: message, error: messageError } = await supabase
       .from('messages')
@@ -175,7 +267,7 @@ export function useMessages(channelId: string | undefined) {
       })
       .select()
       .single()
-      
+
     if (messageError) throw messageError
 
     // Insert dice roll log
@@ -193,9 +285,9 @@ export function useMessages(channelId: string | undefined) {
           modifier: rollResult.modifier
         }
       })
-      
+
     if (rollError) throw rollError
-    
+
     // Invoke push notifications function for new message
     supabase.functions.invoke('push-notifications', {
       body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll' } }
@@ -219,5 +311,22 @@ export function useMessages(channelId: string | undefined) {
     if (error) throw error
   }
 
-  return { messages, loading, error, sendMessage, sendDiceRoll, editMessage, deleteMessage }
+  const addReaction = async (messageId: string, emoji: string) => {
+    if (!channelId || !user) return
+    const { error } = await supabase
+      .from('message_reactions')
+      .insert({ message_id: messageId, channel_id: channelId, user_id: user.id, emoji })
+    if (error) throw error
+  }
+
+  const removeReaction = async (messageId: string, emoji: string) => {
+    if (!user) return
+    const { error } = await supabase
+      .from('message_reactions')
+      .delete()
+      .match({ message_id: messageId, user_id: user.id, emoji })
+    if (error) throw error
+  }
+
+  return { messages, reactions, loading, error, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction }
 }

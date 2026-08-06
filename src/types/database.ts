@@ -190,6 +190,7 @@ export interface Database {
           type: 'regular' | 'scene' | 'dice_roll' | 'system'
           content: string
           whisper_to: string | null
+          reply_to: string | null
           is_edited: boolean
           is_deleted: boolean
           search_vector: unknown | null
@@ -203,6 +204,7 @@ export interface Database {
           type: 'regular' | 'scene' | 'dice_roll' | 'system'
           content: string
           whisper_to?: string | null
+          reply_to?: string | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null
@@ -216,6 +218,7 @@ export interface Database {
           type?: 'regular' | 'scene' | 'dice_roll' | 'system'
           content?: string
           whisper_to?: string | null
+          reply_to?: string | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null
@@ -238,6 +241,58 @@ export interface Database {
           {
             foreignKeyName: "messages_whisper_to_fkey"
             columns: ["whisper_to"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_reply_to_fkey"
+            columns: ["reply_to"]
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      message_reactions: {
+        Row: {
+          id: string
+          message_id: string
+          channel_id: string
+          user_id: string
+          emoji: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          channel_id: string
+          user_id: string
+          emoji: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          channel_id?: string
+          user_id?: string
+          emoji?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_channel_id_fkey"
+            columns: ["channel_id"]
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           }
