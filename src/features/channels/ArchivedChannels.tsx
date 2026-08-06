@@ -10,6 +10,7 @@ export function ArchivedChannels() {
   const { user } = useAuth()
   const [archivedChannels, setArchivedChannels] = useState<Channel[]>([])
   const [loading, setLoading] = useState(true)
+  const [errorState, setErrorState] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -36,6 +37,7 @@ export function ArchivedChannels() {
   }, [user])
 
   const handleRestore = async (id: string) => {
+    setErrorState(null)
     try {
       const { error } = await supabase
         .from('channels')
@@ -46,7 +48,7 @@ export function ArchivedChannels() {
       setArchivedChannels(prev => prev.filter(c => c.id !== id))
     } catch (err) {
       console.error('Failed to restore channel', err)
-      alert('Failed to restore channel.')
+      setErrorState('Failed to restore channel.')
     }
   }
 
@@ -68,6 +70,12 @@ export function ArchivedChannels() {
         </Link>
         <h2 className="text-2xl font-bold text-gray-900">Archived Channels</h2>
       </div>
+
+      {errorState && (
+        <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+          {errorState}
+        </div>
+      )}
 
       <div className="bg-white shadow overflow-hidden rounded-md">
         {archivedChannels.length === 0 ? (

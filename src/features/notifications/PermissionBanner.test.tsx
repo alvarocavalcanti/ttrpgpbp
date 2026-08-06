@@ -21,7 +21,7 @@ describe('PermissionBanner', () => {
   it('renders nothing when not logged in', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null } as any)
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'default',
       isSubscribed: false,
       subscribeToPush: vi.fn()
@@ -45,7 +45,7 @@ describe('PermissionBanner', () => {
 
   it('renders nothing when permission already granted', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'granted',
       isSubscribed: false,
       subscribeToPush: vi.fn()
@@ -57,7 +57,7 @@ describe('PermissionBanner', () => {
 
   it('renders nothing when already subscribed', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'default',
       isSubscribed: true,
       subscribeToPush: vi.fn()
@@ -69,7 +69,7 @@ describe('PermissionBanner', () => {
 
   it('renders banner when eligible', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'default',
       isSubscribed: false,
       subscribeToPush: vi.fn()
@@ -82,7 +82,7 @@ describe('PermissionBanner', () => {
   it('enables notifications on click', async () => {
     const subscribeToPush = vi.fn().mockResolvedValue(undefined)
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'default',
       isSubscribed: false,
       subscribeToPush
@@ -95,7 +95,7 @@ describe('PermissionBanner', () => {
 
   it('dismisses banner on dismiss click', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'default',
       isSubscribed: false,
       subscribeToPush: vi.fn()
@@ -109,7 +109,7 @@ describe('PermissionBanner', () => {
   it('dismisses banner when subscription fails', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'default',
       isSubscribed: false,
       subscribeToPush: vi.fn().mockRejectedValue(new Error('Permission denied'))

@@ -28,7 +28,7 @@ describe('ProfileSettings', () => {
     vi.clearAllMocks()
 
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'granted',
       isSubscribed: false,
       preferences: { push_enabled: true, badge_enabled: true } as any,
@@ -179,7 +179,7 @@ describe('ProfileSettings', () => {
 
     // Rerender with isSubscribed = true
     vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: true,
+      isConfigured: true, isSupported: true,
       permission: 'granted',
       isSubscribed: true,
       preferences: { push_enabled: true, badge_enabled: true } as any,

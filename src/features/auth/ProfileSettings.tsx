@@ -11,6 +11,7 @@ export function ProfileSettings() {
 
   const {
     isSupported,
+    isConfigured,
     permission,
     isSubscribed,
     preferences,
@@ -162,17 +163,19 @@ export function ProfileSettings() {
                   <div>
                     <h4 className="text-sm font-medium text-gray-900">Push Notifications on this device</h4>
                     <p className="text-sm text-gray-500 mt-1">
-                      {isSupported 
-                        ? 'Receive notifications even when the app is closed.'
-                        : 'Push notifications are not supported on this browser/device.'}
+                      {!isConfigured
+                        ? 'Push notifications are not configured on the server.'
+                        : isSupported 
+                          ? 'Receive notifications even when the app is closed.'
+                          : 'Push notifications are not supported on this browser/device.'}
                     </p>
-                    {isSupported && permission === 'denied' && (
+                    {isConfigured && isSupported && permission === 'denied' && (
                       <p className="text-sm text-red-500 mt-1">
                         You have blocked notifications. You must allow them in your browser settings.
                       </p>
                     )}
                   </div>
-                  {isSupported && (
+                  {isConfigured && isSupported && (
                     <button
                       type="button"
                       onClick={togglePushSubscription}

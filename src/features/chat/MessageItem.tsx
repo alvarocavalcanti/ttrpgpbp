@@ -26,6 +26,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const itemRef = useRef<HTMLDivElement>(null)
 
   const senderName = members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
@@ -51,11 +52,13 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
       return
     }
     setIsSubmitting(true)
+    setError(null)
     try {
       await onEdit(message.id, editContent)
       setIsEditing(false)
     } catch (err) {
       console.error('Failed to edit message', err)
+      setError('Failed to edit message.')
     } finally {
       setIsSubmitting(false)
     }
@@ -64,10 +67,12 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this message?')) return
     setIsSubmitting(true)
+    setError(null)
     try {
       await onDelete(message.id)
     } catch (err) {
       console.error('Failed to delete message', err)
+      setError('Failed to delete message.')
       setIsSubmitting(false)
     }
   }
@@ -272,6 +277,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           ) : (
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
           )}
+          {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
         </div>
       </div>
 

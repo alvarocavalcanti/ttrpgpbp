@@ -20,6 +20,7 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
   const [whisperTo, setWhisperTo] = useState<string>('')
   const [activePlayerIds, setActivePlayerIds] = useState<string[] | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -34,8 +35,9 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
-    
+
     setIsSubmitting(true)
+    setError(null)
     try {
       let finalContent = content
       if (isGM && loadImages) {
@@ -55,6 +57,7 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
       setActivePlayerIds(undefined)
     } catch (err) {
       console.error('Failed to send message:', err)
+      setError('Failed to send message. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -158,6 +161,12 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice }: Me
                   </select>
                 </div>
               )}
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-2 p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+              {error}
             </div>
           )}
 

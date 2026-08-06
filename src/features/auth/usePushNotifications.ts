@@ -163,8 +163,11 @@ export function usePushNotifications() {
     setPreferences(data)
   }
 
+  const isConfigured = !!import.meta.env.VITE_VAPID_PUBLIC_KEY
+
   return {
     isSupported,
+    isConfigured,
     permission,
     isSubscribed,
     preferences,
