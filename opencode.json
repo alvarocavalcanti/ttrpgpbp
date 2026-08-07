@@ -75,6 +75,10 @@
       "env *": "allow",
       "docker ps *": "allow",
       "base64 *": "allow",
+      "file *": "allow",
+      "tr *": "allow",
+      "sips *": "allow",
+      "printf *": "allow",
       "perl *": "allow"
     }
   }
