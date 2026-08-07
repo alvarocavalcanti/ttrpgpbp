@@ -25,6 +25,7 @@ function TestComponent() {
       <div data-testid="loading">{context.loading ? 'loading' : 'ready'}</div>
       <div data-testid="user">{context.user ? context.user.id : 'no-user'}</div>
       <div data-testid="profile">{context.profile ? context.profile.display_name : 'no-profile'}</div>
+      <div data-testid="error">{context.error ? 'error' : 'no-error'}</div>
       <button onClick={context.signInWithGoogle}>Sign In</button>
       <button onClick={context.signOut}>Sign Out</button>
     </div>
@@ -74,6 +75,7 @@ describe('AuthContext', () => {
 
     expect(await screen.findByText('ready')).toBeInTheDocument()
     expect(console.error).toHaveBeenCalledWith('Error getting initial session:', expect.any(Error))
+    expect(screen.getByTestId('error')).toHaveTextContent('error')
   })
 
   it('provides user and profile when getSession returns a user', async () => {
@@ -174,6 +176,7 @@ describe('AuthContext', () => {
       expect(console.error).toHaveBeenCalledWith('Error fetching profile on auth change:', expect.any(Error))
       expect(screen.getByTestId('user')).toHaveTextContent('user-456')
       expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
+      expect(screen.getByTestId('error')).toHaveTextContent('error')
     })
   })
 

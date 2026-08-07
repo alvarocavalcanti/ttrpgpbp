@@ -145,6 +145,33 @@ describe('ChannelView search functionality', () => {
     // redirects to /
   })
 
+  it('renders a banner when messages fail to load', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [],
+      reactions: {},
+      loading: false,
+      error: new Error('Failed to fetch messages'),
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load messages/)
+  })
+
   it('toggles settings modal for GM', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },

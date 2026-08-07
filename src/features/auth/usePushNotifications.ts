@@ -27,6 +27,7 @@ export function usePushNotifications() {
   
   const [preferences, setPreferences] = useState<NotificationPrefs | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -50,6 +51,7 @@ export function usePushNotifications() {
 
         if (prefError && prefError.code !== 'PGRST116') {
           console.error('Error fetching preferences:', prefError)
+          if (mounted) setError(prefError as unknown as Error)
         } else if (prefData && mounted) {
           setPreferences(prefData)
         } else if (!prefData && mounted) {
@@ -71,6 +73,7 @@ export function usePushNotifications() {
         }
       } catch (err) {
         console.error('Error in fetchPrefsAndSub', err)
+        if (mounted) setError(err as Error)
       } finally {
         if (mounted) setLoading(false)
       }
@@ -170,6 +173,7 @@ export function usePushNotifications() {
     isSubscribed,
     preferences,
     loading,
+    error,
     subscribeToPush,
     unsubscribeFromPush,
     updatePreferences

@@ -36,7 +36,8 @@ describe('Lobby', () => {
     vi.mocked(useChannels).mockReturnValue({
       publicChannels: [],
       myChannels: [],
-      loading: true
+      loading: true,
+      error: null,
     })
 
     const { container } = render(<Lobby />, { wrapper: MemoryRouter })
@@ -47,7 +48,8 @@ describe('Lobby', () => {
     vi.mocked(useChannels).mockReturnValue({
       publicChannels: [],
       myChannels: [],
-      loading: false
+      loading: false,
+      error: null,
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -55,6 +57,18 @@ describe('Lobby', () => {
     
     fireEvent.click(screen.getByText(/Public Channels/))
     expect(screen.getByText("No public channels available.")).toBeInTheDocument()
+  })
+
+  it('renders error state when channels fail to load', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      publicChannels: [],
+      myChannels: [],
+      loading: false,
+      error: new Error('DB down')
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load channels/)
   })
 
   it('renders channels correctly with unread counts', () => {
@@ -72,7 +86,8 @@ describe('Lobby', () => {
           unread_count: 5 
         } as any
       ],
-      loading: false
+      loading: false,
+      error: null,
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -102,7 +117,8 @@ describe('Lobby', () => {
           unread_count: 5 
         } as any
       ],
-      loading: false
+      loading: false,
+      error: null,
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -133,7 +149,8 @@ describe('Lobby', () => {
           unread_count: 2
         } as any
       ],
-      loading: false
+      loading: false,
+      error: null,
     })
 
     const { unmount } = render(<Lobby />, { wrapper: MemoryRouter })
@@ -151,7 +168,8 @@ describe('Lobby', () => {
           unread_count: 0 
         } as any
       ],
-      loading: false
+      loading: false,
+      error: null,
     })
 
     unmount()
@@ -171,7 +189,8 @@ describe('Lobby', () => {
     vi.mocked(useChannels).mockReturnValue({
       publicChannels: [],
       myChannels: [],
-      loading: false
+      loading: false,
+      error: null,
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -182,7 +201,8 @@ describe('Lobby', () => {
     vi.mocked(useChannels).mockReturnValue({
       publicChannels: [],
       myChannels: [],
-      loading: false
+      loading: false,
+      error: null,
     })
     
     render(<Lobby />, { wrapper: MemoryRouter })

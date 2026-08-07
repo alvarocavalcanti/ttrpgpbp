@@ -25,6 +25,7 @@ export function useChannels() {
   const [publicChannels, setPublicChannels] = useState<Channel[]>([])
   const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember, unread_count?: number })[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -91,6 +92,7 @@ export function useChannels() {
         }
       } catch (error) {
         console.error('Error fetching channels:', error)
+        if (mounted) setError(error as Error)
       } finally {
         if (mounted) setLoading(false)
       }
@@ -103,5 +105,5 @@ export function useChannels() {
     }
   }, [user])
 
-  return { publicChannels, myChannels, loading }
+  return { publicChannels, myChannels, loading, error }
 }

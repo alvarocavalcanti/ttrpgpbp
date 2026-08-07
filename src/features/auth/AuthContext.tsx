@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null
   profile: Profile | null
   loading: boolean
+  error: Error | null
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('Error getting initial session:', error)
+        setError(error as Error)
       } finally {
         if (mounted) {
           setLoading(false)
@@ -72,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setProfile(profile)
           } catch (error) {
             console.error('Error fetching profile on auth change:', error)
+            setError(error as Error)
             setProfile(null)
           }
         } else {
@@ -108,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         profile,
         loading,
+        error,
         signInWithGoogle,
         signOut,
       }}

@@ -64,6 +64,7 @@ describe('usePushNotifications', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(console.error).toHaveBeenCalledWith('Error in fetchPrefsAndSub', expect.any(Error))
+      expect(result.current.error).toBeInstanceOf(Error)
     })
   })
 
@@ -80,6 +81,7 @@ describe('usePushNotifications', () => {
       expect(result.current.loading).toBe(false)
       expect(console.error).toHaveBeenCalled()
       expect(result.current.preferences).toBeNull() // because of error, it didn't set default either
+      expect(result.current.error).toBeTruthy()
     })
   })
 

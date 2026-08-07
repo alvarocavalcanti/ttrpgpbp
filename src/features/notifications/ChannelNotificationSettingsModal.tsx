@@ -13,7 +13,7 @@ const TOGGLES = [
 ] as const
 
 export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClose }: ChannelNotificationSettingsModalProps) {
-  const { prefs, loading, saving, updatePrefs } = useChannelNotificationPrefs(channelId, myMemberId)
+  const { prefs, loading, saving, error, updatePrefs } = useChannelNotificationPrefs(channelId, myMemberId)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75" onClick={onClose}>
@@ -34,7 +34,11 @@ export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClos
           </button>
         </div>
 
-        {loading ? (
+        {error ? (
+          <div className="py-4" role="alert">
+            <p className="text-sm text-red-700">Failed to load notification settings. Close and reopen to try again.</p>
+          </div>
+        ) : loading ? (
           <div className="animate-pulse space-y-4 py-1">
             <div className="h-4 bg-gray-200 rounded w-3/4"></div>
             <div className="h-4 bg-gray-200 rounded w-1/2"></div>

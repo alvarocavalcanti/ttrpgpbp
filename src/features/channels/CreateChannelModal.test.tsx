@@ -28,6 +28,7 @@ describe('CreateChannelModal', () => {
       profile: { display_name: 'GM' } as any,
       loading: false,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn()
     })

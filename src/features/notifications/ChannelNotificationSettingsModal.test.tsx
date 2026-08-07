@@ -38,6 +38,20 @@ describe('ChannelNotificationSettingsModal', () => {
     expect(screen.queryByLabelText('All new messages')).not.toBeInTheDocument()
   })
 
+  it('shows an error instead of toggles when prefs fail to load', () => {
+    vi.mocked(useChannelNotificationPrefs).mockReturnValue({
+      prefs: { notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
+      loading: false,
+      saving: false,
+      error: new Error('DB down'),
+      updatePrefs: vi.fn()
+    } as any)
+
+    render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={vi.fn()} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load notification settings/)
+    expect(screen.queryByLabelText('All new messages')).not.toBeInTheDocument()
+  })
+
   it('saves pref changes on toggle', () => {
     const updatePrefs = vi.fn().mockResolvedValue(undefined)
     vi.mocked(useChannelNotificationPrefs).mockReturnValue({

@@ -28,6 +28,7 @@ export function ArchivedChannels() {
         if (mounted) setArchivedChannels(data || [])
       } catch (err) {
         console.error('Error fetching archived channels:', err)
+        if (mounted) setErrorState('Failed to load archived channels.')
       } finally {
         if (mounted) setLoading(false)
       }

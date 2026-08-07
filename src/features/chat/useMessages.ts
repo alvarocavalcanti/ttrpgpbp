@@ -15,7 +15,10 @@ type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
 
 type Message = ChatMessage
 
-const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:messages!messages_reply_to_fkey(id, content, sender_id, is_deleted, type)'
+// reply is a self-FK on messages; there is exactly one such relationship, so
+// no hint is needed. (The `messages_reply_to_fkey` hint broke in prod when the
+// PostgREST schema cache failed to register that constraint name.)
+const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:messages(id, content, sender_id, is_deleted, type)'
 
 function formatMessage(m: any): Message {
   return {

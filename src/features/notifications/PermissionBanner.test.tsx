@@ -120,7 +120,7 @@ describe('PermissionBanner', () => {
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })
 
-  it('dismisses banner when subscription fails', async () => {
+  it('shows an error and keeps the banner when subscription fails', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true,
@@ -132,7 +132,8 @@ describe('PermissionBanner', () => {
     render(<PermissionBanner />)
     fireEvent.click(screen.getByText('Enable Notifications'))
     await waitFor(() => {
-      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(/Could not enable notifications/)
+      expect(screen.getByRole('region')).toBeInTheDocument()
     })
   })
 })

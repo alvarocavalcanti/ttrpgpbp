@@ -77,6 +77,7 @@ describe('useChannels', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(console.error).toHaveBeenCalled()
     expect(result.current.publicChannels).toEqual([])
+    expect(result.current.error).toBeInstanceOf(Error)
   })
 
   it('fetches and formats channels successfully with unread counts', async () => {
