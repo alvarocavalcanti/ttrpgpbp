@@ -1,8 +1,9 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -13,7 +14,14 @@ export function ProtectedRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    const from = location.pathname + location.search + location.hash
+    return <Navigate to="/login" replace state={{ from }} />
+  }
+
+  const redirectTo = sessionStorage.getItem('auth_redirect')
+  if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//')) {
+    sessionStorage.removeItem('auth_redirect')
+    return <Navigate to={redirectTo} replace />
   }
 
   return <Outlet />
