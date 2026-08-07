@@ -188,6 +188,44 @@ describe('JoinChannel', () => {
     })
   })
 
+  it('shows join form with invite code even if channel fetch is blocked by RLS', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: new Error('RLS blocked') })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <MemoryRouter initialEntries={['/join/123?code=abc123']}>
+        <Routes>
+          <Route path="/join/:id" element={<JoinChannel />} />
+          <Route path="/channel/:id" element={<div data-testid="success-redirect" />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Join Channel')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('Channel Not Found')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Channel Password')).not.toBeInTheDocument()
+    expect(screen.getByText('You are joining with a valid invite link.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {
+        p_channel_id: '123',
+        p_character_name: 'TestUser',
+        p_password_hash: undefined,
+        p_invite_code: 'abc123'
+      })
+      expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
+    })
+  })
+
   it('toggles password visibility', async () => {
     const mockChannel = {
       id: '123',

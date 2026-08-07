@@ -1,8 +1,9 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './useAuth'
 
 export function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -14,6 +15,14 @@ export function LoginPage() {
 
   if (user) {
     return <Navigate to="/" replace />
+  }
+
+  const handleSignIn = async () => {
+    const from = (location.state as { from?: string } | null)?.from
+    if (from) {
+      sessionStorage.setItem('auth_redirect', from)
+    }
+    await signInWithGoogle()
   }
 
   return (
@@ -30,7 +39,7 @@ export function LoginPage() {
         
         <div className="mt-8">
           <button
-            onClick={() => signInWithGoogle()}
+            onClick={handleSignIn}
             className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
