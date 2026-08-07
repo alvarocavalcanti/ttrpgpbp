@@ -75,7 +75,7 @@ describe('LoginPage', () => {
     expect(mockSignIn).toHaveBeenCalledTimes(1)
   })
 
-  it('saves the intended destination to sessionStorage before signing in', async () => {
+  it('saves the intended destination to sessionStorage before signing in', () => {
     const mockSignIn = vi.fn().mockResolvedValue(undefined)
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
