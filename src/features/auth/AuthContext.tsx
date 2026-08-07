@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true
 
     async function getInitialSession() {
+      setError(null)
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (!mounted) return
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, currentSession) => {
+        setError(null)
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
 
