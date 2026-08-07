@@ -78,6 +78,8 @@ export function useChannels() {
                 .select('*', { count: 'exact', head: true })
                 .eq('channel_id', memberInfo.channel_id)
                 .gt('created_at', memberInfo.last_read_at)
+                .neq('sender_id', user.id)
+                .eq('is_deleted', false)
               unread_count = count || 0
             }
 
