@@ -6,7 +6,7 @@ import { usePushNotifications } from '../auth/usePushNotifications'
 import { PermissionBanner } from '../notifications/PermissionBanner'
 
 export function Lobby() {
-  const { publicChannels, myChannels, loading } = useChannels()
+  const { publicChannels, myChannels, loading, error } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { preferences } = usePushNotifications()
   const [searchParams] = useSearchParams()
@@ -30,6 +30,16 @@ export function Lobby() {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64" role="alert">
+        <div className="bg-red-50 border border-red-200 rounded-md px-6 py-4 text-sm text-red-700">
+          Failed to load channels. Refresh the page to try again.
+        </div>
       </div>
     )
   }

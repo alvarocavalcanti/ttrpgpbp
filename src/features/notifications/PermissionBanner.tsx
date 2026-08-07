@@ -7,6 +7,7 @@ export function PermissionBanner() {
   const { isSupported, isConfigured, permission, isSubscribed, subscribeToPush } = usePushNotifications()
   const [dismissed, setDismissed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!user || dismissed || !isConfigured || !isSupported || permission !== 'default' || isSubscribed) {
     return null
@@ -14,12 +15,13 @@ export function PermissionBanner() {
 
   const handleEnable = async () => {
     setIsSubmitting(true)
+    setError(null)
     try {
       await subscribeToPush()
       setDismissed(true)
     } catch (err) {
       console.error('Failed to enable notifications', err)
-      setDismissed(true)
+      setError('Could not enable notifications. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -27,9 +29,12 @@ export function PermissionBanner() {
 
   return (
     <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4 mx-4 md:mx-0" role="region" aria-label="Notification permission">
-      <p className="text-sm text-indigo-900">
-        Enable push notifications to get notified of new messages, even when the app is closed.
-      </p>
+      <div>
+        <p className="text-sm text-indigo-900">
+          Enable push notifications to get notified of new messages, even when the app is closed.
+        </p>
+        {error && <p className="text-sm text-red-700 mt-1" role="alert">{error}</p>}
+      </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={handleEnable}

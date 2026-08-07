@@ -24,6 +24,7 @@ describe('ProtectedRoute', () => {
       user: null,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -37,12 +38,39 @@ describe('ProtectedRoute', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
+  it('renders error state when session load fails', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: new Error('Session error'),
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load your session/)
+    expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+  })
+
   it('redirects to login when no user is authenticated', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: null,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -68,6 +96,7 @@ describe('ProtectedRoute', () => {
       user: null,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -93,6 +122,7 @@ describe('ProtectedRoute', () => {
       user: { id: 'test' } as any,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -118,6 +148,7 @@ describe('ProtectedRoute', () => {
       user: { id: 'test' } as any,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })

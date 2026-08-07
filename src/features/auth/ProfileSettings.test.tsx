@@ -40,6 +40,7 @@ describe('ProfileSettings', () => {
       isSubscribed: false,
       preferences: { push_enabled: true, badge_enabled: true } as any,
       loading: false,
+      error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
       updatePreferences: mockUpdatePreferences
@@ -49,9 +50,11 @@ describe('ProfileSettings', () => {
   it('renders nothing if profile is null', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123' } as any,
       profile: null,
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -63,6 +66,7 @@ describe('ProfileSettings', () => {
   it('renders profile form with pre-filled values', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123', email: 'user@example.com' } as any,
       profile: {
         id: '123',
@@ -72,6 +76,7 @@ describe('ProfileSettings', () => {
         created_at: '',
       },
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -86,6 +91,7 @@ describe('ProfileSettings', () => {
   it('updates display name on submit and shows success message', async () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123', email: 'user@example.com' } as any,
       profile: {
         id: '123',
@@ -95,6 +101,7 @@ describe('ProfileSettings', () => {
         created_at: '',
       },
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -122,6 +129,7 @@ describe('ProfileSettings', () => {
   it('shows error message on update failure', async () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123', email: 'user@example.com' } as any,
       profile: {
         id: '123',
@@ -131,6 +139,7 @@ describe('ProfileSettings', () => {
         created_at: '',
       },
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -152,9 +161,11 @@ describe('ProfileSettings', () => {
   it('allows toggling notification preferences', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123', email: 'user@example.com' } as any,
       profile: { id: '123', display_name: 'Test Player' } as any,
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -171,9 +182,11 @@ describe('ProfileSettings', () => {
   it('allows subscribing and unsubscribing from push', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123', email: 'user@example.com' } as any,
       profile: { id: '123', display_name: 'Test Player' } as any,
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -191,6 +204,7 @@ describe('ProfileSettings', () => {
       isSubscribed: true,
       preferences: { push_enabled: true, badge_enabled: true } as any,
       loading: false,
+      error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
       updatePreferences: mockUpdatePreferences
@@ -205,9 +219,11 @@ describe('ProfileSettings', () => {
   it('shows not configured message when isConfigured is false', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
+      error: null,
       user: { id: '123' } as any,
       profile: { id: '123' } as any,
       session: null,
+
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -219,6 +235,7 @@ describe('ProfileSettings', () => {
       isSubscribed: false,
       preferences: { push_enabled: true, badge_enabled: true } as any,
       loading: false,
+      error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
       updatePreferences: mockUpdatePreferences

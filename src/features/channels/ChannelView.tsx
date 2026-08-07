@@ -15,7 +15,7 @@ import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotifi
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch } = useChannel(id)
-  const { messages, reactions, loading: messagesLoading, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -157,6 +157,12 @@ export function ChannelView() {
           isGM={isGM}
           onUpdate={refetch}
         />
+
+        {messagesError && (
+          <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-red-700 text-sm" role="alert">
+            Failed to load messages. Refresh the page to try again.
+          </div>
+        )}
 
         <MessageList 
           messages={messages} 

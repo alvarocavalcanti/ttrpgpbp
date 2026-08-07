@@ -29,6 +29,7 @@ describe('useAuth', () => {
       user: null,
       profile: null,
       session: null,
+      error: null,
       loading: false,
       signInWithGoogle: () => Promise.resolve(),
       signOut: () => Promise.resolve(),

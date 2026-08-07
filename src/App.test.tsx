@@ -48,10 +48,24 @@ describe('App', () => {
       data: { id: '123', display_name: 'Test User', avatar_url: 'http://example.com/avatar.png' },
       error: null,
     })
-    const mockOrder = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle, order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    // Profile fetch: select().eq().single()
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    // Lobby/channel queries resolve to empty lists (profiles is handled above).
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
 
     render(<App />)
     
@@ -76,10 +90,22 @@ describe('App', () => {
       data: { id: '123', display_name: null, avatar_url: null },
       error: null,
     })
-    const mockOrder = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle, order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
 
     render(<App />)
     

@@ -28,6 +28,7 @@ describe('JoinChannel', () => {
       profile: { display_name: 'TestUser' } as any,
       loading: false,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn()
     })

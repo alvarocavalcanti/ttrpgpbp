@@ -1,6 +1,28 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": ["@dietrichgebert/ponytail"],
+  "provider": {
+    "opencode-go": {
+      "models": {
+        "deepseek-v4-flash": {
+          "variants": {
+            "low": { "reasoningEffort": "low" },
+            "medium": { "reasoningEffort": "medium" },
+            "high": { "reasoningEffort": "high" },
+            "max": { "disabled": true }
+          }
+        },
+        "deepseek-v4-pro": {
+          "variants": {
+            "low": { "reasoningEffort": "low" },
+            "medium": { "reasoningEffort": "medium" },
+            "high": { "reasoningEffort": "high" },
+            "max": { "disabled": true }
+          }
+        }
+      }
+    }
+  },
   "agent": {
     "plan": { "model": "opencode-go/deepseek-v4-pro" },
     "build": { "model": "opencode-go/deepseek-v4-flash" },

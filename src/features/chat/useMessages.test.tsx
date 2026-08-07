@@ -90,7 +90,28 @@ describe('useMessages', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(console.error).toHaveBeenCalled()
+      expect(result.current.error).toBeInstanceOf(Error)
     })
+  })
+
+  it('fetches messages without relying on the messages_reply_to_fkey hint', async () => {
+    const mockOrder = vi.fn().mockResolvedValue({ data: [{ id: 'm1', reply: { id: 'm0' } }], error: null })
+    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+      return { select: mockSelect } as any
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const selectArg = mockSelect.mock.calls[0][0] as string
+    expect(selectArg).toContain('reply:messages(')
+    expect(selectArg).not.toContain('messages_reply_to_fkey')
+    expect(result.current.messages[0].reply).toEqual({ id: 'm0' })
   })
 
   it('handles realtime INSERT with joins', async () => {

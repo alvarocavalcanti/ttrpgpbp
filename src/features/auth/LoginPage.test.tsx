@@ -19,6 +19,7 @@ describe('LoginPage', () => {
       user: null,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -38,6 +39,7 @@ describe('LoginPage', () => {
       user: { id: 'test' } as any,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
     })
@@ -58,6 +60,7 @@ describe('LoginPage', () => {
       user: null,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
     })
@@ -82,6 +85,7 @@ describe('LoginPage', () => {
       user: null,
       profile: null,
       session: null,
+      error: null,
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
     })

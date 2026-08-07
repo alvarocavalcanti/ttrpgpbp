@@ -25,6 +25,7 @@ function TestComponent() {
       <div data-testid="loading">{context.loading ? 'loading' : 'ready'}</div>
       <div data-testid="user">{context.user ? context.user.id : 'no-user'}</div>
       <div data-testid="profile">{context.profile ? context.profile.display_name : 'no-profile'}</div>
+      <div data-testid="error">{context.error ? 'error' : 'no-error'}</div>
       <button onClick={context.signInWithGoogle}>Sign In</button>
       <button onClick={context.signOut}>Sign Out</button>
     </div>
@@ -74,6 +75,7 @@ describe('AuthContext', () => {
 
     expect(await screen.findByText('ready')).toBeInTheDocument()
     expect(console.error).toHaveBeenCalledWith('Error getting initial session:', expect.any(Error))
+    expect(screen.getByTestId('error')).toHaveTextContent('error')
   })
 
   it('provides user and profile when getSession returns a user', async () => {
@@ -174,6 +176,7 @@ describe('AuthContext', () => {
       expect(console.error).toHaveBeenCalledWith('Error fetching profile on auth change:', expect.any(Error))
       expect(screen.getByTestId('user')).toHaveTextContent('user-456')
       expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
+      expect(screen.getByTestId('error')).toHaveTextContent('error')
     })
   })
 
@@ -238,6 +241,50 @@ describe('AuthContext', () => {
       options: {
         redirectTo: window.location.origin,
       },
+    })
+  })
+
+  it('clears the error when a later auth change succeeds', async () => {
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+
+    const mockSingle = vi.fn().mockRejectedValueOnce(new Error('DB error')).mockResolvedValueOnce({
+      data: { id: 'user-456', display_name: 'Recovered' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+
+    // First auth change: profile fetch fails, error is set.
+    authCallback('SIGNED_IN', { user: { id: 'user-456' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent('error')
+    })
+
+    // Second auth change: profile fetch succeeds, error is cleared.
+    authCallback('TOKEN_REFRESHED', { user: { id: 'user-456' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent('no-error')
+      expect(screen.getByTestId('profile')).toHaveTextContent('Recovered')
     })
   })
 
