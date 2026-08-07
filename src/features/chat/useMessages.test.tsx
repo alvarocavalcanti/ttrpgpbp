@@ -491,14 +491,15 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await result.current.sendDiceRoll('1d20+5')
+      await result.current.sendDiceRoll('1d20+5', 'parent1')
     })
 
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
       channel_id: 'c1',
       sender_id: 'u1',
       content: 'Rolled 1d20+5: **16**',
-      type: 'dice_roll'
+      type: 'dice_roll',
+      reply_to: 'parent1'
     }))
 
     expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({

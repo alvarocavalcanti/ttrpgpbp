@@ -26,6 +26,22 @@ describe('MessageItem', () => {
     expect(screen.getByText('15').tagName).toBe('STRONG')
   })
 
+  it('shows the reply context on a dice_roll message and jumps to the source', () => {
+    const mockOnJump = vi.fn()
+    const msg: any = {
+      id: 'r1',
+      type: 'dice_roll',
+      content: 'Rolled 1d20: **7**',
+      sender: { display_name: 'Hero' },
+      reply: { id: 'm1', content: 'Roll a STR Check', sender_id: 'u2', is_deleted: false, type: 'regular' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onJumpToMessage={mockOnJump} members={[{ user_id: 'u2', character_name: 'GM' }]} />)
+    expect(screen.getByText('Replying to GM')).toBeInTheDocument()
+    expect(screen.getByText('Roll a STR Check')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Replying to GM'))
+    expect(mockOnJump).toHaveBeenCalledWith('m1')
+  })
+
   it('renders regular message with markdown', () => {
     const msg: any = { 
       type: 'regular', 
@@ -44,6 +60,7 @@ describe('MessageItem', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('3') // +3 modifier
 
     const msg: any = { 
+      id: 'm1',
       type: 'regular', 
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
@@ -54,7 +71,7 @@ describe('MessageItem', () => {
     fireEvent.click(checkBtn)
     
     expect(window.prompt).toHaveBeenCalledWith('Enter modifier for STR Check:', '0')
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1')
   })
 
   it('handles ability checks with negative modifiers', () => {
@@ -62,6 +79,7 @@ describe('MessageItem', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('-2') 
 
     const msg: any = { 
+      id: 'm1',
       type: 'regular', 
       content: 'Make a DEX Check',
       sender: { display_name: 'GM' }
@@ -69,7 +87,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'DEX Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1')
   })
 
   it('handles ability checks with zero modifiers', () => {
@@ -77,6 +95,7 @@ describe('MessageItem', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('0') 
 
     const msg: any = { 
+      id: 'm1',
       type: 'regular', 
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
@@ -84,7 +103,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
   })
 
   it('handles ability checks with invalid modifiers', () => {
@@ -92,6 +111,7 @@ describe('MessageItem', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('abc') 
 
     const msg: any = { 
+      id: 'm1',
       type: 'regular', 
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
@@ -99,7 +119,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
   })
 
   it('handles ability checks when prompt is cancelled', () => {
@@ -107,6 +127,7 @@ describe('MessageItem', () => {
     vi.spyOn(window, 'prompt').mockReturnValue(null) // user clicked cancel
 
     const msg: any = { 
+      id: 'm1',
       type: 'regular', 
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
@@ -116,6 +137,20 @@ describe('MessageItem', () => {
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
     
     expect(mockOnRollDice).not.toHaveBeenCalled()
+  })
+
+  it('passes the source message id when rolling an inline dice notation', () => {
+    const mockOnRollDice = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'Roll 1d20 now',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    fireEvent.click(screen.getByRole('button', { name: '1d20' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
   })
 
   it('allows editing if author and within 15 min', async () => {
@@ -301,7 +336,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[DEX Check](check:DEX)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} />)
     fireEvent.click(screen.getByText('DEX Check'))
-    expect(mockOnRoll).toHaveBeenCalled()
+    expect(mockOnRoll).toHaveBeenCalledWith(expect.stringContaining('1d20+3'), 'm1')
   })
 
   it('renders check correctly for Shadowdark with modifier', async () => {
@@ -309,7 +344,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 4 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4')
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1')
   })
 
   it('renders mention chips for user: links', () => {

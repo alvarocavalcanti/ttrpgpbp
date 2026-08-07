@@ -250,7 +250,7 @@ export function useMessages(channelId: string | undefined) {
     }
   }
 
-  const sendDiceRoll = async (notation: string) => {
+  const sendDiceRoll = async (notation: string, replyToId?: string) => {
     if (!channelId || !user) return
 
     // Perform the roll calculation
@@ -263,7 +263,8 @@ export function useMessages(channelId: string | undefined) {
         channel_id: channelId,
         sender_id: user.id,
         content: `Rolled ${notation}: **${rollResult.total}**`,
-        type: 'dice_roll'
+        type: 'dice_roll',
+        reply_to: replyToId || null
       })
       .select()
       .single()
@@ -290,7 +291,7 @@ export function useMessages(channelId: string | undefined) {
 
     // Invoke push notifications function for new message
     supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll' } }
+      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll', reply_to: replyToId || null } }
     }).catch(err => console.error('Failed to trigger push for message', err))
   }
 
