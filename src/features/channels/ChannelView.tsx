@@ -177,6 +177,7 @@ export function ChannelView() {
           onToggleReaction={handleToggleReaction}
           onReply={handleReply}
           onJumpToMessage={handleJumpToMessage}
+          lastReadAt={myMemberInfo?.last_read_at}
         />
         
         <MessageComposer 

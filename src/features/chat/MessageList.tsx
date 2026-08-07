@@ -19,9 +19,10 @@ interface MessageListProps {
   onToggleReaction?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
+  lastReadAt?: string | null
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -48,6 +49,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
         const prevDate = prevMessage ? new Date(prevMessage.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : null
         const showDivider = currentDate !== prevDate
 
+        const readAt = lastReadAt ? new Date(lastReadAt).getTime() : null
+        const isNew = readAt !== null && new Date(message.created_at).getTime() > readAt
+        const prevIsNew = prevMessage && readAt !== null ? new Date(prevMessage.created_at).getTime() > readAt : false
+        const showNewDivider = isNew && !prevIsNew
+
         return (
           <Fragment key={message.id}>
             {showDivider && (
@@ -57,6 +63,15 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
                   {currentDate}
                 </span>
                 <div className="flex-grow border-t border-gray-300"></div>
+              </div>
+            )}
+            {showNewDivider && (
+              <div data-testid="new-messages-divider" className="flex items-center my-6">
+                <div className="flex-grow border-t-2 border-red-400"></div>
+                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-red-500 uppercase tracking-wider">
+                  New messages
+                </span>
+                <div className="flex-grow border-t-2 border-red-400"></div>
               </div>
             )}
             <MessageItem
