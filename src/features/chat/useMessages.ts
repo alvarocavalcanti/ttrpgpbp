@@ -209,7 +209,7 @@ export function useMessages(channelId: string | undefined) {
         content: payload.content,
         type: payload.type,
         whisper_to: payload.whisper_to || null,
-        reply_to: payload.reply_to || null,
+        reply_to: payload.reply_to ?? null,
       })
     if (error) throw error
 
@@ -264,7 +264,7 @@ export function useMessages(channelId: string | undefined) {
         sender_id: user.id,
         content: `Rolled ${notation}: **${rollResult.total}**`,
         type: 'dice_roll',
-        reply_to: replyToId || null
+        reply_to: replyToId ?? null
       })
       .select()
       .single()
@@ -291,7 +291,7 @@ export function useMessages(channelId: string | undefined) {
 
     // Invoke push notifications function for new message
     supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll', reply_to: replyToId || null } }
+      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll', reply_to: replyToId ?? null } }
     }).catch(err => console.error('Failed to trigger push for message', err))
   }
 
