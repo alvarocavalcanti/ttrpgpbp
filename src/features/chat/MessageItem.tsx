@@ -15,7 +15,7 @@ interface MessageItemProps {
   isGM: boolean
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onRollDice?: (notation: string) => void
+  onRollDice?: (notation: string, replyToId?: string) => void
   isHighlighted?: boolean
   members?: Array<{ user_id: string; character_name: string; attributes?: any }>
   gameSystem?: string
@@ -102,7 +102,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           <button
             onClick={(e) => {
               e.preventDefault()
-              onRollDice?.(notation)
+              onRollDice?.(notation, message.id)
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors cursor-pointer border border-indigo-200 shadow-sm"
             title={`Roll ${notation}`}
@@ -146,7 +146,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
               if (finalModifier !== null) {
                 const sign = finalModifier >= 0 ? '+' : ''
                 const warning = isMissingMod ? `\n\n*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
-                onRollDice?.(`1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}${warning}`)
+                onRollDice?.(`1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}${warning}`, message.id)
               }
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-200 shadow-sm"

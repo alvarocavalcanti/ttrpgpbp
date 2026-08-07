@@ -52,6 +52,7 @@
   - `4d6dl1` (drop lowest)
 - Roll result shows full breakdown: `2d20kh1: **18**: [18, 7]`
 - **Ability checks** (`STR Check`, `DEX Check`, etc.) — prompts for modifier, rolls d20
+- Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
   - UI available to both GM and players
   - Pick dice type (d4, d6, d8, d10, d12, d20, d100)

@@ -17,7 +17,7 @@ interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
   onSendMessage: (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[] }) => Promise<void>
-  onRollDice?: (notation: string) => void
+  onRollDice?: (notation: string, replyToId?: string) => void
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
 }
@@ -163,7 +163,7 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
             <div className="flex flex-wrap items-center gap-4 text-sm mb-2 px-2 sm:px-0">
               {onRollDice && (
                 <div className="shrink-0">
-                  <DiceRoller onRoll={onRollDice} />
+                  <DiceRoller onRoll={(notation) => replyTo ? onRollDice?.(notation, replyTo.id) : onRollDice?.(notation)} />
                 </div>
               )}
 

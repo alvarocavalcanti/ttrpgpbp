@@ -171,6 +171,33 @@ describe('MessageComposer', () => {
     })
   })
 
+  it('passes replyTo.id when rolling dice during a reply', () => {
+    const mockOnRoll = vi.fn()
+    render(
+      <MessageComposer
+        isGM={false}
+        members={members}
+        onSendMessage={vi.fn()}
+        onRollDice={mockOnRoll}
+        replyTo={{ id: 'm1', content: 'x', senderName: 'Hero' }}
+        onCancelReply={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll Dice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20', 'm1')
+  })
+
+  it('rolls dice without replyTo when not replying', () => {
+    const mockOnRoll = vi.fn()
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} onRollDice={mockOnRoll} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll Dice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20')
+  })
+
   it('shows mention autocomplete and inserts selected mention', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
