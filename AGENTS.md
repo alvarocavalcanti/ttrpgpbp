@@ -24,9 +24,23 @@ Boundaries: code/commits/PRs written normal.
 ## Local Testing
 
 1. **Start Local DB:** `npx supabase start`
-2. **Apply Migrations:** `npx supabase migration up`
+2. **Apply Migrations:** `npx supabase migration up` (or `npx supabase db reset` to re-apply all migrations from scratch)
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (http://localhost:54323) to create a mock user, or link your `.env.local` to the remote Supabase.
+
+## Database Migrations
+
+- **Create a migration**: `npx supabase migration new <name>`
+- **Apply locally**: `npx supabase migration up`
+- **Verify from scratch**: `npx supabase db reset` — this is what CI runs on every PR
+- **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration.
+- **CI enforcement**:
+  - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `supabase db start` + `supabase db reset`. A PR that breaks migrations fails CI.
+  - On merge to main, [.github/workflows/migrate.yml](.github/workflows/migrate.yml) runs `supabase db push` against the remote project. If it fails, fix via a new migration.
+  - The Supabase CLI version is pinned (`v2.111.0`) in both workflows. Bump only after confirming `supabase link` still works — v2.112.0+ broke it (supabase/cli#6115).
+- **Troubleshooting**:
+  - `supabase db reset` failing locally = migration depends on existing state. Fix before pushing.
+  - Remote push failing = check the `Apply Migrations` workflow logs in GitHub Actions, then push a corrective migration.
 
 ## Git Hygiene
 

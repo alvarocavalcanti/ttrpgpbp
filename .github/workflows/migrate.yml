@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: migrate-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -13,7 +17,8 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # ponytail: pin v2.111.0 — v2.112.0+ breaks `supabase link` (api-keys inserted_at schema bug, supabase/cli#6115). Re-pin once fixed.
+          version: v2.111.0
           
       - name: Link Supabase project
         run: supabase link --project-ref $SUPABASE_PROJECT_ID -p $SUPABASE_DB_PASSWORD

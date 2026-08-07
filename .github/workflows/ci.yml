@@ -7,7 +7,25 @@ on:
     branches: [ main ]
 
 jobs:
+  migrate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          # ponytail: pin v2.111.0 — v2.112.0+ breaks `supabase link` (api-keys inserted_at schema bug, supabase/cli#6115). Re-pin once fixed.
+          version: v2.111.0
+
+      - name: Start local Supabase & apply migrations
+        run: supabase db start
+
+      - name: Verify migrations apply from scratch
+        run: supabase db reset
+
   test:
+    needs: migrate-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,11 +47,3 @@ jobs:
         
       - name: Run tests with coverage
         run: npm run test:coverage
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-          
-      - name: Verify Migrations (Dry Run)
-        run: supabase db start
