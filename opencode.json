@@ -38,6 +38,7 @@
       "npm *": "allow",
       "npx *": "allow",
       "gh *": "allow",
+      "gh api *": "allow",
       "gh pr checks *": "allow",
       "mkdir *": "allow",
       "cat *": "allow",
@@ -73,6 +74,7 @@
       "gh pr list *": "allow",
       "env *": "allow",
       "docker ps *": "allow",
+      "base64 *": "allow",
       "perl *": "allow"
     }
   }
