@@ -44,7 +44,7 @@ Boundaries: code/commits/PRs written normal.
 
 ## Git Hygiene
 
-- Don't leave uncommitted changes after creating a commit
+- Don't leave untracked and uncommitted files, confirm with me before creating commit
 - If changes should not be committed, check with the user what to do. Add to .gitignore? Delete?
 - Clean up scratch files (`patch*.mjs`, temp scripts, etc.) before committing. Never commit them — they are tooling artifacts, not source
 

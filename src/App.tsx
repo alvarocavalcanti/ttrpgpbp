@@ -32,7 +32,8 @@ function AppNav() {
 
   return (
     <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
-      <Link to="/" className="text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
+      <Link to="/" className="flex items-center gap-2 text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
+        <img src="/RoleByPost.png" alt="" className="w-8 h-8 rounded" />
         RoleByPost
       </Link>
       
