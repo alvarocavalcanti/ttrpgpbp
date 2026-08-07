@@ -94,7 +94,7 @@ describe('useMessages', () => {
     })
   })
 
-  it('fetches messages without relying on the messages_reply_to_fkey hint', async () => {
+  it('fetches messages using the reply_message computed relationship', async () => {
     const mockOrder = vi.fn().mockResolvedValue({ data: [{ id: 'm1', reply: { id: 'm0' } }], error: null })
     const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
@@ -109,8 +109,9 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     const selectArg = mockSelect.mock.calls[0][0] as string
-    expect(selectArg).toContain('reply:messages(')
+    expect(selectArg).toContain('reply:reply_message(')
     expect(selectArg).not.toContain('messages_reply_to_fkey')
+    expect(selectArg).not.toContain('reply:messages(')
     expect(result.current.messages[0].reply).toEqual({ id: 'm0' })
   })
 
