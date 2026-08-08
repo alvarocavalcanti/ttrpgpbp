@@ -7,10 +7,10 @@
 
 ## Channels & Lobby
 - Any user can create a channel (becomes GM)
-- **Lobby** displays joined and public channels via tabs
+- **Lobby** lists only the private channels the user has joined
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
-- Channels can be **Public** (listed in lobby) or private (invite link)
+- Channels are **private** and joined via invite link
 - Optional **password** to join (joining is instant)
 - GM can **kick** (remove) or **block** a user (prevent return/interaction)
 - Optional **map URL** (external link)

@@ -26,7 +26,6 @@ describe('ChannelSettings', () => {
   const mockChannel: any = {
     id: 'c1',
     name: 'Game Room',
-    is_public: true,
     map_url: 'http://map',
     resources_url: 'http://resources',
     has_password: false,
@@ -92,7 +91,6 @@ describe('ChannelSettings', () => {
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalledWith({
         name: 'New Name',
-        is_public: true,
         game_system: 'none',
         map_url: 'http://map',
         resources_url: 'http://resources'

@@ -34,32 +34,29 @@ describe('useChannels', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null } as any)
     const { result } = renderHook(() => useChannels())
     expect(result.current.loading).toBe(true)
-    expect(result.current.publicChannels).toEqual([])
     expect(result.current.myChannels).toEqual([])
   })
 
   it('does not set state if unmounted during fetch', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    let resolvePublic: any;
-    const publicPromise = new Promise(resolve => { resolvePublic = resolve });
+    let resolveMember: any;
+    const memberPromise = new Promise(resolve => { resolveMember = resolve });
     
-    const publicChain = {
-      select: () => publicChain,
-      eq: () => publicChain,
-      order: () => publicPromise
+    const memberChain = {
+      select: () => memberChain,
+      eq: () => memberChain,
+      // eslint-disable-next-line unicorn/no-thenable
+      then: () => memberPromise
     };
-    
-    const memberChain = createChain({ data: [], error: null });
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return publicChain as any;
       if (table === 'channel_members') return memberChain as any;
       return {} as any;
     })
 
     const { result, unmount } = renderHook(() => useChannels())
     unmount()
-    resolvePublic!({ data: [], error: null })
+    resolveMember!({ data: [], error: null })
     expect(result.current.loading).toBe(true)
   })
 
@@ -68,7 +65,6 @@ describe('useChannels', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: [{ id: 'channel-1' }], error: null }) as any;
       if (table === 'channel_members') return createChain({ data: null, error: new Error('Member DB error') }) as any;
       return {} as any;
     })
@@ -76,13 +72,11 @@ describe('useChannels', () => {
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(console.error).toHaveBeenCalled()
-    expect(result.current.publicChannels).toEqual([])
     expect(result.current.error).toBeInstanceOf(Error)
   })
 
   it('fetches and formats channels successfully with unread counts', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    const mockPublicChannels = [{ id: 'channel-1', name: 'Public Channel' }]
     const mockMyChannelsRaw = [{
       id: 'member-1', channel_id: 'channel-2', user_id: 'user-1', character_name: 'Thor',
       last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'channel-2', name: 'My Channel' }
@@ -98,7 +92,6 @@ describe('useChannels', () => {
     };
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: mockPublicChannels, error: null }) as any;
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       if (table === 'messages') return messageChain as any;
       return {} as any;
@@ -122,7 +115,6 @@ describe('useChannels', () => {
     }
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: [], error: null }) as any;
       if (table === 'channel_members') return createChain({ data: [{
         id: 'member-1', channel_id: 'channel-2', user_id: 'user-1', character_name: 'Thor',
         last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'channel-2', name: 'My Channel' }
@@ -140,47 +132,24 @@ describe('useChannels', () => {
 
   it('fetches and formats channels successfully', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    const mockPublicChannels = [{ id: 'channel-1', name: 'Public Channel' }]
     const mockMyChannelsRaw = [{
       id: 'member-1', channel_id: 'channel-2', user_id: 'user-1', character_name: 'Thor',
       channel: { id: 'channel-2', name: 'My Channel' }
     }]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: mockPublicChannels, error: null }) as any;
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       return {} as any;
     })
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.publicChannels).toEqual(mockPublicChannels)
     expect(result.current.myChannels).toHaveLength(1)
     expect(result.current.myChannels[0].id).toBe('channel-2')
   })
 
-  it('sorts public channels by most recent message, nulls last', async () => {
-    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    const mockPublicChannels = [
-      { id: 'c1', name: 'Old', created_at: '2023-01-01T00:00:00Z', last_message_at: '2023-01-01T00:00:00Z' },
-      { id: 'c2', name: 'Recent', created_at: '2023-01-01T00:00:00Z', last_message_at: '2024-06-01T00:00:00Z' },
-      { id: 'c3', name: 'No Messages', created_at: '2023-03-01T00:00:00Z', last_message_at: null }
-    ]
-
-    vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: mockPublicChannels, error: null }) as any;
-      if (table === 'channel_members') return createChain({ data: [], error: null }) as any;
-      return {} as any;
-    })
-
-    const { result } = renderHook(() => useChannels())
-    await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.publicChannels.map(c => c.id)).toEqual(['c2', 'c1', 'c3'])
-  })
-
   it('sorts my channels by most recent message, nulls last', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    const mockPublicChannels: any[] = []
     const mockMyChannelsRaw = [
       {
         id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'A',
@@ -197,7 +166,6 @@ describe('useChannels', () => {
     ]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: mockPublicChannels, error: null }) as any;
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       return {} as any;
     })
@@ -209,19 +177,24 @@ describe('useChannels', () => {
 
   it('breaks ties by created_at when last_message_at matches', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    const mockPublicChannels = [
-      { id: 'c1', name: 'Newer', created_at: '2024-01-01T00:00:00Z', last_message_at: '2024-06-01T00:00:00Z' },
-      { id: 'c2', name: 'Older', created_at: '2023-01-01T00:00:00Z', last_message_at: '2024-06-01T00:00:00Z' }
+    const mockMyChannelsRaw = [
+      {
+        id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'A',
+        channel: { id: 'c1', name: 'Newer', created_at: '2024-01-01T00:00:00Z', last_message_at: '2024-06-01T00:00:00Z' }
+      },
+      {
+        id: 'member-2', channel_id: 'c2', user_id: 'user-1', character_name: 'B',
+        channel: { id: 'c2', name: 'Older', created_at: '2023-01-01T00:00:00Z', last_message_at: '2024-06-01T00:00:00Z' }
+      }
     ]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channels') return createChain({ data: mockPublicChannels, error: null }) as any;
-      if (table === 'channel_members') return createChain({ data: [], error: null }) as any;
+      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       return {} as any;
     })
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.publicChannels.map(c => c.id)).toEqual(['c1', 'c2'])
+    expect(result.current.myChannels.map(c => c.id)).toEqual(['c1', 'c2'])
   })
 })

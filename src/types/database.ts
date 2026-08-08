@@ -45,7 +45,6 @@ export interface Database {
           id: string
           name: string
           gm_id: string
-          is_public: boolean
           is_archived: boolean
           game_system: string
           invite_code: string | null
@@ -61,7 +60,6 @@ export interface Database {
           id?: string
           name: string
           gm_id: string
-          is_public?: boolean
           is_archived?: boolean
           game_system?: string
           invite_code?: string | null
@@ -76,7 +74,6 @@ export interface Database {
           id?: string
           name?: string
           gm_id?: string
-          is_public?: boolean
           is_archived?: boolean
           game_system?: string
           invite_code?: string | null
