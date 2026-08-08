@@ -2,7 +2,7 @@
 
 ## Users & Auth
 - Google account sign-in
-- Per-channel **character name** and **avatar**
+- Per-channel **character name** (max 20 characters) and **avatar**
 - Optional **character sheet URL** per user per channel
 
 ## Channels & Lobby
@@ -32,8 +32,8 @@
   - **Regular** — normal conversation
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only**.
 - **Daily Dividers** — chat history is grouped by date visually
-- **Editable** within 15 minutes, marked as "edited"
-- **Deletable** — replaced with "deleted" marker
+- **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM)
+- **Deletable** — replaced with "deleted" marker (soft-delete)
 - URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
 - **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification
@@ -50,8 +50,9 @@
 - Each click generates a roll result message in the history
 - **Supported notation (v1)**:
   - `NdX`, `NdX+M`, `NdX-M` (basics)
-  - `2d20kh1` / `2d20kl1` (advantage/disadvantage)
-  - `4d6dl1` (drop lowest)
+  - `2d20kh` / `2d20kl` (advantage/disadvantage, keep/drop count optional — defaults to 1, e.g. `2d20kh+4`)
+  - `4d6dl` (drop lowest)
+  - `kh`/`kl`/`dh`/`dl` with or without an explicit count
 - Roll result shows full breakdown: `2d20kh1: **18**: [18, 7]`
 - **Ability checks** (`STR Check`, `DEX Check`, etc.) — prompts for modifier, rolls d20
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers

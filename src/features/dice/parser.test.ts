@@ -22,6 +22,11 @@ describe('linkifyDice', () => {
     expect(linkifyDice(text)).toBe('[1d20+5](dice:1d20+5) and [2d6-1](dice:2d6-1)')
   })
 
+  it('linkifies keep/drop shorthands without a count', () => {
+    expect(linkifyDice('Roll 2d20kh+4')).toBe('Roll [2d20kh+4](dice:2d20kh+4)')
+    expect(linkifyDice('Roll 4d6dl')).toBe('Roll [4d6dl](dice:4d6dl)')
+  })
+
   it('turns ability checks into markdown links', () => {
     const text = 'Make a STR Check or a Dexterity Check.'
     expect(linkifyDice(text)).toBe('Make a [STR Check](check:STR) or a [Dexterity Check](check:Dexterity).')
@@ -80,6 +85,22 @@ describe('parseAndRoll', () => {
     expect(res.rolls).toEqual([3, 19])
     expect(res.dropped).toEqual([3]) // dropped lowest
     expect(res.total).toBe(19)
+  })
+
+  it('parses advantage shorthand kh without a count (2d20kh+4)', () => {
+    // kh without a number defaults to keep highest 1
+    const res = parseAndRoll('2d20kh+4')
+    expect(res.rolls).toEqual([3, 19])
+    expect(res.dropped).toEqual([3])
+    expect(res.total).toBe(23) // 19 + 4
+  })
+
+  it('parses drop lowest shorthand dl without a count (4d6dl)', () => {
+    // calls: 0.1, 0.9, 0.5, 0.2 -> rolls: 1, 6, 4, 2
+    const res = parseAndRoll('4d6dl')
+    expect(res.rolls).toEqual([1, 6, 4, 2])
+    expect(res.dropped).toEqual([1])
+    expect(res.total).toBe(12) // 6+4+2
   })
 
   it('parses disadvantage (2d20kl1)', () => {

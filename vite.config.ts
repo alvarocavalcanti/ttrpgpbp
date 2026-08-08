@@ -13,25 +13,8 @@ export default defineConfig({
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
-      includeAssets: ['favicon.svg', 'icons.svg'],
-      manifest: {
-        name: 'RoleByPost',
-        short_name: 'RoleByPost',
-        description: 'A modern Play-by-Post App',
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: 'favicon.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml'
-          },
-          {
-            src: 'favicon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml'
-          }
-        ]
-      }
+      includeAssets: ['favicon.svg', 'icons.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json'],
+      manifest: false,
     })
   ],
   test: {

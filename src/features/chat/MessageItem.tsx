@@ -54,9 +54,13 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   const isScene = message.type === 'scene'
   const isSystem = message.type === 'system'
 
-  // Check 15 min edit window
-  const canEdit = isMe && !message.is_deleted && message.type === 'regular' && 
-    (new Date().getTime() - new Date(message.created_at).getTime() < 15 * 60 * 1000)
+  // Check 15 min edit window. Scene messages are GM-authored, so the GM can
+  // edit/delete them; the author can also edit/delete within 15 minutes.
+  const withinEditWindow = new Date().getTime() - new Date(message.created_at).getTime() < 15 * 60 * 1000
+  const canEdit = !message.is_deleted && (
+    (isMe && withinEditWindow && message.type === 'regular') ||
+    (isGM && message.type === 'scene')
+  )
 
   const handleSaveEdit = async () => {
     if (editContent.trim() === message.content) {
@@ -245,8 +249,55 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
     return (
       <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] border-y-2 border-[#e6d0a4] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
         <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] prose-headings:text-[#4a3b31] prose-strong:text-[#4a3b31] prose-em:text-[#5c4a3d] prose-a:text-[#4a3b31] prose-blockquote:text-[#5c4a3d] prose-blockquote:border-[#e6d0a4] prose-ul:text-[#5c4a3d] prose-ol:text-[#5c4a3d] max-w-none [&>p:last-child]:bg-[#f4e4c1] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31]">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
+          {isEditing ? (
+            <div className="mt-2 text-left">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                rows={3}
+              />
+              <div className="mt-2 flex space-x-2">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSubmitting || !editContent.trim()}
+                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  disabled={isSubmitting}
+                  className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
+          )}
+          {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
         </div>
+        {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
+          <div className="flex-shrink-0 flex items-center gap-1 mt-3">
+            {onReply && (
+              <button onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+              </button>
+            )}
+            {canEdit && (
+              <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </button>
+            )}
+            {(canEdit || isGM) && (
+              <button onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     )
   }

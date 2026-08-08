@@ -6,7 +6,7 @@ export interface DiceRollResult {
   modifier: number
 }
 
-const DICE_REGEX = /\b(\d+d\d+(?:kh\d+|kl\d+|dh\d+|dl\d+)?(?:[+-]\d+)?)\b/gi
+const DICE_REGEX = /\b(\d+d\d+(?:(?:kh|kl|dh|dl)\d*)?(?:[+-]\d+)?)\b/gi
 const CHECK_REGEX = /\b(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) Check\b/gi
 
 // Preprocesses text to turn dice notations into markdown links, skipping code blocks
@@ -29,7 +29,7 @@ export function parseAndRoll(notation: string): DiceRollResult {
   const normalized = notation.toLowerCase().replace(/\s+/g, '')
 
   // match pattern: NdX[khN|klN|dlN|dhN][+M|-M]
-  const regex = /^(\d+)d(\d+)(kh\d+|kl\d+|dh\d+|dl\d+)?(?:([+-])(\d+))?$/
+  const regex = /^(\d+)d(\d+)((?:kh|kl|dh|dl)\d*)?(?:([+-])(\d+))?$/
 
   const match = normalized.match(regex)
   if (!match) {
@@ -68,7 +68,8 @@ export function parseAndRoll(notation: string): DiceRollResult {
 
   if (keepDropMod) {
     const type = keepDropMod.substring(0, 2)
-    const amount = parseInt(keepDropMod.substring(2), 10)
+    // kh/kl/dh/dl without a number means keep/drop 1 (e.g. 2d20kh+4)
+    const amount = parseInt(keepDropMod.substring(2), 10) || 1
 
     if (amount >= count) {
       // keeping more than we have keeps all, dropping more than we have drops all

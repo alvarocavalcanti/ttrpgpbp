@@ -15,6 +15,42 @@ describe('MessageItem', () => {
     expect(screen.getByText('You enter a dark tavern')).toBeInTheDocument()
   })
 
+  it('allows GM to edit and delete a scene message', async () => {
+    const mockOnEdit = vi.fn().mockResolvedValue(undefined)
+    const mockOnDelete = vi.fn().mockResolvedValue(undefined)
+    window.confirm = vi.fn().mockReturnValue(true)
+    const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u1' }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={mockOnEdit} onDelete={mockOnDelete} />)
+    expect(screen.getByText('You enter a dark tavern')).toBeInTheDocument()
+
+    // GM can delete
+    const deleteBtn = screen.getByLabelText('Delete')
+    fireEvent.click(deleteBtn)
+    await waitFor(() => expect(mockOnDelete).toHaveBeenCalledWith('s1'))
+
+    // GM can edit
+    fireEvent.click(screen.getByLabelText('Edit'))
+    const textarea = screen.getByDisplayValue('You enter a dark tavern')
+    fireEvent.change(textarea, { target: { value: 'A storm rolls in' } })
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => expect(mockOnEdit).toHaveBeenCalledWith('s1', 'A storm rolls in'))
+  })
+
+  it('does not show edit/delete for scene messages to non-GM non-author', () => {
+    const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u2' }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
+  })
+
+  it('allows replying to a scene message', () => {
+    const mockOnReply = vi.fn()
+    const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u2' }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={mockOnReply} />)
+    fireEvent.click(screen.getByLabelText('Reply'))
+    expect(mockOnReply).toHaveBeenCalledWith(msg)
+  })
+
   it('renders dice_roll message correctly', () => {
     const msg: any = { 
       type: 'dice_roll', 
