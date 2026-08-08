@@ -232,7 +232,6 @@ describe('JoinChannel', () => {
     const mockChannel = {
       id: '123',
       name: 'Test Channel',
-      is_public: false,
       has_password: true
     }
     

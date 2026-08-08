@@ -70,7 +70,7 @@ describe('App', () => {
     render(<App />)
     
     expect(await screen.findByText('RoleByPost')).toBeInTheDocument()
-    expect(await screen.findByText('My Channels')).toBeInTheDocument()
+    expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Test User')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Avatar' })).toBeInTheDocument()

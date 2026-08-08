@@ -34,7 +34,6 @@ describe('Lobby', () => {
 
   it('renders loading state', () => {
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [],
       loading: true,
       error: null,
@@ -44,9 +43,8 @@ describe('Lobby', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('renders empty states when no channels exist', () => {
+  it('renders empty state when no channels exist', () => {
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [],
       loading: false,
       error: null,
@@ -54,14 +52,10 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     expect(screen.getByText("You haven't joined any channels yet.")).toBeInTheDocument()
-    
-    fireEvent.click(screen.getByText(/Public Channels/))
-    expect(screen.getByText("No public channels available.")).toBeInTheDocument()
   })
 
   it('renders error state when channels fail to load', () => {
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [],
       loading: false,
       error: new Error('DB down')
@@ -73,15 +67,10 @@ describe('Lobby', () => {
 
   it('renders channels correctly with unread counts', () => {
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [
-        { id: '1', name: 'Public One', is_public: true, has_password: false } as any,
-        { id: '2', name: 'Locked Public', is_public: true, has_password: true } as any
-      ],
       myChannels: [
         { 
           id: '1', 
-          name: 'Public One', 
-          is_public: true, 
+          name: 'My Channel', 
           member: { character_name: 'Hero' },
           unread_count: 5 
         } as any
@@ -91,15 +80,9 @@ describe('Lobby', () => {
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    
-    // My channels section
+    expect(screen.getByText('My Channel')).toBeInTheDocument()
     expect(screen.getByText('Joined as Hero')).toBeInTheDocument()
     expect(screen.getByText('5 new')).toBeInTheDocument()
-    
-    // Public channels section
-    fireEvent.click(screen.getByText(/Public Channels/))
-    expect(screen.getByText('Locked Public')).toBeInTheDocument()
-    expect(document.querySelector('svg')).toBeInTheDocument() // The lock icon
   })
   it('hides unread counts if badge_enabled is false', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -107,12 +90,10 @@ describe('Lobby', () => {
     } as any)
 
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [
         { 
           id: '1', 
-          name: 'Public One', 
-          is_public: true, 
+          name: 'My Channel', 
           member: { character_name: 'Hero' },
           unread_count: 5 
         } as any
@@ -132,19 +113,16 @@ describe('Lobby', () => {
     })
 
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [
         { 
           id: '1', 
-          name: 'Public One', 
-          is_public: true, 
+          name: 'My One', 
           member: { character_name: 'Hero' },
           unread_count: 5 
         } as any,
         { 
           id: '2', 
-          name: 'Public Two', 
-          is_public: true, 
+          name: 'My Two', 
           member: { character_name: 'Hero2' },
           unread_count: 2
         } as any
@@ -158,12 +136,10 @@ describe('Lobby', () => {
 
     // Clear badge when no unread count
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [
         { 
           id: '1', 
-          name: 'Public One', 
-          is_public: true, 
+          name: 'My One', 
           member: { character_name: 'Hero' },
           unread_count: 0 
         } as any
@@ -187,7 +163,6 @@ describe('Lobby', () => {
     } as any)
 
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [],
       loading: false,
       error: null,
@@ -199,7 +174,6 @@ describe('Lobby', () => {
 
   it('renders create channel button and opens modal', () => {
     vi.mocked(useChannels).mockReturnValue({
-      publicChannels: [],
       myChannels: [],
       loading: false,
       error: null,

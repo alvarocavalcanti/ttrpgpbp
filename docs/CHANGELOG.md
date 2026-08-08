@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Private channels only** — public channels are no longer supported. The lobby lists only the private channels the user has joined (no tabs), and joining a channel always happens through its invite link, with an optional password. The `is_public` column and its RLS policy/helper are removed.
 - **PWA high-resolution icons** — added `public/manifest.json` plus 192×192 and 512×512 PNG icons so installing the app to a phone home screen shows a proper icon instead of a blank one.
 - **Character name length limit** — channel character names are capped at 20 characters, enforced in the UI, by a DB CHECK constraint, and inside `join_channel` (existing values are truncated on migration).
 

@@ -22,7 +22,6 @@ function byRecentActivity(a: { last_message_at?: string | null, created_at?: str
 
 export function useChannels() {
   const { user } = useAuth()
-  const [publicChannels, setPublicChannels] = useState<Channel[]>([])
   const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember, unread_count?: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -34,15 +33,6 @@ export function useChannels() {
       if (!user) return
 
       try {
-        // Fetch public channels
-        const { data: publicData, error: publicError } = await supabase
-          .from('channels')
-          .select('*')
-          .eq('is_public', true)
-          .eq('is_archived', false)
-
-        if (publicError) throw publicError
-
         // Fetch my channels (via channel_members)
         const { data: memberData, error: memberError } = await supabase
           .from('channel_members')
@@ -53,8 +43,6 @@ export function useChannels() {
         if (memberError) throw memberError
 
         if (mounted) {
-          setPublicChannels((publicData || []).sort(byRecentActivity))
-          
           // Format my channels
           const formattedMyChannels = await Promise.all((memberData || []).map(async row => {
             const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
@@ -107,5 +95,5 @@ export function useChannels() {
     }
   }, [user])
 
-  return { publicChannels, myChannels, loading, error }
+  return { myChannels, loading, error }
 }
