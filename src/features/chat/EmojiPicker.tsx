@@ -34,7 +34,7 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
         </svg>
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-2 grid grid-cols-8 gap-1">
+        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-2 grid grid-cols-8 gap-1 w-64">
           {QUICK_EMOJIS.map(emoji => (
             <button
               key={emoji}

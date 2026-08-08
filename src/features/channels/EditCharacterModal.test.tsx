@@ -18,6 +18,11 @@ describe('EditCharacterModal', () => {
     expect(screen.queryByText('Attributes (Modifiers)')).not.toBeInTheDocument()
   })
 
+  it('limits character name input to 20 characters', () => {
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
+    expect(screen.getByLabelText('Character Name')).toHaveAttribute('maxlength', '20')
+  })
+
   it('renders Shadowdark modal and updates stats', async () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)

@@ -79,6 +79,7 @@ describe('JoinChannel', () => {
 
     const nameInput = screen.getByLabelText('Character Name')
     expect(nameInput).toHaveValue('TestUser') // prefilled
+    expect(nameInput).toHaveAttribute('maxlength', '20')
     
     fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
 
