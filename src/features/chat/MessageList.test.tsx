@@ -93,4 +93,24 @@ describe('MessageList', () => {
 
     expect(screen.queryByTestId('new-messages-divider')).not.toBeInTheDocument()
   })
+
+  it('does not render new messages divider for own messages after lastReadAt', () => {
+    const msgs: any = [
+      { id: '1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: '2', content: 'My own message', created_at: '2023-01-01T15:00:00Z', sender_id: 'u1' }
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+
+    expect(screen.queryByTestId('new-messages-divider')).not.toBeInTheDocument()
+  })
+
+  it('still renders new messages divider when another member sends after lastReadAt', () => {
+    const msgs: any = [
+      { id: '1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: '2', content: 'Their message', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' }
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+
+    expect(screen.getAllByTestId('new-messages-divider')).toHaveLength(1)
+  })
 })

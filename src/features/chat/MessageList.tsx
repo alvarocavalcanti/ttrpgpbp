@@ -52,7 +52,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
         const readAt = lastReadAt ? new Date(lastReadAt).getTime() : null
         const isNew = readAt !== null && new Date(message.created_at).getTime() > readAt
         const prevIsNew = prevMessage && readAt !== null ? new Date(prevMessage.created_at).getTime() > readAt : false
-        const showNewDivider = isNew && !prevIsNew
+        const showNewDivider = isNew && !prevIsNew && message.sender_id !== user?.id
 
         return (
           <Fragment key={message.id}>

@@ -211,6 +211,45 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByTestId('new-messages-divider')).toBeInTheDocument()
   })
 
+  it('does not render new messages divider when the user sends their own message', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1', last_read_at: '2023-01-01T12:00:00Z' },
+      refetch: vi.fn()
+    } as any)
+
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'old', content: 'old', type: 'regular', sender_id: 'other', created_at: '2023-01-01T10:00:00Z' },
+        { id: 'mine', content: 'mine', type: 'regular', sender_id: 'user1', created_at: '2023-01-01T15:00:00Z' }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.queryByTestId('new-messages-divider')).not.toBeInTheDocument()
+  })
+
   it('toggles settings modal for GM', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },
