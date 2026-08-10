@@ -2,7 +2,8 @@
 -- Admin can configure max_channels_per_user (min 10) and see all users/channels.
 
 -- Helper: is the current user a server admin? Used in RLS and RPC guards.
-CREATE OR REPLACE FUNCTION auth.is_server_admin()
+-- Lives in public (creating functions in the auth schema needs elevated rights).
+CREATE OR REPLACE FUNCTION is_server_admin()
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -24,9 +25,9 @@ ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 INSERT INTO app_settings (key, value) VALUES ('max_channels_per_user', '10');
 
 CREATE POLICY app_settings_select ON app_settings FOR SELECT TO authenticated USING (true);
-CREATE POLICY app_settings_insert ON app_settings FOR INSERT TO authenticated WITH CHECK (auth.is_server_admin());
-CREATE POLICY app_settings_update ON app_settings FOR UPDATE TO authenticated USING (auth.is_server_admin());
-CREATE POLICY app_settings_delete ON app_settings FOR DELETE TO authenticated USING (auth.is_server_admin());
+CREATE POLICY app_settings_insert ON app_settings FOR INSERT TO authenticated WITH CHECK (is_server_admin());
+CREATE POLICY app_settings_update ON app_settings FOR UPDATE TO authenticated USING (is_server_admin());
+CREATE POLICY app_settings_delete ON app_settings FOR DELETE TO authenticated USING (is_server_admin());
 
 -- Admin: list users with their non-archived channel count.
 -- SECURITY DEFINER so the admin can count channels the user belongs to without
@@ -45,7 +46,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT auth.is_server_admin() THEN
+  IF NOT is_server_admin() THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
 
@@ -81,7 +82,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT auth.is_server_admin() THEN
+  IF NOT is_server_admin() THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
 
