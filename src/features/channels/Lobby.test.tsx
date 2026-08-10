@@ -212,9 +212,11 @@ describe('Lobby', () => {
     render(<Lobby />, { wrapper: MemoryRouter })
 
     const createBtn = screen.getByRole('button', { name: 'Create Channel' })
-    expect(createBtn).toHaveAttribute('aria-disabled', 'true')
+    expect(createBtn).toBeDisabled()
 
-    fireEvent.click(createBtn)
+    // jsdom suppresses clicks on disabled buttons; the wrapper owns the onClick
+    // so the toast still fires in the browser when a capped user clicks the FAB.
+    fireEvent.click(screen.getByTestId('create-channel-fab'))
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('Channel limit reached'), 'error')
     expect(screen.queryByText('Create a New Channel')).not.toBeInTheDocument()
   })
@@ -238,7 +240,7 @@ describe('Lobby', () => {
     render(<Lobby />, { wrapper: MemoryRouter })
 
     const createBtn = screen.getByRole('button', { name: 'Create Channel' })
-    expect(createBtn).not.toHaveAttribute('aria-disabled', 'true')
+    expect(createBtn).not.toBeDisabled()
 
     fireEvent.click(createBtn)
     expect(screen.getByText('Create a New Channel')).toBeInTheDocument()

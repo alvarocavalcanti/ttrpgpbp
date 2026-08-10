@@ -204,6 +204,26 @@ describe('MemberList', () => {
   })
 
 
+  it('surfaces system message insert failure on kick', async () => {
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
+    const mockInsert = vi.fn().mockResolvedValue({ error: new Error('RLS block') })
+    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn(), insert: mockInsert } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Kick Player'))
+    
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalled()
+      expect(mockOnUpdate).toHaveBeenCalled()
+      expect(screen.getByText('Player kicked, but failed to post the system message.')).toBeInTheDocument()
+    })
+  })
+
   it('handles kick member error', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
     const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: new Error('err') }) })
