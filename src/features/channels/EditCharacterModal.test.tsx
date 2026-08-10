@@ -41,4 +41,22 @@ describe('EditCharacterModal', () => {
       }))
     })
   })
+
+  it('clamps Shadowdark modifiers to [-4, 4]', async () => {
+    const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(<EditCharacterModal member={mockMember} gameSystem="shadowdark" onClose={vi.fn()} onUpdate={vi.fn()} />)
+    
+    const strInput = screen.getByLabelText('STR')
+    fireEvent.change(strInput, { target: { value: '6' } })
+    
+    fireEvent.click(screen.getByText('Save'))
+    
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        attributes: { STR: 4 }
+      }))
+    })
+  })
 })

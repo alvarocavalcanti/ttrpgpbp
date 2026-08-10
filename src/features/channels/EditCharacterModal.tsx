@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
-import { getSystemAttributes } from '../../game-systems'
+import { getSystemAttributes, clampModifier } from '../../game-systems'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
 
@@ -47,9 +47,10 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
 
   const handleAttributeChange = (attr: string, value: string) => {
     const num = parseInt(value, 10)
+    const clamped = clampModifier(gameSystem, isNaN(num) ? 0 : num)
     setAttributes((prev: any) => ({
       ...prev,
-      [attr]: isNaN(num) ? 0 : num
+      [attr]: clamped
     }))
   }
 

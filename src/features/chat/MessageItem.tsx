@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { linkifyDice } from '../dice/parser'
-import { getSystemAttributes } from '../../game-systems'
+import { getSystemAttributes, clampModifier } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage } from './types'
@@ -148,6 +148,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
               }
 
               if (finalModifier !== null) {
+                finalModifier = clampModifier(gameSystem, finalModifier)
                 const sign = finalModifier >= 0 ? '+' : ''
                 const warning = isMissingMod ? `\n\n*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
                 onRollDice?.(`1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}${warning}`, message.id)
