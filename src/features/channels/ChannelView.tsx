@@ -169,7 +169,7 @@ export function ChannelView() {
           onUpdate={refetch}
           gameSystem={channel.game_system}
         />
-        <div className="divide-y divide-gray-100 border-t border-gray-100">
+        <div data-testid="sidebar-menu" className="divide-y divide-gray-100 border-t border-gray-100">
           {channel.map_url && (
             <a
               href={channel.map_url}

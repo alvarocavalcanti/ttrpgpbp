@@ -272,8 +272,8 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    const sidebar = document.querySelector('.w-80 .divide-y')
-    const items = Array.from(sidebar?.querySelectorAll('a, button') || [])
+    const sidebar = screen.getByTestId('sidebar-menu')
+    const items = Array.from(sidebar.querySelectorAll('a, button'))
       .map(el => el.textContent?.trim())
       .filter(Boolean)
 
@@ -312,8 +312,8 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    const sidebar = document.querySelector('.w-80 .divide-y')
-    const items = Array.from(sidebar?.querySelectorAll('a, button') || [])
+    const sidebar = screen.getByTestId('sidebar-menu')
+    const items = Array.from(sidebar.querySelectorAll('a, button'))
       .map(el => el.textContent?.trim())
 
     expect(items).toContain('Notifications')
