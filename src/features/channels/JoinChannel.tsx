@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
 import type { Database } from '../../types/database'
-import { getSystemAttributes } from '../../game-systems'
+import { getSystemAttributes, clampModifier } from '../../game-systems'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
@@ -88,9 +88,10 @@ export function JoinChannel() {
 
   const handleAttributeChange = (attr: string, value: string) => {
     const num = parseInt(value, 10)
+    const clamped = clampModifier(channel?.game_system, isNaN(num) ? 0 : num)
     setAttributes((prev: any) => ({
       ...prev,
-      [attr]: isNaN(num) ? 0 : num
+      [attr]: clamped
     }))
   }
 

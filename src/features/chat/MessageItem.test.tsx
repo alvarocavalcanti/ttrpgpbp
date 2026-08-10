@@ -383,6 +383,22 @@ describe('MessageItem', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1')
   })
 
+  it('clamps Shadowdark check modifier above 4 to 4', async () => {
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 7 }}]} />)
+    fireEvent.click(screen.getByText('STR Check'))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1')
+  })
+
+  it('clamps Shadowdark check modifier below -4 to -4', async () => {
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: -6 }}]} />)
+    fireEvent.click(screen.getByText('STR Check'))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20-4', 'm1')
+  })
+
   it('renders mention chips for user: links', () => {
     const msg: any = {
       id: 'm1',

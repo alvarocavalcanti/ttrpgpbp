@@ -1,5 +1,7 @@
 {
   "id": "shadowdark",
   "name": "Shadowdark",
-  "attributes": ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
+  "attributes": ["STR", "DEX", "CON", "INT", "WIS", "CHA"],
+  "minModifier": -4,
+  "maxModifier": 4
 }
