@@ -47,7 +47,7 @@ export function Lobby() {
   const filteredMy = myChannels.filter(c => c.name.toLowerCase().includes(q))
 
   return (
-    <div className="w-full max-w-7xl mx-auto py-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
+    <div className="w-full max-w-7xl mx-auto pt-0 pb-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
       <div className="flex flex-col gap-6">
         <PermissionBanner />
         <div className="bg-white border-y border-gray-200 md:border-none md:shadow overflow-hidden md:rounded-md">
@@ -61,7 +61,7 @@ export function Lobby() {
                 <li key={channel.id}>
                   <Link to={`/channel/${channel.id}`} className="block hover:bg-gray-50 transition-colors">
                     <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col space-y-1 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                         <div className="flex items-center space-x-3">
                           <p className="text-sm font-medium text-indigo-600 truncate">
                             {channel.name}

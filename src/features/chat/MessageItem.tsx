@@ -111,7 +111,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors cursor-pointer border border-indigo-200 shadow-sm"
             title={`Roll ${notation}`}
           >
-            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} /><circle cx="8" cy="8" r="2" fill="currentColor" /><circle cx="16" cy="8" r="2" fill="currentColor" /><circle cx="12" cy="12" r="2" fill="currentColor" /><circle cx="8" cy="16" r="2" fill="currentColor" /><circle cx="16" cy="16" r="2" fill="currentColor" /></svg>
             {children}
           </button>
         )
@@ -308,7 +308,12 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
       <div ref={itemRef} className={`flex items-center space-x-3 my-4 px-4 bg-indigo-50 py-3 rounded-lg border border-indigo-100 shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''}`}>
         <div className="flex-shrink-0 bg-indigo-200 p-2 rounded-full text-indigo-700">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
+            <circle cx="8" cy="8" r="2" fill="currentColor" />
+            <circle cx="16" cy="8" r="2" fill="currentColor" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <circle cx="8" cy="16" r="2" fill="currentColor" />
+            <circle cx="16" cy="16" r="2" fill="currentColor" />
           </svg>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
