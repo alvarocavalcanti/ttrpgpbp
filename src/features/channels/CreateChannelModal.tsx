@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
+import { MAX_CHANNELS_PER_USER } from '../../constants'
 
 interface CreateChannelModalProps {
   onClose: () => void
@@ -30,6 +31,21 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
     setError(null)
 
     try {
+      // Pre-check the channel cap so we don't leave an orphaned channel row
+      // when the join_channel RPC rejects the insert.
+      if (!profile?.server_admin) {
+        const { count } = await supabase
+          .from('channel_members')
+          .select('*, channel:channels!inner(id)', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('channel.is_archived', false)
+        if ((count || 0) >= MAX_CHANNELS_PER_USER) {
+          setError(`Channel limit reached (${MAX_CHANNELS_PER_USER} max). Contact the server admin.`)
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const passwordHash = password ? await hashPassword(password) : null
       const inviteCode = crypto.randomUUID().split('-')[0] // Simple 8-char invite code
       

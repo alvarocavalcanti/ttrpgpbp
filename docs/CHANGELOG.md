@@ -6,12 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Channel limit per user** — non-server-admins can join at most 10 active channels. The lobby "Create Channel" button greys out at the cap and shows a toast explaining why; the `join_channel` RPC enforces the same limit server-side. A single `server_admin` flag on `profiles` (managed directly in the DB) exempts the admin from the cap.
+- **System messages on member events** — a channel now posts a system message when a player joins, leaves, is kicked, or is blocked.
 - **Private channels only** — public channels are no longer supported. The lobby lists only the private channels the user has joined (no tabs), and joining a channel always happens through its invite link, with an optional password. The `is_public` column and its RLS policy/helper are removed.
 - **PWA high-resolution icons** — added `public/manifest.json` plus 192×192 and 512×512 PNG icons so installing the app to a phone home screen shows a proper icon instead of a blank one.
 - **Character name length limit** — channel character names are capped at 20 characters, enforced in the UI, by a DB CHECK constraint, and inside `join_channel` (existing values are truncated on migration).
 
 ### Fixed
 
+- **Mobile sidebar stayed open behind overlay modals** — opening Settings, Search, Rolls, or notification settings from the sidebar on mobile no longer leaves the slide-in sidebar open on top of the modal.
 - **Emoji reaction picker rendered as a single stacked column** — the emoji picker popup's grid collapsed to a narrow column because its absolutely-positioned grid had no width, stacking all emojis on top of each other. Added a fixed width so the 8-column grid renders correctly.
 - **Soft-deleting a message failed with an RLS error** — the messages UPDATE policy reused its `USING` expression as the `WITH CHECK` for the new row, so setting `is_deleted = true` was rejected with `42501`. Added a dedicated soft-delete policy and a `WITH CHECK` on the edit policy.
 - **Scene messages couldn't be edited or deleted** — scene messages (GM-authored) were locked out of the edit/delete policies and rendered without edit/delete/reply controls. The GM can now edit and delete scene messages, and the scene message UI includes edit/delete/reply actions.

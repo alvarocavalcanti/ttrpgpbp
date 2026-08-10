@@ -49,7 +49,12 @@ describe('CreateChannelModal', () => {
     })
     const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
     const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
-    vi.mocked(supabase.from).mockReturnValue({ insert: mockInsert } as any)
+    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
+    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channel_members') return { select: mockCountSelect } as any
+      return { insert: mockInsert } as any
+    })
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
 
     render(
@@ -87,7 +92,12 @@ describe('CreateChannelModal', () => {
     })
     const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
     const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
-    vi.mocked(supabase.from).mockReturnValue({ insert: mockInsert } as any)
+    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
+    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channel_members') return { select: mockCountSelect } as any
+      return { insert: mockInsert } as any
+    })
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
 
     render(
@@ -122,7 +132,12 @@ describe('CreateChannelModal', () => {
     })
     const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
     const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
-    vi.mocked(supabase.from).mockReturnValue({ insert: mockInsert } as any)
+    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
+    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channel_members') return { select: mockCountSelect } as any
+      return { insert: mockInsert } as any
+    })
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -149,6 +164,9 @@ describe('CreateChannelModal', () => {
     const mockInsertSecret = vi.fn().mockResolvedValue({ error: new Error('Secrets insert failed') })
     
     vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channel_members') {
+        return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 0 }) }) }) } as any
+      }
       if (table === 'channels') return { insert: mockInsertChannel } as any
       if (table === 'channel_secrets') return { insert: mockInsertSecret } as any
       return {} as any
@@ -167,6 +185,30 @@ describe('CreateChannelModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Failed to create channel. Please try again.')).toBeInTheDocument()
+    })
+  })
+
+  it('blocks creation at channel cap without creating a channel', async () => {
+    const mockInsert = vi.fn()
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channel_members') {
+        return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 10 }) }) }) } as any
+      }
+      return { insert: mockInsert } as any
+    })
+
+    render(
+      <MemoryRouter>
+        <CreateChannelModal onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+
+    fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Channel limit reached/)).toBeInTheDocument()
+      expect(mockInsert).not.toHaveBeenCalled()
     })
   })
 

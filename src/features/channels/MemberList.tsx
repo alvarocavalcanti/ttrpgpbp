@@ -15,10 +15,11 @@ interface MemberListProps {
   gmId: string
   myUserId?: string
   gameSystem?: string
+  channelId: string
   onUpdate: () => void
 }
 
-export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', onUpdate }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate }: MemberListProps) {
   const navigate = useNavigate()
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -30,6 +31,13 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
   }, [])
+  
+  const insertSystemMessage = async (content: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .insert({ channel_id: channelId, sender_id: myUserId, type: 'system', content })
+    if (error) console.error('Failed to insert system message:', error)
+  }
   
   const startEditing = (member: ChannelMember) => {
     setEditingMemberId(member.id)
@@ -51,6 +59,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         .eq('id', memberId)
 
       if (error) throw error
+      await insertSystemMessage(`${targetMember?.character_name} was blocked by the GM`)
       onUpdate()
     } catch (err) {
       console.error('Error blocking member:', err)
@@ -74,6 +83,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         .eq('id', memberId)
 
       if (error) throw error
+      await insertSystemMessage(`${targetMember?.character_name} was kicked from the channel`)
       onUpdate()
     } catch (err) {
       console.error('Error kicking member:', err)
@@ -83,6 +93,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
 
   const handleLeaveChannel = async (memberId: string) => {
     setError(null)
+    const targetMember = members.find(m => m.id === memberId)
     if (!confirm('Are you sure you want to leave this channel?')) return
     
     try {
@@ -92,6 +103,9 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         .eq('id', memberId)
 
       if (error) throw error
+      if (targetMember) {
+        await insertSystemMessage(`${targetMember.character_name} left the channel`)
+      }
       navigate('/')
     } catch (err) {
       console.error('Error leaving channel:', err)
