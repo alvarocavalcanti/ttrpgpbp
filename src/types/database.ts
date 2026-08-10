@@ -50,6 +50,7 @@ export interface Database {
           invite_code: string | null
           map_url: string | null
           resources_url: string | null
+          gm_only_resources_url: string | null
           status_text: string | null
           last_message_at: string | null
           created_at: string
@@ -65,6 +66,7 @@ export interface Database {
           invite_code?: string | null
           map_url?: string | null
           resources_url?: string | null
+          gm_only_resources_url?: string | null
           status_text?: string | null
           last_message_at?: string | null
           created_at?: string
@@ -79,6 +81,7 @@ export interface Database {
           invite_code?: string | null
           map_url?: string | null
           resources_url?: string | null
+          gm_only_resources_url?: string | null
           status_text?: string | null
           last_message_at?: string | null
           created_at?: string
