@@ -202,8 +202,21 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, user?.id])
 
-  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[] }) => {
+  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => {
     if (!channelId || !user) return
+
+    // Persist the NPC roster row so future autocomplete/pickers see it.
+    // ignoreDuplicates keeps a concurrently-created same-name NPC's row intact.
+    if (payload.type === 'npc' && payload.npc_name && payload.npc_avatar_url) {
+      const { error: npcError } = await supabase
+        .from('channel_npcs')
+        .upsert(
+          { channel_id: channelId, name: payload.npc_name, avatar_url: payload.npc_avatar_url },
+          { onConflict: 'channel_id,name', ignoreDuplicates: true }
+        )
+      if (npcError) throw npcError
+    }
+
     const { error } = await supabase
       .from('messages')
       .insert({
@@ -213,12 +226,14 @@ export function useMessages(channelId: string | undefined) {
         type: payload.type,
         whisper_to: payload.whisper_to || null,
         reply_to: payload.reply_to ?? null,
+        npc_name: payload.npc_name || null,
+        npc_avatar_url: payload.npc_avatar_url || null,
       })
     if (error) throw error
 
     // Invoke push notifications function for new message
     supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: payload.content, type: payload.type, whisper_to: payload.whisper_to, mention_user_ids: payload.mention_user_ids } }
+      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: payload.content, type: payload.type, whisper_to: payload.whisper_to, mention_user_ids: payload.mention_user_ids, npc_name: payload.npc_name } }
     }).catch(err => console.error('Failed to trigger push for message', err))
 
     // If active_player_ids is provided, update the channel_members table

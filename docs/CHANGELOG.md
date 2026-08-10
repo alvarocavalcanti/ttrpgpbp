@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **NPC messages (GM-only)** — GMs can speak as NPCs with a name and portrait. NPC mode lives under the composer "+" options; typing a new name creates the NPC on the fly (random game-icons.net portrait), reusing an existing one reuses its portrait, and a picker lets the GM search game-icons.net for a specific icon. NPC messages render as parchment-styled bubbles with the NPC name + portrait, respect the 15-minute edit/delete window, support whispers and replies, and appear in search/export/pushes attributed to the NPC. Past messages keep a name/portrait snapshot even if the NPC is later renamed/repictured.
 - **Channel limit per user** — non-server-admins can join at most 10 active channels. The lobby "Create Channel" button greys out at the cap and shows a toast explaining why; the `join_channel` RPC enforces the same limit server-side. A single `server_admin` flag on `profiles` (managed directly in the DB) exempts the admin from the cap.
 - **System messages on member events** — a channel now posts a system message when a player joins, leaves, is kicked, or is blocked.
 - **Private channels only** — public channels are no longer supported. The lobby lists only the private channels the user has joined (no tabs), and joining a channel always happens through its invite link, with an optional password. The `is_public` column and its RLS policy/helper are removed.

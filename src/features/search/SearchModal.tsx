@@ -94,7 +94,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-medium text-gray-900 text-sm">
-                        {message.sender?.display_name || 'Unknown'}
+                        {message.npc_name || message.sender?.display_name || 'Unknown'}
                       </span>
                       <span className="text-xs text-gray-500">
                         {new Date(message.created_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}

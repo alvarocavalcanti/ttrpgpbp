@@ -60,6 +60,41 @@ describe('resolvePushTargets', () => {
       expect(result.body).toBe('a dark alley')
     })
 
+    it('attributes NPC messages to the NPC name, not the GM', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'GM',
+        content: 'Trespassers!',
+        type: 'npc',
+        npc_name: 'Goblin King',
+        gm_id: 'u1'
+      }, MEMBERS)
+
+      expect(result.title).toBe('New message in The Den')
+      expect(result.body).toBe('Goblin King: Trespassers!')
+    })
+
+    it('routes NPC whispers to the whisper target only', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'GM',
+        content: 'psst',
+        type: 'npc',
+        npc_name: 'Goblin King',
+        whisper_to: 'u4',
+        gm_id: 'u1'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u4'])
+      expect(result.title).toBe('New whisper from Goblin King')
+    })
+
     it('routes dice roll copy', () => {
       const result = resolvePushTargets({
         kind: 'message',
