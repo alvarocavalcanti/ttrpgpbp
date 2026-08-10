@@ -11,11 +11,13 @@ import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
 import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
+import { useChannelNpcs } from './useChannelNpcs'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch } = useChannel(id)
   const { messages, reactions, loading: messagesLoading, error: messagesError, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
+  const { npcs } = useChannelNpcs(id)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -142,6 +144,7 @@ export function ChannelView() {
         <MessageComposer 
           isGM={isGM} 
           members={whisperableMembers} 
+          npcs={npcs}
           onSendMessage={sendMessage} 
           onRollDice={sendDiceRoll}
           replyTo={replyTo}

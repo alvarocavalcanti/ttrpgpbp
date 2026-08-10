@@ -9,6 +9,41 @@ describe('MessageItem', () => {
     expect(screen.getByText('Hero joined the game')).toBeInTheDocument()
   })
 
+  it('renders NPC message with NPC name and portrait', () => {
+    const msg: any = {
+      type: 'npc',
+      content: 'Trespassers!',
+      npc_name: 'Goblin King',
+      npc_avatar_url: 'https://example.com/king.png',
+      created_at: new Date().toISOString(),
+      sender_id: 'gm1'
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.getByText('Goblin King')).toBeInTheDocument()
+    expect(screen.getByText('Trespassers!')).toBeInTheDocument()
+    const avatar = container.querySelector('img[src="https://example.com/king.png"]')
+    expect(avatar).not.toBeNull()
+  })
+
+  it('allows the GM author to edit an NPC message within the edit window', async () => {
+    const mockOnEdit = vi.fn().mockResolvedValue(undefined)
+    window.confirm = vi.fn().mockReturnValue(true)
+    const msg: any = {
+      id: 'n1',
+      type: 'npc',
+      content: 'Trespassers!',
+      npc_name: 'Goblin King',
+      npc_avatar_url: 'https://example.com/king.png',
+      created_at: new Date().toISOString(),
+      sender_id: 'gm1'
+    }
+    render(<MessageItem message={msg} currentUserId="gm1" isGM={true} onEdit={mockOnEdit} onDelete={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Edit'))
+    fireEvent.change(screen.getByDisplayValue('Trespassers!'), { target: { value: 'Intruders!' } })
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => expect(mockOnEdit).toHaveBeenCalledWith('n1', 'Intruders!'))
+  })
+
   it('renders scene message correctly', () => {
     const msg: any = { type: 'scene', content: 'You enter a dark tavern' }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)

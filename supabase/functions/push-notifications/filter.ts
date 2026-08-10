@@ -21,6 +21,7 @@ export interface PushEvent {
   sender_name?: string
   content?: string
   type?: string
+  npc_name?: string
   whisper_to?: string | null
   whisper_target_name?: string | null
   mention_user_ids?: string[]
@@ -47,6 +48,8 @@ function prefEnabled(member: PushMember, key: 'notify_all_messages' | 'notify_gm
 export function resolvePushTargets(event: PushEvent, members: PushMember[]): PushTargetResult {
   const channelName = event.channel_name || 'a channel'
   const senderName = event.sender_name || 'Someone'
+  // NPC messages attribute the push to the NPC, not the GM sending it.
+  const displayName = event.npc_name || senderName
 
   if (event.kind === 'turn') {
     if (!event.channel_id || !event.user_id) {
@@ -79,17 +82,17 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     title = `${senderName} rolled dice`
     body = event.content || ''
   } else if (event.whisper_to) {
-    title = `New whisper from ${senderName}`
+    title = `New whisper from ${displayName}`
     body = event.content || ''
   } else {
     title = `New message in ${channelName}`
-    body = `${senderName}: ${event.content || ''}`
+    body = `${displayName}: ${event.content || ''}`
   }
 
   let targetUserIds: string[] = []
   if (event.mention_user_ids?.length) {
     // Mentions route only to the mentioned users (excluding the sender).
-    title = `${senderName} mentioned you`
+    title = `${displayName} mentioned you`
     body = event.content || ''
     targetUserIds = event.mention_user_ids.filter(uid => uid !== event.sender_id)
   } else if (event.whisper_to) {

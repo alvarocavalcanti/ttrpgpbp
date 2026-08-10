@@ -257,6 +257,45 @@ describe('useMessages', () => {
     }))
   })
 
+  it('upserts the NPC roster and inserts an NPC message with snapshot columns', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockNpcUpsert = vi.fn().mockResolvedValue({ error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }
+        if (table === 'channel_npcs') return { upsert: mockNpcUpsert }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'Trespassers!', type: 'npc', npc_name: 'Goblin King', npc_avatar_url: 'https://example.com/king.png' })
+    })
+
+    expect(mockNpcUpsert).toHaveBeenCalledWith(
+      { channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png' },
+      { onConflict: 'channel_id,name', ignoreDuplicates: true }
+    )
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      channel_id: 'c1',
+      sender_id: 'u1',
+      content: 'Trespassers!',
+      type: 'npc',
+      npc_name: 'Goblin King',
+      npc_avatar_url: 'https://example.com/king.png'
+    }))
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('push-notifications', expect.objectContaining({
+      body: expect.objectContaining({ record: expect.objectContaining({ npc_name: 'Goblin King' }) })
+    }))
+  })
+
   it('handles reactions fetch error without failing the view', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom({

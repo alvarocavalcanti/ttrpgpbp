@@ -78,6 +78,7 @@ serve(async (req) => {
         sender_name: sender?.display_name,
         content: message.content,
         type: message.type,
+        npc_name: message.npc_name,
         whisper_to: message.whisper_to,
         whisper_target_name: whisperTarget?.display_name,
         mention_user_ids: message.mention_user_ids,

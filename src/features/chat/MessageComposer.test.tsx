@@ -213,4 +213,79 @@ describe('MessageComposer', () => {
       expect((textarea as HTMLTextAreaElement).value).toContain('@Hero ')
     })
   })
+
+  it('hides NPC mode from players', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.queryByLabelText('NPC Mode')).not.toBeInTheDocument()
+  })
+
+  it('sends an NPC message with a generated portrait', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Goblin King' } })
+    fireEvent.change(screen.getByPlaceholderText(/Speak as Goblin King/i), { target: { value: 'Trespassers!' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Trespassers!',
+        type: 'npc',
+        whisper_to: undefined,
+        active_player_ids: undefined,
+        npc_name: 'Goblin King',
+        npc_avatar_url: expect.stringMatching(/^https:\/\/api\.iconify\.design\/game-icons\/.+\.svg$/)
+      })
+    })
+  })
+
+  it('reuses the existing NPC avatar when the name matches the roster', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'goblin king' } })
+    fireEvent.change(screen.getByPlaceholderText(/Speak as goblin king/i), { target: { value: 'Hello' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'npc',
+        npc_name: 'goblin king',
+        npc_avatar_url: 'https://example.com/king.png'
+      }))
+    })
+  })
+
+  it('blocks NPC send without a name', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByPlaceholderText(/Speak as an NPC/i), { target: { value: 'Hello' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Enter an NPC name to speak as.')).toBeInTheDocument()
+      expect(mockOnSend).not.toHaveBeenCalled()
+    })
+  })
+
+  it('NPC and Scene modes are mutually exclusive', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    expect(screen.getByLabelText('NPC Mode')).toBeChecked()
+
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    expect(screen.getByLabelText('Scene Description')).toBeChecked()
+    expect(screen.getByLabelText('NPC Mode')).not.toBeChecked()
+  })
 })

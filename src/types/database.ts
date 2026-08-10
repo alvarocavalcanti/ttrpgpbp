@@ -185,15 +185,48 @@ export interface Database {
           }
         ]
       }
+      channel_npcs: {
+        Row: {
+          id: string
+          channel_id: string
+          name: string
+          avatar_url: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          channel_id: string
+          name: string
+          avatar_url: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          channel_id?: string
+          name?: string
+          avatar_url?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_npcs_channel_id_fkey"
+            columns: ["channel_id"]
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       messages: {
         Row: {
           id: string
           channel_id: string
           sender_id: string | null
-          type: 'regular' | 'scene' | 'dice_roll' | 'system'
+          type: 'regular' | 'scene' | 'dice_roll' | 'system' | 'npc'
           content: string
           whisper_to: string | null
           reply_to: string | null
+          npc_name: string | null
+          npc_avatar_url: string | null
           is_edited: boolean
           is_deleted: boolean
           search_vector: unknown | null
@@ -204,10 +237,12 @@ export interface Database {
           id?: string
           channel_id: string
           sender_id?: string | null
-          type: 'regular' | 'scene' | 'dice_roll' | 'system'
+          type: 'regular' | 'scene' | 'dice_roll' | 'system' | 'npc'
           content: string
           whisper_to?: string | null
           reply_to?: string | null
+          npc_name?: string | null
+          npc_avatar_url?: string | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null
@@ -218,10 +253,12 @@ export interface Database {
           id?: string
           channel_id?: string
           sender_id?: string | null
-          type?: 'regular' | 'scene' | 'dice_roll' | 'system'
+          type?: 'regular' | 'scene' | 'dice_roll' | 'system' | 'npc'
           content?: string
           whisper_to?: string | null
           reply_to?: string | null
+          npc_name?: string | null
+          npc_avatar_url?: string | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null

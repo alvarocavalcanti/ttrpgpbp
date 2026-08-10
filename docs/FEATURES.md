@@ -31,11 +31,12 @@
 ## Messages
 - Text bubbles with sender identity (character name + avatar)
 - Markdown and emoji support
-- **Two message types**:
+- **Three message types**:
   - **Regular** — normal conversation
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only**.
+  - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (RLS-enforced). Parchment bubble style, distinct from both regular and scene messages.
 - **Daily Dividers** — chat history is grouped by date visually
-- **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM)
+- **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete)
 - URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
@@ -43,6 +44,15 @@
 - **Emoji reactions** — react to any message from a quick-emoji picker; counts update live and toggle per user
 - **Unread badges** — Lobby shows a "N new" badge per channel counting messages since the member's `last_read_at`; excludes the user's own and deleted messages
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read
+
+## NPCs (GM-only)
+- **NPC mode** under the composer "+" options — select, type a name, and the message is attributed to the NPC
+- **Create on the fly** — a new name creates the NPC automatically with a random game-icons.net portrait; an existing name reuses the existing portrait
+- **Portrait picker** — search game-icons.net by name/tag and pick a specific icon (curated subset first, full search fallback)
+- **Roster persisted per channel** (`channel_npcs`) — autocompletes existing NPC names; GMs can re-randomize or pick a portrait at any time
+- NPC messages **snapshot** their name + portrait, so past messages stay stable if the NPC is later renamed/repictured
+- NPC messages support **whispers** and appear in **search, chat export, and push notifications** attributed to the NPC
+- Icons from game-icons.net (CC BY 3.0)
 
 ## Whispers
 - Messages visible only to GM + one specific player

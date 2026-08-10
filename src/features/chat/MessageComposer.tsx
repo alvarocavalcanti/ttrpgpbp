@@ -2,10 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import type { Database } from '../../types/database'
 import { DiceRoller } from '../dice/DiceRoller'
 import { linkifyMentions } from './mentions'
+import { randomNpcIconUrl } from './npcIcons'
+import { IconPicker } from './IconPicker'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
 }
+type Npc = Database['public']['Tables']['channel_npcs']['Row']
 
 export interface ReplyTarget {
   id: string
@@ -16,15 +19,20 @@ export interface ReplyTarget {
 interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
-  onSendMessage: (payload: { content: string, type: 'regular' | 'scene', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[] }) => Promise<void>
+  npcs?: Npc[]
+  onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => Promise<void>
   onRollDice?: (notation: string, replyToId?: string) => void
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
 }
 
-export function MessageComposer({ isGM, members, onSendMessage, onRollDice, replyTo, onCancelReply }: MessageComposerProps) {
+export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
+  const [isNpc, setIsNpc] = useState(false)
+  const [npcName, setNpcName] = useState('')
+  const [npcAvatarUrl, setNpcAvatarUrl] = useState<string | null>(null)
+  const [showIconPicker, setShowIconPicker] = useState(false)
   const [loadImages, setLoadImages] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
   const [activePlayerIds, setActivePlayerIds] = useState<string[] | undefined>(undefined)
@@ -33,6 +41,21 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
   const [isExpanded, setIsExpanded] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const matchedNpc = npcName.trim()
+    ? npcs.find(n => n.name.toLowerCase() === npcName.trim().toLowerCase())
+    : undefined
+  const npcNameMatches = npcName.trim()
+    ? npcs.filter(n => n.name.toLowerCase().includes(npcName.trim().toLowerCase())).slice(0, 5)
+    : []
+  // Existing NPC wins; otherwise the explicitly-picked/shuffled avatar.
+  const resolvedNpcAvatar = matchedNpc?.avatar_url || npcAvatarUrl
+
+  const toggleNpc = (on: boolean) => {
+    setIsNpc(on)
+    setIsScene(false)
+    if (on && !npcAvatarUrl) setNpcAvatarUrl(randomNpcIconUrl())
+  }
 
   // Auto-resize textarea
   useEffect(() => {
@@ -81,6 +104,10 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
+    if (isNpc && !npcName.trim()) {
+      setError('Enter an NPC name to speak as.')
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
@@ -95,9 +122,13 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
 
       const payload: any = {
         content: mentionContent,
-        type: isScene ? 'scene' : 'regular',
+        type: isNpc ? 'npc' : isScene ? 'scene' : 'regular',
         whisper_to: whisperTo || undefined,
         active_player_ids: isGM ? activePlayerIds : undefined,
+      }
+      if (isNpc) {
+        payload.npc_name = npcName.trim()
+        payload.npc_avatar_url = resolvedNpcAvatar
       }
       if (replyTo) payload.reply_to = replyTo.id
       if (mentioned_user_ids.length > 0) payload.mention_user_ids = mentioned_user_ids
@@ -105,6 +136,9 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
       await onSendMessage(payload)
       setContent('')
       setIsScene(false)
+      setIsNpc(false)
+      setNpcName('')
+      setNpcAvatarUrl(null)
       setWhisperTo('')
       setActivePlayerIds(undefined)
       setMentionState(null)
@@ -174,13 +208,27 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
                       type="checkbox"
                       aria-label="Scene Description"
                       checked={isScene}
-                      onChange={(e) => setIsScene(e.target.checked)}
+                      onChange={(e) => { setIsScene(e.target.checked); if (e.target.checked) setIsNpc(false) }}
                       className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
                     />
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
                     </svg>
                     <span className="hidden sm:inline">Scene</span>
+                  </label>
+
+                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Speak as an NPC">
+                    <input
+                      type="checkbox"
+                      aria-label="NPC Mode"
+                      checked={isNpc}
+                      onChange={(e) => toggleNpc(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="hidden sm:inline">NPC</span>
                   </label>
 
                   <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Load Image URLs">
@@ -245,6 +293,73 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
             </div>
           )}
 
+          {/* NPC config row */}
+          {isNpc && (
+            <div className="flex items-center gap-2 px-2 sm:px-0">
+              <div className="relative flex-1 min-w-[160px]">
+                <input
+                  value={npcName}
+                  onChange={(e) => setNpcName(e.target.value)}
+                  placeholder="NPC name (reuse existing or create new)"
+                  aria-label="NPC Name"
+                  className="block w-full border-gray-300 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {npcNameMatches.length > 0 && (
+                  <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {npcNameMatches.map(n => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); setNpcName(n.name); setNpcAvatarUrl(n.avatar_url) }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center space-x-2"
+                      >
+                        <img className="h-5 w-5 rounded-full" src={n.avatar_url} alt="" referrerPolicy="no-referrer" />
+                        <span className="font-medium text-gray-900">{n.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {resolvedNpcAvatar && (
+                <img
+                  className="h-8 w-8 rounded-full"
+                  src={resolvedNpcAvatar}
+                  alt={matchedNpc ? `${matchedNpc.name} portrait` : 'NPC portrait preview'}
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => setNpcAvatarUrl(randomNpcIconUrl())}
+                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                aria-label="Randomize NPC portrait"
+                title="Random portrait"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowIconPicker(true)}
+                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                aria-label="Choose NPC portrait"
+                title="Choose portrait"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {showIconPicker && (
+            <IconPicker
+              onPick={(url) => { setNpcAvatarUrl(url); setShowIconPicker(false) }}
+              onClose={() => setShowIconPicker(false)}
+            />
+          )}
+
           {error && (
             <div className="mb-2 p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
               {error}
@@ -286,8 +401,8 @@ export function MessageComposer({ isGM, members, onSendMessage, onRollDice, repl
                 value={content}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isScene ? "Describe the scene..." : whisperTo ? "Type a private whisper..." : "Type a message... (Markdown supported, @ to mention)"}
-                className={`block w-full border-gray-300 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene ? 'bg-[#fdf6e3] font-serif' : whisperTo ? 'bg-purple-50' : ''}`}
+                placeholder={isScene ? "Describe the scene..." : isNpc ? (npcName ? `Speak as ${npcName}...` : 'Speak as an NPC...') : whisperTo ? "Type a private whisper..." : "Type a message... (Markdown supported, @ to mention)"}
+                className={`block w-full border-gray-300 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] font-serif' : whisperTo ? 'bg-purple-50' : ''}`}
                 rows={1}
               />
             </div>
