@@ -10,6 +10,7 @@ import { Lobby } from './features/channels/Lobby'
 import { JoinChannel } from './features/channels/JoinChannel'
 import { ChannelView } from './features/channels/ChannelView'
 import { ArchivedChannels } from './features/channels/ArchivedChannels'
+import { AdminView } from './features/admin/AdminView'
 
 function AppNav() {
   const { user, profile, signOut } = useAuth()
@@ -93,6 +94,15 @@ function AppNav() {
             >
               Archived Channels
             </Link>
+            {profile?.server_admin && (
+              <Link 
+                to="/admin" 
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => setMenuOpen(false)}
+              >
+                Server Admin
+              </Link>
+            )}
             <div className="border-t border-gray-100 my-1"></div>
             <button 
               onClick={() => {
@@ -124,6 +134,7 @@ function App() {
                 <Route element={<ProtectedRoute />}>
                   <Route path="/" element={<Lobby />} />
                   <Route path="/archived" element={<ArchivedChannels />} />
+                  <Route path="/admin" element={<AdminView />} />
                   <Route path="/join/:id" element={<JoinChannel />} />
                   <Route path="/channel/:id" element={<ChannelView />} />
                   <Route path="/settings" element={<ProfileSettings />} />

@@ -22,6 +22,10 @@ vi.mock('../../lib/supabase', () => ({
   }
 }))
 
+vi.mock('../../hooks/useAppSetting', () => ({
+  useAppSetting: vi.fn().mockReturnValue({ value: 10, loading: false, error: null, refresh: vi.fn() })
+}))
+
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: null, profile: null })
 }))
@@ -244,5 +248,32 @@ describe('Lobby', () => {
 
     fireEvent.click(createBtn)
     expect(screen.getByText('Create a New Channel')).toBeInTheDocument()
+  })
+
+  it('shows GM badge for channels the user runs and Player badge otherwise', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'u1' },
+      profile: { server_admin: false }
+    } as any)
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'My GM Channel', gm_id: 'u1', member: { character_name: 'Hero' } } as any,
+        { id: '2', name: 'Someone Elses', gm_id: 'u2', member: { character_name: 'Sidekick' } } as any,
+      ],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    const gmBadges = screen.getAllByText('GM')
+    expect(gmBadges).toHaveLength(1)
+    const playerBadges = screen.getAllByText('Player')
+    expect(playerBadges).toHaveLength(1)
+
+    const gmLink = screen.getByText('My GM Channel').closest('a')
+    expect(gmLink).toHaveTextContent('GM')
+    expect(gmLink).not.toHaveTextContent('Player')
   })
 })

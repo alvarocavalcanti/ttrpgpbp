@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { MAX_CHANNELS_PER_USER } from '../../constants'
+import { useAppSetting } from '../../hooks/useAppSetting'
 
 interface CreateChannelModalProps {
   onClose: () => void
@@ -13,6 +14,7 @@ interface CreateChannelModalProps {
 export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
+  const { value: maxChannels } = useAppSetting<number>('max_channels_per_user', MAX_CHANNELS_PER_USER)
   
   const [name, setName] = useState('')
   const [gameSystem, setGameSystem] = useState('none')
@@ -39,8 +41,8 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
           .select('*, channel:channels!inner(id)', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('channel.is_archived', false)
-        if ((count || 0) >= MAX_CHANNELS_PER_USER) {
-          setError(`Channel limit reached (${MAX_CHANNELS_PER_USER} max). Contact the server admin.`)
+        if ((count || 0) >= maxChannels) {
+          setError(`Channel limit reached (${maxChannels} max). Contact the server admin.`)
           setIsSubmitting(false)
           return
         }

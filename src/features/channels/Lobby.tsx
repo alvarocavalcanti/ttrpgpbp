@@ -6,21 +6,23 @@ import { usePushNotifications } from '../auth/usePushNotifications'
 import { PermissionBanner } from '../notifications/PermissionBanner'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../auth/useAuth'
+import { useAppSetting } from '../../hooks/useAppSetting'
 import { MAX_CHANNELS_PER_USER } from '../../constants'
 
 export function Lobby() {
   const { myChannels, loading, error } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { preferences } = usePushNotifications()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { addToast } = useToast()
   const [searchParams] = useSearchParams()
+  const { value: maxChannels } = useAppSetting<number>('max_channels_per_user', MAX_CHANNELS_PER_USER)
 
-  const atChannelCap = !profile?.server_admin && myChannels.length >= MAX_CHANNELS_PER_USER
+  const atChannelCap = !profile?.server_admin && myChannels.length >= maxChannels
 
   const handleCreateClick = () => {
     if (atChannelCap) {
-      addToast(`Channel limit reached (${MAX_CHANNELS_PER_USER} max). Contact the server admin.`, 'error')
+      addToast(`Channel limit reached (${maxChannels} max). Contact the server admin.`, 'error')
       return
     }
     setIsCreateModalOpen(true)
@@ -87,7 +89,16 @@ export function Lobby() {
                             </span>
                           ) : null}
                         </div>
-                        <div className="ml-2 flex-shrink-0 flex">
+                        <div className="ml-2 flex-shrink-0 flex flex-wrap items-center justify-end gap-2">
+                          {channel.gm_id === user?.id ? (
+                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
+                              GM
+                            </p>
+                          ) : (
+                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">
+                              Player
+                            </p>
+                          )}
                           <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                             Joined as {channel.member.character_name}
                           </p>

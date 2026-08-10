@@ -9,6 +9,21 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
@@ -470,6 +485,28 @@ export interface Database {
           p_invite_code?: string
         }
         Returns: undefined
+      }
+      admin_list_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          display_name: string | null
+          email: string | null
+          channel_count: number
+          created_at: string
+        }[]
+      }
+      admin_list_channels: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          game_system: string
+          member_count: number
+          created_at: string
+          last_message_at: string | null
+          gm_display_name: string | null
+        }[]
       }
     }
     Enums: {

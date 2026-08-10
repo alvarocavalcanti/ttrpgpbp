@@ -5,11 +5,16 @@
 - Per-channel **character name** (max 20 characters) and **avatar**
 - Optional **character sheet URL** per user per channel
 - **Server admin flag** (`profiles.server_admin`, managed via DB) — exempts the user from the channel limit; enforced to a single admin
+- **Server Admin view** (`/admin`, via the "Server Admin" menu item, visible only to `server_admin`):
+  - **Users tab** — display name, total active channels, joined date
+  - **Channels tab** — name, game system, member count, created and last-active dates
+  - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels.
 
 ## Channels & Lobby
 - Any user can create a channel (becomes GM)
-- **Channel limit** — non-server-admins are capped at **10 active channels** (server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast)
+- **Channel limit** — non-server-admins are capped at **N active channels**, where N is the admin-configured `app_settings.max_channels_per_user` (default 10). Server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast. Existing members over a lowered limit are never kicked.
 - **Lobby** lists only the private channels the user has joined
+- **Lobby shows your role per channel** — a "GM" badge when you run the channel, a "Player" badge otherwise
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
 - Channels are **private** and joined via invite link

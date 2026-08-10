@@ -20,6 +20,10 @@ vi.mock('../../lib/crypto', () => ({
   hashPassword: vi.fn().mockResolvedValue('hashed_password')
 }))
 
+vi.mock('../../hooks/useAppSetting', () => ({
+  useAppSetting: vi.fn().mockReturnValue({ value: 10, loading: false, error: null, refresh: vi.fn() })
+}))
+
 describe('CreateChannelModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()

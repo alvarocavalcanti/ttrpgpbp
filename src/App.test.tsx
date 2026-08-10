@@ -10,6 +10,7 @@ vi.mock('./lib/supabase', () => ({
       onAuthStateChange: vi.fn(),
     },
     from: vi.fn(),
+    rpc: vi.fn(),
   },
 }))
 
@@ -58,6 +59,7 @@ describe('App', () => {
       eq: () => listChain,
       order: () => Promise.resolve(empty),
       gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
       // eslint-disable-next-line unicorn/no-thenable
       then: (cb: any) => Promise.resolve(empty).then(cb),
     }
@@ -98,6 +100,7 @@ describe('App', () => {
       eq: () => listChain,
       order: () => Promise.resolve(empty),
       gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
       // eslint-disable-next-line unicorn/no-thenable
       then: (cb: any) => Promise.resolve(empty).then(cb),
     }
@@ -113,6 +116,126 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('T')).toBeInTheDocument() // The placeholder 'T' from email
+  })
+
+  it('shows Server Admin menu item only for server admins', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+
+    await screen.findByText('RoleByPost')
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByText('Server Admin')).toBeInTheDocument()
+  })
+
+  it('hides Server Admin menu item for non-admin users', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Regular', avatar_url: null, server_admin: false },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+
+    await screen.findByText('RoleByPost')
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
+  })
+
+  it('navigates to the admin page from the menu for server admins', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+
+    render(<App />)
+
+    await screen.findByText('RoleByPost')
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByText('Server Admin'))
+    expect(await screen.findByText('Users')).toBeInTheDocument()
+    expect(screen.getByText('Server Admin')).toBeInTheDocument()
   })
 })
 
