@@ -253,7 +253,7 @@ describe('ChannelView search functionality', () => {
 
   it('renders sidebar menu items in alphabetical order with Members first', () => {
     vi.mocked(useChannel).mockReturnValue({
-      channel: { id: 'c1', name: 'Test Channel', map_url: 'https://map.com', resources_url: 'https://res.com' },
+      channel: { id: 'c1', name: 'Test Channel', map_url: 'https://map.com', resources_url: 'https://res.com', gm_only_resources_url: 'https://gm-secret.com' },
       members: [],
       loading: false,
       error: null,
@@ -277,6 +277,7 @@ describe('ChannelView search functionality', () => {
       .map(el => el.textContent?.trim())
       .filter(Boolean)
 
+    const gmResIdx = items.findIndex(t => t === 'GM Resources')
     const mapIdx = items.findIndex(t => t === 'Map')
     const notifIdx = items.findIndex(t => t === 'Notifications')
     const resIdx = items.findIndex(t => t === 'Resources')
@@ -284,16 +285,17 @@ describe('ChannelView search functionality', () => {
     const searchIdx = items.findIndex(t => t === 'Search')
     const settingsIdx = items.findIndex(t => t === 'Settings')
 
-    expect(mapIdx).toBe(0)
+    expect(gmResIdx).toBe(0)
+    expect(mapIdx).toBeLessThan(notifIdx)
     expect(notifIdx).toBeLessThan(resIdx)
     expect(resIdx).toBeLessThan(rollsIdx)
     expect(rollsIdx).toBeLessThan(searchIdx)
     expect(searchIdx).toBeLessThan(settingsIdx)
   })
 
-  it('does not show Settings in sidebar for non-GM', () => {
+  it('does not show Settings or GM Resources in sidebar for non-GM', () => {
     vi.mocked(useChannel).mockReturnValue({
-      channel: { id: 'c1', name: 'Test Channel' },
+      channel: { id: 'c1', name: 'Test Channel', gm_only_resources_url: 'https://gm-secret.com' },
       members: [],
       loading: false,
       error: null,
@@ -318,6 +320,32 @@ describe('ChannelView search functionality', () => {
 
     expect(items).toContain('Notifications')
     expect(items).not.toContain('Settings')
+    expect(items).not.toContain('GM Resources')
+  })
+
+  it('shows GM Resources link to GM when set', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_only_resources_url: 'https://gm-secret.com' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const link = screen.getByText('GM Resources')
+    expect(link).toHaveAttribute('href', 'https://gm-secret.com')
   })
 
   it('starts a reply from a message and sends reply_to', async () => {

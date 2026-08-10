@@ -21,6 +21,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const [gameSystem, setGameSystem] = useState(channel.game_system || 'none')
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
   const [resourcesUrl, setResourcesUrl] = useState(channel.resources_url || '')
+  const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(channel.gm_only_resources_url || '')
   
   // Changing password logic
   const [changePassword, setChangePassword] = useState(false)
@@ -71,7 +72,8 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
         name,
         game_system: gameSystem,
         map_url: mapUrl || null,
-        resources_url: resourcesUrl || null
+        resources_url: resourcesUrl || null,
+        gm_only_resources_url: gmOnlyResourcesUrl || null
       }
 
       const { error: updateError } = await supabase
@@ -306,6 +308,18 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
                   onChange={(e) => setResourcesUrl(e.target.value)}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://drive.google.com/..."
+                />
+              </div>
+
+              <div>
+                <label htmlFor="gmOnlyResourcesUrl" className="block text-sm font-medium text-gray-700">GM-Only Resources URL</label>
+                <input
+                  type="url"
+                  id="gmOnlyResourcesUrl"
+                  value={gmOnlyResourcesUrl}
+                  onChange={(e) => setGmOnlyResourcesUrl(e.target.value)}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  placeholder="https://lorekeeper.app/..."
                 />
               </div>
 

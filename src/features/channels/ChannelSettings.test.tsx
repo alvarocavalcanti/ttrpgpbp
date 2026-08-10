@@ -28,6 +28,7 @@ describe('ChannelSettings', () => {
     name: 'Game Room',
     map_url: 'http://map',
     resources_url: 'http://resources',
+    gm_only_resources_url: 'http://gmresources',
     has_password: false,
     invite_code: '123'
   }
@@ -62,6 +63,7 @@ describe('ChannelSettings', () => {
     
     expect(screen.getByDisplayValue('Game Room')).toBeInTheDocument()
     expect(screen.getByDisplayValue('http://map')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('http://gmresources')).toBeInTheDocument()
     expect(screen.getByDisplayValue('http://localhost/join/c1?code=123')).toBeInTheDocument()
   })
 
@@ -93,7 +95,8 @@ describe('ChannelSettings', () => {
         name: 'New Name',
         game_system: 'none',
         map_url: 'http://map',
-        resources_url: 'http://resources'
+        resources_url: 'http://resources',
+        gm_only_resources_url: 'http://gmresources'
       })
       expect(mockEq).toHaveBeenCalledWith('id', 'c1')
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')

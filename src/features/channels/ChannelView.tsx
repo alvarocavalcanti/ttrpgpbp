@@ -170,6 +170,16 @@ export function ChannelView() {
           gameSystem={channel.game_system}
         />
         <div data-testid="sidebar-menu" className="divide-y divide-gray-100 border-t border-gray-100">
+          {isGM && channel.gm_only_resources_url && (
+            <a
+              href={channel.gm_only_resources_url}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              GM Resources
+            </a>
+          )}
           {channel.map_url && (
             <a
               href={channel.map_url}
