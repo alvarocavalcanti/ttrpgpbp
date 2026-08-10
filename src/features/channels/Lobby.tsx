@@ -4,12 +4,27 @@ import { useChannels } from './useChannels'
 import { CreateChannelModal } from './CreateChannelModal'
 import { usePushNotifications } from '../auth/usePushNotifications'
 import { PermissionBanner } from '../notifications/PermissionBanner'
+import { useToast } from '../../contexts/ToastContext'
+import { useAuth } from '../auth/useAuth'
+import { MAX_CHANNELS_PER_USER } from '../../constants'
 
 export function Lobby() {
   const { myChannels, loading, error } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { preferences } = usePushNotifications()
+  const { profile } = useAuth()
+  const { addToast } = useToast()
   const [searchParams] = useSearchParams()
+
+  const atChannelCap = !profile?.server_admin && myChannels.length >= MAX_CHANNELS_PER_USER
+
+  const handleCreateClick = () => {
+    if (atChannelCap) {
+      addToast(`Channel limit reached (${MAX_CHANNELS_PER_USER} max). Contact the server admin.`, 'error')
+      return
+    }
+    setIsCreateModalOpen(true)
+  }
 
   useEffect(() => {
     // Set App Badge if supported and enabled
@@ -87,15 +102,25 @@ export function Lobby() {
         </div>
       </div>
 
-      <button
-        onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-6 right-6 inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors z-40"
-        aria-label="Create Channel"
+      <div
+        onClick={handleCreateClick}
+        data-testid="create-channel-fab"
+        className="fixed bottom-6 right-6 z-40"
       >
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
+        <button
+          disabled={atChannelCap}
+          aria-label="Create Channel"
+          className={`inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:cursor-not-allowed ${
+            atChannelCap
+              ? 'bg-gray-400'
+              : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
+        >
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
 
       {isCreateModalOpen && (
         <CreateChannelModal onClose={() => setIsCreateModalOpen(false)} />

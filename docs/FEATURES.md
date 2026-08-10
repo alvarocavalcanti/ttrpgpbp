@@ -4,15 +4,18 @@
 - Google account sign-in
 - Per-channel **character name** (max 20 characters) and **avatar**
 - Optional **character sheet URL** per user per channel
+- **Server admin flag** (`profiles.server_admin`, managed via DB) — exempts the user from the channel limit; enforced to a single admin
 
 ## Channels & Lobby
 - Any user can create a channel (becomes GM)
+- **Channel limit** — non-server-admins are capped at **10 active channels** (server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast)
 - **Lobby** lists only the private channels the user has joined
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
 - Channels are **private** and joined via invite link
 - Optional **password** to join (joining is instant)
 - GM can **kick** (remove) or **block** a user (prevent return/interaction)
+- **System messages** announce member joins, leaves, kicks, and blocks in the channel
 - Optional **map URL** (external link)
 - **Resources URL** (single URL — GDrive folder, PDF, etc.)
 - **Export Chat** allows downloading the full message history to a Markdown file

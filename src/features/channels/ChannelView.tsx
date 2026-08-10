@@ -35,6 +35,14 @@ export function ChannelView() {
     }
   }, [highlightMessageId])
 
+  // Overlay modals open on top of the sidebar; close the mobile sidebar so it
+  // doesn't stay open behind them.
+  useEffect(() => {
+    if (showSettings || showRollHistory || showSearch || showNotificationSettings) {
+      setShowMobileSidebar(false)
+    }
+  }, [showSettings, showRollHistory, showSearch, showNotificationSettings])
+
   const handleJumpToMessage = (messageId: string) => {
     setHighlightMessageId(messageId)
   }
@@ -166,6 +174,7 @@ export function ChannelView() {
           isGM={isGM} 
           gmId={channel.gm_id}
           myUserId={myMemberInfo?.user_id}
+          channelId={channel.id}
           onUpdate={refetch}
           gameSystem={channel.game_system}
         />

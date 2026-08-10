@@ -4,6 +4,8 @@ import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
 import { MemoryRouter } from 'react-router-dom'
 import { usePushNotifications } from '../auth/usePushNotifications'
+import { useAuth } from '../auth/useAuth'
+import { useToast } from '../../contexts/ToastContext'
 
 vi.mock('./useChannels', () => ({
   useChannels: vi.fn()
@@ -22,6 +24,10 @@ vi.mock('../../lib/supabase', () => ({
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: null, profile: null })
+}))
+
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: vi.fn().mockReturnValue({ addToast: vi.fn(), removeToast: vi.fn() })
 }))
 
 describe('Lobby', () => {
@@ -185,6 +191,57 @@ describe('Lobby', () => {
     expect(createBtn).toBeInTheDocument()
     
     // Clicking should open the modal which has the heading 'Create a New Channel'
+    fireEvent.click(createBtn)
+    expect(screen.getByText('Create a New Channel')).toBeInTheDocument()
+  })
+
+  it('greys out and blocks create button at channel cap for non-admins', () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() })
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: Array.from({ length: 10 }, (_, i) => ({
+        id: String(i),
+        name: `Channel ${i}`,
+        member: { character_name: 'Hero' }
+      }) as any),
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    const createBtn = screen.getByRole('button', { name: 'Create Channel' })
+    expect(createBtn).toBeDisabled()
+
+    // jsdom suppresses clicks on disabled buttons; the wrapper owns the onClick
+    // so the toast still fires in the browser when a capped user clicks the FAB.
+    fireEvent.click(screen.getByTestId('create-channel-fab'))
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('Channel limit reached'), 'error')
+    expect(screen.queryByText('Create a New Channel')).not.toBeInTheDocument()
+  })
+
+  it('does not cap server admins', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'u1' },
+      profile: { server_admin: true }
+    } as any)
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Channel ${i}`,
+        member: { character_name: 'Hero' }
+      }) as any),
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    const createBtn = screen.getByRole('button', { name: 'Create Channel' })
+    expect(createBtn).not.toBeDisabled()
+
     fireEvent.click(createBtn)
     expect(screen.getByText('Create a New Channel')).toBeInTheDocument()
   })
