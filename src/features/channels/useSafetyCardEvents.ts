@@ -11,8 +11,8 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
 
   useEffect(() => {
     if (!channelId) return
-    // RLS only lets the GM read safety_card_events, so non-GM clients never
-    // receive the realtime payload.
+    // All channel members can read the (anonymous) rows, so realtime delivers
+    // the INSERT; the isGM guard below keeps the alert GM-only on the client.
     const sub = supabase
       .channel(`safety-card:${channelId}`)
       .on('postgres_changes', {
@@ -24,13 +24,12 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         if (isGM) {
           setAlertActive(true)
           setAlertCount(c => c + 1)
-          addToast('X-Card triggered by a player', 'info')
         }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(sub) }
-  }, [channelId, isGM, addToast])
+  }, [channelId, isGM])
 
   const triggerXCard = useCallback(async (messageId?: string): Promise<boolean> => {
     if (!channelId) return false
