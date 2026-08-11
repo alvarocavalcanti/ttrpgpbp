@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
+import { LoginPage } from '../features/auth/LoginPage'
 
 export function ProtectedRoute() {
   const { user, loading, error } = useAuth()
@@ -24,6 +25,9 @@ export function ProtectedRoute() {
   }
 
   if (!user) {
+    if (location.pathname === '/') {
+      return <LoginPage />
+    }
     const from = location.pathname + location.search + location.hash
     return <Navigate to="/login" replace state={{ from }} />
   }
