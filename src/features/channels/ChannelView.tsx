@@ -108,11 +108,13 @@ export function ChannelView() {
           
           {/* Mobile Sidebar Toggle */}
           <button
+            type="button"
+            aria-label="Toggle sidebar menu"
             onClick={() => setShowMobileSidebar(!showMobileSidebar)}
             className="lg:hidden text-gray-500 hover:text-indigo-600 p-2 rounded-md bg-gray-50 hover:bg-indigo-50"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
@@ -142,7 +144,7 @@ export function ChannelView() {
                 X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}. Handle the scene outside the chat.
               </span>
             </span>
-            <button onClick={dismissAlert} className="text-white hover:text-red-100 p-1" aria-label="Dismiss X-Card alert">
+            <button type="button" onClick={dismissAlert} className="text-white hover:text-red-100 p-1" aria-label="Dismiss X-Card alert">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -179,9 +181,17 @@ export function ChannelView() {
 
       {/* Mobile Sidebar Overlay */}
       {showMobileSidebar && (
-        <div 
+        <div
+          role="button"
+          tabIndex={0}
           className="fixed inset-0 bg-gray-600 bg-opacity-75 z-20 lg:hidden"
           onClick={() => setShowMobileSidebar(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setShowMobileSidebar(false)
+              e.preventDefault()
+            }
+          }}
         />
       )}
 
@@ -193,7 +203,7 @@ export function ChannelView() {
         ${showMobileSidebar ? 'translate-x-0' : 'translate-x-full'}
       `}>
         <div className="lg:hidden flex justify-end p-2 border-b border-gray-100">
-          <button onClick={() => setShowMobileSidebar(false)} className="text-gray-400 hover:text-gray-600 p-2">
+          <button type="button" onClick={() => setShowMobileSidebar(false)} className="text-gray-400 hover:text-gray-600 p-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -228,6 +238,7 @@ export function ChannelView() {
             </a>
           )}
           <button
+            type="button"
             onClick={() => setShowNotificationSettings(true)}
             className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
@@ -254,24 +265,28 @@ export function ChannelView() {
             </a>
           )}
           <button
+            type="button"
             onClick={() => setShowSafetyTools(true)}
             className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Safety Tools
           </button>
           <button
+            type="button"
             onClick={() => setShowRollHistory(true)}
             className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Rolls
           </button>
           <button
+            type="button"
             onClick={() => setShowSearch(true)}
             className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Search
           </button>
           <button
+            type="button"
             onClick={() => setShowHelp(true)}
             className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
@@ -279,6 +294,7 @@ export function ChannelView() {
           </button>
           {isGM && (
             <button
+              type="button"
               onClick={() => setShowSettings(true)}
               className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
