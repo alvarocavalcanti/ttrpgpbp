@@ -168,7 +168,7 @@ describe('ChannelView search functionality', () => {
         </MemoryRouter>
       </ToastProvider>
     )
-    // redirects to /
+    expect(screen.queryByTestId('sidebar-menu')).not.toBeInTheDocument()
   })
 
   it('renders a banner when messages fail to load', () => {
@@ -298,7 +298,7 @@ describe('ChannelView search functionality', () => {
     )
 
     fireEvent.click(screen.getByText('Settings'))
-    // Should open ChannelSettings (we can just verify it renders)
+    expect(screen.getByText('Channel Settings')).toBeInTheDocument()
   })
 
   it('toggles rolls modal', () => {
@@ -313,7 +313,7 @@ describe('ChannelView search functionality', () => {
     )
 
     fireEvent.click(screen.getByText('Rolls'))
-    // RollHistoryModal should open
+    expect(screen.getByText('Roll History')).toBeInTheDocument()
   })
 
   it('renders sidebar menu items in alphabetical order with Members first', () => {
