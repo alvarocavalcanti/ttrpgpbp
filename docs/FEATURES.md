@@ -90,6 +90,7 @@
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")
 - **Permission banner** — prompts to enable push notifications on first load
+- **iOS support** — push requires installing the app to the Home Screen (iOS exposes the Push API only in installed PWAs); UI shows install guidance and disables push controls when unavailable
 - **Per-channel settings** — each member controls which notifications they receive per channel:
   - All new messages
   - GM messages only

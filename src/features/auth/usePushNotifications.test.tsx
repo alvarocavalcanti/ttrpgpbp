@@ -223,4 +223,143 @@ describe('usePushNotifications', () => {
     // Restore original
     import.meta.env.VITE_VAPID_PUBLIC_KEY = original
   })
+
+  it('sets needsInstall true on iOS non-standalone', () => {
+    // iOS tabs do not expose PushManager — only installed PWAs do
+    Reflect.deleteProperty(window, 'PushManager')
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager })
+      }
+    })
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as any
+
+    const { result } = renderHook(() => usePushNotifications())
+    expect(result.current.needsInstall).toBe(true)
+    expect(result.current.isSupported).toBe(false)
+  })
+
+  it('sets needsInstall false on iOS standalone (installed PWA)', () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager })
+      }
+    })
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as any
+
+    const { result } = renderHook(() => usePushNotifications())
+    expect(result.current.needsInstall).toBe(false)
+  })
+
+  it('sets needsInstall false on non-iOS devices', () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager })
+      }
+    })
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as any
+
+    const { result } = renderHook(() => usePushNotifications())
+    expect(result.current.needsInstall).toBe(false)
+  })
+
+  it('falls back to needsInstall false when matchMedia is unavailable', () => {
+    window.matchMedia = undefined as any
+
+    const { result } = renderHook(() => usePushNotifications())
+    expect(result.current.needsInstall).toBe(false)
+  })
+
+  it('throws when subscribing without a user', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await expect(result.current.subscribeToPush()).rejects.toThrow('Push not supported or not logged in')
+  })
+
+  it('throws when subscribing without a VAPID key', async () => {
+    const original = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    import.meta.env.VITE_VAPID_PUBLIC_KEY = ''
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.subscribeToPush()).rejects.toThrow('Missing VAPID public key')
+    expect(mockPushManager.subscribe).not.toHaveBeenCalled()
+
+    import.meta.env.VITE_VAPID_PUBLIC_KEY = original
+  })
+
+  it('throws when saving the push subscription fails', async () => {
+    const mockUpsert = vi.fn().mockResolvedValue({ error: new Error('DB error') })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.subscribeToPush()).rejects.toThrow('DB error')
+    expect(result.current.isSubscribed).toBe(false)
+  })
+
+  it('does nothing when unsubscribing without a user', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await act(async () => {
+      await result.current.unsubscribeFromPush()
+    })
+    expect(mockPushManager.getSubscription).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when unsubscribing with no active subscription', async () => {
+    const mockDelete = vi.fn()
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      delete: mockDelete
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.unsubscribeFromPush()
+    })
+    expect(mockDelete).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when updating preferences without a user', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await act(async () => {
+      await result.current.updatePreferences({ push_enabled: false })
+    })
+    expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it('throws when updating preferences fails', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: new Error('DB error') })
+    const mockSelectUpsert = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockUpsert = vi.fn().mockReturnValue({ select: mockSelectUpsert })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.updatePreferences({ push_enabled: false })).rejects.toThrow('DB error')
+  })
 })
