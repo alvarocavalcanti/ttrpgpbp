@@ -18,7 +18,7 @@ Boundaries: code/commits/PRs written normal.
 
 # Project Rules
 
-- **Branching & PRs**: ALL changes MUST go through a new branch based off an up-to-date `main`, then a pull request. Never push directly to `main` (protected against rewrites). Fetch + rebase/merge latest `main` before branching.
+- **Branching & PRs**: Never start working on `main`. ALL changes MUST go through a new branch based off an up-to-date `main`, then a pull request. Never push directly to `main` (protected against rewrites). Fetch + rebase/merge latest `main` before branching.
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
