@@ -82,6 +82,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
               {error && <div className="text-red-600 text-xs mt-1">{error}</div>}
               <div className="flex space-x-2">
                 <button
+                  type="button"
                   onClick={handleSave}
                   disabled={isSubmitting}
                   className="px-3 py-1 bg-amber-600 text-white text-xs font-medium rounded hover:bg-amber-700 disabled:opacity-50"
@@ -89,6 +90,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                   Save Status
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setIsEditing(false)
                     setEditContent(statusText || '')
@@ -116,6 +118,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
         <div className="flex items-center space-x-2 flex-shrink-0 mt-1">
           {isGM && !isEditing && (
             <button
+              type="button"
               onClick={() => setIsEditing(true)}
               className="text-amber-600 hover:text-amber-800 text-xs font-medium px-2 py-1 rounded hover:bg-amber-100 transition-colors"
             >
@@ -125,6 +128,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
           
           {!isEditing && statusText && (
             <button
+              type="button"
               onClick={() => setIsExpanded(!isExpanded)}
               className="text-amber-600 hover:text-amber-800 p-1 rounded hover:bg-amber-100 transition-colors"
               title={isExpanded ? "Collapse Status" : "Expand Status"}

@@ -22,8 +22,8 @@ vi.mock('../auth/useAuth', () => ({
 vi.mock('../search/SearchModal', () => ({
   SearchModal: ({ onClose, onJumpToMessage }: any) => (
     <div data-testid="search-modal">
-      <button onClick={onClose}>Close Search</button>
-      <button onClick={() => { onJumpToMessage('msg1'); onClose(); }}>Jump to msg1</button>
+      <button type="button" onClick={onClose}>Close Search</button>
+      <button type="button" onClick={() => { onJumpToMessage('msg1'); onClose(); }}>Jump to msg1</button>
     </div>
   )
 }))

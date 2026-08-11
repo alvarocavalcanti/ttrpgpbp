@@ -44,6 +44,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                 Search Messages
               </h3>
               <button
+                type="button"
                 onClick={onClose}
                 className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
@@ -87,10 +88,18 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
             ) : results.length > 0 ? (
               <ul className="space-y-4">
                 {results.map((message) => (
-                  <li 
-                    key={message.id} 
+                  <li
+                    key={message.id}
+                    role="button"
+                    tabIndex={0}
                     className="bg-white shadow rounded-lg p-4 cursor-pointer hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100"
                     onClick={() => handleResultClick(message.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleResultClick(message.id)
+                        e.preventDefault()
+                      }
+                    }}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-medium text-gray-900 text-sm">

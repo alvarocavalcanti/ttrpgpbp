@@ -19,16 +19,29 @@ export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClos
   const pushUnavailable = !isConfigured || !isSupported || needsInstall
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75" onClick={onClose}>
+    <div
+      role="button"
+      tabIndex={0}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClose()
+          e.preventDefault()
+        }
+      }}
+    >
       <div
         className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Channel notification settings"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-gray-900">Notifications</h3>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 p-1"
             aria-label="Close notification settings"

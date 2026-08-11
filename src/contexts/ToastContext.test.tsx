@@ -6,10 +6,10 @@ const TestComponent = () => {
   const { addToast } = useToast()
   return (
     <div>
-      <button onClick={() => addToast('Success!', 'success')}>Add Success</button>
-      <button onClick={() => addToast('Error!', 'error')}>Add Error</button>
-      <button onClick={() => addToast('Info!', 'info')}>Add Info</button>
-      <button onClick={() => {
+      <button type="button" onClick={() => addToast('Success!', 'success')}>Add Success</button>
+      <button type="button" onClick={() => addToast('Error!', 'error')}>Add Error</button>
+      <button type="button" onClick={() => addToast('Info!', 'info')}>Add Info</button>
+      <button type="button" onClick={() => {
          addToast('Success 1', 'success');
          addToast('Success 2', 'success');
          addToast('Success 3', 'success');

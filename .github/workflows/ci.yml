@@ -41,6 +41,12 @@ jobs:
         
       - name: Lint
         run: npm run lint
+
+      - name: Spell check
+        run: npm run spellcheck
+        
+      - name: Markdown lint
+        run: npm run lint:md
         
       - name: Type check
         run: npm run build

@@ -58,7 +58,8 @@ function AppNav() {
             />
           </form>
         )}
-        <button 
+        <button
+          type="button"
           onClick={() => setMenuOpen(!menuOpen)}
           className="p-2 text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none"
           aria-label="Menu"
@@ -112,7 +113,8 @@ function AppNav() {
               </Link>
             )}
             <div className="border-t border-gray-100 my-1"></div>
-            <button 
+            <button
+              type="button"
               onClick={() => {
                 setMenuOpen(false)
                 signOut()

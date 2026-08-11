@@ -114,11 +114,20 @@ export function Lobby() {
       </div>
 
       <div
+        role="button"
+        tabIndex={0}
         onClick={handleCreateClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            handleCreateClick()
+            e.preventDefault()
+          }
+        }}
         data-testid="create-channel-fab"
         className="fixed bottom-6 right-6 z-40"
       >
         <button
+          type="button"
           disabled={atChannelCap}
           aria-label="Create Channel"
           className={`inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:cursor-not-allowed ${

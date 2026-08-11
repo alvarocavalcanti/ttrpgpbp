@@ -111,6 +111,7 @@ export function JoinChannel() {
         <h2 className="text-xl font-medium text-gray-900 mb-2">Channel Not Found</h2>
         <p className="text-gray-500 mb-4">{error}</p>
         <button
+          type="button"
           onClick={() => navigate('/')}
           className="text-indigo-600 hover:text-indigo-800 font-medium"
         >

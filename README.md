@@ -25,19 +25,23 @@ Want to run your own instance? See [DEPLOYMENT.md](DEPLOYMENT.md). Interested in
 ## Development Setup
 
 1. **Install Dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Supabase Configuration**
    You need a Supabase project. Set up your `.env.local` file in the project root:
+
    ```env
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
+
    Apply the database migrations in `supabase/migrations/` via the Supabase CLI or Dashboard.
 
 3. **Run Locally**
+
    ```bash
    npm run dev
    ```

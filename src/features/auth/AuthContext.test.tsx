@@ -26,8 +26,8 @@ function TestComponent() {
       <div data-testid="user">{context.user ? context.user.id : 'no-user'}</div>
       <div data-testid="profile">{context.profile ? context.profile.display_name : 'no-profile'}</div>
       <div data-testid="error">{context.error ? 'error' : 'no-error'}</div>
-      <button onClick={context.signInWithGoogle}>Sign In</button>
-      <button onClick={context.signOut}>Sign Out</button>
+      <button type="button" onClick={context.signInWithGoogle}>Sign In</button>
+      <button type="button" onClick={context.signOut}>Sign Out</button>
     </div>
   )
 }
