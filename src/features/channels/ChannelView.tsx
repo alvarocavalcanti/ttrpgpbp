@@ -14,6 +14,7 @@ import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotifi
 import { useChannelNpcs } from './useChannelNpcs'
 import { SafetyToolsModal } from './SafetyToolsModal'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
+import { ChannelHelpModal } from '../help/ChannelHelpModal'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +28,7 @@ export function ChannelView() {
   const [showSearch, setShowSearch] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showSafetyTools, setShowSafetyTools] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
@@ -44,10 +46,10 @@ export function ChannelView() {
   // Overlay modals open on top of the sidebar; close the mobile sidebar so it
   // doesn't stay open behind them.
   useEffect(() => {
-    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools) {
+    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showHelp) {
       setShowMobileSidebar(false)
     }
-  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools])
+  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showHelp])
 
   const handleJumpToMessage = (messageId: string) => {
     setHighlightMessageId(messageId)
@@ -269,6 +271,12 @@ export function ChannelView() {
           >
             Search
           </button>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Help
+          </button>
           {isGM && (
             <button
               onClick={() => setShowSettings(true)}
@@ -318,6 +326,10 @@ export function ChannelView() {
           isGM={isGM}
           onClose={() => setShowSafetyTools(false)}
         />
+      )}
+
+      {showHelp && (
+        <ChannelHelpModal onClose={() => setShowHelp(false)} />
       )}
     </div>
   )

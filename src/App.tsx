@@ -11,6 +11,7 @@ import { JoinChannel } from './features/channels/JoinChannel'
 import { ChannelView } from './features/channels/ChannelView'
 import { ArchivedChannels } from './features/channels/ArchivedChannels'
 import { AdminView } from './features/admin/AdminView'
+import { HelpPage } from './features/help/HelpPage'
 
 function AppNav() {
   const { user, profile, signOut } = useAuth()
@@ -94,6 +95,13 @@ function AppNav() {
             >
               Archived Channels
             </Link>
+            <Link 
+              to="/help" 
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              Help
+            </Link>
             {profile?.server_admin && (
               <Link 
                 to="/admin" 
@@ -138,6 +146,8 @@ function App() {
                   <Route path="/join/:id" element={<JoinChannel />} />
                   <Route path="/channel/:id" element={<ChannelView />} />
                   <Route path="/settings" element={<ProfileSettings />} />
+                  <Route path="/help" element={<HelpPage />} />
+                  <Route path="/help/:topic" element={<HelpPage />} />
                 </Route>
               </Routes>
             </main>

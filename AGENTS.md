@@ -99,6 +99,8 @@ Boundaries: code/commits/PRs written normal.
 ## Documentation Maintenance
 
 - Keep [FEATURES.md](docs/FEATURES.md) up to date on new, updated and removed features
+- Keep the in-app help content in [docs/help/](docs/help/) up to date on new, updated and removed features
+- After any UI change, check whether the help screenshots in `public/help/` need updating; regenerate and commit them when they do
 
 ## Release Management
 
