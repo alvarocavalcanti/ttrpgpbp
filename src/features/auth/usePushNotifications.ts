@@ -22,6 +22,7 @@ function urlBase64ToUint8Array(base64String: string) {
 export function usePushNotifications() {
   const { user } = useAuth()
   const [isSupported, setIsSupported] = useState(false)
+  const [needsInstall, setNeedsInstall] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isSubscribed, setIsSubscribed] = useState(false)
   
@@ -34,6 +35,12 @@ export function usePushNotifications() {
       setIsSupported(true)
       setPermission(Notification.permission)
     }
+    // iOS exposes PushManager only in installed PWAs, not browser tabs.
+    const isIOS = /iphone|ipad/i.test(navigator.userAgent)
+    const isStandalone =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(display-mode: standalone)').matches
+    setNeedsInstall(isIOS && !isStandalone)
   }, [])
 
   useEffect(() => {
@@ -168,6 +175,7 @@ export function usePushNotifications() {
 
   return {
     isSupported,
+    needsInstall,
     isConfigured,
     permission,
     isSubscribed,

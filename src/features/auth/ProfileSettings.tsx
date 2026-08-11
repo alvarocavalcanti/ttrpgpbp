@@ -12,6 +12,7 @@ export function ProfileSettings() {
 
   const {
     isSupported,
+    needsInstall,
     isConfigured,
     permission,
     isSubscribed,
@@ -63,6 +64,8 @@ export function ProfileSettings() {
       alert('Failed to update push notification settings. Please try again.')
     }
   }
+
+  const pushUnavailable = !isConfigured || !isSupported || needsInstall
 
   if (!profile) return null
 
@@ -159,9 +162,11 @@ export function ProfileSettings() {
                     <p className="text-sm text-gray-500 mt-1">
                       {!isConfigured
                         ? 'Push notifications are not configured on the server.'
-                        : isSupported 
-                          ? 'Receive notifications even when the app is closed.'
-                          : 'Push notifications are not supported on this browser/device.'}
+                        : needsInstall
+                          ? 'Push notifications require installing the app. Tap Share → Add to Home Screen.'
+                          : isSupported
+                            ? 'Receive notifications even when the app is closed.'
+                            : 'Push notifications are not supported on this browser/device.'}
                     </p>
                     {isConfigured && isSupported && permission === 'denied' && (
                       <p className="text-sm text-red-500 mt-1">
@@ -192,19 +197,20 @@ export function ProfileSettings() {
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-gray-900">Notification Types</h4>
                 
-                <div className="flex items-start">
+                  <div className="flex items-start">
                   <div className="flex h-5 items-center">
                     <input
                       id="push_enabled"
                       type="checkbox"
                       checked={preferences?.push_enabled ?? false}
                       onChange={(e) => updatePreferences({ push_enabled: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      disabled={pushUnavailable}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label htmlFor="push_enabled" className="font-medium text-gray-700">Send me Push Notifications</label>
-                    <p className="text-gray-500">Global toggle for push notifications across all devices.</p>
+                    <label htmlFor="push_enabled" className={`font-medium ${pushUnavailable ? 'text-gray-400' : 'text-gray-700'}`}>Send me Push Notifications</label>
+                    <p className={`${pushUnavailable ? 'text-gray-400' : 'text-gray-500'}`}>Global toggle for push notifications across all devices.</p>
                   </div>
                 </div>
 

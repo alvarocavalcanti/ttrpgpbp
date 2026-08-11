@@ -81,6 +81,18 @@ describe('PermissionBanner', () => {
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })
 
+  it('renders nothing when iOS install is required', () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: false, needsInstall: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    render(<PermissionBanner />)
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
   it('renders banner when eligible', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true,

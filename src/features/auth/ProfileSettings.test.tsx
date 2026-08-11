@@ -35,7 +35,7 @@ describe('ProfileSettings', () => {
     vi.clearAllMocks()
 
     vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: true,
+      isConfigured: true, isSupported: true, needsInstall: false,
       permission: 'granted',
       isSubscribed: false,
       preferences: { push_enabled: true, badge_enabled: true } as any,
@@ -202,7 +202,7 @@ describe('ProfileSettings', () => {
 
     // Rerender with isSubscribed = true
     vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: true,
+      isConfigured: true, isSupported: true, needsInstall: false,
       permission: 'granted',
       isSubscribed: true,
       preferences: { push_enabled: true, badge_enabled: true } as any,
@@ -234,6 +234,7 @@ describe('ProfileSettings', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: false,
       isSupported: true,
+      needsInstall: false,
       permission: 'granted',
       isSubscribed: false,
       preferences: { push_enabled: true, badge_enabled: true } as any,
@@ -247,5 +248,65 @@ describe('ProfileSettings', () => {
     render(<ProfileSettings />)
     expect(screen.getByText('Push notifications are not configured on the server.')).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Use push notifications' })).not.toBeInTheDocument()
+  })
+
+  it('disables the push checkbox when push is unavailable and keeps badges enabled', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: false, needsInstall: false,
+      permission: 'default',
+      isSubscribed: false,
+      preferences: { push_enabled: true, badge_enabled: true } as any,
+      loading: false,
+      error: null,
+      subscribeToPush: mockSubscribe,
+      unsubscribeFromPush: mockUnsubscribe,
+      updatePreferences: mockUpdatePreferences
+    })
+
+    render(<ProfileSettings />)
+
+    expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
+    expect(screen.getByLabelText('Show Unread Badges')).toBeEnabled()
+  })
+
+  it('shows iOS install message when needsInstall is true', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: false, needsInstall: true,
+      permission: 'default',
+      isSubscribed: false,
+      preferences: { push_enabled: true, badge_enabled: true } as any,
+      loading: false,
+      error: null,
+      subscribeToPush: mockSubscribe,
+      unsubscribeFromPush: mockUnsubscribe,
+      updatePreferences: mockUpdatePreferences
+    })
+
+    render(<ProfileSettings />)
+
+    expect(screen.getByText(/Add to Home Screen/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
   })
 })

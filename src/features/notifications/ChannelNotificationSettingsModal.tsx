@@ -1,4 +1,5 @@
 import { useChannelNotificationPrefs } from './useChannelNotificationPrefs'
+import { usePushNotifications } from '../auth/usePushNotifications'
 
 interface ChannelNotificationSettingsModalProps {
   channelId: string
@@ -14,6 +15,8 @@ const TOGGLES = [
 
 export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClose }: ChannelNotificationSettingsModalProps) {
   const { prefs, loading, saving, error, updatePrefs } = useChannelNotificationPrefs(channelId, myMemberId)
+  const { isSupported, isConfigured, needsInstall } = usePushNotifications()
+  const pushUnavailable = !isConfigured || !isSupported || needsInstall
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75" onClick={onClose}>
@@ -45,6 +48,11 @@ export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClos
           </div>
         ) : (
           <div className="space-y-4">
+            {pushUnavailable && (
+              <p className="text-sm text-amber-700" role="status">
+                Push notifications are not available on this device. These settings require push to be enabled.
+              </p>
+            )}
             {TOGGLES.map(({ key, label, description }) => (
               <div key={key} className="flex items-start">
                 <div className="flex h-5 items-center">
@@ -52,14 +60,14 @@ export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClos
                     id={key}
                     type="checkbox"
                     checked={prefs[key]}
-                    disabled={saving}
+                    disabled={saving || pushUnavailable}
                     onChange={(e) => updatePrefs({ [key]: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div className="ml-3 text-sm">
-                  <label htmlFor={key} className="font-medium text-gray-700">{label}</label>
-                  <p className="text-gray-500">{description}</p>
+                  <label htmlFor={key} className={`font-medium ${pushUnavailable ? 'text-gray-400' : 'text-gray-700'}`}>{label}</label>
+                  <p className={`${pushUnavailable ? 'text-gray-400' : 'text-gray-500'}`}>{description}</p>
                 </div>
               </div>
             ))}
