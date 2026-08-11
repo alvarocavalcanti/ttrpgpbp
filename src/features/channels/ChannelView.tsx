@@ -137,7 +137,7 @@ export function ChannelView() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
               </svg>
               <span>
-                X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}. Pause and check in privately.
+                X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}. Handle the scene outside the chat.
               </span>
             </span>
             <button onClick={dismissAlert} className="text-white hover:text-red-100 p-1" aria-label="Dismiss X-Card alert">
