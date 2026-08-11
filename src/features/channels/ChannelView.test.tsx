@@ -89,8 +89,23 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByTestId('search-modal')).not.toBeInTheDocument()
   })
 
-  it('handles jump to message', () => {
+  it('toggles help modal', () => {
     render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.queryByRole('dialog', { name: 'Channel help' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Help'))
+    expect(screen.getByRole('dialog', { name: 'Channel help' })).toBeInTheDocument()
+  })
+
+  it('handles jump to message', () => {    render(
       <ToastProvider>
         <MemoryRouter initialEntries={['/channel/c1']}>
           <Routes>

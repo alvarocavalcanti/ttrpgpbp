@@ -104,3 +104,9 @@
 - **Lines & Veils** — GM-editable persistent text fields (collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
 - **Safety Tools URL** — optional external link (e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
 - **X-Card** — a red card-with-X button in the message composer and on each message flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast.
+
+## Help
+- **In-app help** — a **Help** menu item in the main app header opens a `/help` page with general topics; a **Help** item in the channel sidebar opens a channel-specific help modal
+- Help content is authored as Markdown files in [docs/help/](docs/help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic is just adding/removing a `.md` file
+- **Screenshots** live in `public/help/` and are referenced from frontmatter; the PWA precaches them
+- AGENTS.md requires help content and screenshots to be updated alongside feature/UI changes
