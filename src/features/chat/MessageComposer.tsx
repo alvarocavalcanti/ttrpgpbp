@@ -202,6 +202,22 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
                 </div>
               )}
 
+              {onXCard && (
+                <button
+                  type="button"
+                  onClick={onXCard}
+                  className="flex items-center space-x-1.5 shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors focus:outline-none"
+                  aria-label="X-Card"
+                  title="X-Card: privately flag the current scene to the GM"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
+                  </svg>
+                  <span className="hidden sm:inline">X Card</span>
+                </button>
+              )}
+
               {isGM && (
                 <div className="flex items-center space-x-4 shrink-0">
                   <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Scene Description">
@@ -368,20 +384,6 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
           )}
 
           <div className="flex items-end space-x-2 relative">
-            {onXCard && (
-              <button
-                type="button"
-                onClick={onXCard}
-                className="mb-1 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors focus:outline-none flex-shrink-0"
-                aria-label="X-Card"
-                title="X-Card: privately flag the current scene to the GM"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
-                </svg>
-              </button>
-            )}
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}

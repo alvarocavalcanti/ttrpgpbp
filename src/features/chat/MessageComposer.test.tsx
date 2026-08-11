@@ -289,15 +289,18 @@ describe('MessageComposer', () => {
     expect(screen.getByLabelText('NPC Mode')).not.toBeChecked()
   })
 
-  it('calls onXCard when X-Card button clicked', () => {
+  it('calls onXCard when X-Card button clicked in the expanded options', () => {
     const mockOnXCard = vi.fn()
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} onXCard={mockOnXCard} />)
+    expect(screen.queryByLabelText('X-Card')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('X-Card'))
     expect(mockOnXCard).toHaveBeenCalled()
   })
 
   it('hides X-Card button when onXCard not provided', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
     expect(screen.queryByLabelText('X-Card')).not.toBeInTheDocument()
   })
 })
