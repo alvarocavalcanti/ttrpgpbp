@@ -64,6 +64,33 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
   })
 
+  it('renders login page inline at / when no user is authenticated', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="lobby" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByTestId('lobby')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+    expect(screen.getByText('Sign in with Google')).toBeInTheDocument()
+  })
+
   it('redirects to login when no user is authenticated', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,

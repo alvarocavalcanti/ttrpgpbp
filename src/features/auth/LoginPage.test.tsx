@@ -103,4 +103,50 @@ describe('LoginPage', () => {
     expect(sessionStorage.getItem('auth_redirect')).toBe('/join/123?code=abc')
     expect(mockSignIn).toHaveBeenCalledTimes(1)
   })
+
+  it('renders the feature highlights section', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Why RoleByPost?')).toBeInTheDocument()
+    expect(screen.getByText('Real-time Chat')).toBeInTheDocument()
+    expect(screen.getByText('Dice Rolling')).toBeInTheDocument()
+    expect(screen.getByText('Campaign Management')).toBeInTheDocument()
+    expect(screen.getByText('Push Notifications')).toBeInTheDocument()
+    expect(screen.getByText('Mobile First')).toBeInTheDocument()
+  })
+
+  it('renders the feature grid with responsive layout', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    const { container } = render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    const grid = container.querySelector('.grid')
+    expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3')
+  })
 })
