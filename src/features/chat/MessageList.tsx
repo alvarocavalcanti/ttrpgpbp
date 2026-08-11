@@ -20,9 +20,10 @@ interface MessageListProps {
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
   lastReadAt?: string | null
+  onXCard?: (messageId: string) => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -88,6 +89,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onToggleReaction={onToggleReaction}
               onReply={onReply}
               onJumpToMessage={onJumpToMessage}
+              onXCard={onXCard}
             />
           </Fragment>
         )

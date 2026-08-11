@@ -269,4 +269,92 @@ describe('MemberList', () => {
     expect(screen.queryByText('Block Player')).not.toBeInTheDocument()
     expect(screen.queryByText('Kick Player')).not.toBeInTheDocument()
   })
+
+  it('shows AFK badge and away message for away members', () => {
+    const members: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', is_blocked: false, is_away: true, away_message: 'Away until Monday', profile: { display_name: 'Player One' } },
+      { id: 'm2', user_id: 'u2', character_name: 'Sidekick', is_blocked: false, is_away: false, away_message: null, profile: { display_name: 'Player Two' } }
+    ]
+    render(<MemberList members={members} isGM={true} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText('AFK')).toBeInTheDocument()
+    expect(screen.getByText('Away until Monday')).toBeInTheDocument()
+    expect(screen.getAllByText('AFK')).toHaveLength(1)
+  })
+
+  it('allows marking self as away with an away message', async () => {
+    window.prompt = vi.fn().mockReturnValue('Back on Thursday')
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Away (AFK)'))
+
+    await waitFor(() => {
+      expect(window.prompt).toHaveBeenCalled()
+      expect(mockUpdate).toHaveBeenCalledWith({ is_away: true, away_message: 'Back on Thursday' })
+      expect(mockEq).toHaveBeenCalledWith('id', 'm2')
+      expect(mockOnUpdate).toHaveBeenCalled()
+    })
+  })
+
+  it('allows marking self as back (clears away)', async () => {
+    window.prompt = vi.fn()
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    const mockOnUpdate = vi.fn()
+
+    const members: any[] = mockMembers.map(m => m.id === 'm2' ? { ...m, is_away: true, away_message: 'BRB' } : m)
+    render(<MemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Back (Available)'))
+
+    await waitFor(() => {
+      expect(window.prompt).not.toHaveBeenCalled()
+      expect(mockUpdate).toHaveBeenCalledWith({ is_away: false, away_message: null })
+      expect(mockOnUpdate).toHaveBeenCalled()
+    })
+  })
+
+  it('cancels away marking when prompt dismissed', async () => {
+    window.prompt = vi.fn().mockReturnValue(null)
+    const mockUpdate = vi.fn()
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Away (AFK)'))
+
+    await waitFor(() => {
+      expect(window.prompt).toHaveBeenCalled()
+      expect(mockUpdate).not.toHaveBeenCalled()
+    })
+  })
+
+  it('handles toggle away error', async () => {
+    window.prompt = vi.fn().mockReturnValue('')
+    const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Away (AFK)'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({ is_away: true, away_message: null })
+      expect(screen.getByText('Failed to update away status.')).toBeInTheDocument()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
+    })
+  })
 })

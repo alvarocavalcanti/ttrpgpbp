@@ -65,11 +65,12 @@ export interface Database {
           gm_id: string
           is_archived: boolean
           game_system: string
-          invite_code: string | null
-          map_url: string | null
-          resources_url: string | null
-          gm_only_resources_url: string | null
-          status_text: string | null
+            invite_code: string | null
+            map_url: string | null
+            resources_url: string | null
+            gm_only_resources_url: string | null
+            safety_tools_url: string | null
+            status_text: string | null
           last_message_at: string | null
           created_at: string
           updated_at: string
@@ -81,11 +82,12 @@ export interface Database {
           gm_id: string
           is_archived?: boolean
           game_system?: string
-          invite_code?: string | null
-          map_url?: string | null
-          resources_url?: string | null
-          gm_only_resources_url?: string | null
-          status_text?: string | null
+            invite_code?: string | null
+            map_url?: string | null
+            resources_url?: string | null
+            gm_only_resources_url?: string | null
+            safety_tools_url?: string | null
+            status_text?: string | null
           last_message_at?: string | null
           created_at?: string
           updated_at?: string
@@ -96,11 +98,12 @@ export interface Database {
           gm_id?: string
           is_archived?: boolean
           game_system?: string
-          invite_code?: string | null
-          map_url?: string | null
-          resources_url?: string | null
-          gm_only_resources_url?: string | null
-          status_text?: string | null
+            invite_code?: string | null
+            map_url?: string | null
+            resources_url?: string | null
+            gm_only_resources_url?: string | null
+            safety_tools_url?: string | null
+            status_text?: string | null
           last_message_at?: string | null
           created_at?: string
           updated_at?: string
@@ -146,6 +149,8 @@ export interface Database {
           character_sheet_url: string | null
           is_active_player: boolean
           is_blocked: boolean
+          is_away: boolean
+          away_message: string | null
           attributes: any
           notify_all_messages: boolean
           notify_gm_messages: boolean
@@ -162,6 +167,8 @@ export interface Database {
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
+          is_away?: boolean
+          away_message?: string | null
           attributes?: any
           notify_all_messages?: boolean
           notify_gm_messages?: boolean
@@ -178,6 +185,8 @@ export interface Database {
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
+          is_away?: boolean
+          away_message?: string | null
           attributes?: any
           notify_all_messages?: boolean
           notify_gm_messages?: boolean
@@ -225,6 +234,34 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "channel_npcs_channel_id_fkey"
+            columns: ["channel_id"]
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      channel_safety_tools: {
+        Row: {
+          channel_id: string
+          lines: string
+          veils: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          lines?: string
+          veils?: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          lines?: string
+          veils?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_safety_tools_channel_id_fkey"
             columns: ["channel_id"]
             referencedRelation: "channels"
             referencedColumns: ["id"]
@@ -466,6 +503,40 @@ export interface Database {
             foreignKeyName: "push_subscriptions_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      safety_card_events: {
+        Row: {
+          id: string
+          channel_id: string
+          message_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          channel_id: string
+          message_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          channel_id?: string
+          message_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_card_events_channel_id_fkey"
+            columns: ["channel_id"]
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_card_events_message_id_fkey"
+            columns: ["message_id"]
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           }
         ]

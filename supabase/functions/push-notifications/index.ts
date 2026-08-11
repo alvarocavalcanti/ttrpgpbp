@@ -30,7 +30,7 @@ serve(async (req) => {
 
     let event
     let channelId: string
-    let members: Array<{ user_id: string; notify_all_messages?: boolean; notify_gm_messages?: boolean; notify_turn?: boolean; is_blocked?: boolean }> | null = null
+    let members: Array<{ user_id: string; notify_all_messages?: boolean; notify_gm_messages?: boolean; notify_turn?: boolean; is_blocked?: boolean; is_away?: boolean }> | null = null
 
     if (table === 'messages') {
       const message = record
@@ -111,7 +111,7 @@ serve(async (req) => {
 
       const { data: fetchedTurnMembers } = await supabase
         .from('channel_members')
-        .select('user_id, notify_all_messages, notify_gm_messages, notify_turn, is_blocked')
+        .select('user_id, notify_all_messages, notify_gm_messages, notify_turn, is_blocked, is_away')
         .eq('channel_id', channelId)
 
       members = fetchedTurnMembers

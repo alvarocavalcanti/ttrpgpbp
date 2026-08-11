@@ -12,17 +12,21 @@ import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
 import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
 import { useChannelNpcs } from './useChannelNpcs'
+import { SafetyToolsModal } from './SafetyToolsModal'
+import { useSafetyCardEvents } from './useSafetyCardEvents'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch } = useChannel(id)
   const { messages, reactions, loading: messagesLoading, error: messagesError, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
   const { npcs } = useChannelNpcs(id)
+  const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
+  const [showSafetyTools, setShowSafetyTools] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
@@ -40,10 +44,10 @@ export function ChannelView() {
   // Overlay modals open on top of the sidebar; close the mobile sidebar so it
   // doesn't stay open behind them.
   useEffect(() => {
-    if (showSettings || showRollHistory || showSearch || showNotificationSettings) {
+    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools) {
       setShowMobileSidebar(false)
     }
-  }, [showSettings, showRollHistory, showSearch, showNotificationSettings])
+  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools])
 
   const handleJumpToMessage = (messageId: string) => {
     setHighlightMessageId(messageId)
@@ -125,6 +129,23 @@ export function ChannelView() {
           </div>
         )}
 
+        {alertActive && (
+          <div className="px-4 py-2 bg-red-600 border-b border-red-700 text-white text-sm flex items-center justify-between" role="alert">
+            <span className="flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
+              </svg>
+              <span>
+                X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}. Pause and check in privately.
+              </span>
+            </span>
+            <button onClick={dismissAlert} className="text-white hover:text-red-100 p-1" aria-label="Dismiss X-Card alert">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
+
         <MessageList 
           messages={messages} 
           isGM={isGM} 
@@ -139,6 +160,7 @@ export function ChannelView() {
           onReply={handleReply}
           onJumpToMessage={handleJumpToMessage}
           lastReadAt={myMemberInfo?.last_read_at}
+          onXCard={triggerXCard}
         />
         
         <MessageComposer 
@@ -149,6 +171,7 @@ export function ChannelView() {
           onRollDice={sendDiceRoll}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
+          onXCard={() => triggerXCard()}
         />
       </div>
 
@@ -218,6 +241,22 @@ export function ChannelView() {
               Resources
             </a>
           )}
+          {channel.safety_tools_url && (
+            <a
+              href={channel.safety_tools_url}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Safety Tools Doc
+            </a>
+          )}
+          <button
+            onClick={() => setShowSafetyTools(true)}
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Safety Tools
+          </button>
           <button
             onClick={() => setShowRollHistory(true)}
             className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -269,6 +308,15 @@ export function ChannelView() {
           channelId={channel.id}
           onClose={() => setShowSearch(false)}
           onJumpToMessage={handleJumpToMessage}
+        />
+      )}
+
+      {showSafetyTools && (
+        <SafetyToolsModal
+          channelId={channel.id}
+          safetyToolsUrl={channel.safety_tools_url}
+          isGM={isGM}
+          onClose={() => setShowSafetyTools(false)}
         />
       )}
     </div>

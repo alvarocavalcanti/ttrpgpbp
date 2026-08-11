@@ -122,6 +122,30 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     }
   }
 
+  const handleToggleAway = async (memberId: string) => {
+    setError(null)
+    const targetMember = members.find(m => m.id === memberId)
+    if (!targetMember) return
+    try {
+      let awayMessage: string | null = null
+      if (!targetMember.is_away) {
+        const entered = window.prompt('Optional away message (e.g. "Away until Monday"). Leave blank for none.')
+        if (entered === null) return
+        awayMessage = entered.trim() || null
+      }
+      const { error } = await supabase
+        .from('channel_members')
+        .update({ is_away: !targetMember.is_away, away_message: awayMessage })
+        .eq('id', memberId)
+
+      if (error) throw error
+      onUpdate()
+    } catch (err) {
+      console.error('Error toggling away status:', err)
+      setError('Failed to update away status.')
+    }
+  }
+
   const activeMembers = members.filter(m => !m.is_blocked)
   const blockedMembers = members.filter(m => m.is_blocked)
 
@@ -147,17 +171,17 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
 
           return (
             <li key={member.id} className="group p-2 rounded-md hover:bg-gray-50 transition-colors">
-              <div className="flex items-center space-x-3">
+              <div className={`flex items-center space-x-3 ${member.is_away ? 'opacity-60' : ''}`}>
                 <div className="flex-shrink-0 relative">
                   {member.character_avatar_url || member.profile?.avatar_url ? (
                     <img 
-                      className="h-10 w-10 rounded-full object-cover" 
+                      className={`h-10 w-10 rounded-full object-cover ${member.is_away ? 'grayscale' : ''}`} 
                       src={member.character_avatar_url || member.profile?.avatar_url || ''} 
                       alt="" 
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500">
+                    <div className={`h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 ${member.is_away ? 'grayscale' : ''}`}>
                       {member.character_name[0].toUpperCase()}
                     </div>
                   )}
@@ -169,6 +193,11 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {member.character_name}
                         </p>
+                        {member.is_away && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-600 uppercase">
+                            AFK
+                          </span>
+                        )}
                         {member.is_active_player && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">
                             Active
@@ -183,6 +212,11 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                       <p className="text-xs text-gray-500 truncate">
                         {member.profile?.display_name}
                       </p>
+                      {member.is_away && member.away_message && (
+                        <p className="text-xs text-gray-400 italic truncate">
+                          {member.away_message}
+                        </p>
+                      )}
                       {member.character_sheet_url && (
                         <a 
                           href={member.character_sheet_url}
@@ -217,6 +251,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             >
                               Edit Character
+                            </button>
+                          )}
+                          {isMe && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); handleToggleAway(member.id); }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              {member.is_away ? 'Mark Back (Available)' : 'Mark Away (AFK)'}
                             </button>
                           )}
                           {isGM && !isMe && member.user_id !== gmId && (

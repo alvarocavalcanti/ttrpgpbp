@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
+import { useSafetyTools } from './useSafetyTools'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
@@ -22,6 +23,18 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
   const [resourcesUrl, setResourcesUrl] = useState(channel.resources_url || '')
   const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(channel.gm_only_resources_url || '')
+  const [safetyToolsUrl, setSafetyToolsUrl] = useState(channel.safety_tools_url || '')
+  const [showSafetyTools, setShowSafetyTools] = useState(false)
+  const { safetyTools, saveSafetyTools } = useSafetyTools(channel.id, showSafetyTools)
+  const [safetyLines, setSafetyLines] = useState('')
+  const [safetyVeils, setSafetyVeils] = useState('')
+
+  useEffect(() => {
+    if (safetyTools) {
+      setSafetyLines(safetyTools.lines)
+      setSafetyVeils(safetyTools.veils)
+    }
+  }, [safetyTools])
   
   // Changing password logic
   const [changePassword, setChangePassword] = useState(false)
@@ -68,20 +81,27 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
     setIsSubmitting(true)
 
     try {
-      const updates: any = {
-        name,
-        game_system: gameSystem,
-        map_url: mapUrl || null,
-        resources_url: resourcesUrl || null,
-        gm_only_resources_url: gmOnlyResourcesUrl || null
-      }
+        const updates: any = {
+          name,
+          game_system: gameSystem,
+          map_url: mapUrl || null,
+          resources_url: resourcesUrl || null,
+          gm_only_resources_url: gmOnlyResourcesUrl || null,
+          safety_tools_url: safetyToolsUrl || null
+        }
 
-      const { error: updateError } = await supabase
-        .from('channels')
-        .update(updates)
-        .eq('id', channel.id)
+        const { error: updateError } = await supabase
+          .from('channels')
+          .update(updates)
+          .eq('id', channel.id)
 
-      if (updateError) throw updateError
+        if (updateError) throw updateError
+
+        if (showSafetyTools) {
+          const saved = await saveSafetyTools(safetyLines, safetyVeils)
+          if (!saved) throw new Error('Failed to save safety tools')
+        }
+
 
       if (changePassword) {
         const passwordHash = newPassword ? await hashPassword(newPassword) : null
@@ -311,17 +331,76 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
                 />
               </div>
 
-              <div>
-                <label htmlFor="gmOnlyResourcesUrl" className="block text-sm font-medium text-gray-700">GM-Only Resources URL</label>
-                <input
-                  type="url"
-                  id="gmOnlyResourcesUrl"
-                  value={gmOnlyResourcesUrl}
-                  onChange={(e) => setGmOnlyResourcesUrl(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                  placeholder="https://lorekeeper.app/..."
-                />
-              </div>
+                <div>
+                  <label htmlFor="gmOnlyResourcesUrl" className="block text-sm font-medium text-gray-700">GM-Only Resources URL</label>
+                  <input
+                    type="url"
+                    id="gmOnlyResourcesUrl"
+                    value={gmOnlyResourcesUrl}
+                    onChange={(e) => setGmOnlyResourcesUrl(e.target.value)}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                    placeholder="https://lorekeeper.app/..."
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowSafetyTools(!showSafetyTools)}
+                    className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors"
+                    aria-expanded={showSafetyTools}
+                  >
+                    Safety Tools (Lines &amp; Veils)
+                    <svg
+                      className={`w-4 h-4 transform transition-transform ${showSafetyTools ? 'rotate-180' : ''}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showSafetyTools && (
+                    <div className="mt-3 space-y-4">
+                      <div>
+                        <label htmlFor="safetyLines" className="block text-sm font-medium text-gray-700">Lines</label>
+                        <textarea
+                          id="safetyLines"
+                          value={safetyLines}
+                          onChange={(e) => setSafetyLines(e.target.value)}
+                          rows={3}
+                          placeholder="Hard limits the group agrees never to cross (one per line)."
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="safetyVeils" className="block text-sm font-medium text-gray-700">Veils</label>
+                        <textarea
+                          id="safetyVeils"
+                          value={safetyVeils}
+                          onChange={(e) => setSafetyVeils(e.target.value)}
+                          rows={3}
+                          placeholder="Topics that happen off-screen when they come up (one per line)."
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="safetyToolsUrl" className="block text-sm font-medium text-gray-700">Safety Tools URL</label>
+                        <input
+                          type="url"
+                          id="safetyToolsUrl"
+                          value={safetyToolsUrl}
+                          onChange={(e) => setSafetyToolsUrl(e.target.value)}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          placeholder="https://docs.google.com/document/d/..."
+                        />
+                        <p className="mt-1 text-xs text-gray-400">
+                          Shown as a menu item for all players in the sidebar, like the other URL fields.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
 
               {warning && (
                 <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">

@@ -529,4 +529,44 @@ describe('MessageItem', () => {
     expect(mockOnReply).toHaveBeenCalledWith(msg)
   })
 
+  it('calls onXCard with the message id when X-Card button clicked on a regular message', () => {
+    const mockOnXCard = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onXCard={mockOnXCard} />)
+    fireEvent.click(screen.getByLabelText('X-Card'))
+    expect(mockOnXCard).toHaveBeenCalledWith('m1')
+  })
+
+  it('calls onXCard when X-Card button clicked on a scene message', () => {
+    const mockOnXCard = vi.fn()
+    const msg: any = {
+      id: 's1',
+      type: 'scene',
+      content: 'You enter a dark tavern',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={mockOnXCard} />)
+    fireEvent.click(screen.getByLabelText('X-Card'))
+    expect(mockOnXCard).toHaveBeenCalledWith('s1')
+  })
+
+  it('hides X-Card button when onXCard not provided', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.queryByLabelText('X-Card')).not.toBeInTheDocument()
+  })
+
 })

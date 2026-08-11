@@ -22,6 +22,7 @@
 - Optional **password** to join (joining is instant)
 - GM can **kick** (remove) or **block** a user (prevent return/interaction)
 - **System messages** announce member joins, leaves, kicks, and blocks in the channel
+- **AFK / Away status** — any player can mark themselves away (with an optional away message like "Away until Monday"). Away members show an **AFK badge**, faded/grayscale avatar, and their away message in the member list; their name is struck through with an **(AFK)** tag in the active-player status bar. While away, **"It's your turn" push notifications are suppressed**.
 - Optional **map URL** (external link)
 - **Resources URL** (single URL — GDrive folder, PDF, etc.)
 - **Export Chat** allows downloading the full message history to a Markdown file
@@ -98,3 +99,8 @@
 
 ## Search
 - Full-text search within a channel's message history
+
+## Safety Tools (Lines & Veils / X-Card)
+- **Lines & Veils** — GM-editable persistent text fields (collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
+- **Safety Tools URL** — optional external link (e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
+- **X-Card** — a red card-with-X button in the message composer and on each message flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast.
