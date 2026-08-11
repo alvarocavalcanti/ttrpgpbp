@@ -8,6 +8,7 @@
 - **Server Admin view** (`/admin`, via the "Server Admin" menu item, visible only to `server_admin`):
   - **Users tab** — display name, total active channels, joined date
   - **Channels tab** — name, game system, member count, created and last-active dates
+  - **Sortable tables** — click any Users/Channels column header to sort asc/desc (toggle on repeat click); tables scroll horizontally on mobile instead of cropping
   - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels.
 
 ## Channels & Lobby

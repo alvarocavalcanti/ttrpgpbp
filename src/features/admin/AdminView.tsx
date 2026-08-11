@@ -25,6 +25,54 @@ type AdminChannel = {
 
 type Tab = 'users' | 'channels' | 'settings'
 
+type SortDir = 'asc' | 'desc'
+
+function useSort<T>(data: T[], initialKey: keyof T, initialDir: SortDir = 'asc') {
+  const [sortKey, setSortKey] = useState<keyof T>(initialKey)
+  const [sortDir, setSortDir] = useState<SortDir>(initialDir)
+
+  const handleSort = (key: keyof T) => {
+    if (key === sortKey) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    const av = a[sortKey]
+    const bv = b[sortKey]
+    let cmp = 0
+    if (av === null || av === undefined) cmp = 1
+    else if (bv === null || bv === undefined) cmp = -1
+    else if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv
+    else cmp = String(av).localeCompare(String(bv), undefined, { numeric: true })
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  return { sorted, sortKey, sortDir, handleSort }
+}
+
+function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
+  label: string
+  sortKey: keyof T
+  activeKey: keyof T
+  sortDir: SortDir
+  onSort: (key: keyof T) => void
+}) {
+  const isActive = activeKey === sortKey
+  return (
+    <th
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700"
+      onClick={() => onSort(sortKey)}
+      aria-sort={isActive ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+    >
+      {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+    </th>
+  )
+}
+
 export function AdminView() {
   const { profile } = useAuth()
   const navigate = useNavigate()
@@ -37,6 +85,9 @@ export function AdminView() {
   const [channelLimit, setChannelLimit] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const { value: maxChannels, loading: settingsLoading } = useAppSetting<number>('max_channels_per_user', 10)
+
+  const userSort = useSort(users, 'display_name')
+  const channelSort = useSort(channels, 'name')
 
   useEffect(() => {
     if (!profile?.server_admin) {
@@ -141,66 +192,70 @@ export function AdminView() {
         <>
           {tab === 'users' && (
             <div className="bg-white shadow overflow-hidden rounded-md">
-              {users.length === 0 ? (
+              {userSort.sorted.length === 0 ? (
                 <div className="p-6 text-center text-gray-500 text-sm">No users found.</div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Channels</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map(user => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.display_name || user.email || 'Unknown'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.channel_count}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(user.created_at).toLocaleString()}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <SortHeader label="Name" sortKey="display_name" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                        <SortHeader label="Channels" sortKey="channel_count" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                        <SortHeader label="Joined" sortKey="created_at" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {userSort.sorted.map(user => (
+                        <tr key={user.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {user.display_name || user.email || 'Unknown'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.channel_count}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(user.created_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
 
           {tab === 'channels' && (
             <div className="bg-white shadow overflow-hidden rounded-md">
-              {channels.length === 0 ? (
+              {channelSort.sorted.length === 0 ? (
                 <div className="p-6 text-center text-gray-500 text-sm">No channels found.</div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">System</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {channels.map(channel => (
-                      <tr key={channel.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{channel.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.game_system || 'none'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.member_count}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(channel.created_at).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {channel.last_message_at ? new Date(channel.last_message_at).toLocaleString() : '—'}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <SortHeader label="Name" sortKey="name" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <SortHeader label="System" sortKey="game_system" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <SortHeader label="Members" sortKey="member_count" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <SortHeader label="Created" sortKey="created_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <SortHeader label="Last Active" sortKey="last_message_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {channelSort.sorted.map(channel => (
+                        <tr key={channel.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{channel.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.game_system || 'none'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.member_count}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(channel.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {channel.last_message_at ? new Date(channel.last_message_at).toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}

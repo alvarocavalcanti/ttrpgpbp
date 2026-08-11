@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AdminView } from './AdminView'
@@ -171,5 +171,80 @@ describe('AdminView', () => {
     await screen.findByText('Alice')
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     expect(await screen.findByLabelText('Maximum Channels per user')).toHaveValue(12)
+  })
+
+  it('wraps the users table in a horizontally scrollable container', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    const table = await screen.findByRole('table')
+    expect(table.parentElement).toHaveClass('overflow-x-auto')
+  })
+
+  it('wraps the channels table in a horizontally scrollable container', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+
+    const table = await screen.findByRole('table')
+    expect(table.parentElement).toHaveClass('overflow-x-auto')
+  })
+
+  it('sorts users by channel count ascending and toggles to descending', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    const channelsHeader = screen.getAllByRole('columnheader', { name: 'Channels' })[0]
+
+    fireEvent.click(channelsHeader)
+    expect(channelsHeader).toHaveAttribute('aria-sort', 'ascending')
+    let rows = screen.getAllByRole('row').slice(1)
+    expect(within(rows[0]).getByText('bob@example.com')).toBeInTheDocument()
+
+    fireEvent.click(channelsHeader)
+    expect(channelsHeader).toHaveAttribute('aria-sort', 'descending')
+    rows = screen.getAllByRole('row').slice(1)
+    expect(within(rows[0]).getByText('Alice')).toBeInTheDocument()
+  })
+
+  it('sorts channels by member count ascending', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+
+    fireEvent.click(await screen.findByRole('columnheader', { name: 'Members' }))
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(within(rows[0]).getByText('Empty')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('Curse of Strahd')).toBeInTheDocument()
+  })
+
+  it('shows a sort indicator on the active column', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    const nameHeader = screen.getAllByRole('columnheader', { name: /Name/ })[0]
+    expect(nameHeader.textContent).toContain('▲')
+    expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 })
