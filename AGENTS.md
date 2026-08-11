@@ -18,7 +18,47 @@ Boundaries: code/commits/PRs written normal.
 
 # Project Rules
 
-- **Branching & PRs**: Never start working on `main`. ALL changes MUST go through a new branch based off an up-to-date `main`, then a pull request. Never push directly to `main` (protected against rewrites). Fetch + rebase/merge latest `main` before branching.
+- **Branching & PRs — git worktrees**: ALL work happens in a dedicated `git worktree`. Never start working on `main`, never work in the main repo directory — every session gets its own worktree to prevent branch collisions and uncommitted-change bleed. Never push directly to `main` (protected against rewrites).
+
+  **Worktree lifecycle:**
+
+  1. **Infer names from the request:**
+     - Branch: `<prefix>/<slug>` — `fix/114-ios-push`, `feat/dark-mode`
+     - Worktree path: `../ttrpgpbp-<prefix>-<slug>` — `../ttrpgpbp-fix-114`
+     - Prefix: `fix` (bug), `feat` (feature), `chore` (refactor/deps/docs)
+
+  2. **Create worktree + branch** (from up-to-date main):
+     ```bash
+     git fetch origin
+     git worktree add -b <branch> <worktree-path> origin/main
+     ```
+
+  3. **Set `workdir` to the worktree path** for all subsequent commands.
+
+  4. **Work, commit, push, open PR.** Report the PR link.
+
+  5. **Two paths from here — user decides:**
+
+     **Standard (default):**
+     - Wait. User merges the PR manually, then notifies the agent (e.g. "PR #117 merged").
+     - Agent syncs main, then cleans up:
+       ```bash
+       git fetch origin
+       git checkout main && git pull origin main --ff-only
+       git worktree remove <worktree-path> --force
+       git branch -D <branch>
+       ```
+
+     **Auto-merge (user must explicitly request):**
+     - Agent queues auto-merge + deletes branch on merge:
+       ```bash
+       gh pr merge --auto --squash --delete-branch
+       ```
+     - Clean up worktree immediately (branch deleted server-side on merge):
+       ```bash
+       git worktree remove <worktree-path> --force
+       ```
+     - No polling, no waiting. Agent exits. GitHub merges when CI passes.
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
