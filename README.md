@@ -44,3 +44,7 @@ For a comprehensive feature breakdown, see [FEATURES.md](docs/FEATURES.md).
    - Run tests: `npm run test`
    - Test coverage: `npm run test:coverage`
    - Lint code: `npm run lint`
+
+## License
+
+[MIT](LICENSE). You are free to self-host, modify, and build paid services from this project. If you do, keep the copyright notice and attribution to the original project.
