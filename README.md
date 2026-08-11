@@ -20,6 +20,8 @@ A modern, mobile-friendly Play-by-Post application built for asynchronous tablet
 
 For a comprehensive feature breakdown, see [FEATURES.md](docs/FEATURES.md).
 
+Want to run your own instance? See [DEPLOYMENT.md](DEPLOYMENT.md). Interested in contributing? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Development Setup
 
 1. **Install Dependencies**
