@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
+import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
 
@@ -27,11 +28,21 @@ vi.mock('../search/SearchModal', () => ({
   )
 }))
 
+vi.mock('./useSafetyCardEvents', () => ({
+  useSafetyCardEvents: vi.fn()
+}))
+
 const useMessagesMock = () => (useMessages as unknown as () => any)()
 
 describe('ChannelView search functionality', () => {
   beforeEach(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn()
+    } as any)
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },
       members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
@@ -485,5 +496,43 @@ describe('ChannelView search functionality', () => {
     await waitFor(() => {
       expect(useMessagesMock().removeReaction).toHaveBeenCalledWith('msg1', '👍')
     })
+  })
+
+  it('shows the X-Card alert banner for the GM and dismisses it', () => {
+    const mockDismiss = vi.fn()
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: true,
+      alertCount: 2,
+      dismissAlert: mockDismiss,
+      triggerXCard: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/X-Card triggered \(2\)\. Handle the scene outside the chat/)
+    fireEvent.click(screen.getByLabelText('Dismiss X-Card alert'))
+    expect(mockDismiss).toHaveBeenCalled()
+  })
+
+  it('does not show the X-Card alert banner when inactive', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
