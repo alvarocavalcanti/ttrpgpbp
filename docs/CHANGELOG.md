@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **MIT License** — the project is now licensed under the MIT License (`LICENSE`), documented in `package.json` and the README. You are free to self-host, modify, and build paid services from it as long as attribution to the original project is kept.
 - **AFK / Away status** — any player can mark themselves away from the member-list menu, optionally with an away message ("Away until Monday"). Away members show an AFK badge, a faded/grayscale avatar, and their away message in the member list, and their name appears struck-through with an (AFK) tag in the active-player status bar. While away, "It's your turn" push notifications are suppressed (enforced in the push-notifications edge function).
 - **Safety Tools: Lines & Veils** — a collapsible "Safety Tools (Lines & Veils)" section in GM Channel Settings holds persistent hard-limits (Lines) and off-screen-topics (Veils) text. All members can view them via the new **Safety Tools** sidebar item.
 - **Safety Tools URL** — an optional link (e.g. a shared Google Doc) configured by the GM in settings and surfaced to every member as a **Safety Tools Doc** menu item in the sidebar, matching the Map/Resources URL pattern.
