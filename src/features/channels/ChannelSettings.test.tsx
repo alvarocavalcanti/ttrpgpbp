@@ -96,7 +96,8 @@ describe('ChannelSettings', () => {
         game_system: 'none',
         map_url: 'http://map',
         resources_url: 'http://resources',
-        gm_only_resources_url: 'http://gmresources'
+        gm_only_resources_url: 'http://gmresources',
+        safety_tools_url: null
       })
       expect(mockEq).toHaveBeenCalledWith('id', 'c1')
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
@@ -136,8 +137,60 @@ describe('ChannelSettings', () => {
     })
   })
 
-  it('saves changes with password update when secret row does not exist', async () => {
+  it('saves safety tools lines, veils, and URL', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    const mockSafetyUpsert = vi.fn().mockResolvedValue({ error: null })
+    const mockSafetySelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })
+    })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { update: mockUpdate } as any
+      if (table === 'channel_safety_tools') return { select: mockSafetySelect, upsert: mockSafetyUpsert } as any
+      return {} as any
+    })
+    const mockOnUpdate = vi.fn()
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByText('Safety Tools (Lines & Veils)'))
+    fireEvent.change(screen.getByLabelText('Lines'), { target: { value: 'no gore' } })
+    fireEvent.change(screen.getByLabelText('Veils'), { target: { value: 'romance' } })
+    fireEvent.change(screen.getByLabelText('Safety Tools URL'), { target: { value: 'https://docs.google.com/doc' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        safety_tools_url: 'https://docs.google.com/doc'
+      }))
+      expect(mockSafetyUpsert).toHaveBeenCalledWith(expect.objectContaining({
+        channel_id: 'c1',
+        lines: 'no gore',
+        veils: 'romance'
+      }))
+    })
+  })
+
+  it('does not save safety tools unless the section was opened', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    const mockSafetyUpsert = vi.fn()
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { update: mockUpdate } as any
+      if (table === 'channel_safety_tools') return { upsert: mockSafetyUpsert } as any
+      return {} as any
+    })
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalled()
+      expect(mockSafetyUpsert).not.toHaveBeenCalled()
+    })
+  })
+
+  it('saves changes with password update when secret row does not exist', async () => {    const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     
     const mockSecretSelect = vi.fn().mockResolvedValue({ data: [], error: null })

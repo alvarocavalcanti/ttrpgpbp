@@ -23,6 +23,7 @@ interface MessageItemProps {
   onToggleReaction?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
+  onXCard?: (messageId: string) => void
 }
 
 function snippet(text: string): string {
@@ -33,7 +34,7 @@ function snippet(text: string): string {
     .trim()
 }
 
-export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage }: MessageItemProps) {
+export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -299,6 +300,19 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             )}
+            {onXCard && (
+              <button
+                onClick={() => onXCard(message.id)}
+                className="text-gray-400 hover:text-red-600 p-1 ml-1"
+                aria-label="X-Card"
+                title="X-Card: privately flag this scene to the GM"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -434,6 +448,19 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
           {(canEdit || isGM) && (
             <button onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+          )}
+          {onXCard && (
+            <button
+              onClick={() => onXCard(message.id)}
+              className="text-gray-400 hover:text-red-600 p-1 ml-1"
+              aria-label="X-Card"
+              title="X-Card: privately flag this scene to the GM"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
+              </svg>
             </button>
           )}
         </div>

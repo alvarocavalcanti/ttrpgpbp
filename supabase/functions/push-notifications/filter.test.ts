@@ -215,6 +215,39 @@ describe('resolvePushTargets', () => {
       expect(result.targetUserIds).toEqual([])
     })
 
+    it('suppresses turn notification when the player is away (AFK)', () => {
+      const members = [
+        { user_id: 'u1', notify_turn: true, is_away: true },
+        { user_id: 'u2', notify_turn: true, is_away: false }
+      ]
+      const away = resolvePushTargets({
+        kind: 'turn',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        user_id: 'u1'
+      }, members)
+
+      expect(away.targetUserIds).toEqual([])
+
+      const present = resolvePushTargets({
+        kind: 'turn',
+        channel_id: 'c1',
+        user_id: 'u2'
+      }, members)
+
+      expect(present.targetUserIds).toEqual(['u2'])
+    })
+
+    it('still notifies away player with no is_away flag set (default present)', () => {
+      const result = resolvePushTargets({
+        kind: 'turn',
+        channel_id: 'c1',
+        user_id: 'u2'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u2'])
+    })
+
     it('defaults to enabled when member not found', () => {
       const result = resolvePushTargets({
         kind: 'turn',

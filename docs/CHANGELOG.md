@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **AFK / Away status** — any player can mark themselves away from the member-list menu, optionally with an away message ("Away until Monday"). Away members show an AFK badge, a faded/grayscale avatar, and their away message in the member list, and their name appears struck-through with an (AFK) tag in the active-player status bar. While away, "It's your turn" push notifications are suppressed (enforced in the push-notifications edge function).
+- **Safety Tools: Lines & Veils** — a collapsible "Safety Tools (Lines & Veils)" section in GM Channel Settings holds persistent hard-limits (Lines) and off-screen-topics (Veils) text. All members can view them via the new **Safety Tools** sidebar item.
+- **Safety Tools URL** — an optional link (e.g. a shared Google Doc) configured by the GM in settings and surfaced to every member as a **Safety Tools Doc** menu item in the sidebar, matching the Map/Resources URL pattern.
+- **Digital X-Card** — a card-with-X button on each message and in the composer lets any player anonymously flag a scene to the GM. No identity is stored (`safety_card_events` rows carry no `user_id`); the GM gets an instant in-app alert banner via realtime, and the presser gets a private confirmation toast.
+
+### Fixed
+
 - **Server admin view** — a "Server Admin" menu item (visible only to `server_admin`) opens an admin area at `/admin` with three tabs: Users (name, channel count, join date), Channels (name, system, member count, created and last-active dates), and Settings. Settings lets the admin edit the **Maximum Channels per user** value (minimum 10, persisted in a new `app_settings` table). Users already over a lowered limit keep their existing channels — nobody is kicked.
 - **Admin-configurable channel cap** — the per-user channel limit now reads from `app_settings.max_channels_per_user` (seeded at 10) instead of a hardcoded constant. The lobby, create-channel modal, and `join_channel` RPC all use the live value, falling back to 10 if unset.
 - **GM/Player role badges in the lobby** — each channel in the lobby list now shows a "GM" badge when the user runs that channel and a "Player" badge otherwise.

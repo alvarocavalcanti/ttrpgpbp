@@ -8,6 +8,7 @@ export interface PushMember {
   notify_turn?: boolean
   is_active_player?: boolean
   is_blocked?: boolean
+  is_away?: boolean
 }
 
 export type PushEventKind = 'message' | 'turn'
@@ -56,8 +57,8 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
       return { targetUserIds: [], title: '', body: '', url: '' }
     }
 
-    const target = members.find(m => m.user_id === event.user_id)
-    const enabled = target ? prefEnabled(target, 'notify_turn') : true
+      const target = members.find(m => m.user_id === event.user_id)
+      const enabled = target ? prefEnabled(target, 'notify_turn') && !target.is_away : true
 
     return {
       targetUserIds: enabled ? [event.user_id] : [],
