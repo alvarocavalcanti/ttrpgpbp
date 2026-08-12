@@ -577,6 +577,19 @@ export interface Database {
         }
         Returns: undefined
       }
+      create_channel: {
+        Args: {
+          p_name: string
+          p_game_system?: string
+          p_invite_code: string
+          p_character_name: string
+          p_character_avatar_url?: string
+          p_character_sheet_url?: string
+          p_password_hash?: string | null
+          p_password_salt?: string | null
+        }
+        Returns: string
+      }
       admin_list_users: {
         Args: Record<PropertyKey, never>
         Returns: {
