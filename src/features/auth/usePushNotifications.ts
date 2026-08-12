@@ -45,7 +45,7 @@ export function usePushNotifications() {
 
   useEffect(() => {
     let mounted = true
-    if (!user) return
+    if (!user?.id) return
 
     async function fetchPrefsAndSub() {
       try {
@@ -89,7 +89,7 @@ export function usePushNotifications() {
     fetchPrefsAndSub()
 
     return () => { mounted = false }
-  }, [user])
+  }, [user?.id])
 
   const subscribeToPush = async () => {
     if (!isSupported || !user) throw new Error('Push not supported or not logged in')

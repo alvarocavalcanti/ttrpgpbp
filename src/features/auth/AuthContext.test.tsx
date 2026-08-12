@@ -173,7 +173,7 @@ describe('AuthContext', () => {
     authCallback('SIGNED_IN', { user: { id: 'user-456' } })
 
     await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith('Error fetching profile on auth change:', expect.any(Error))
+      expect(console.error).toHaveBeenCalledWith('Error fetching profile:', expect.any(Error))
       expect(screen.getByTestId('user')).toHaveTextContent('user-456')
       expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
       expect(screen.getByTestId('error')).toHaveTextContent('error')
@@ -227,6 +227,11 @@ describe('AuthContext', () => {
       data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
     } as any)
 
+    vi.mocked(supabase.auth.signInWithOAuth).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
     render(
       <AuthProvider>
         <TestComponent />
@@ -244,10 +249,65 @@ describe('AuthContext', () => {
     })
   })
 
-  it('clears the error when a later auth change succeeds', async () => {
-    let authCallback: any = null
+  it('surfaces a sign-in error instead of swallowing it', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    vi.mocked(supabase.auth.signInWithOAuth).mockRejectedValue(new Error('popup blocked'))
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sign In'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent('error')
+    })
+  })
+
+  it('surfaces a sign-in error returned by the OAuth call', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    vi.mocked(supabase.auth.signInWithOAuth).mockResolvedValue({
+      data: { session: null },
+      error: new Error('oauth provider error'),
+    } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sign In'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent('error')
+    })
+  })
+
+  it('does not refetch the profile when the user is unchanged (TOKEN_REFRESHED)', async () => {
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-456' } } },
       error: null,
     } as any)
 
@@ -256,8 +316,8 @@ describe('AuthContext', () => {
       return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
     })
 
-    const mockSingle = vi.fn().mockRejectedValueOnce(new Error('DB error')).mockResolvedValueOnce({
-      data: { id: 'user-456', display_name: 'Recovered' },
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-456', display_name: 'Test User' },
       error: null,
     })
     const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
@@ -271,16 +331,66 @@ describe('AuthContext', () => {
     )
 
     expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(screen.getByTestId('profile')).toHaveTextContent('Test User')
 
-    // First auth change: profile fetch fails, error is set.
+    // Token refresh with the same identity must not trigger another fetch.
+    authCallback('TOKEN_REFRESHED', { user: { id: 'user-456' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('user-456')
+    })
+
+    expect(supabase.from).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries the profile fetch after signing out and back in', async () => {
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+
+    const mockSingle = vi.fn()
+      .mockRejectedValueOnce(new Error('DB error'))
+      .mockResolvedValueOnce({
+        data: { id: 'user-456', display_name: 'Recovered' },
+        error: null,
+      })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+
+    // First login: profile fetch fails, error surfaces, profile stays null.
     authCallback('SIGNED_IN', { user: { id: 'user-456' } })
 
     await waitFor(() => {
       expect(screen.getByTestId('error')).toHaveTextContent('error')
+      expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
     })
 
-    // Second auth change: profile fetch succeeds, error is cleared.
-    authCallback('TOKEN_REFRESHED', { user: { id: 'user-456' } })
+    // Sign out resets the fetch guard so a later sign-in retries.
+    authCallback('SIGNED_OUT', null)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('no-user')
+      expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
+    })
+
+    // Re-login with the same user retries and recovers.
+    authCallback('SIGNED_IN', { user: { id: 'user-456' } })
 
     await waitFor(() => {
       expect(screen.getByTestId('error')).toHaveTextContent('no-error')

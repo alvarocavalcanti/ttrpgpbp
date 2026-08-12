@@ -13,7 +13,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | P0-2 | Field tampering: profile `server_admin`, member `channel_id`/`user_id`, message `channel_id`/`type`/`sender_id`/`whisper_to` (UX#1, #5) | **DONE (PR #138)**: immutability triggers |
 | P0-3 | `profiles` readable by all → email enumeration (H1) | **Deferred to P1** (user) |
 | P0-4 | Blocking hides but doesn't revoke access; no unblock (UX#2) | **DONE (PR B)**: `is_channel_member()` excludes blocked; self-unblock trigger; Unblock UI; blocked-user state |
-| P0-5 | Push edge fn: `verify_jwt=false`, `CORS *`, `err.message` leak, client payload → service-role, body content leak (H2–H4, UX#3, M5) | **DONE (PR C)**: `verify_jwt=true`, CORS allowlist, generic errors, server-derived events (message_id/member_id), sender/membership/GM checks, truncated/no-content bodies |
+| P0-5 | Push edge fn: `verify_jwt=false`, `CORS *`, `err.message` leak, client payload → service-role, body content leak (H2–H4, UX#3, M5) | **DONE (PR #140)**: `verify_jwt=true`, CORS allowlist, generic errors, server-derived events (message_id/member_id), sender/membership/GM checks, truncated/no-content bodies |
 | P0-6 | AuthContext: async in `onAuthStateChange` (deadlock), unmemoized value, double fetch (C2, arch#1, UX#16) | `AuthContext.tsx` |
 | P0-7 | Join preview leaks `invite_code` + GM-only URL to non-members (UX#4) | **DONE (PR B)**: `get_join_channel_preview` RPC; join policy dropped; `gm_only_resources_url` moved to `channel_secrets` |
 | P0-8 | Channel creation non-atomic → orphan channels (UX#6) | `create_channel` RPC, `CreateChannelModal.tsx` |
@@ -36,8 +36,8 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 
 1. **PR A** — password hashing + RLS invariants (P0-1, P0-2) ✅ **MERGED (#138)**
 2. **PR B** — access control (P0-4, P0-7) ✅ **MERGED (#139)** (P0-3 stays in P1 per user decision)
-3. **PR C** — push edge hardening (P0-5) ← IN PROGRESS
-4. **PR D** — AuthContext (P0-6)
+3. **PR C** — push edge hardening (P0-5) ✅ **MERGED (#140)**
+4. **PR D** — AuthContext (P0-6) ← IN PROGRESS
 5. **PR E** — channel creation atomicity (P0-8)
 6. **P1 wave** — realtime members, message memoization, unread RPC, profiles visibility, then rest
 
@@ -121,13 +121,32 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 
 - `filter.test.ts` truncation + whisper-body cases; `useMessages.test.tsx` updated for id-based invoke; `DEPLOYMENT.md` documents `ALLOWED_ORIGINS` + JWT requirement.
 
+## PR D — detailed spec
+
+### D1. `AuthContext.tsx` (P0-6, arch#1, M14, UX#16)
+
+- Profile fetch deferred out of `onAuthStateChange` via `setTimeout(0)` — supabase-js holds an internal auth lock while the callback runs; awaiting a query deadlocks.
+- Refetch guard via `lastFetchedUserId` ref: profile fetched only when the user id actually changes (stops `TOKEN_REFRESHED` storms); reset on sign-out so re-login retries.
+- `value` wrapped in `useMemo`; `signInWithGoogle`/`signOut` wrapped in `useCallback`.
+- `signInWithGoogle` wrapped in try/catch (M14) — popup-blocked/network errors surface via `error` state.
+- Profile fetch failure preserves any previously-loaded profile (UX#16) instead of nulling it.
+
+### D2. Downstream deps `user` → `user?.id`
+
+`useChannel.ts`, `useChannels.ts`, `usePushNotifications.ts`, `useChannelNotificationPrefs.ts` — token refresh no longer tears down realtime subscriptions / refires full fetches.
+
+### D3. Tests
+
+- `AuthContext.test.tsx`: TOKEN_REFRESHED no second fetch, re-login retry recovery, sign-in error surface (rejection + returned error), OAuth mock resolves shape.
+- Existing hook tests updated where they asserted refetch-on-user-identity.
+
 ## Progress tracker
 
 | PR | Status | Worktree/branch | PR link | CI |
 |----|--------|-----------------|---------|----|
 | A | merged | `fix/secure-passwords-rls-invariants` | #138 | ✅ |
 | B | merged | `fix/blocking-access-control` | #139 | ✅ |
-| C | in progress | `fix/push-notifications-hardening` | | |
-| D | pending | | | |
+| C | merged | `fix/push-notifications-hardening` | #140 | ✅ |
+| D | in progress | `fix/auth-context-refactor` | | |
 | E | pending | | | |
 | P1 wave | pending | | | |

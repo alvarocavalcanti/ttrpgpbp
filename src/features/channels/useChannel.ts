@@ -21,7 +21,7 @@ export function useChannel(channelId: string | undefined) {
 
   useEffect(() => {
     let mounted = true
-    if (!channelId || !user) {
+    if (!channelId || !user?.id) {
       setLoading(false)
       return
     }
@@ -100,7 +100,7 @@ export function useChannel(channelId: string | undefined) {
       mounted = false
       channelSubscription.unsubscribe()
     }
-  }, [channelId, user, refetchTrigger])
+  }, [channelId, user?.id, refetchTrigger])
 
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
