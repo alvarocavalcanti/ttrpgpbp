@@ -37,6 +37,7 @@ export function PermissionBanner() {
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
+          type="button"
           onClick={handleEnable}
           disabled={isSubmitting}
           className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
@@ -44,6 +45,7 @@ export function PermissionBanner() {
           {isSubmitting ? 'Enabling...' : 'Enable Notifications'}
         </button>
         <button
+          type="button"
           onClick={() => setDismissed(true)}
           className="px-3 py-1.5 text-gray-500 text-sm font-medium rounded-md hover:bg-indigo-100"
           aria-label="Dismiss notification banner"

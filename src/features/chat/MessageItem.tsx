@@ -107,6 +107,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
         const notation = href.slice(5)
         return (
           <button
+            type="button"
             onClick={(e) => {
               e.preventDefault()
               onRollDice?.(notation, message.id)
@@ -123,6 +124,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
         const ability = href.slice(6)
         return (
           <button
+            type="button"
             onClick={(e) => {
               e.preventDefault()
               let finalModifier: number | null = null
@@ -263,6 +265,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
               />
               <div className="mt-2 flex space-x-2">
                 <button
+                  type="button"
                   onClick={handleSaveEdit}
                   disabled={isSubmitting || !editContent.trim()}
                   className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
@@ -270,6 +273,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
                   Save
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSubmitting}
                   className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
@@ -286,22 +290,23 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
         {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             {onReply && (
-              <button onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
+              <button type="button" onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
               </button>
             )}
             {canEdit && (
-              <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
+              <button type="button" onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
             )}
             {(canEdit || isGM) && (
-              <button onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
+              <button type="button" onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             )}
             {onXCard && (
               <button
+                type="button"
                 onClick={() => onXCard(message.id)}
                 className="text-gray-400 hover:text-red-600 p-1 ml-1"
                 aria-label="X-Card"
@@ -404,6 +409,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
               />
               <div className="mt-2 flex space-x-2">
                 <button
+                  type="button"
                   onClick={handleSaveEdit}
                   disabled={isSubmitting || !editContent.trim()}
                   className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
@@ -411,6 +417,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
                   Save
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSubmitting}
                   className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
@@ -436,22 +443,23 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
       {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
         <div className="flex-shrink-0 opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity">
           {onReply && (
-            <button onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
+            <button type="button" onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
             </button>
           )}
           {canEdit && (
-            <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
+            <button type="button" onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             </button>
           )}
           {(canEdit || isGM) && (
-            <button onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
+            <button type="button" onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
           )}
           {onXCard && (
             <button
+              type="button"
               onClick={() => onXCard(message.id)}
               className="text-gray-400 hover:text-red-600 p-1 ml-1"
               aria-label="X-Card"

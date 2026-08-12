@@ -1,6 +1,7 @@
 # Features
 
 ## Users & Auth
+
 - Google account sign-in
 - Per-channel **character name** (max 20 characters) and **avatar**
 - Optional **character sheet URL** per user per channel
@@ -12,6 +13,7 @@
   - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels.
 
 ## Channels & Lobby
+
 - Any user can create a channel (becomes GM)
 - **Channel limit** — non-server-admins are capped at **N active channels**, where N is the admin-configured `app_settings.max_channels_per_user` (default 10). Server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast. Existing members over a lowered limit are never kicked.
 - **Lobby** lists only the private channels the user has joined
@@ -29,6 +31,7 @@
 - GM can **Archive** a channel, removing it from the main lobby (viewable/restorable via side menu)
 
 ## Channel Status (persistent, collapsible)
+
 - **Free-form text** (markdown, emoji) — initiative order, timers, NPCs, etc.
 - **Active player(s)** — structured field, one or more players, drives notifications
 - Editable by GM at any time
@@ -36,6 +39,7 @@
 - GM can set active player(s) while composing a message (updates status + notifies)
 
 ## Messages
+
 - Text bubbles with sender identity (character name + avatar)
 - Markdown and emoji support
 - **Three message types**:
@@ -53,6 +57,7 @@
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read
 
 ## NPCs (GM-only)
+
 - **NPC mode** under the composer "+" options — select, type a name, and the message is attributed to the NPC
 - **Create on the fly** — a new name creates the NPC automatically with a random game-icons.net portrait; an existing name reuses the existing portrait
 - **Portrait picker** — search game-icons.net by name/tag and pick a specific icon (curated subset first, full search fallback)
@@ -62,10 +67,12 @@
 - Icons from game-icons.net (CC BY 3.0)
 
 ## Whispers
+
 - Messages visible only to GM + one specific player
 - Visible within the same channel timeline (but hidden from others)
 
 ## Dice
+
 - Clickable dice notation in messages (GM writes them, players click)
 - Each click generates a roll result message in the history
 - **Supported notation (v1)**:
@@ -86,6 +93,7 @@
 - Roll history available per channel
 
 ## Notifications
+
 - **Push** — on by default
 - **In-app badge** — on by default
 - **Email** — off by default
@@ -98,14 +106,17 @@
   - "It's your turn" alerts
 
 ## Search
+
 - Full-text search within a channel's message history
 
 ## Safety Tools (Lines & Veils / X-Card)
+
 - **Lines & Veils** — GM-editable persistent text fields (collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
 - **Safety Tools URL** — optional external link (e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
 - **X-Card** — a red card-with-X button in the message composer and on each message flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast.
 
 ## Help
+
 - **In-app help** — a **Help** menu item in the main app header opens a `/help` page with general topics; a **Help** item in the channel sidebar opens a channel-specific help modal
 - Help content is authored as Markdown files in [docs/help/](docs/help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic is just adding/removing a `.md` file
 - **Screenshots** live in `public/help/` and are referenced from frontmatter; the PWA precaches them

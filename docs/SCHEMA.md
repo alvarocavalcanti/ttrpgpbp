@@ -3,6 +3,7 @@
 ## Schema Overview
 
 ### `profiles`
+
 Extends Supabase `auth.users`. Created automatically on first sign-in.
 
 | Column | Type | Notes |
@@ -64,6 +65,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `updated_at` | timestamptz | |
 
 ### `dice_rolls`
+
 Linked to a `dice_roll`-type message. Stores structured data for roll history queries.
 
 | Column | Type | Notes |

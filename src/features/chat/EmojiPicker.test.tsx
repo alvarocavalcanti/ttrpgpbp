@@ -16,7 +16,7 @@ describe('EmojiPicker', () => {
     render(
       <div>
         <EmojiPicker onPick={onPick} />
-        <button>outside</button>
+        <button type="button">outside</button>
       </div>
     )
     fireEvent.click(screen.getByLabelText('Add reaction'))

@@ -82,6 +82,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           >
             <span>{toast.message}</span>
             <button
+              type="button"
               onClick={() => removeToast(toast.id)}
               className="ml-4 text-white hover:text-gray-200 focus:outline-none"
               aria-label="Close"

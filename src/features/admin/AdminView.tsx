@@ -165,6 +165,7 @@ export function AdminView() {
           {tabs.map(t => (
             <button
               key={t.id}
+              type="button"
               onClick={() => setTab(t.id)}
               className={`inline-flex py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.id

@@ -231,10 +231,11 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                 </div>
 
                 {(isMe || isGM) && (
-                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                  <div className="relative">
                     <button
+                      type="button"
                       data-testid={`menu-btn-${member.id}`}
-                      onClick={() => setOpenMenuId(openMenuId === member.id ? null : member.id)}
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
                       className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -247,6 +248,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                         <div className="py-1">
                           {isMe && (
                             <button
+                              type="button"
                               onClick={() => { setOpenMenuId(null); startEditing(member); }}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             >
@@ -255,6 +257,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           )}
                           {isMe && (
                             <button
+                              type="button"
                               onClick={() => { setOpenMenuId(null); handleToggleAway(member.id); }}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             >
@@ -264,12 +267,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {isGM && !isMe && member.user_id !== gmId && (
                             <>
                               <button
+                                type="button"
                                 onClick={() => { setOpenMenuId(null); handleKickMember(member.id); }}
                                 className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-gray-100"
                               >
                                 Kick Player
                               </button>
                               <button
+                                type="button"
                                 onClick={() => { setOpenMenuId(null); handleBlockMember(member.id); }}
                                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                               >
@@ -279,6 +284,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           )}
                           {isMe && member.user_id !== gmId && (
                             <button
+                              type="button"
                               onClick={() => { setOpenMenuId(null); handleLeaveChannel(member.id); }}
                               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                             >
