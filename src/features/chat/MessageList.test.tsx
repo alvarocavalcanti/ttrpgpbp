@@ -22,6 +22,20 @@ describe('MessageList', () => {
     expect(screen.getByText('No messages yet. Say hello!')).toBeInTheDocument()
   })
 
+  it('shows an error state instead of the empty state when loading failed', () => {
+    render(
+      <MessageList
+        messages={[]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        error={new Error('Failed to fetch messages')}
+      />
+    )
+    expect(screen.getByText(/Could not load messages/)).toBeInTheDocument()
+    expect(screen.queryByText('No messages yet. Say hello!')).not.toBeInTheDocument()
+  })
+
   it('renders list of messages', () => {
     const msgs: any = [
       { id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' },
