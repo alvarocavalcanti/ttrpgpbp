@@ -40,6 +40,14 @@ export interface PushTargetResult {
 
 const CHANNEL_URL = (channelId: string) => `/channel/${channelId}`
 
+// Push bodies surface on the lock screen, so keep content short and never
+// include whisper text.
+const MAX_BODY_LENGTH = 100
+
+function truncate(text: string): string {
+  return text.length > MAX_BODY_LENGTH ? `${text.slice(0, MAX_BODY_LENGTH)}…` : text
+}
+
 // Returns the member's effective boolean preference, defaulting to true.
 function prefEnabled(member: PushMember, key: 'notify_all_messages' | 'notify_gm_messages' | 'notify_turn'): boolean {
   return member[key] !== false
@@ -78,23 +86,23 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
 
   if (event.type === 'scene') {
     title = `New Scene in ${channelName}`
-    body = event.content || ''
+    body = truncate(event.content || '')
   } else if (event.type === 'dice_roll') {
     title = `${senderName} rolled dice`
-    body = event.content || ''
+    body = truncate(event.content || '')
   } else if (event.whisper_to) {
     title = `New whisper from ${displayName}`
-    body = event.content || ''
+    body = `New whisper from ${displayName} in ${channelName}`
   } else {
     title = `New message in ${channelName}`
-    body = `${displayName}: ${event.content || ''}`
+    body = `${displayName}: ${truncate(event.content || '')}`
   }
 
   let targetUserIds: string[] = []
   if (event.mention_user_ids?.length) {
     // Mentions route only to the mentioned users (excluding the sender).
     title = `${displayName} mentioned you`
-    body = event.content || ''
+    body = truncate(event.content || '')
     targetUserIds = event.mention_user_ids.filter(uid => uid !== event.sender_id)
   } else if (event.whisper_to) {
     targetUserIds = [event.whisper_to]

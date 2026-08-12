@@ -36,6 +36,14 @@ function mockFrom({
   })
 }
 
+// Message insert now returns the new row's id (`.select('id').single()`), which
+// is what gets passed to the push-notifications function.
+function mockInsertMessage(id = 'msg1') {
+  return vi.fn().mockReturnValue({
+    select: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id }, error: null }) })
+  })
+}
+
 // Captures the realtime callback for the messages channel (the first channel).
 function mockChannels() {
   const callbacks: Record<string, any> = {}
@@ -196,7 +204,7 @@ describe('useMessages', () => {
   })
 
   it('allows sending, editing, deleting', async () => {
-    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = mockInsertMessage()
     const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
     const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
@@ -232,7 +240,7 @@ describe('useMessages', () => {
   })
 
   it('sends reply_to when replying', async () => {
-    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = mockInsertMessage()
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
       tableHandler: (table) => {
@@ -253,12 +261,12 @@ describe('useMessages', () => {
 
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ reply_to: 'm1' }))
     expect(supabase.functions.invoke).toHaveBeenCalledWith('push-notifications', expect.objectContaining({
-      body: expect.objectContaining({ record: expect.objectContaining({ mention_user_ids: ['u2'] }) })
+      body: expect.objectContaining({ table: 'messages', message_id: 'msg1', mention_user_ids: ['u2'] })
     }))
   })
 
   it('upserts the NPC roster and inserts an NPC message with snapshot columns', async () => {
-    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = mockInsertMessage()
     const mockNpcUpsert = vi.fn().mockResolvedValue({ error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
@@ -292,7 +300,7 @@ describe('useMessages', () => {
       npc_avatar_url: 'https://example.com/king.png'
     }))
     expect(supabase.functions.invoke).toHaveBeenCalledWith('push-notifications', expect.objectContaining({
-      body: expect.objectContaining({ record: expect.objectContaining({ npc_name: 'Goblin King' }) })
+      body: expect.objectContaining({ table: 'messages', message_id: 'msg1' })
     }))
   })
 
@@ -390,7 +398,7 @@ describe('useMessages', () => {
 
   it('catches push-notification edge function error on sendMessage', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = mockInsertMessage()
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
       tableHandler: (table) => {
@@ -447,7 +455,7 @@ describe('useMessages', () => {
 
   it('catches push-notification edge function error on updating active_player_ids', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = mockInsertMessage()
     const mockEqReset = vi.fn().mockResolvedValue({ error: null })
     const mockInSet = vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ data: [{ id: 'm1' }], error: null }) })
     const mockEqSet = vi.fn().mockReturnValue({ in: mockInSet })
@@ -488,7 +496,7 @@ describe('useMessages', () => {
   })
 
   it('updates active_player_ids when sending a message', async () => {
-    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = mockInsertMessage()
     const mockEqReset = vi.fn().mockResolvedValue({ error: null })
     const mockInSet = vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ data: [{ id: 'm1' }], error: null }) })
     const mockEqSet = vi.fn().mockReturnValue({ in: mockInSet })

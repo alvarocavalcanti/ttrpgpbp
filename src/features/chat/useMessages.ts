@@ -217,7 +217,7 @@ export function useMessages(channelId: string | undefined) {
       if (npcError) throw npcError
     }
 
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('messages')
       .insert({
         channel_id: channelId,
@@ -229,12 +229,18 @@ export function useMessages(channelId: string | undefined) {
         npc_name: payload.npc_name || null,
         npc_avatar_url: payload.npc_avatar_url || null,
       })
+      .select('id')
+      .single()
     if (error) throw error
 
-    // Invoke push notifications function for new message
-    supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: payload.content, type: payload.type, whisper_to: payload.whisper_to, mention_user_ids: payload.mention_user_ids, npc_name: payload.npc_name } }
-    }).catch(err => console.error('Failed to trigger push for message', err))
+    // Invoke push notifications function for the new message. The function
+    // derives content/channel/sender from the message row by id.
+    const messageId = inserted?.id
+    if (messageId) {
+      supabase.functions.invoke('push-notifications', {
+        body: { table: 'messages', message_id: messageId, mention_user_ids: payload.mention_user_ids }
+      }).catch(err => console.error('Failed to trigger push for message', err))
+    }
 
     // If active_player_ids is provided, update the channel_members table
     if (payload.active_player_ids) {
@@ -260,7 +266,7 @@ export function useMessages(channelId: string | undefined) {
         if (updatedMembers) {
           updatedMembers.forEach(member => {
             supabase.functions.invoke('push-notifications', {
-              body: { table: 'channel_members', record: member }
+              body: { table: 'channel_members', member_id: member.id }
             }).catch(err => console.error('Failed to trigger push for turn', err))
           })
         }
@@ -307,9 +313,9 @@ export function useMessages(channelId: string | undefined) {
 
     if (rollError) throw rollError
 
-    // Invoke push notifications function for new message
+    // Invoke push notifications function for the new dice roll
     supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', record: { channel_id: channelId, sender_id: user.id, content: `Rolled ${notation}: **${rollResult.total}**`, type: 'dice_roll', reply_to: replyToId ?? null } }
+      body: { table: 'messages', message_id: message.id }
     }).catch(err => console.error('Failed to trigger push for message', err))
   }
 
