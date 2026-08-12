@@ -32,15 +32,18 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 
 ### `channel_secrets`
 
-GM-only (RLS) table holding channel access-password material. The hash is
-derived client-side (PBKDF2-SHA256, 210k iterations); `get_channel_salt(channel_id)`
-exposes the salt to joining users so they can re-derive the expected hash.
+GM-only (RLS) table holding channel access-password material and the GM-only
+resources URL. The hash is derived client-side (PBKDF2-SHA256, 210k
+iterations); `get_channel_salt(channel_id)` exposes the salt to joining users
+so they can re-derive the expected hash. `get_join_channel_preview(channel_id)`
+returns a safe projection (name, game_system, has_password) for the join form.
 
 | Column | Type | Notes |
 |---|---|---|
 | `channel_id` | UUID, PK, FK → channels | |
 | `password_hash` | text, nullable | Null = no password required |
 | `password_salt` | text, nullable | PBKDF2 salt (hex). Null on legacy pre-salt channels |
+| `gm_only_resources_url` | text, nullable | GM-only link, never visible to members |
 
 ### `channel_members`
 
@@ -53,7 +56,7 @@ exposes the salt to joining users so they can re-derive the expected hash.
 | `character_avatar_url` | text, nullable | |
 | `character_sheet_url` | text, nullable | |
 | `is_active_player` | boolean | Default `false`. Multiple can be active. |
-| `is_blocked` | boolean | Default `false`. Retains row but blocks re-entry. (Kick deletes the row) |
+| `is_blocked` | boolean | Default `false`. Blocked members lose channel access (`is_channel_member()` excludes them) and can be unblocked by the GM. (Kick deletes the row) |
 | `joined_at` | timestamptz | |
 
 **Constraints:** Unique constraint on (`channel_id`, `user_id`)

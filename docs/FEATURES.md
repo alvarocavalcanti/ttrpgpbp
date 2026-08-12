@@ -22,8 +22,8 @@
 - **Lobby search** allows fuzzy finding channels by name
 - Channels are **private** and joined via invite link
 - Optional **password** to join (joining is instant)
-- GM can **kick** (remove) or **block** a user (prevent return/interaction)
-- **System messages** announce member joins, leaves, kicks, and blocks in the channel
+- GM can **kick** (remove) or **block** a user (immediately revokes channel access, prevents re-entry, and can be undone via **Unblock**)
+- **System messages** announce member joins, leaves, kicks, blocks, and unblocks in the channel
 - **AFK / Away status** — any player can mark themselves away (with an optional away message like "Away until Monday"). Away members show an **AFK badge**, faded/grayscale avatar, and their away message in the member list; their name is struck through with an **(AFK)** tag in the active-player status bar. While away, **"It's your turn" push notifications are suppressed**.
 - Optional **map URL** (external link)
 - **Resources URL** (single URL — GDrive folder, PDF, etc.)

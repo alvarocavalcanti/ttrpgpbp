@@ -9,13 +9,13 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 
 | ID | Finding | Fix surface |
 |----|---------|-------------|
-| P0-1 | Unsalted SHA-256 channel passwords (C1, UX#7) | `crypto.ts`, `channel_secrets.password_salt`, `get_channel_salt` RPC, 3 callers |
-| P0-2 | Field tampering: profile `server_admin`, member `channel_id`/`user_id`, message `channel_id`/`type`/`sender_id`/`whisper_to` (UX#1, #5) | Immutability triggers (new migration) |
+| P0-1 | Unsalted SHA-256 channel passwords (C1, UX#7) | **DONE (PR #138)**: `crypto.ts`, `channel_secrets.password_salt`, `get_channel_salt` RPC, 3 callers |
+| P0-2 | Field tampering: profile `server_admin`, member `channel_id`/`user_id`, message `channel_id`/`type`/`sender_id`/`whisper_to` (UX#1, #5) | **DONE (PR #138)**: immutability triggers |
 | P0-3 | `profiles` readable by all → email enumeration (H1) | **Deferred to P1** (user) |
-| P0-4 | Blocking hides but doesn't revoke access; no unblock (UX#2) | `is_channel_member()` + MemberList |
+| P0-4 | Blocking hides but doesn't revoke access; no unblock (UX#2) | **DONE (PR B)**: `is_channel_member()` excludes blocked; self-unblock trigger; Unblock UI; blocked-user state |
 | P0-5 | Push edge fn: `verify_jwt=false`, `CORS *`, `err.message` leak, client payload → service-role, body content leak (H2–H4, UX#3, M5) | `config.toml`, `push-notifications/index.ts`, `useMessages.ts` |
 | P0-6 | AuthContext: async in `onAuthStateChange` (deadlock), unmemoized value, double fetch (C2, arch#1, UX#16) | `AuthContext.tsx` |
-| P0-7 | Join preview leaks `invite_code` + GM-only URL to non-members (UX#4) | Join-preview RPC, `JoinChannel.tsx` |
+| P0-7 | Join preview leaks `invite_code` + GM-only URL to non-members (UX#4) | **DONE (PR B)**: `get_join_channel_preview` RPC; join policy dropped; `gm_only_resources_url` moved to `channel_secrets` |
 | P0-8 | Channel creation non-atomic → orphan channels (UX#6) | `create_channel` RPC, `CreateChannelModal.tsx` |
 
 ### P1 — High-value UX & architecture
@@ -34,12 +34,33 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 
 ## PR sequence
 
-1. **PR A** — password hashing + RLS invariants (P0-1, P0-2) ← IN PROGRESS
-2. **PR B** — access control (P0-3/4/7)
+1. **PR A** — password hashing + RLS invariants (P0-1, P0-2) ✅ **MERGED (#138)**
+2. **PR B** — access control (P0-4, P0-7) ← IN PROGRESS (P0-3 stays in P1 per user decision)
 3. **PR C** — push edge hardening (P0-5)
 4. **PR D** — AuthContext (P0-6)
 5. **PR E** — channel creation atomicity (P0-8)
-6. **P1 wave** — realtime members, message memoization, unread RPC, then rest
+6. **P1 wave** — realtime members, message memoization, unread RPC, profiles visibility, then rest
+
+## PR B — detailed spec
+
+### B1. Migration `20260812130000_blocking_revokes_access_and_join_preview.sql`
+
+- `is_channel_member()` redefined to require `is_blocked = false` → blocked members lose channel/messages/reactions/dice/safety-tools access via RLS.
+- `prevent_member_self_block_toggle` trigger: players can't change their own `is_blocked` (GM-only via `is_channel_gm`).
+- Drop "Channels are viewable for joining" policy; add `get_join_channel_preview` SECURITY DEFINER RPC returning only `id/name/game_system/has_password`.
+- Move `gm_only_resources_url` from `channels` to `channel_secrets` (GM-only RLS).
+
+### B2. Client
+
+- `JoinChannel.tsx`: fetch via `get_join_channel_preview` RPC (no more `channels.select('*')`).
+- `useChannel.ts`: expose `gmOnlyResourcesUrl` from `channel_secrets`.
+- `ChannelView.tsx`: "Access Removed" state for blocked users; sidebar GM Resources via hook; pass `gmOnlyResourcesUrl` to settings.
+- `ChannelSettings.tsx`: GM-only URL read/write via `channel_secrets`.
+- `MemberList.tsx`: Unblock action with system message.
+
+### B3. Tests
+
+- JoinChannel, MemberList (unblock), ChannelView (blocked state + GM URL), useChannel (GM URL), ChannelSettings (GM URL via secrets).
 
 ## PR A — detailed spec (current)
 

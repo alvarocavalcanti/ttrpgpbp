@@ -12,6 +12,7 @@ export function useChannel(channelId: string | undefined) {
   const { user } = useAuth()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
+  const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
@@ -27,9 +28,10 @@ export function useChannel(channelId: string | undefined) {
 
     async function fetchChannelData() {
       try {
-        const [channelResponse, membersResponse] = await Promise.all([
+        const [channelResponse, membersResponse, secretsResponse] = await Promise.all([
           supabase.from('channels').select('*').eq('id', channelId as string).single(),
-          supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string)
+          supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string),
+          supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId as string).maybeSingle()
         ])
 
         if (channelResponse.error) throw channelResponse.error
@@ -37,6 +39,8 @@ export function useChannel(channelId: string | undefined) {
 
         if (mounted) {
           setChannel(channelResponse.data)
+          // channel_secrets is GM-only (RLS); non-GMs get no row.
+          setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
           // The join to profiles might return an array if not configured correctly, 
           // but our schema links user_id to profiles(id) uniquely.
           const formattedMembers = membersResponse.data.map(m => ({
@@ -101,5 +105,5 @@ export function useChannel(channelId: string | undefined) {
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
 
-  return { channel, members, loading, error, isGM, myMemberInfo, refetch }
+  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, refetch }
 }

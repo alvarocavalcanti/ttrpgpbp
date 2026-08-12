@@ -22,6 +22,17 @@ vi.mock('../../lib/crypto', () => ({
   hashPasswordWithSalt: vi.fn().mockResolvedValue('hashed_password')
 }))
 
+const preview = (overrides: Partial<{ name: string; has_password: boolean }> = {}) => ({
+  data: [{
+    id: '123',
+    name: 'Test Channel',
+    game_system: 'none',
+    has_password: false,
+    ...overrides
+  }],
+  error: null
+})
+
 describe('JoinChannel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -37,10 +48,7 @@ describe('JoinChannel', () => {
   })
 
   it('shows not found if channel does not exist', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: new Error('Not found') })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -57,14 +65,9 @@ describe('JoinChannel', () => {
   })
 
   it('renders form and joins successfully without password', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', has_password: false }, 
-      error: null 
-    })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview() as any)
+      .mockResolvedValueOnce({ error: null } as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -97,14 +100,10 @@ describe('JoinChannel', () => {
   })
 
   it('handles password channel successfully', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', has_password: true }, 
-      error: null 
-    })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview({ has_password: true }) as any)
+      .mockResolvedValueOnce({ data: null, error: null } as any)
+      .mockResolvedValueOnce({ error: null } as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -134,15 +133,9 @@ describe('JoinChannel', () => {
   })
 
   it('re-derives the hash with the channel salt when joining a salted channel', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', name: 'Test Channel', has_password: true },
-      error: null
-    })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
     vi.mocked(hashPasswordWithSalt).mockResolvedValue('derived_hash')
     vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview({ has_password: true }) as any)
       .mockResolvedValueOnce({ data: 'aabbccddeeff00112233445566778899', error: null } as any)
       .mockResolvedValueOnce({ error: null } as any)
 
@@ -176,15 +169,9 @@ describe('JoinChannel', () => {
   })
 
   it('falls back to the legacy SHA-256 hash for salt-less channels', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', name: 'Test Channel', has_password: true },
-      error: null
-    })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
     vi.mocked(hashPasswordLegacy).mockResolvedValue('legacy_hash')
     vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview({ has_password: true }) as any)
       .mockResolvedValueOnce({ data: null, error: null } as any)
       .mockResolvedValueOnce({ error: null } as any)
 
@@ -217,14 +204,9 @@ describe('JoinChannel', () => {
   })
 
   it('handles join error', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', has_password: false }, 
-      error: null 
-    })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: new Error('RPC Failed') } as any)
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview() as any)
+      .mockResolvedValueOnce({ error: new Error('RPC Failed') } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -247,13 +229,7 @@ describe('JoinChannel', () => {
   })
 
   it('cancels join flow', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: '123', name: 'Test Channel', has_password: false }, 
-      error: null 
-    })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue(preview() as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -275,12 +251,10 @@ describe('JoinChannel', () => {
     })
   })
 
-  it('shows join form with invite code even if channel fetch is blocked by RLS', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: new Error('RLS blocked') })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+  it('shows join form with invite code even if the preview cannot be loaded', async () => {
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: [], error: new Error('Preview unavailable') } as any)
+      .mockResolvedValueOnce({ error: null } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -314,16 +288,7 @@ describe('JoinChannel', () => {
   })
 
   it('toggles password visibility', async () => {
-    const mockChannel = {
-      id: '123',
-      name: 'Test Channel',
-      has_password: true
-    }
-    
-    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue(preview({ has_password: true }) as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>

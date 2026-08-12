@@ -20,6 +20,13 @@ vi.mock('../../lib/supabase', () => ({
 }))
 
 describe('useChannel', () => {
+  const mockSecret = (data: { gm_only_resources_url: string | null } | null = null) => {
+    const mockMaybeSingle = vi.fn().mockResolvedValue({ data, error: null })
+    const mockEqSecrets = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
+    const mockSelectSecrets = vi.fn().mockReturnValue({ eq: mockEqSecrets })
+    return { select: mockSelectSecrets }
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -49,6 +56,7 @@ describe('useChannel', () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
       if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
 
@@ -62,6 +70,38 @@ describe('useChannel', () => {
     expect(result.current.members[0].profile?.display_name).toBe('Hero')
     expect(result.current.isGM).toBe(true)
     expect(result.current.myMemberInfo).toBeDefined()
+    expect(result.current.gmOnlyResourcesUrl).toBeNull()
+  })
+
+  it('exposes gm_only_resources_url from channel_secrets for the GM', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockSecretData = { gm_only_resources_url: 'https://gm.secret' }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret(mockSecretData) as any
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.gmOnlyResourcesUrl).toBe('https://gm.secret')
   })
 
   it('handles error gracefully when members fetch fails', async () => {
@@ -78,6 +118,7 @@ describe('useChannel', () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
       if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
 
@@ -136,6 +177,7 @@ describe('useChannel', () => {
           update: mockUpdate
         } as any
       }
+      if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
 
@@ -166,6 +208,7 @@ describe('useChannel', () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
       if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
 
