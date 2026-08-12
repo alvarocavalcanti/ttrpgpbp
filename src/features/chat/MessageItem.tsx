@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { linkifyDice } from '../dice/parser'
@@ -34,7 +34,30 @@ function snippet(text: string): string {
     .trim()
 }
 
-export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard }: MessageItemProps) {
+function formatTimestamp(createdAt: string): string {
+  const d = new Date(createdAt)
+  const diffHours = (Date.now() - d.getTime()) / (1000 * 60 * 60)
+  return diffHours > 20
+    ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+// Pure link sanitizer; hoisted so ReactMarkdown gets a stable reference.
+function urlTransform(url: string): string {
+  if (url.startsWith('dice:') || url.startsWith('check:') || url.startsWith('user:')) return url
+  // Basic sanitization for other URLs, matching react-markdown defaults roughly
+  const protocols = ['http', 'https', 'mailto', 'tel']
+  try {
+    const parsed = new URL(url)
+    if (protocols.includes(parsed.protocol.replace(':', ''))) return url
+  } catch {
+    // Relative URLs are fine
+    if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?')) return url
+  }
+  return ''
+}
+
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -101,7 +124,10 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
     onToggleReaction?.(message.id, emoji)
   }
 
-  const renderers = {
+  // Recreate renderers only when the values the closures capture change, so
+  // local re-renders (e.g. editing) don't hand ReactMarkdown a new `components`
+  // reference and force a markdown re-parse.
+  const renderers = useMemo(() => ({
     a: ({ _node, href, children, ...props }: any) => {
       if (href?.startsWith('dice:')) {
         const notation = href.slice(5)
@@ -188,21 +214,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
         />
       )
     }
-  }
-
-  const urlTransform = (url: string) => {
-    if (url.startsWith('dice:') || url.startsWith('check:') || url.startsWith('user:')) return url
-    // Basic sanitization for other URLs, matching react-markdown defaults roughly
-    const protocols = ['http', 'https', 'mailto', 'tel']
-    try {
-      const parsed = new URL(url)
-      if (protocols.includes(parsed.protocol.replace(':', ''))) return url
-    } catch {
-      // Relative URLs are fine
-      if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?')) return url
-    }
-    return ''
-  }
+  }), [onRollDice, gameSystem, members, currentUserId, message.id])
 
   const replyBlock = message.reply?.id ? (
     <button
@@ -376,13 +388,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
             {senderName}
           </span>
           <span className="text-xs text-gray-500">
-            {(() => {
-              const d = new Date(message.created_at);
-              const diffHours = (Date.now() - d.getTime()) / (1000 * 60 * 60);
-              return diffHours > 20
-                ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            })()}
+            {formatTimestamp(message.created_at)}
           </span>
           {isWhisper && (
             <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">
@@ -475,4 +481,4 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
       )}
     </div>
   )
-}
+})

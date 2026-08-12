@@ -1,4 +1,4 @@
-import { useEffect, useRef, Fragment } from 'react'
+import { useEffect, useRef, Fragment, useMemo } from 'react'
 import { MessageItem } from './MessageItem'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage } from './types'
@@ -27,6 +27,21 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
+  // Date labels are expensive (ICU locale lookup); compute once per message id
+  // and look up in the render loop instead of re-formatting every pass.
+  const dateLabels = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const m of messages) {
+      map.set(m.id, new Date(m.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
+    }
+    return map
+  }, [messages])
+
+  const lastReadTimestamp = useMemo(
+    () => (lastReadAt ? new Date(lastReadAt).getTime() : null),
+    [lastReadAt]
+  )
+
   // Auto-scroll to bottom when new messages arrive, unless we are highlighting a message
   useEffect(() => {
     if (!highlightMessageId) {
@@ -45,14 +60,13 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
       {messages.map((message, index) => {
-        const currentDate = new Date(message.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        const currentDate = dateLabels.get(message.id)!
         const prevMessage = index > 0 ? messages[index - 1] : null
-        const prevDate = prevMessage ? new Date(prevMessage.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : null
+        const prevDate = prevMessage ? dateLabels.get(prevMessage.id)! : null
         const showDivider = currentDate !== prevDate
 
-        const readAt = lastReadAt ? new Date(lastReadAt).getTime() : null
-        const isNew = readAt !== null && new Date(message.created_at).getTime() > readAt
-        const prevIsNew = prevMessage && readAt !== null ? new Date(prevMessage.created_at).getTime() > readAt : false
+        const isNew = lastReadTimestamp !== null && new Date(message.created_at).getTime() > lastReadTimestamp
+        const prevIsNew = prevMessage && lastReadTimestamp !== null ? new Date(prevMessage.created_at).getTime() > lastReadTimestamp : false
         const showNewDivider = isNew && !prevIsNew && message.sender_id !== user?.id
 
         return (
