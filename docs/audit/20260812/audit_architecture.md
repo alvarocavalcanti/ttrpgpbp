@@ -17,6 +17,7 @@ Findings ordered by return-on-effort. Evidence cited as `file:line` throughout.
 **Evidence:** `src/features/auth/AuthContext.tsx:63-89` (async profile fetch inside callback), `:111-121` (inline `value={{...}}`, zero `useMemo`/`useCallback` in file), `:40-50` + `:69-82` (profile fetched twice on load), `_event` ignored at `:64`.
 
 **Problems:**
+
 - Supabase-js holds its internal auth lock while the callback runs; the awaited `profiles` query goes back through `getSession()` internally → **documented deadlock/hang risk**.
 - Profile refetches on **every** auth event including `TOKEN_REFRESHED` (hourly + on tab refocus). Each refetch calls `setUser`/`setProfile` with new object identities.
 - Downstream, `user` (object identity) sits in effect deps at `useChannel.ts:99`, `useChannels.ts:96`, `usePushNotifications.ts:92`, `useChannelNotificationPrefs.ts:60` → every token refresh tears down realtime subscriptions and refires full fetches, including the N+1 unread-count queries in `useChannels.ts:62-72`.
@@ -39,6 +40,7 @@ Findings ordered by return-on-effort. Evidence cited as `file:line` throughout.
 **Evidence:** `useMessages.ts:95-99` fetches **all** messages, no `.limit()`/pagination. Any new message or reaction produces new `messages`/`reactionsByMessage` identities → `MessageList.tsx:47-96` re-maps everything → every `MessageItem` re-renders → full `ReactMarkdown` re-parse per item. Per render, each item also recreates its `renderers` object (`MessageItem.tsx:104-191`) and `urlTransform` (`:193-205`). Reaction events additionally `structuredClone` the entire reactions map per click (`useMessages.ts:49, 66`).
 
 **Fix (staged, each step independent):**
+
 1. Hoist `renderers`/`urlTransform` to module scope; wrap `MessageItem` in `React.memo`; pass stable callbacks from `ChannelView` (`handleToggleReaction` etc. currently recreated per render, `ChannelView.tsx:54-74`).
 2. Replace `structuredClone` with a shallow copy of the single affected message's entry.
 3. Add pagination (latest N + "load older") once channels age — defer if channels are young (mark with `ponytail:` comment).
