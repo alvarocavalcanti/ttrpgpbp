@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
@@ -245,6 +245,104 @@ describe('useChannel', () => {
     await waitFor(() => {
         expect(result.current.channel?.status_text).toBe('New')
         expect(result.current.members[0].is_active_player).toBe(true)
+    })
+  })
+
+  it('refetches members on realtime INSERT', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const initialMembers = [{ id: 'm1', user_id: 'u1', profile: { display_name: 'Hero' } }]
+    const afterJoin = [...initialMembers, { id: 'm2', user_id: 'u2', profile: { display_name: 'Newbie' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn()
+      .mockResolvedValueOnce({ data: initialMembers, error: null })
+      .mockResolvedValueOnce({ data: afterJoin, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
+    let membersCallback: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'channel_members') membersCallback = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(result.current.members).toHaveLength(1)
+
+    // A new player joins; the profile join is picked up by the refetch.
+    await act(async () => {
+      membersCallback({ eventType: 'INSERT', new: { id: 'm2', user_id: 'u2' }, old: null })
+    })
+
+    await waitFor(() => {
+      expect(result.current.members).toHaveLength(2)
+    })
+    expect(result.current.members[1].profile?.display_name).toBe('Newbie')
+  })
+
+  it('removes a member on realtime DELETE', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [
+      { id: 'm1', user_id: 'u1', profile: { display_name: 'Hero' } },
+      { id: 'm2', user_id: 'u2', profile: { display_name: 'Newbie' } }
+    ]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
+    let membersCallback: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'channel_members') membersCallback = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(result.current.members).toHaveLength(2)
+
+    // A player is kicked; their member row disappears for every client.
+    await act(async () => {
+      membersCallback({ eventType: 'DELETE', new: null, old: { id: 'm2' } })
+    })
+
+    await waitFor(() => {
+      expect(result.current.members).toHaveLength(1)
+      expect(result.current.members[0].user_id).toBe('u1')
     })
   })
 })
