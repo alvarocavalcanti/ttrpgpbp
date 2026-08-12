@@ -121,14 +121,17 @@ export interface Database {
         Row: {
           channel_id: string
           password_hash: string | null
+          password_salt: string | null
         }
         Insert: {
           channel_id: string
           password_hash?: string | null
+          password_salt?: string | null
         }
         Update: {
           channel_id?: string
           password_hash?: string | null
+          password_salt?: string | null
         }
         Relationships: [
           {
@@ -546,6 +549,12 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
+      get_channel_salt: {
+        Args: {
+          p_channel_id: string
+        }
+        Returns: string
+      }
       join_channel: {
         Args: {
           p_channel_id: string

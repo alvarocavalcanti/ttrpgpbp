@@ -104,12 +104,12 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
 
 
       if (changePassword) {
-        const passwordHash = newPassword ? await hashPassword(newPassword) : null
+        const hashedPassword = newPassword ? await hashPassword(newPassword) : null
         
         // Try to update first
         const { data: updateData, error: secretUpdateError } = await supabase
           .from('channel_secrets')
-          .update({ password_hash: passwordHash })
+          .update({ password_hash: hashedPassword?.hash ?? null, password_salt: hashedPassword?.salt ?? null })
           .eq('channel_id', channel.id)
           .select()
 
@@ -117,7 +117,7 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
         if (!updateData || updateData.length === 0) {
           const { error: insertError } = await supabase
             .from('channel_secrets')
-            .insert({ channel_id: channel.id, password_hash: passwordHash })
+            .insert({ channel_id: channel.id, password_hash: hashedPassword?.hash ?? null, password_salt: hashedPassword?.salt ?? null })
             
           if (insertError) throw insertError
         } else if (secretUpdateError) {

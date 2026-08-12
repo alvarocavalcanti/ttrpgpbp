@@ -17,7 +17,7 @@ vi.mock('../auth/useAuth', () => ({
 }))
 
 vi.mock('../../lib/crypto', () => ({
-  hashPassword: vi.fn().mockResolvedValue('hashed_password')
+  hashPassword: vi.fn().mockResolvedValue({ hash: 'hashed_password', salt: 'salt_value' })
 }))
 
 vi.mock('../../hooks/useAppSetting', () => ({
@@ -75,6 +75,12 @@ describe('CreateChannelModal', () => {
       expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
         name: 'New Game',
         gm_id: 'u1',
+      }))
+
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        channel_id: 'c1',
+        password_hash: 'hashed_password',
+        password_salt: 'salt_value'
       }))
       
       expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {

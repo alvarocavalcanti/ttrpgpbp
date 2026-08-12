@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
-import { hashPassword } from '../../lib/crypto'
+import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
 import type { Database } from '../../types/database'
 import { getSystemAttributes, clampModifier } from '../../game-systems'
 
@@ -50,6 +50,14 @@ export function JoinChannel() {
     fetchChannel()
   }, [id])
 
+  const derivePasswordHash = async (password: string, channelId: string): Promise<string> => {
+    const { data: salt, error: saltError } = await supabase.rpc('get_channel_salt', { p_channel_id: channelId })
+    if (saltError) throw saltError
+    if (typeof salt === 'string' && salt) return hashPasswordWithSalt(password, salt)
+    // Legacy pre-salt channel (stored SHA-256 hash): keep verifying via SHA-256.
+    return hashPasswordLegacy(password)
+  }
+
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!id || !user) return
@@ -58,7 +66,7 @@ export function JoinChannel() {
     setError(null)
     
     try {
-      const passwordHash = password ? await hashPassword(password) : undefined
+      const passwordHash = password ? await derivePasswordHash(password, id) : undefined
       
       const { error: rpcError } = await supabase.rpc('join_channel', {
         p_channel_id: id,

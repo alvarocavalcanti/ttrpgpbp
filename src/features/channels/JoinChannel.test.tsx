@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { JoinChannel } from './JoinChannel'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
+import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 vi.mock('../../lib/supabase', () => ({
@@ -17,7 +18,8 @@ vi.mock('../auth/useAuth', () => ({
 }))
 
 vi.mock('../../lib/crypto', () => ({
-  hashPassword: vi.fn().mockResolvedValue('hashed_password')
+  hashPasswordLegacy: vi.fn().mockResolvedValue('hashed_password'),
+  hashPasswordWithSalt: vi.fn().mockResolvedValue('hashed_password')
 }))
 
 describe('JoinChannel', () => {
@@ -128,6 +130,89 @@ describe('JoinChannel', () => {
         p_invite_code: undefined
       })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
+    })
+  })
+
+  it('re-derives the hash with the channel salt when joining a salted channel', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', name: 'Test Channel', has_password: true },
+      error: null
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(hashPasswordWithSalt).mockResolvedValue('derived_hash')
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: 'aabbccddeeff00112233445566778899', error: null } as any)
+      .mockResolvedValueOnce({ error: null } as any)
+
+    render(
+      <MemoryRouter initialEntries={['/join/123']}>
+        <Routes>
+          <Route path="/join/:id" element={<JoinChannel />} />
+          <Route path="/channel/:id" element={<div data-testid="success-redirect" />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Channel Password')).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByLabelText('Channel Password'), { target: { value: 'secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('get_channel_salt', { p_channel_id: '123' })
+      expect(hashPasswordWithSalt).toHaveBeenCalledWith('secret', 'aabbccddeeff00112233445566778899')
+      expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {
+        p_channel_id: '123',
+        p_character_name: 'TestUser',
+        p_password_hash: 'derived_hash',
+        p_invite_code: undefined
+      })
+      expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
+    })
+  })
+
+  it('falls back to the legacy SHA-256 hash for salt-less channels', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', name: 'Test Channel', has_password: true },
+      error: null
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(hashPasswordLegacy).mockResolvedValue('legacy_hash')
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: null, error: null } as any)
+      .mockResolvedValueOnce({ error: null } as any)
+
+    render(
+      <MemoryRouter initialEntries={['/join/123']}>
+        <Routes>
+          <Route path="/join/:id" element={<JoinChannel />} />
+          <Route path="/channel/:id" element={<div data-testid="success-redirect" />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Channel Password')).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByLabelText('Channel Password'), { target: { value: 'secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
+
+    await waitFor(() => {
+      expect(hashPasswordLegacy).toHaveBeenCalledWith('secret')
+      expect(hashPasswordWithSalt).not.toHaveBeenCalled()
+      expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {
+        p_channel_id: '123',
+        p_character_name: 'TestUser',
+        p_password_hash: 'legacy_hash',
+        p_invite_code: undefined
+      })
     })
   })
 

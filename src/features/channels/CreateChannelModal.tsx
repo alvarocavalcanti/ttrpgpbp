@@ -48,7 +48,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
         }
       }
 
-      const passwordHash = password ? await hashPassword(password) : null
+      const hashedPassword = password ? await hashPassword(password) : null
       const inviteCode = crypto.randomUUID().split('-')[0] // Simple 8-char invite code
       
       // 1. Create the channel
@@ -67,12 +67,13 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
       if (!channel) throw new Error('Failed to create channel')
 
       // 1.5 Create the channel_secrets row if a password is set
-      if (passwordHash) {
+      if (hashedPassword) {
         const { error: secretsError } = await supabase
           .from('channel_secrets')
           .insert({
             channel_id: channel.id,
-            password_hash: passwordHash
+            password_hash: hashedPassword.hash,
+            password_salt: hashedPassword.salt
           })
         if (secretsError) throw secretsError
       }
@@ -81,7 +82,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
       const { error: rpcError } = await supabase.rpc('join_channel', {
         p_channel_id: channel.id,
         p_character_name: characterName,
-        p_password_hash: passwordHash || undefined, // GM joining their own channel
+        p_password_hash: hashedPassword?.hash ?? undefined, // GM joining their own channel
       })
       
       if (rpcError) throw rpcError
