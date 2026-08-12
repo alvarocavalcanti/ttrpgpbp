@@ -254,7 +254,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
   if (isScene) {
     return (
       <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] border-y-2 border-[#e6d0a4] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
-        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] prose-headings:text-[#4a3b31] prose-strong:text-[#4a3b31] prose-em:text-[#5c4a3d] prose-a:text-[#4a3b31] prose-blockquote:text-[#5c4a3d] prose-blockquote:border-[#e6d0a4] prose-ul:text-[#5c4a3d] prose-ol:text-[#5c4a3d] max-w-none [&>p:last-child]:bg-[#f4e4c1] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31]">
+        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] prose-headings:text-[#4a3b31] prose-strong:text-[#4a3b31] prose-em:text-[#5c4a3d] prose-a:text-[#4a3b31] prose-blockquote:text-[#5c4a3d] prose-blockquote:border-[#e6d0a4] prose-ul:text-[#5c4a3d] prose-ol:text-[#5c4a3d] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31]">
           {isEditing ? (
             <div className="mt-2 text-left">
               <textarea
@@ -396,7 +396,7 @@ export function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, on
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 prose prose-sm prose-indigo max-w-none ${isNpc ? 'font-serif text-[#5c4a3d] prose-a:text-[#4a3b31] prose-strong:text-[#4a3b31]' : ''}`}>
+        <div className={`mt-1 text-sm text-gray-800 prose prose-sm prose-indigo max-w-none break-words ${isNpc ? 'font-serif text-[#5c4a3d] prose-a:text-[#4a3b31] prose-strong:text-[#4a3b31]' : ''}`}>
           {message.is_deleted ? (
             <span className="text-gray-400 italic">This message was deleted.</span>
           ) : isEditing ? (

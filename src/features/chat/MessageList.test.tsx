@@ -34,6 +34,16 @@ describe('MessageList', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
   })
 
+  it('clips horizontal overflow so the list does not scroll sideways', () => {
+    const msgs: any = [
+      { id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }
+    ]
+    const { container } = render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const scrollContainer = container.firstChild as HTMLElement
+    expect(scrollContainer.className).toContain('overflow-x-hidden')
+    expect(scrollContainer.className).toContain('overflow-y-auto')
+  })
+
   it('renders date dividers correctly', () => {
     const msgs: any = [
       { id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' },
