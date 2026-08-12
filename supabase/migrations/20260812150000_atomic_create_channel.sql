@@ -4,9 +4,9 @@
 -- round-trips: any failure rolls back the whole channel.
 CREATE OR REPLACE FUNCTION create_channel(
   p_name TEXT,
-  p_game_system TEXT DEFAULT 'none',
   p_invite_code TEXT,
   p_character_name TEXT,
+  p_game_system TEXT DEFAULT 'none',
   p_character_avatar_url TEXT DEFAULT NULL,
   p_character_sheet_url TEXT DEFAULT NULL,
   p_password_hash TEXT DEFAULT NULL,
