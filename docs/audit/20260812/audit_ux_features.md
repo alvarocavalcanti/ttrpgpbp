@@ -5,6 +5,7 @@
 > Act as a Principal Product Architect and UX Specialist. Analyze this codebase with a focus on product completeness, user experience, and feature gaps.
 >
 > Specifically, evaluate:
+>
 > 1. Feature Gaps & Edge Cases: Missing essential features, user flows, or handling of edge cases (e.g., loading states, error boundaries, empty states, offline/reconnection).
 > 2. UX & Component Interaction: Review component structure, navigation, state transitions, API state handling, and friction points.
 > 3. Accessibility & UX Best Practices: ARIA patterns, keyboard navigation, and design system consistency.
