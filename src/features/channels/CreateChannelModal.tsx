@@ -50,45 +50,23 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
 
       const hashedPassword = password ? await hashPassword(password) : null
       const inviteCode = crypto.randomUUID().split('-')[0] // Simple 8-char invite code
-      
-      // 1. Create the channel
-      const { data: channel, error: channelError } = await supabase
-        .from('channels')
-        .insert({
-          name,
-          gm_id: user.id,
-          game_system: gameSystem,
-          invite_code: inviteCode
-        })
-        .select()
-        .single()
 
-      if (channelError) throw channelError
-      if (!channel) throw new Error('Failed to create channel')
-
-      // 1.5 Create the channel_secrets row if a password is set
-      if (hashedPassword) {
-        const { error: secretsError } = await supabase
-          .from('channel_secrets')
-          .insert({
-            channel_id: channel.id,
-            password_hash: hashedPassword.hash,
-            password_salt: hashedPassword.salt
-          })
-        if (secretsError) throw secretsError
-      }
-
-      // 2. Join the channel using RPC
-      const { error: rpcError } = await supabase.rpc('join_channel', {
-        p_channel_id: channel.id,
+      // Single transactional RPC: channel + secrets + GM membership either all
+      // commit or all roll back, so a partial failure can't orphan a channel.
+      const { data: channelId, error: rpcError } = await supabase.rpc('create_channel', {
+        p_name: name,
+        p_game_system: gameSystem,
+        p_invite_code: inviteCode,
         p_character_name: characterName,
-        p_password_hash: hashedPassword?.hash ?? undefined, // GM joining their own channel
+        p_password_hash: hashedPassword?.hash ?? null,
+        p_password_salt: hashedPassword?.salt ?? null
       })
-      
+
       if (rpcError) throw rpcError
+      if (!channelId) throw new Error('Failed to create channel')
 
       onClose()
-      navigate(`/channel/${channel.id}`)
+      navigate(`/channel/${channelId}`)
       
     } catch (err: any) {
       console.error('Error creating channel:', err)

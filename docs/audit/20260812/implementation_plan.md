@@ -14,7 +14,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | P0-3 | `profiles` readable by all → email enumeration (H1) | **Deferred to P1** (user) |
 | P0-4 | Blocking hides but doesn't revoke access; no unblock (UX#2) | **DONE (PR B)**: `is_channel_member()` excludes blocked; self-unblock trigger; Unblock UI; blocked-user state |
 | P0-5 | Push edge fn: `verify_jwt=false`, `CORS *`, `err.message` leak, client payload → service-role, body content leak (H2–H4, UX#3, M5) | **DONE (PR #140)**: `verify_jwt=true`, CORS allowlist, generic errors, server-derived events (message_id/member_id), sender/membership/GM checks, truncated/no-content bodies |
-| P0-6 | AuthContext: async in `onAuthStateChange` (deadlock), unmemoized value, double fetch (C2, arch#1, UX#16) | `AuthContext.tsx` |
+| P0-6 | AuthContext: async in `onAuthStateChange` (deadlock), unmemoized value, double fetch (C2, arch#1, UX#16) | **DONE (PR #141)**: deferred profile fetch, `lastFetchedUserId` guard, memoized value/callbacks, sign-in error surface, downstream deps `user?.id` |
 | P0-7 | Join preview leaks `invite_code` + GM-only URL to non-members (UX#4) | **DONE (PR B)**: `get_join_channel_preview` RPC; join policy dropped; `gm_only_resources_url` moved to `channel_secrets` |
 | P0-8 | Channel creation non-atomic → orphan channels (UX#6) | `create_channel` RPC, `CreateChannelModal.tsx` |
 
@@ -37,8 +37,8 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 1. **PR A** — password hashing + RLS invariants (P0-1, P0-2) ✅ **MERGED (#138)**
 2. **PR B** — access control (P0-4, P0-7) ✅ **MERGED (#139)** (P0-3 stays in P1 per user decision)
 3. **PR C** — push edge hardening (P0-5) ✅ **MERGED (#140)**
-4. **PR D** — AuthContext (P0-6) ← IN PROGRESS
-5. **PR E** — channel creation atomicity (P0-8)
+4. **PR D** — AuthContext (P0-6) ✅ **MERGED (#141)**
+5. **PR E** — channel creation atomicity (P0-8) ← IN PROGRESS
 6. **P1 wave** — realtime members, message memoization, unread RPC, profiles visibility, then rest
 
 ## PR B — detailed spec
@@ -140,6 +140,21 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 - `AuthContext.test.tsx`: TOKEN_REFRESHED no second fetch, re-login retry recovery, sign-in error surface (rejection + returned error), OAuth mock resolves shape.
 - Existing hook tests updated where they asserted refetch-on-user-identity.
 
+## PR E — detailed spec
+
+### E1. Migration `20260812150000_atomic_create_channel.sql`
+
+`create_channel(p_name, p_game_system, p_invite_code, p_character_name, p_character_avatar_url, p_character_sheet_url, p_password_hash, p_password_salt)` SECURITY DEFINER `RETURNS UUID`. One transaction: auth check → channel-cap guard (mirrors `join_channel`) → insert `channels` → insert `channel_secrets` (if password) → insert GM `channel_members` → return id. Any failure rolls back the whole channel. `REVOKE PUBLIC` + `GRANT authenticated`.
+
+### E2. Client
+
+- `CreateChannelModal.tsx`: drop the 3-step insert (channel → secrets → `join_channel`); single `create_channel` RPC call. Cap pre-check kept for the friendly error message; RPC is the atomic safety net.
+- `types/database.ts`: add `create_channel` RPC signature.
+
+### E3. Tests
+
+- `CreateChannelModal.test.tsx`: payload with password (hash+salt), without password (nulls), RPC error → generic message + no close, RPC null id → generic message, cap pre-check blocks without calling RPC.
+
 ## Progress tracker
 
 | PR | Status | Worktree/branch | PR link | CI |
@@ -147,6 +162,6 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | A | merged | `fix/secure-passwords-rls-invariants` | #138 | ✅ |
 | B | merged | `fix/blocking-access-control` | #139 | ✅ |
 | C | merged | `fix/push-notifications-hardening` | #140 | ✅ |
-| D | in progress | `fix/auth-context-refactor` | | |
-| E | pending | | | |
+| D | merged | `fix/auth-context-refactor` | #141 | ✅ |
+| E | in progress | `fix/create-channel-atomicity` | | |
 | P1 wave | pending | | | |

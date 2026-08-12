@@ -44,22 +44,13 @@ describe('CreateChannelModal', () => {
     })
   })
 
-  it('creates channel and joins successfully', async () => {
+  it('creates channel atomically via create_channel RPC with password', async () => {
     const mockOnClose = vi.fn()
-    
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: 'c1' }, 
-      error: null 
-    })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
+
     const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
     const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channel_members') return { select: mockCountSelect } as any
-      return { insert: mockInsert } as any
-    })
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'c1', error: null } as any)
 
     render(
       <MemoryRouter>
@@ -72,43 +63,26 @@ describe('CreateChannelModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
-      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'New Game',
-        gm_id: 'u1',
-      }))
-
-      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-        channel_id: 'c1',
-        password_hash: 'hashed_password',
-        password_salt: 'salt_value'
-      }))
-      
-      expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {
-        p_channel_id: 'c1',
+      expect(supabase.rpc).toHaveBeenCalledWith('create_channel', {
+        p_name: 'New Game',
+        p_game_system: 'none',
+        p_invite_code: '12345678',
         p_character_name: 'GM',
-        p_password_hash: 'hashed_password'
+        p_password_hash: 'hashed_password',
+        p_password_salt: 'salt_value'
       })
-      
+
       expect(mockOnClose).toHaveBeenCalled()
     })
   })
 
   it('creates channel without password', async () => {
     const mockOnClose = vi.fn()
-    
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: 'c1' }, 
-      error: null 
-    })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
+
     const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
     const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channel_members') return { select: mockCountSelect } as any
-      return { insert: mockInsert } as any
-    })
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'c1', error: null } as any)
 
     render(
       <MemoryRouter>
@@ -120,34 +94,48 @@ describe('CreateChannelModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
-      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'New Game',
-        gm_id: 'u1',
-      }))
-      
-      expect(supabase.rpc).toHaveBeenCalledWith('join_channel', {
-        p_channel_id: 'c1',
+      expect(supabase.rpc).toHaveBeenCalledWith('create_channel', {
+        p_name: 'New Game',
+        p_game_system: 'none',
+        p_invite_code: '12345678',
         p_character_name: 'GM',
-        p_password_hash: undefined
+        p_password_hash: null,
+        p_password_salt: null
       })
-      
+
       expect(mockOnClose).toHaveBeenCalled()
     })
   })
 
-  it('handles creation error', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: null, 
-      error: new Error('Insert failed') 
-    })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
+  it('handles creation error from the RPC', async () => {
+    const mockOnClose = vi.fn()
+
     const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
     const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channel_members') return { select: mockCountSelect } as any
-      return { insert: mockInsert } as any
+    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('RPC failed') } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <MemoryRouter>
+        <CreateChannelModal onClose={mockOnClose} />
+      </MemoryRouter>
+    )
+
+    fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to create channel. Please try again.')).toBeInTheDocument()
+      expect(mockOnClose).not.toHaveBeenCalled()
     })
+  })
+
+  it('handles creation error when the RPC returns no channel id', async () => {
+    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
+    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -164,47 +152,12 @@ describe('CreateChannelModal', () => {
     })
   })
 
-  it('handles creation error when channel_secrets insert fails', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ 
-      data: { id: 'c1' }, 
-      error: null 
-    })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockInsertChannel = vi.fn().mockReturnValue({ select: mockSelect })
-    const mockInsertSecret = vi.fn().mockResolvedValue({ error: new Error('Secrets insert failed') })
-    
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channel_members') {
-        return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 0 }) }) }) } as any
-      }
-      if (table === 'channels') return { insert: mockInsertChannel } as any
-      if (table === 'channel_secrets') return { insert: mockInsertSecret } as any
-      return {} as any
-    })
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={vi.fn()} />
-      </MemoryRouter>
-    )
-
-    fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
-    fireEvent.change(screen.getByLabelText('Password (Optional)'), { target: { value: 'secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to create channel. Please try again.')).toBeInTheDocument()
-    })
-  })
-
-  it('blocks creation at channel cap without creating a channel', async () => {
-    const mockInsert = vi.fn()
+  it('blocks creation at channel cap without calling the RPC', async () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channel_members') {
         return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 10 }) }) }) } as any
       }
-      return { insert: mockInsert } as any
+      return {} as any
     })
 
     render(
@@ -218,7 +171,7 @@ describe('CreateChannelModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Channel limit reached/)).toBeInTheDocument()
-      expect(mockInsert).not.toHaveBeenCalled()
+      expect(supabase.rpc).not.toHaveBeenCalled()
     })
   })
 
