@@ -32,7 +32,7 @@ describe('MessageList', () => {
         error={new Error('Failed to fetch messages')}
       />
     )
-    expect(screen.getByText(/Couldn't load messages/)).toBeInTheDocument()
+    expect(screen.getByText(/Could not load messages/)).toBeInTheDocument()
     expect(screen.queryByText('No messages yet. Say hello!')).not.toBeInTheDocument()
   })
 

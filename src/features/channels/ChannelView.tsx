@@ -99,7 +99,7 @@ export function ChannelView() {
   if (error && !channel) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
-        <h2 className="text-xl font-medium text-gray-900 mb-2">Couldn&apos;t load this channel</h2>
+        <h2 className="text-xl font-medium text-gray-900 mb-2">Could not load this channel</h2>
         <p className="text-gray-500 mb-6">There was a problem fetching this channel.</p>
         <div className="flex gap-3">
           <button

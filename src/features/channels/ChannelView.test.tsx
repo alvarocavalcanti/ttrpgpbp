@@ -171,7 +171,7 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    expect(screen.getByText(/Couldn't load this channel/)).toBeInTheDocument()
+    expect(screen.getByText(/Could not load this channel/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalled()
   })

@@ -54,7 +54,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     return (
       <div className="flex-1 flex items-center justify-center">
         {error ? (
-          <p className="text-red-500 text-sm">Couldn&apos;t load messages.</p>
+          <p className="text-red-500 text-sm">Could not load messages.</p>
         ) : (
           <p className="text-gray-400 text-sm">No messages yet. Say hello!</p>
         )}

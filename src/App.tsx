@@ -18,7 +18,7 @@ export function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
       <h1 className="text-xl font-medium text-gray-900 mb-2">Page not found</h1>
-      <p className="text-gray-500 mb-6">The page you&apos;re looking for doesn&apos;t exist.</p>
+      <p className="text-gray-500 mb-6">The page you&apos;re looking for does not exist.</p>
       <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">Return to Lobby</Link>
     </div>
   )
