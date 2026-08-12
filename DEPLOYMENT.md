@@ -43,9 +43,10 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key | Static host env (build) |
 | `VITE_VAPID_PUBLIC_KEY` | Public half of the VAPID keypair | Static host env (build) and `supabase secrets set` |
 | `VAPID_PRIVATE_KEY` | Private half of the VAPID keypair | `supabase secrets set VAPID_PRIVATE_KEY` |
+| `ALLOWED_ORIGINS` | Optional comma-separated list of app origins allowed to call the push-notifications function (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, and any `*.ttrpgpbp.pages.dev` preview | `supabase secrets set ALLOWED_ORIGINS=...` |
 | `SUPABASE_AUTH_GOOGLE_SECRET` | Google OAuth client secret | Supabase Dashboard → Auth → Providers → Google |
 
-- [ ] Set the VAPID keys and any other Supabase secrets:
+- [ ] Set the VAPID keys (and `ALLOWED_ORIGINS` if you host the frontend elsewhere) and any other Supabase secrets:
 
   ```bash
   supabase link --project-ref <project-ref>
@@ -63,6 +64,11 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
   (Alternative: run each file manually in the Supabase SQL editor. `supabase db push` is the supported path.)
 
 ## 6. Deploy the edge function
+
+The push-notifications function requires a signed-in user JWT (`verify_jwt = true`
+in `supabase/config.toml`), so anonymous calls are rejected. Callers may only
+trigger notifications for messages they sent in channels they belong to (GMs for
+turn events).
 
 - [ ] Deploy the push-notifications function:
 

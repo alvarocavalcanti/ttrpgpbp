@@ -60,6 +60,22 @@ describe('resolvePushTargets', () => {
       expect(result.body).toBe('a dark alley')
     })
 
+    it('truncates long bodies for the lock screen', () => {
+      const longContent = 'x'.repeat(150)
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u2',
+        sender_name: 'Bobo',
+        content: longContent,
+        type: 'regular',
+        gm_id: 'u1'
+      }, MEMBERS)
+
+      expect(result.body).toBe(`Bobo: ${'x'.repeat(100)}…`)
+    })
+
     it('attributes NPC messages to the NPC name, not the GM', () => {
       const result = resolvePushTargets({
         kind: 'message',
@@ -93,6 +109,7 @@ describe('resolvePushTargets', () => {
 
       expect(result.targetUserIds).toEqual(['u4'])
       expect(result.title).toBe('New whisper from Goblin King')
+      expect(result.body).toBe('New whisper from Goblin King in The Den')
     })
 
     it('routes dice roll copy', () => {
@@ -126,6 +143,7 @@ describe('resolvePushTargets', () => {
 
       expect(result.targetUserIds).toEqual(['u4'])
       expect(result.title).toBe('New whisper from GM')
+      expect(result.body).toBe('New whisper from GM in The Den')
     })
 
     it('routes mentions only to mentioned users, excluding sender', () => {

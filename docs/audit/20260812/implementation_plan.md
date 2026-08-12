@@ -13,7 +13,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | P0-2 | Field tampering: profile `server_admin`, member `channel_id`/`user_id`, message `channel_id`/`type`/`sender_id`/`whisper_to` (UX#1, #5) | **DONE (PR #138)**: immutability triggers |
 | P0-3 | `profiles` readable by all → email enumeration (H1) | **Deferred to P1** (user) |
 | P0-4 | Blocking hides but doesn't revoke access; no unblock (UX#2) | **DONE (PR B)**: `is_channel_member()` excludes blocked; self-unblock trigger; Unblock UI; blocked-user state |
-| P0-5 | Push edge fn: `verify_jwt=false`, `CORS *`, `err.message` leak, client payload → service-role, body content leak (H2–H4, UX#3, M5) | `config.toml`, `push-notifications/index.ts`, `useMessages.ts` |
+| P0-5 | Push edge fn: `verify_jwt=false`, `CORS *`, `err.message` leak, client payload → service-role, body content leak (H2–H4, UX#3, M5) | **DONE (PR C)**: `verify_jwt=true`, CORS allowlist, generic errors, server-derived events (message_id/member_id), sender/membership/GM checks, truncated/no-content bodies |
 | P0-6 | AuthContext: async in `onAuthStateChange` (deadlock), unmemoized value, double fetch (C2, arch#1, UX#16) | `AuthContext.tsx` |
 | P0-7 | Join preview leaks `invite_code` + GM-only URL to non-members (UX#4) | **DONE (PR B)**: `get_join_channel_preview` RPC; join policy dropped; `gm_only_resources_url` moved to `channel_secrets` |
 | P0-8 | Channel creation non-atomic → orphan channels (UX#6) | `create_channel` RPC, `CreateChannelModal.tsx` |
@@ -35,8 +35,8 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 ## PR sequence
 
 1. **PR A** — password hashing + RLS invariants (P0-1, P0-2) ✅ **MERGED (#138)**
-2. **PR B** — access control (P0-4, P0-7) ← IN PROGRESS (P0-3 stays in P1 per user decision)
-3. **PR C** — push edge hardening (P0-5)
+2. **PR B** — access control (P0-4, P0-7) ✅ **MERGED (#139)** (P0-3 stays in P1 per user decision)
+3. **PR C** — push edge hardening (P0-5) ← IN PROGRESS
 4. **PR D** — AuthContext (P0-6)
 5. **PR E** — channel creation atomicity (P0-8)
 6. **P1 wave** — realtime members, message memoization, unread RPC, profiles visibility, then rest
@@ -99,13 +99,35 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 - CI `migrate-check` runs `supabase db reset` — validates migration SQL.
 - DB behavior (trigger/RPC) can't run locally (Docker Desktop bug) → rely on CI + targeted review.
 
+## PR C — detailed spec
+
+### C1. Edge function `supabase/functions/push-notifications/index.ts`
+
+- `verify_jwt = true` in `config.toml`; resolve caller via user-scoped client `auth.getUser()`.
+- CORS allowlist: `ALLOWED_ORIGINS` env (default localhost:5173, ttrpgpbp.pages.dev, `*.ttrpgpbp.pages.dev` previews).
+- Server-derived events: client sends `message_id`/`member_id`; channel/sender/content/whisper come from the DB.
+- Authorization: message caller must be the sender + `is_channel_member`; turn caller must be `is_channel_gm`.
+- Generic 500 (no `err.message` leak); 400/401/403/404 for non-sensitive cases.
+
+### C2. `filter.ts` (M5)
+
+- Bodies truncated to 100 chars; whisper pushes carry no message content.
+
+### C3. Client `useMessages.ts`
+
+- Inserts return the new message id (`.select('id').single()`) and invoke push with `message_id`; turn events pass `member_id`.
+
+### C4. Tests / docs
+
+- `filter.test.ts` truncation + whisper-body cases; `useMessages.test.tsx` updated for id-based invoke; `DEPLOYMENT.md` documents `ALLOWED_ORIGINS` + JWT requirement.
+
 ## Progress tracker
 
 | PR | Status | Worktree/branch | PR link | CI |
 |----|--------|-----------------|---------|----|
-| A | pending | | | |
-| B | pending | | | |
-| C | pending | | | |
+| A | merged | `fix/secure-passwords-rls-invariants` | #138 | ✅ |
+| B | merged | `fix/blocking-access-control` | #139 | ✅ |
+| C | in progress | `fix/push-notifications-hardening` | | |
 | D | pending | | | |
 | E | pending | | | |
 | P1 wave | pending | | | |
