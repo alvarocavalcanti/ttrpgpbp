@@ -126,6 +126,32 @@ describe('MessageItem', () => {
     expect(screen.getByText('Hero')).toBeInTheDocument()
   })
 
+  it('wraps long words in regular message content to avoid horizontal scroll', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'A very long url https://example.com/' + 'x'.repeat(200),
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const prose = container.querySelector('.prose')
+    expect(prose?.className).toContain('break-words')
+  })
+
+  it('wraps long words in scene message content to avoid horizontal scroll', () => {
+    const msg: any = {
+      id: 's1',
+      type: 'scene',
+      content: 'A very long url https://example.com/' + 'x'.repeat(200),
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const prose = container.querySelector('.prose')
+    expect(prose?.className).toContain('break-words')
+  })
+
   it('handles ability checks and sends dice roll', () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue('3') // +3 modifier

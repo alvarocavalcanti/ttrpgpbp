@@ -43,7 +43,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
       {messages.map((message, index) => {
         const currentDate = new Date(message.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
         const prevMessage = index > 0 ? messages[index - 1] : null
