@@ -1,5 +1,17 @@
 # UX and Product Completeness Audit
 
+## Original Audit Prompt
+
+> Act as a Principal Product Architect and UX Specialist. Analyze this codebase with a focus on product completeness, user experience, and feature gaps.
+>
+> Specifically, evaluate:
+> 1. Feature Gaps & Edge Cases: Missing essential features, user flows, or handling of edge cases (e.g., loading states, error boundaries, empty states, offline/reconnection).
+> 2. UX & Component Interaction: Review component structure, navigation, state transitions, API state handling, and friction points.
+> 3. Accessibility & UX Best Practices: ARIA patterns, keyboard navigation, and design system consistency.
+>
+> Output Requirement:
+> Write your complete findings directly to a markdown file named `audit_ux_features.md` in the root directory. Include a prioritized summary categorized by Critical UX Fixes, Feature Enhancements, and DX Quick Wins.
+
 ## Scope
 
 Review covered React routes and feature components, Supabase hooks, realtime subscriptions, database policies and migrations, push notifications, PWA behavior, tests, and product documentation.
