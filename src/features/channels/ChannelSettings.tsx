@@ -11,18 +11,19 @@ type Channel = Database['public']['Tables']['channels']['Row']
 
 interface ChannelSettingsProps {
   channel: Channel
+  gmOnlyResourcesUrl?: string | null
   onClose: () => void
   onUpdate: () => void
 }
 
-export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsProps) {
+export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUrlProp = null, onClose, onUpdate }: ChannelSettingsProps) {
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [name, setName] = useState(channel.name)
   const [gameSystem, setGameSystem] = useState(channel.game_system || 'none')
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
   const [resourcesUrl, setResourcesUrl] = useState(channel.resources_url || '')
-  const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(channel.gm_only_resources_url || '')
+  const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(gmOnlyResourcesUrlProp || '')
   const [safetyToolsUrl, setSafetyToolsUrl] = useState(channel.safety_tools_url || '')
   const [showSafetyTools, setShowSafetyTools] = useState(false)
   const { safetyTools, saveSafetyTools } = useSafetyTools(channel.id, showSafetyTools)
@@ -86,7 +87,6 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
           game_system: gameSystem,
           map_url: mapUrl || null,
           resources_url: resourcesUrl || null,
-          gm_only_resources_url: gmOnlyResourcesUrl || null,
           safety_tools_url: safetyToolsUrl || null
         }
 
@@ -96,6 +96,23 @@ export function ChannelSettings({ channel, onClose, onUpdate }: ChannelSettingsP
           .eq('id', channel.id)
 
         if (updateError) throw updateError
+
+        // GM-only resources URL lives in channel_secrets (GM-only RLS), not on
+        // the member-visible channel row. Upsert the row in case the channel
+        // has no secret yet (no password set).
+        const { data: secretRow, error: gmUrlUpdateError } = await supabase
+          .from('channel_secrets')
+          .update({ gm_only_resources_url: gmOnlyResourcesUrl || null })
+          .eq('channel_id', channel.id)
+          .select()
+
+        if (gmUrlUpdateError) throw gmUrlUpdateError
+        if (!secretRow || secretRow.length === 0) {
+          const { error: gmUrlInsertError } = await supabase
+            .from('channel_secrets')
+            .insert({ channel_id: channel.id, gm_only_resources_url: gmOnlyResourcesUrl || null })
+          if (gmUrlInsertError) throw gmUrlInsertError
+        }
 
         if (showSafetyTools) {
           const saved = await saveSafetyTools(safetyLines, safetyVeils)

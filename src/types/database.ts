@@ -68,7 +68,6 @@ export interface Database {
             invite_code: string | null
             map_url: string | null
             resources_url: string | null
-            gm_only_resources_url: string | null
             safety_tools_url: string | null
             status_text: string | null
           last_message_at: string | null
@@ -85,7 +84,6 @@ export interface Database {
             invite_code?: string | null
             map_url?: string | null
             resources_url?: string | null
-            gm_only_resources_url?: string | null
             safety_tools_url?: string | null
             status_text?: string | null
           last_message_at?: string | null
@@ -101,7 +99,6 @@ export interface Database {
             invite_code?: string | null
             map_url?: string | null
             resources_url?: string | null
-            gm_only_resources_url?: string | null
             safety_tools_url?: string | null
             status_text?: string | null
           last_message_at?: string | null
@@ -122,16 +119,19 @@ export interface Database {
           channel_id: string
           password_hash: string | null
           password_salt: string | null
+          gm_only_resources_url: string | null
         }
         Insert: {
           channel_id: string
           password_hash?: string | null
           password_salt?: string | null
+          gm_only_resources_url?: string | null
         }
         Update: {
           channel_id?: string
           password_hash?: string | null
           password_salt?: string | null
+          gm_only_resources_url?: string | null
         }
         Relationships: [
           {
@@ -554,6 +554,17 @@ export interface Database {
           p_channel_id: string
         }
         Returns: string
+      }
+      get_join_channel_preview: {
+        Args: {
+          p_channel_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          game_system: string
+          has_password: boolean
+        }[]
       }
       join_channel: {
         Args: {

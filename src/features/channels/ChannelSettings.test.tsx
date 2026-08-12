@@ -28,9 +28,15 @@ describe('ChannelSettings', () => {
     name: 'Game Room',
     map_url: 'http://map',
     resources_url: 'http://resources',
-    gm_only_resources_url: 'http://gmresources',
     has_password: false,
     invite_code: '123'
+  }
+
+  const mockSecretRow = (data: any[] = [{ channel_id: 'c1' }]) => {
+    const mockSecretSelect = vi.fn().mockResolvedValue({ data, error: null })
+    const mockSecretEq = vi.fn().mockReturnValue({ select: mockSecretSelect })
+    const mockSecretUpdate = vi.fn().mockReturnValue({ eq: mockSecretEq })
+    return { select: mockSecretSelect, eq: mockSecretEq, update: mockSecretUpdate }
   }
 
   beforeEach(() => {
@@ -59,7 +65,7 @@ describe('ChannelSettings', () => {
   })
 
   it('renders correctly', () => {
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<ChannelSettings channel={mockChannel} gmOnlyResourcesUrl="http://gmresources" onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     expect(screen.getByDisplayValue('Game Room')).toBeInTheDocument()
     expect(screen.getByDisplayValue('http://map')).toBeInTheDocument()
@@ -81,11 +87,16 @@ describe('ChannelSettings', () => {
   it('saves changes without password update', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    const { update: mockSecretUpdate } = mockSecretRow()
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { update: mockUpdate } as any
+      if (table === 'channel_secrets') return { update: mockSecretUpdate } as any
+      return {} as any
+    })
     const mockOnUpdate = vi.fn()
     const mockOnClose = vi.fn()
 
-    render(<ChannelSettings channel={mockChannel} onClose={mockOnClose} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<ChannelSettings channel={mockChannel} gmOnlyResourcesUrl="http://gmresources" onClose={mockOnClose} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Name' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
@@ -96,9 +107,10 @@ describe('ChannelSettings', () => {
         game_system: 'none',
         map_url: 'http://map',
         resources_url: 'http://resources',
-        gm_only_resources_url: 'http://gmresources',
         safety_tools_url: null
       })
+      expect(mockUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ gm_only_resources_url: expect.anything() }))
+      expect(mockSecretUpdate).toHaveBeenCalledWith({ gm_only_resources_url: 'http://gmresources' })
       expect(mockEq).toHaveBeenCalledWith('id', 'c1')
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
       expect(mockOnUpdate).toHaveBeenCalled()
@@ -148,6 +160,7 @@ describe('ChannelSettings', () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { update: mockUpdate } as any
       if (table === 'channel_safety_tools') return { select: mockSafetySelect, upsert: mockSafetyUpsert } as any
+      if (table === 'channel_secrets') return { update: mockSecretRow().update } as any
       return {} as any
     })
     const mockOnUpdate = vi.fn()
@@ -179,6 +192,7 @@ describe('ChannelSettings', () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { update: mockUpdate } as any
       if (table === 'channel_safety_tools') return { upsert: mockSafetyUpsert } as any
+      if (table === 'channel_secrets') return { update: mockSecretRow().update } as any
       return {} as any
     })
 

@@ -3,10 +3,14 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
-import type { Database } from '../../types/database'
 import { getSystemAttributes, clampModifier } from '../../game-systems'
 
-type Channel = Database['public']['Tables']['channels']['Row']
+interface JoinChannelPreview {
+  id: string
+  name: string
+  game_system: string
+  has_password: boolean
+}
 
 export function JoinChannel() {
   const { id } = useParams<{ id: string }>()
@@ -16,7 +20,7 @@ export function JoinChannel() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   
-  const [channel, setChannel] = useState<Channel | null>(null)
+  const [channel, setChannel] = useState<JoinChannelPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -30,14 +34,10 @@ export function JoinChannel() {
     async function fetchChannel() {
       if (!id) return
       try {
-        const { data, error } = await supabase
-          .from('channels')
-          .select('*')
-          .eq('id', id)
-          .single()
-          
+        const { data, error } = await supabase.rpc('get_join_channel_preview', { p_channel_id: id })
         if (error) throw error
-        setChannel(data)
+        const preview = Array.isArray(data) && data.length > 0 ? data[0] : null
+        setChannel(preview)
       } catch (err: any) {
         console.error('Error fetching channel to join:', err)
         if (!inviteCode) {

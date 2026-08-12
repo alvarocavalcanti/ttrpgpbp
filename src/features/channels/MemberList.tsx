@@ -146,6 +146,25 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     }
   }
 
+  const handleUnblockMember = async (memberId: string) => {
+    setError(null)
+    const targetMember = members.find(m => m.id === memberId)
+    try {
+      const { error } = await supabase
+        .from('channel_members')
+        .update({ is_blocked: false })
+        .eq('id', memberId)
+
+      if (error) throw error
+      const posted = await insertSystemMessage(`${targetMember?.character_name} was unblocked by the GM`)
+      if (!posted) setError('Player unblocked, but failed to post the system message.')
+      onUpdate()
+    } catch (err) {
+      console.error('Error unblocking member:', err)
+      setError('Failed to unblock member.')
+    }
+  }
+
   const activeMembers = members.filter(m => !m.is_blocked)
   const blockedMembers = members.filter(m => m.is_blocked)
 
@@ -311,7 +330,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           </div>
           <ul className="space-y-2 px-2">
             {blockedMembers.map(member => (
-              <li key={member.id} className="p-2">
+              <li key={member.id} className="p-2 flex items-center justify-between">
                 <div className="flex items-center space-x-3 opacity-50">
                   <div className="flex-shrink-0">
                     <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-500">
@@ -327,6 +346,13 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     </p>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleUnblockMember(member.id)}
+                  className="ml-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium shrink-0"
+                >
+                  Unblock
+                </button>
               </li>
             ))}
           </ul>

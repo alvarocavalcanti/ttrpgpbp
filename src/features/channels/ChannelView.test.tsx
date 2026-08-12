@@ -50,6 +50,7 @@ describe('ChannelView search functionality', () => {
       error: null,
       isGM: false,
       myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
       refetch: vi.fn()
     } as any)
 
@@ -318,12 +319,13 @@ describe('ChannelView search functionality', () => {
 
   it('renders sidebar menu items in alphabetical order with Members first', () => {
     vi.mocked(useChannel).mockReturnValue({
-      channel: { id: 'c1', name: 'Test Channel', map_url: 'https://map.com', resources_url: 'https://res.com', gm_only_resources_url: 'https://gm-secret.com' },
+      channel: { id: 'c1', name: 'Test Channel', map_url: 'https://map.com', resources_url: 'https://res.com' },
       members: [],
       loading: false,
       error: null,
       isGM: true,
       myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: 'https://gm-secret.com',
       refetch: vi.fn()
     } as any)
 
@@ -360,12 +362,13 @@ describe('ChannelView search functionality', () => {
 
   it('does not show Settings or GM Resources in sidebar for non-GM', () => {
     vi.mocked(useChannel).mockReturnValue({
-      channel: { id: 'c1', name: 'Test Channel', gm_only_resources_url: 'https://gm-secret.com' },
+      channel: { id: 'c1', name: 'Test Channel' },
       members: [],
       loading: false,
       error: null,
       isGM: false,
       myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: 'https://gm-secret.com',
       refetch: vi.fn()
     } as any)
 
@@ -390,12 +393,13 @@ describe('ChannelView search functionality', () => {
 
   it('shows GM Resources link to GM when set', () => {
     vi.mocked(useChannel).mockReturnValue({
-      channel: { id: 'c1', name: 'Test Channel', gm_only_resources_url: 'https://gm-secret.com' },
+      channel: { id: 'c1', name: 'Test Channel' },
       members: [],
       loading: false,
       error: null,
       isGM: true,
       myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: 'https://gm-secret.com',
       refetch: vi.fn()
     } as any)
 
@@ -411,6 +415,32 @@ describe('ChannelView search functionality', () => {
 
     const link = screen.getByText('GM Resources')
     expect(link).toHaveAttribute('href', 'https://gm-secret.com')
+  })
+
+  it('shows access-removed state when the current user is blocked', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: null,
+      members: [{ user_id: 'user1', is_blocked: true, character_name: 'Hero' }],
+      loading: false,
+      error: new Error('RLS blocked'),
+      isGM: false,
+      myMemberInfo: { user_id: 'user1', is_blocked: true },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByText('Access Removed')).toBeInTheDocument()
+    expect(screen.queryByTestId('sidebar-menu')).not.toBeInTheDocument()
   })
 
   it('starts a reply from a message and sends reply_to', async () => {

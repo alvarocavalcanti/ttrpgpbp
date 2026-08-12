@@ -114,6 +114,48 @@ describe('MemberList', () => {
     })
   })
 
+  it('allows GM to unblock a player and posts a system message', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    const mockInsert = successInsert()
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: mockInsert } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({ is_blocked: false })
+      expect(mockEq).toHaveBeenCalledWith('id', 'm3')
+      expect(mockInsert).toHaveBeenCalledWith({
+        channel_id: 'c1',
+        sender_id: 'u1',
+        type: 'system',
+        content: 'Villain was unblocked by the GM'
+      })
+      expect(mockOnUpdate).toHaveBeenCalled()
+    })
+  })
+
+  it('handles unblock member error', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: successInsert() } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockOnUpdate = vi.fn()
+
+    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to unblock member.')).toBeInTheDocument()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
+    })
+  })
+
   it('handles update member error', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
