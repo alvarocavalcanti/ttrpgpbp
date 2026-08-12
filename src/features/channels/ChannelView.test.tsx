@@ -149,7 +149,8 @@ describe('ChannelView search functionality', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('renders error state', () => {
+  it('renders an error screen with retry instead of redirecting', () => {
+    const refetch = vi.fn()
     vi.mocked(useChannel).mockReturnValue({
       channel: null,
       members: [],
@@ -157,7 +158,7 @@ describe('ChannelView search functionality', () => {
       error: new Error('Error'),
       isGM: false,
       myMemberInfo: undefined,
-      refetch: vi.fn()
+      refetch
     } as any)
 
     render(
@@ -169,7 +170,10 @@ describe('ChannelView search functionality', () => {
         </MemoryRouter>
       </ToastProvider>
     )
-    expect(screen.queryByTestId('sidebar-menu')).not.toBeInTheDocument()
+
+    expect(screen.getByText(/Couldn't load this channel/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(refetch).toHaveBeenCalled()
   })
 
   it('renders a banner when messages fail to load', () => {

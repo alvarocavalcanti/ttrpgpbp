@@ -14,6 +14,16 @@ import { ArchivedChannels } from './features/channels/ArchivedChannels'
 import { AdminView } from './features/admin/AdminView'
 import { HelpPage } from './features/help/HelpPage'
 
+export function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
+      <h1 className="text-xl font-medium text-gray-900 mb-2">Page not found</h1>
+      <p className="text-gray-500 mb-6">The page you&apos;re looking for doesn&apos;t exist.</p>
+      <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">Return to Lobby</Link>
+    </div>
+  )
+}
+
 function AppNav() {
   const { user, profile, signOut } = useAuth()
   const location = useLocation()
@@ -158,6 +168,7 @@ function App() {
                   <Route path="/help" element={<HelpPage />} />
                   <Route path="/help/:topic" element={<HelpPage />} />
                 </Route>
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
           </div>

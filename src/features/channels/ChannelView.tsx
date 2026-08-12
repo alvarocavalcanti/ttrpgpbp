@@ -96,6 +96,30 @@ export function ChannelView() {
     )
   }
 
+  if (error && !channel) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
+        <h2 className="text-xl font-medium text-gray-900 mb-2">Couldn&apos;t load this channel</h2>
+        <p className="text-gray-500 mb-6">There was a problem fetching this channel.</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={refetch}
+            className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm"
+          >
+            Retry
+          </button>
+          <Link
+            to="/"
+            className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm"
+          >
+            Back to Lobby
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   if (error || !channel) {
     return <Navigate to="/" replace />
   }
@@ -180,6 +204,7 @@ export function ChannelView() {
           onJumpToMessage={handleJumpToMessage}
           lastReadAt={myMemberInfo?.last_read_at}
           onXCard={triggerXCard}
+          error={messagesError}
         />
         
         <MessageComposer 

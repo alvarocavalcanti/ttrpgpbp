@@ -21,9 +21,10 @@ interface MessageListProps {
   onJumpToMessage?: (messageId: string) => void
   lastReadAt?: string | null
   onXCard?: (messageId: string) => void
+  error?: Error | null
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, error }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -52,7 +53,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   if (messages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-gray-400 text-sm">No messages yet. Say hello!</p>
+        {error ? (
+          <p className="text-red-500 text-sm">Couldn&apos;t load messages.</p>
+        ) : (
+          <p className="text-gray-400 text-sm">No messages yet. Say hello!</p>
+        )}
       </div>
     )
   }
