@@ -2,6 +2,14 @@
 
 **Project:** RoleByPost · **Date:** 2026-08-12 · **Findings:** 42
 
+> **Audit Prompt:**
+> Act as a Lead Systems & Security Engineer. Audit this codebase strictly for performance bottlenecks, code quality, and security vulnerabilities.
+>
+> Focus on:
+> 1. Performance Bottlenecks: Expensive operations, unoptimized loops, memory leaks, redundant network requests, or missing memoization/caching.
+> 2. Security & Data Integrity: Improper input validation, weak error handling, exposed sensitive keys/data, or potential injection vulnerabilities.
+> 3. Language & Framework Best Practices: Non-idiomatic patterns, type safety weaknesses, and missed framework capabilities.
+
 ---
 
 ## 🔴 CRITICAL (5)
