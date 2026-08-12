@@ -44,16 +44,16 @@ function mockInsertMessage(id = 'msg1') {
   })
 }
 
-// Captures the realtime callback for the messages channel (the first channel).
+// Captures the realtime callbacks keyed by table name (messages and
+// message_reactions now share one channel).
 function mockChannels() {
   const callbacks: Record<string, any> = {}
-  vi.mocked(supabase.channel).mockImplementation((name: string) => {
-    return {
-      on: vi.fn().mockImplementation((_event: any, _filter: any, callback: any) => {
-        callbacks[name] = callback
-        return { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
-      })
-    } as any
+  vi.mocked(supabase.channel).mockImplementation(() => {
+    const on = vi.fn().mockImplementation((_event: any, filter: any, callback: any) => {
+      callbacks[filter.table] = callback
+      return { on, subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
+    })
+    return { on } as any
   })
   return callbacks
 }
@@ -82,8 +82,8 @@ describe('useMessages', () => {
       expect(result.current.messages[0].sender?.display_name).toBe('Hero')
     })
 
-    expect(callbacks['messages:c1']).toBeDefined()
-    expect(callbacks['reactions:c1']).toBeDefined()
+    expect(callbacks['messages']).toBeDefined()
+    expect(callbacks['message_reactions']).toBeDefined()
   })
 
   it('handles fetch error gracefully', async () => {
@@ -137,7 +137,7 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages:c1']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
     })
 
     expect(result.current.messages).toHaveLength(1)
@@ -158,7 +158,7 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages:c1']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
     })
 
     expect(result.current.messages).toHaveLength(0)
@@ -174,7 +174,7 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages:c1']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
     })
 
     expect(result.current.messages).toHaveLength(1)
@@ -191,13 +191,13 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages:c1']({ eventType: 'UPDATE', new: { id: 'm1', content: 'edited' } })
+      await callbacks['messages']({ eventType: 'UPDATE', new: { id: 'm1', content: 'edited' } })
     })
 
     expect(result.current.messages[0].content).toBe('edited')
 
     await act(async () => {
-      await callbacks['messages:c1']({ eventType: 'DELETE', old: { id: 'm1' } })
+      await callbacks['messages']({ eventType: 'DELETE', old: { id: 'm1' } })
     })
 
     expect(result.current.messages).toHaveLength(0)
@@ -357,12 +357,12 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['reactions:c1']({ eventType: 'INSERT', new: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
     })
     expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false }])
 
     await act(async () => {
-      await callbacks['reactions:c1']({ eventType: 'DELETE', old: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
+      await callbacks['message_reactions']({ eventType: 'DELETE', old: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
     })
     expect(result.current.reactions['m1']).toBeUndefined()
   })

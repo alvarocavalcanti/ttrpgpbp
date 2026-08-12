@@ -10,9 +10,11 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
   const [alertCount, setAlertCount] = useState(0)
 
   useEffect(() => {
-    if (!channelId) return
-    // All channel members can read the (anonymous) rows, so realtime delivers
-    // the INSERT; the isGM guard below keeps the alert GM-only on the client.
+    // Only the GM needs the alert stream; non-GMs shouldn't open a realtime
+    // channel just to no-op (H10). triggerXCard is unaffected (players still
+    // insert events).
+    if (!channelId || !isGM) return
+
     const sub = supabase
       .channel(`safety-card:${channelId}`)
       .on('postgres_changes', {
@@ -21,10 +23,8 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         table: 'safety_card_events',
         filter: `channel_id=eq.${channelId}`
       }, () => {
-        if (isGM) {
-          setAlertActive(true)
-          setAlertCount(c => c + 1)
-        }
+        setAlertActive(true)
+        setAlertCount(c => c + 1)
       })
       .subscribe()
 

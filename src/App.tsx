@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { useAuth } from './features/auth/useAuth'
+import { useDebounce } from './hooks/useDebounce'
 import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ProfileSettings } from './features/auth/ProfileSettings'
@@ -19,6 +20,18 @@ function AppNav() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  // Local input state so URL search params only update once the query settles
+  // (M10), instead of on every keystroke.
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
+  const debouncedSearch = useDebounce(searchInput, 300)
+
+  useEffect(() => {
+    if (debouncedSearch) {
+      setSearchParams({ q: debouncedSearch }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [debouncedSearch, setSearchParams])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -46,14 +59,8 @@ function AppNav() {
               type="text"
               name="q"
               placeholder="Search..."
-              value={searchParams.get('q') || ''}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setSearchParams({ q: e.target.value }, { replace: true })
-                } else {
-                  setSearchParams({}, { replace: true })
-                }
-              }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-24 sm:w-48 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </form>

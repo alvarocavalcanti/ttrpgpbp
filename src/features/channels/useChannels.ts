@@ -43,8 +43,14 @@ export function useChannels() {
         if (memberError) throw memberError
 
         if (mounted) {
+          // One RPC for every channel's unread count instead of a count query
+          // per channel (C4).
+          const { data: unreadData, error: unreadError } = await supabase.rpc('get_user_channels_unread', { p_user_id: user.id })
+          if (unreadError) throw unreadError
+          const unreadMap = new Map((unreadData || []).map(row => [row.channel_id, row.unread_count]))
+
           // Format my channels
-          const formattedMyChannels = await Promise.all((memberData || []).map(async row => {
+          const formattedMyChannels = (memberData || []).map(row => {
             const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
             const memberInfo = {
               id: row.id,
@@ -59,26 +65,14 @@ export function useChannels() {
               last_read_at: row.last_read_at
             } as ChannelMember
 
-            let unread_count = 0
-            if (memberInfo.last_read_at) {
-              const { count } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('channel_id', memberInfo.channel_id)
-                .gt('created_at', memberInfo.last_read_at)
-                .neq('sender_id', user.id)
-                .eq('is_deleted', false)
-              unread_count = count || 0
-            }
-
             return {
               ...channelData,
               member: memberInfo,
-              unread_count
+              unread_count: unreadMap.get(memberInfo.channel_id) ?? 0
             }
-          })) as (Channel & { member: ChannelMember, unread_count?: number })[]
-          
-          if (mounted) setMyChannels(formattedMyChannels.sort(byRecentActivity))
+          }).sort(byRecentActivity) as (Channel & { member: ChannelMember, unread_count?: number })[]
+
+          if (mounted) setMyChannels(formattedMyChannels)
         }
       } catch (error) {
         console.error('Error fetching channels:', error)

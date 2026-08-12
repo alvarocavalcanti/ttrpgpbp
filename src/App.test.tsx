@@ -17,6 +17,8 @@ vi.mock('./lib/supabase', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // useChannels fetches unread counts via a single RPC.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
   })
 
   it('renders login page initially when unauthenticated', async () => {

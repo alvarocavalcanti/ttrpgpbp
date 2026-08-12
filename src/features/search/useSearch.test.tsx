@@ -45,7 +45,8 @@ describe('useSearch', () => {
 
   it('performs search when term is provided and debounced', async () => {
     const mockData = [{ id: 'msg-1', content: 'hello world', sender: { display_name: 'Hero' } }]
-    const mockLimit = vi.fn().mockResolvedValue({ data: mockData, error: null })
+    const mockAbortSignal = vi.fn().mockResolvedValue({ data: mockData, error: null })
+    const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
     const mockEq = vi.fn().mockReturnValue({ textSearch: mockTextSearch })
@@ -78,7 +79,8 @@ describe('useSearch', () => {
   })
 
   it('handles search errors', async () => {
-    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })
+    const mockAbortSignal = vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })
+    const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
     const mockEq = vi.fn().mockReturnValue({ textSearch: mockTextSearch })
