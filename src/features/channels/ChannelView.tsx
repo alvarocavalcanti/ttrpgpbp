@@ -1,5 +1,5 @@
 import { useParams, Navigate, Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
 import { ChannelStatusBar } from './ChannelStatusBar'
@@ -51,18 +51,23 @@ export function ChannelView() {
     }
   }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showHelp])
 
-  const handleJumpToMessage = (messageId: string) => {
+  const handleJumpToMessage = useCallback((messageId: string) => {
     setHighlightMessageId(messageId)
-  }
+  }, [])
 
-  const handleReply = (message: any) => {
+  const handleReply = useCallback((message: any) => {
     const senderName = members.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name || null
     setReplyTo({ id: message.id, content: message.content, senderName })
-  }
+  }, [members])
 
-  const handleToggleReaction = async (messageId: string, emoji: string) => {
+  // Read the latest reactions through a ref so the callback stays stable
+  // (required for React.memo on MessageItem) without going stale.
+  const reactionsRef = useRef(reactions)
+  reactionsRef.current = reactions
+
+  const handleToggleReaction = useCallback(async (messageId: string, emoji: string) => {
     try {
-      const summary = reactions[messageId]?.find(r => r.emoji === emoji)
+      const summary = reactionsRef.current[messageId]?.find(r => r.emoji === emoji)
       if (summary?.hasReacted) {
         await removeReaction(messageId, emoji)
       } else {
@@ -71,7 +76,7 @@ export function ChannelView() {
     } catch (err) {
       console.error('Failed to toggle reaction:', err)
     }
-  }
+  }, [addReaction, removeReaction])
 
   if (channelLoading || messagesLoading) {
     return (

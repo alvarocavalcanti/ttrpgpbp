@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -45,35 +45,38 @@ function buildReactionMap(rows: ReactionRow[], userId: string | undefined): Reco
   return map
 }
 
+// Both updaters copy only the affected message's reaction array instead of
+// deep-cloning the whole map (M8); unaffected messages keep stable references
+// so React.memo on MessageItem can skip them.
 function upsertReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, userId: string | undefined) {
-  const next = structuredClone(map)
-  const list = (next[row.message_id] ??= [])
-  let entry = list.find(e => e.emoji === row.emoji)
-  if (!entry) {
-    entry = { emoji: row.emoji, count: 0, hasReacted: false }
-    list.push(entry)
+  const list = map[row.message_id] ?? []
+  const idx = list.findIndex(e => e.emoji === row.emoji)
+  if (idx === -1) {
+    return { ...map, [row.message_id]: [...list, { emoji: row.emoji, count: 1, hasReacted: row.user_id === userId }] }
   }
-  entry.count += 1
-  if (row.user_id === userId) entry.hasReacted = true
-  return next
+  const entry = list[idx]
+  const nextEntry = { ...entry, count: entry.count + 1, hasReacted: entry.hasReacted || row.user_id === userId }
+  return { ...map, [row.message_id]: list.map((e, i) => (i === idx ? nextEntry : e)) }
 }
 
 function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, userId: string | undefined) {
   const list = map[row.message_id]
   if (!list) return map
-  const entry = list.find(e => e.emoji === row.emoji)
-  if (!entry) return map
-  const next = structuredClone(map)
-  const nextList = next[row.message_id]
-  const nextEntry = nextList.find(e => e.emoji === row.emoji)!
-  nextEntry.count = Math.max(0, nextEntry.count - 1)
-  if (row.user_id === userId) nextEntry.hasReacted = false
-  if (nextEntry.count === 0) {
-    const remaining = nextList.filter(e => e.emoji !== row.emoji)
-    if (remaining.length === 0) delete next[row.message_id]
-    else next[row.message_id] = remaining
+  const idx = list.findIndex(e => e.emoji === row.emoji)
+  if (idx === -1) return map
+  const entry = list[idx]
+  const count = Math.max(0, entry.count - 1)
+  const nextEntry = { ...entry, count, hasReacted: row.user_id === userId ? false : entry.hasReacted }
+  if (count === 0) {
+    const remaining = list.filter((_, i) => i !== idx)
+    if (remaining.length === 0) {
+      const next = { ...map }
+      delete next[row.message_id]
+      return next
+    }
+    return { ...map, [row.message_id]: remaining }
   }
-  return next
+  return { ...map, [row.message_id]: list.map((e, i) => (i === idx ? nextEntry : e)) }
 }
 
 export function useMessages(channelId: string | undefined) {
@@ -202,7 +205,7 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, user?.id])
 
-  const sendMessage = async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => {
+  const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => {
     if (!channelId || !user) return
 
     // Persist the NPC roster row so future autocomplete/pickers see it.
@@ -272,9 +275,9 @@ export function useMessages(channelId: string | undefined) {
         }
       }
     }
-  }
+  }, [channelId, user?.id])
 
-  const sendDiceRoll = async (notation: string, replyToId?: string) => {
+  const sendDiceRoll = useCallback(async (notation: string, replyToId?: string) => {
     if (!channelId || !user) return
 
     // Perform the roll calculation
@@ -317,41 +320,41 @@ export function useMessages(channelId: string | undefined) {
     supabase.functions.invoke('push-notifications', {
       body: { table: 'messages', message_id: message.id }
     }).catch(err => console.error('Failed to trigger push for message', err))
-  }
+  }, [channelId, user?.id])
 
-  const editMessage = async (messageId: string, content: string) => {
+  const editMessage = useCallback(async (messageId: string, content: string) => {
     const { error } = await supabase
       .from('messages')
       .update({ content, is_edited: true, updated_at: new Date().toISOString() })
       .eq('id', messageId)
     if (error) throw error
-  }
+  }, [])
 
-  const deleteMessage = async (messageId: string) => {
+  const deleteMessage = useCallback(async (messageId: string) => {
     // Soft delete
     const { error } = await supabase
       .from('messages')
       .update({ is_deleted: true })
       .eq('id', messageId)
     if (error) throw error
-  }
+  }, [])
 
-  const addReaction = async (messageId: string, emoji: string) => {
+  const addReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!channelId || !user) return
     const { error } = await supabase
       .from('message_reactions')
       .insert({ message_id: messageId, channel_id: channelId, user_id: user.id, emoji })
     if (error) throw error
-  }
+  }, [channelId, user?.id])
 
-  const removeReaction = async (messageId: string, emoji: string) => {
+  const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return
     const { error } = await supabase
       .from('message_reactions')
       .delete()
       .match({ message_id: messageId, user_id: user.id, emoji })
     if (error) throw error
-  }
+  }, [user?.id])
 
   return { messages, reactions, loading, error, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction }
 }
