@@ -17,6 +17,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | P0-6 | AuthContext: async in `onAuthStateChange` (deadlock), unmemoized value, double fetch (C2, arch#1, UX#16) | **DONE (PR #141)**: deferred profile fetch, `lastFetchedUserId` guard, memoized value/callbacks, sign-in error surface, downstream deps `user?.id` |
 | P0-7 | Join preview leaks `invite_code` + GM-only URL to non-members (UX#4) | **DONE (PR B)**: `get_join_channel_preview` RPC; join policy dropped; `gm_only_resources_url` moved to `channel_secrets` |
 | P0-8 | Channel creation non-atomic → orphan channels (UX#6) | `create_channel` RPC, `CreateChannelModal.tsx` |
+
 ### P1 — High-value UX & architecture
 
 - `channel_members` realtime gap: INSERT/DELETE invisible, kicked user stays (arch#2, UX#8)
