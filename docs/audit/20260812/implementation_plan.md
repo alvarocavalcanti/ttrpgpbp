@@ -126,7 +126,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 ### D1. `AuthContext.tsx` (P0-6, arch#1, M14, UX#16)
 
 - Profile fetch deferred out of `onAuthStateChange` via `setTimeout(0)` — supabase-js holds an internal auth lock while the callback runs; awaiting a query deadlocks.
-- Refetch dedup via `lastFetchedUserId` ref: skip unless the user id actually changed (stops `TOKEN_REFRESHED` storms); reset on sign-out so re-login retries.
+- Refetch guard via `lastFetchedUserId` ref: profile fetched only when the user id actually changes (stops `TOKEN_REFRESHED` storms); reset on sign-out so re-login retries.
 - `value` wrapped in `useMemo`; `signInWithGoogle`/`signOut` wrapped in `useCallback`.
 - `signInWithGoogle` wrapped in try/catch (M14) — popup-blocked/network errors surface via `error` state.
 - Profile fetch failure preserves any previously-loaded profile (UX#16) instead of nulling it.
@@ -137,7 +137,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 
 ### D3. Tests
 
-- `AuthContext.test.tsx`: TOKEN_REFRESHED dedup (no second fetch), re-login retry recovery, sign-in error surface (rejection + returned error), OAuth mock resolves shape.
+- `AuthContext.test.tsx`: TOKEN_REFRESHED no second fetch, re-login retry recovery, sign-in error surface (rejection + returned error), OAuth mock resolves shape.
 - Existing hook tests updated where they asserted refetch-on-user-identity.
 
 ## Progress tracker
@@ -147,6 +147,6 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | A | merged | `fix/secure-passwords-rls-invariants` | #138 | ✅ |
 | B | merged | `fix/blocking-access-control` | #139 | ✅ |
 | C | merged | `fix/push-notifications-hardening` | #140 | ✅ |
-| D | in progress | `fix/authcontext-refactor` | | |
+| D | in progress | `fix/auth-context-refactor` | | |
 | E | pending | | | |
 | P1 wave | pending | | | |
