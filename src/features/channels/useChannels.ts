@@ -30,7 +30,7 @@ export function useChannels() {
     let mounted = true
 
     async function fetchChannels() {
-      if (!user) return
+      if (!user?.id) return
 
       try {
         // Fetch my channels (via channel_members)
@@ -93,7 +93,7 @@ export function useChannels() {
     return () => {
       mounted = false
     }
-  }, [user])
+  }, [user?.id])
 
   return { myChannels, loading, error }
 }

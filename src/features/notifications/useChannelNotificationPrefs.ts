@@ -23,7 +23,7 @@ export function useChannelNotificationPrefs(channelId: string | undefined, myMem
 
   useEffect(() => {
     let mounted = true
-    if (!channelId || !user) {
+    if (!channelId || !user?.id) {
       setLoading(false)
       return
     }
@@ -57,7 +57,7 @@ export function useChannelNotificationPrefs(channelId: string | undefined, myMem
     fetchPrefs()
 
     return () => { mounted = false }
-  }, [channelId, user])
+  }, [channelId, user?.id])
 
   const updatePrefs = useCallback(async (updates: Partial<ChannelNotificationPrefs>) => {
     if (!channelId || !user || !myMemberId) throw new Error('Not a channel member')
