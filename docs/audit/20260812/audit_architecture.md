@@ -1,5 +1,17 @@
 # Architectural Audit — ttrpgpbp
 
+## Audit Prompt
+
+> Act as a Principal Software Engineer. Conduct a deep architectural and structural audit of this codebase.
+>
+> Please analyze:
+>
+> 1. Architecture & Modularization: Separation of concerns, directory structures, and module boundaries.
+> 2. Dependency & State Management: Data-flow paths, global state, anti-patterns, tight coupling, redundant re-renders, and circular dependencies.
+> 3. Maintainability & Technical Debt: Dead code, fragile abstractions, high cyclomatic complexity, and missing interfaces.
+>
+> Output Requirement: Write your complete analysis and refactoring recommendations directly to a markdown file named `audit_architecture.md`. Order findings by highest return-on-effort and highlight potential risks.
+
 **Date:** 2026-08-12 · **Scope:** `src/` (~7.4k LOC source, ~8.2k LOC tests) · **Stack:** React 19, Vite 8, TypeScript 6, Supabase (Auth + Postgres + Realtime + Edge Functions), PWA
 
 ## Executive Summary
