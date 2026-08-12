@@ -20,7 +20,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 
 ### P1 — High-value UX & architecture
 
-- `channel_members` realtime gap: INSERT/DELETE invisible, kicked user stays (arch#2, UX#8)
+- `channel_members` realtime gap: INSERT/DELETE invisible, kicked user stays (arch#2, UX#8) ✅ (PR #143)
 - Message-list perf: `React.memo` + `useCallback` handlers + hoist renderers/urlTransform + drop `structuredClone` + date cache (arch#3, H5/H7/H8/H9/M8/M12)
 - Virtualization / pagination (C3/C5/H6, UX P1#1)
 - `useChannels` N+1 unread → aggregated RPC (C4, UX#5)
@@ -163,5 +163,6 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | B | merged | `fix/blocking-access-control` | #139 | ✅ |
 | C | merged | `fix/push-notifications-hardening` | #140 | ✅ |
 | D | merged | `fix/auth-context-refactor` | #141 | ✅ |
-| E | in progress | `fix/create-channel-atomicity` | | |
+| E | merged | `fix/create-channel-atomicity` | #142 | ✅ |
+| F (P1) | in progress | `fix/member-realtime` | | |
 | P1 wave | pending | | | |
