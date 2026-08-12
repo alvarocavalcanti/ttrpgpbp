@@ -21,8 +21,6 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `id` | UUID, PK | |
 | `name` | text | |
 | `gm_id` | UUID, FK → profiles | Creator, channel owner |
-| `password_hash` | text, nullable | Null = no password required |
-| `is_public` | boolean | `true` = listed in lobby |
 | `is_archived` | boolean | Default `false`. True = hidden from main lobby, read-only/hidden |
 | `invite_code` | text, unique | For invite link sharing |
 | `map_url` | text, nullable | External link |
@@ -31,6 +29,18 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `last_message_at` | timestamptz, nullable | Set on message insert via trigger; used for lobby ordering |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
+
+### `channel_secrets`
+
+GM-only (RLS) table holding channel access-password material. The hash is
+derived client-side (PBKDF2-SHA256, 210k iterations); `get_channel_salt(channel_id)`
+exposes the salt to joining users so they can re-derive the expected hash.
+
+| Column | Type | Notes |
+|---|---|---|
+| `channel_id` | UUID, PK, FK → channels | |
+| `password_hash` | text, nullable | Null = no password required |
+| `password_salt` | text, nullable | PBKDF2 salt (hex). Null on legacy pre-salt channels |
 
 ### `channel_members`
 

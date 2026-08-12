@@ -11,7 +11,7 @@ vi.mock('../../lib/supabase', () => ({
 }))
 
 vi.mock('../../lib/crypto', () => ({
-  hashPassword: vi.fn().mockResolvedValue('hashed_password')
+  hashPassword: vi.fn().mockResolvedValue({ hash: 'hashed_password', salt: 'salt_value' })
 }))
 
 const mockAddToast = vi.fn()
@@ -132,7 +132,8 @@ describe('ChannelSettings', () => {
 
     await waitFor(() => {
       expect(mockSecretUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        password_hash: 'hashed_password'
+        password_hash: 'hashed_password',
+        password_salt: 'salt_value'
       }))
     })
   })
@@ -216,7 +217,8 @@ describe('ChannelSettings', () => {
 
     await waitFor(() => {
       expect(mockSecretInsert).toHaveBeenCalledWith(expect.objectContaining({
-        password_hash: 'hashed_password'
+        password_hash: 'hashed_password',
+        password_salt: 'salt_value'
       }))
     })
   })
