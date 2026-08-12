@@ -590,6 +590,15 @@ export interface Database {
         }
         Returns: string
       }
+      get_user_channels_unread: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          channel_id: string
+          unread_count: number
+        }[]
+      }
       admin_list_users: {
         Args: Record<PropertyKey, never>
         Returns: {

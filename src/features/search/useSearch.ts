@@ -16,6 +16,7 @@ export function useSearch(channelId: string) {
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
+    const controller = new AbortController()
     let mounted = true
 
     async function fetchResults() {
@@ -37,6 +38,7 @@ export function useSearch(channelId: string) {
           .textSearch('search_vector', debouncedTerm, { type: 'websearch', config: 'english' })
           .order('created_at', { ascending: false })
           .limit(20)
+          .abortSignal(controller.signal)
 
         if (searchError) throw searchError
         
@@ -50,6 +52,8 @@ export function useSearch(channelId: string) {
           setError(null)
         }
       } catch (err: any) {
+        // Aborting an in-flight request on a new keystroke is not an error.
+        if (err?.name === 'AbortError') return
         console.error('Search error:', err)
         if (mounted) setError(err)
       } finally {
@@ -61,6 +65,7 @@ export function useSearch(channelId: string) {
 
     return () => {
       mounted = false
+      controller.abort()
     }
   }, [debouncedTerm, channelId])
 

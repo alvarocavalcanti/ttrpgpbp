@@ -134,7 +134,7 @@ export function useMessages(channelId: string | undefined) {
     fetchReactions()
 
     const subscription = supabase
-      .channel(`messages:${channelId}`)
+      .channel(`chat:${channelId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -177,10 +177,6 @@ export function useMessages(channelId: string | undefined) {
           }
         }
       })
-      .subscribe()
-
-    const reactionSubscription = supabase
-      .channel(`reactions:${channelId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -201,7 +197,6 @@ export function useMessages(channelId: string | undefined) {
     return () => {
       mounted = false
       subscription.unsubscribe()
-      reactionSubscription.unsubscribe()
     }
   }, [channelId, user?.id])
 

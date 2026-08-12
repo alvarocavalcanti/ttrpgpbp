@@ -23,8 +23,8 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 - `channel_members` realtime gap: INSERT/DELETE invisible, kicked user stays (arch#2, UX#8) ✅ (PR #143)
 - Message-list perf: `React.memo` + `useCallback` handlers + hoist renderers/urlTransform + drop `structuredClone` + date cache (arch#3, H5/H7/H8/H9/M8/M12) ✅ (PR #144)
 - Virtualization / pagination (C3/C5/H6, UX P1#1)
-- `useChannels` N+1 unread → aggregated RPC (C4, UX#5)
-- `useSearch` AbortController (M7); `setSearchParams` debounce (M10); `useSafetyCardEvents` GM gate (H10); single realtime channel (M9)
+- `useChannels` N+1 unread → aggregated RPC (C4, UX#5) ✅ (PR #145)
+- `useSearch` AbortController (M7); `setSearchParams` debounce (M10); `useSafetyCardEvents` GM gate (H10); single realtime channel (M9) ✅ (PR #145)
 - Error/empty/retry/archived/offline states + ErrorBoundary (UX#9–12, #16, M2); deleted-message privacy in search/export (UX#14); mutation failure surfacing (UX#15); profiles visibility + public-profiles view (P0-3/H1)
 - Modal keyboard/touch a11y (UX#18–20); dice check failure path (UX#13)
 
@@ -165,5 +165,6 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | D | merged | `fix/auth-context-refactor` | #141 | ✅ |
 | E | merged | `fix/create-channel-atomicity` | #142 | ✅ |
 | F (P1) | merged | `fix/member-realtime` | #143 | ✅ |
-| G (P1) | in progress | `perf/message-list-memoization` | | |
+| G (P1) | merged | `perf/message-list-memoization` | #144 | ✅ |
+| H (P1) | in progress | `perf/query-streamlining` | | |
 | P1 wave | pending | | | |

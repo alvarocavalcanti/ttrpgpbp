@@ -10,7 +10,8 @@ vi.mock('../auth/useAuth', () => ({
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
+    from: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -82,52 +83,41 @@ describe('useChannels', () => {
       last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'channel-2', name: 'My Channel' }
     }]
 
-    const messageChain = {
-      select: () => messageChain,
-      eq: () => messageChain,
-      gt: () => messageChain,
-      neq: () => messageChain,
-      // eslint-disable-next-line unicorn/no-thenable
-      then: (cb: any) => Promise.resolve({ count: 5, error: null }).then(cb)
-    };
-
     vi.mocked(supabase.from).mockImplementation((table) => {
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
-      if (table === 'messages') return messageChain as any;
       return {} as any;
     })
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [{ channel_id: 'channel-2', unread_count: 5 }],
+      error: null
+    } as any)
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.myChannels[0].unread_count).toBe(5)
+    expect(supabase.rpc).toHaveBeenCalledWith('get_user_channels_unread', { p_user_id: 'user-1' })
   })
 
-  it('excludes own and deleted messages from unread count', async () => {
+  it('uses the unread RPC count (own/deleted filtering is server-side)', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
-    const calls: { method: string; args: unknown[] }[] = []
-    const messageChain: any = {
-      select: () => messageChain,
-      eq: (...args: unknown[]) => { calls.push({ method: 'eq', args }); return messageChain },
-      gt: (...args: unknown[]) => { calls.push({ method: 'gt', args }); return messageChain },
-      neq: (...args: unknown[]) => { calls.push({ method: 'neq', args }); return messageChain },
-      // eslint-disable-next-line unicorn/no-thenable
-      then: (cb: any) => Promise.resolve({ count: 3, error: null }).then(cb)
-    }
 
     vi.mocked(supabase.from).mockImplementation((table) => {
       if (table === 'channel_members') return createChain({ data: [{
         id: 'member-1', channel_id: 'channel-2', user_id: 'user-1', character_name: 'Thor',
         last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'channel-2', name: 'My Channel' }
       }], error: null }) as any;
-      if (table === 'messages') return messageChain as any;
       return {} as any;
     })
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [{ channel_id: 'channel-2', unread_count: 3 }],
+      error: null
+    } as any)
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.myChannels[0].unread_count).toBe(3)
-    expect(calls).toContainEqual({ method: 'neq', args: ['sender_id', 'user-1'] })
-    expect(calls).toContainEqual({ method: 'eq', args: ['is_deleted', false] })
+    // The old N+1 per-channel messages queries must be gone.
+    expect(supabase.from).toHaveBeenCalledTimes(1)
   })
 
   it('fetches and formats channels successfully', async () => {
@@ -141,6 +131,7 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       return {} as any;
     })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -169,6 +160,7 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       return {} as any;
     })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -192,6 +184,7 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
       return {} as any;
     })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
