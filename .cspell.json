@@ -41,6 +41,8 @@
     "passwordless",
     "subselect",
     "worktree",
-    "worktrees"
+    "worktrees",
+    "rolebypost",
+    "DELET"
   ]
 }

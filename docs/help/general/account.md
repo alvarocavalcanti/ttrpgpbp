@@ -16,4 +16,16 @@ You can link an optional **character sheet URL** per user per channel.
 
 ## Server admin
 
-Server administrators also see a **Server Admin** item in the app menu, where they can manage users, channels, and the maximum number of channels per user.
+Server administrators also see a **Server Admin** item in the app menu, where they can manage users, channels, and the maximum number of channels per user. Channels whose GM deleted their account show an **Orphaned** badge in the Channels tab — **Claim** to become the GM.
+
+## Download your data
+
+From **Settings → Account & Data → Download My Data** you can export your profile, channel memberships, authored messages (including your whispers), dice rolls, reactions, and notification preferences as a JSON file.
+
+## Delete your account
+
+From **Settings → Account & Data → Delete Account** you can permanently erase your account and personal data. To confirm, type `DELETE`. After deletion your past messages stay in the chat but are shown without your name, and any channels you ran become available to the server admin. This cannot be undone.
+
+## Privacy policy
+
+The **Privacy Policy** (linked from Settings and the app menu) explains what data we collect, where it is stored, and your access and erasure rights.

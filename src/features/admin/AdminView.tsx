@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { useAuth } from '../auth/useAuth'
 
 type AdminUser = {
   id: string
@@ -17,6 +18,7 @@ type AdminChannel = {
   id: string
   name: string
   game_system: string
+  gm_id: string | null
   member_count: number
   created_at: string
   last_message_at: string | null
@@ -75,6 +77,7 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
 
 export function AdminView() {
   const navigate = useNavigate()
+  const { user, profile } = useAuth()
   const { addToast } = useToast()
   const [tab, setTab] = useState<Tab>('users')
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -150,6 +153,20 @@ export function AdminView() {
       addToast('Failed to update channel limit.', 'error')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleClaimChannel = async (channelId: string) => {
+    try {
+      const { error } = await supabase.rpc('admin_claim_channel', { p_channel_id: channelId })
+      if (error) throw error
+      setChannels(prev => prev.map(c =>
+        c.id === channelId ? { ...c, gm_id: user?.id ?? null, gm_display_name: profile?.display_name ?? 'You' } : c
+      ))
+      addToast('Channel claimed. You are now the GM.', 'success')
+    } catch (err) {
+      console.error('Error claiming channel:', err)
+      addToast('Failed to claim channel.', 'error')
     }
   }
 
@@ -238,6 +255,7 @@ export function AdminView() {
                       <tr>
                         <SortHeader label="Name" sortKey="name" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="System" sortKey="game_system" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <SortHeader label="GM" sortKey="gm_display_name" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="Members" sortKey="member_count" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="Created" sortKey="created_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="Last Active" sortKey="last_message_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
@@ -248,6 +266,24 @@ export function AdminView() {
                         <tr key={channel.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{channel.name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.game_system || 'none'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {channel.gm_id === null ? (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                  Orphaned
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleClaimChannel(channel.id)}
+                                  className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                >
+                                  Claim
+                                </button>
+                              </span>
+                            ) : (
+                              channel.gm_display_name || '—'
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.member_count}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {new Date(channel.created_at).toLocaleString()}

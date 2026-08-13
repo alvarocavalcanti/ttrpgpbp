@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from './useAuth'
 import { supabase } from '../../lib/supabase'
 import { usePushNotifications } from './usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
+import { buildUserDataExport, downloadJson } from './exportUserData'
 
 export function ProfileSettings() {
-  const { user, profile } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const { addToast } = useToast()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [isSaving, setIsSaving] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const {
     isSupported,
@@ -66,6 +72,39 @@ export function ProfileSettings() {
   }
 
   const pushUnavailable = !isConfigured || !isSupported || needsInstall
+
+  const handleExport = async () => {
+    if (!user) return
+    setIsExporting(true)
+    try {
+      const data = await buildUserDataExport(user.id)
+      downloadJson(data, `rolebypost_export_${user.id}.json`)
+      addToast('Your data has been downloaded.', 'success')
+    } catch (error) {
+      console.error('Error exporting user data:', error)
+      addToast('Failed to export your data. Please try again.', 'error')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!user) return
+    setIsDeleting(true)
+    try {
+      const { error } = await supabase.functions.invoke('delete-account', {
+        method: 'POST',
+      })
+      if (error) throw error
+      setShowDeleteConfirm(false)
+      setDeleteConfirmText('')
+      await signOut()
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      addToast('Failed to delete account. Please try again.', 'error')
+      setIsDeleting(false)
+    }
+  }
 
   if (!profile) return null
 
@@ -234,6 +273,96 @@ export function ProfileSettings() {
           )}
         </div>
       </div>
+
+      <div>
+        <h3 className="text-xl font-bold text-gray-900 mb-4">Account &amp; Data</h3>
+        <div className="bg-white shadow rounded-lg p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">Download My Data</h4>
+              <p className="text-sm text-gray-500 mt-1">
+                Export your profile, channel memberships, and authored messages as a JSON file.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+            >
+              {isExporting ? 'Exporting...' : 'Download My Data'}
+            </button>
+          </div>
+
+          <div className="border-t border-gray-200 pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-red-600">Delete Account</h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  Permanently deletes your account and personal data. Your messages are kept
+                  anonymous and your channels are handed to the server admin.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="inline-flex justify-center rounded-md border border-transparent bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+
+          <div className="text-sm text-gray-500">
+            See the{' '}
+            <Link to="/privacy" className="text-indigo-600 hover:text-indigo-800 font-medium">
+              Privacy Policy
+            </Link>{' '}
+            for details on what data we store and how you can exercise your rights.
+          </div>
+        </div>
+      </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75" aria-hidden="true" onClick={() => setShowDeleteConfirm(false)}></div>
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 id="delete-account-title" className="text-lg font-bold text-gray-900 mb-2">
+                Delete your account?
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                This action is permanent and cannot be undone. Type <span className="font-semibold">DELETE</span> to confirm.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                aria-label="Type DELETE to confirm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm px-3 py-2 border"
+              />
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                  className="inline-flex justify-center rounded-md border border-transparent bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                >
+                  {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

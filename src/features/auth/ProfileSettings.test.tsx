@@ -1,10 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import type { ReactElement } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProfileSettings } from './ProfileSettings'
 import { useAuth } from './useAuth'
 import { usePushNotifications } from './usePushNotifications'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
+import { buildUserDataExport, downloadJson } from './exportUserData'
 
 vi.mock('./useAuth', () => ({
   useAuth: vi.fn(),
@@ -17,7 +20,15 @@ vi.mock('./usePushNotifications', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    functions: {
+      invoke: vi.fn(),
+    },
   },
+}))
+
+vi.mock('./exportUserData', () => ({
+  buildUserDataExport: vi.fn(),
+  downloadJson: vi.fn(),
 }))
 
 vi.mock('../../contexts/ToastContext', () => ({
@@ -47,6 +58,10 @@ describe('ProfileSettings', () => {
     })
   })
 
+  function renderWithRouter(ui: ReactElement) {
+    return render(<MemoryRouter>{ui}</MemoryRouter>)
+  }
+
   it('renders nothing if profile is null', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
@@ -59,7 +74,7 @@ describe('ProfileSettings', () => {
       signOut: vi.fn(),
     })
 
-    const { container } = render(<ProfileSettings />)
+    const { container } = renderWithRouter(<ProfileSettings />)
     expect(container).toBeEmptyDOMElement()
   })
 
@@ -80,7 +95,7 @@ describe('ProfileSettings', () => {
       signOut: vi.fn(),
     })
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
 
     expect(screen.getByDisplayValue('Test Player')).toBeInTheDocument()
     expect(screen.getByDisplayValue('user@example.com')).toBeDisabled()
@@ -108,7 +123,7 @@ describe('ProfileSettings', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
 
     const input = screen.getByLabelText('Display Name')
     fireEvent.change(input, { target: { value: 'New Name' } })
@@ -145,7 +160,7 @@ describe('ProfileSettings', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
 
     const saveButton = screen.getByRole('button', { name: 'Save Changes' })
     fireEvent.click(saveButton)
@@ -167,7 +182,7 @@ describe('ProfileSettings', () => {
       signOut: vi.fn(),
     })
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
 
     fireEvent.click(screen.getByLabelText('Send me Push Notifications'))
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ push_enabled: false }) // since it was true
@@ -188,7 +203,7 @@ describe('ProfileSettings', () => {
       signOut: vi.fn(),
     })
 
-    const { rerender } = render(<ProfileSettings />)
+    const { rerender } = renderWithRouter(<ProfileSettings />)
 
     // Initially isSubscribed is false
     fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
@@ -207,7 +222,7 @@ describe('ProfileSettings', () => {
       updatePreferences: mockUpdatePreferences
     })
 
-    rerender(<ProfileSettings />)
+    rerender(<MemoryRouter><ProfileSettings /></MemoryRouter>)
     
     fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
     expect(mockUnsubscribe).toHaveBeenCalled()
@@ -239,7 +254,7 @@ describe('ProfileSettings', () => {
       updatePreferences: mockUpdatePreferences
     })
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
     expect(screen.getByText('Push notifications are not configured on the server.')).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Use push notifications' })).not.toBeInTheDocument()
   })
@@ -268,7 +283,7 @@ describe('ProfileSettings', () => {
       updatePreferences: mockUpdatePreferences
     })
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
 
     expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
     expect(screen.getByLabelText('Show Unread Badges')).toBeEnabled()
@@ -298,9 +313,155 @@ describe('ProfileSettings', () => {
       updatePreferences: mockUpdatePreferences
     })
 
-    render(<ProfileSettings />)
+    renderWithRouter(<ProfileSettings />)
 
     expect(screen.getByText(/Add to Home Screen/)).toBeInTheDocument()
     expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
+  })
+
+  it('downloads user data on export', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    vi.mocked(buildUserDataExport).mockResolvedValue({ exported_at: 'x' } as any)
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download My Data' }))
+
+    await waitFor(() => {
+      expect(buildUserDataExport).toHaveBeenCalledWith('123')
+      expect(downloadJson).toHaveBeenCalledWith({ exported_at: 'x' }, 'rolebypost_export_123.json')
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Your data has been downloaded.', 'success')
+    })
+  })
+
+  it('shows a toast when export fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    vi.mocked(buildUserDataExport).mockRejectedValue(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download My Data' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Failed to export your data. Please try again.', 'error')
+    })
+  })
+
+  it('requires typing DELETE before confirming account deletion', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Account' }))
+    const confirm = screen.getByRole('button', { name: 'Permanently Delete' })
+    expect(confirm).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), { target: { value: 'DELET' } })
+    expect(confirm).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), { target: { value: 'DELETE' } })
+    expect(confirm).toBeEnabled()
+    expect(supabase.functions.invoke).not.toHaveBeenCalled()
+  })
+
+  it('deletes the account and signs out on confirmation', async () => {
+    const mockSignOut = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: mockSignOut,
+    })
+
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: null, error: null } as any)
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Account' }))
+    fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), { target: { value: 'DELETE' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Permanently Delete' }))
+
+    await waitFor(() => {
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', { method: 'POST' })
+      expect(mockSignOut).toHaveBeenCalled()
+    })
+  })
+
+  it('shows a toast and keeps the dialog open when deletion fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: null, error: new Error('down') } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Account' }))
+    fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), { target: { value: 'DELETE' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Permanently Delete' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Failed to delete account. Please try again.', 'error')
+    })
+    expect(screen.getByRole('button', { name: 'Permanently Delete' })).toBeInTheDocument()
+  })
+
+  it('links to the privacy policy', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
   })
 })

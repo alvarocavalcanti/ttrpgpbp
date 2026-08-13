@@ -7,6 +7,7 @@ import { useDebounce } from './hooks/useDebounce'
 import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ProfileSettings } from './features/auth/ProfileSettings'
+import { PrivacyPage } from './features/auth/PrivacyPage'
 import { Lobby } from './features/channels/Lobby'
 import { JoinChannel } from './features/channels/JoinChannel'
 import { ChannelView } from './features/channels/ChannelView'
@@ -122,6 +123,13 @@ function AppNav() {
             >
               Help
             </Link>
+            <Link 
+              to="/privacy" 
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              Privacy Policy
+            </Link>
             {isServerAdmin && (
               <Link 
                 to="/admin" 
@@ -169,6 +177,7 @@ function App() {
                   <Route path="/settings" element={<ProfileSettings />} />
                   <Route path="/help" element={<HelpPage />} />
                   <Route path="/help/:topic" element={<HelpPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
