@@ -20,6 +20,8 @@ Checklist for setting up your own RoleByPost server. The app is a static fronten
 ## 2. Set up Google OAuth
 
 - [ ] Create an OAuth client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (OAuth consent screen first, then an OAuth 2.0 Client ID of type Web application).
+- [ ] Brand the OAuth consent screen (APIs & Services → OAuth consent screen): set the app name, user support email, app logo (120×120 to 1200×1200px PNG/JPG, ≤1MB), app domain and authorized domains — otherwise Google shows the raw `*.supabase.co` redirect host and no logo on the consent screen.
+- [ ] Publish the app (set status to **In production**) — in **Testing** mode branding only shows to whitelisted test users.
 - [ ] Add the redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
 - [ ] In Supabase Dashboard → Authentication → Providers → Google, enable Google and paste the client ID and secret.
 
