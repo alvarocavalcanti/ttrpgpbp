@@ -25,7 +25,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 - Virtualization / pagination (C3/C5/H6, UX P1#1)
 - `useChannels` N+1 unread → aggregated RPC (C4, UX#5) ✅ (PR #145)
 - `useSearch` AbortController (M7); `setSearchParams` debounce (M10); `useSafetyCardEvents` GM gate (H10); single realtime channel (M9) ✅ (PR #145)
-- Error/empty/retry/archived/offline states + ErrorBoundary (UX#9–12, #16, M2); deleted-message privacy in search/export (UX#14); mutation failure surfacing (UX#15); profiles visibility + public-profiles view (P0-3/H1). **PR #146: ErrorBoundary (M2) + ChannelView error/retry screen + MessageList error-vs-empty + catch-all 404 (UX#9/10/11)**; **PR #147: P0-3/H1 profiles visibility (email column dropped; server_admin column revoked, gating via `is_server_admin()` RPC)**; **PR #148: deleted-message filter in search + export (UX#14), reaction failure toast (UX#15, partial — active-player/push failures still logged)**; archived/offline semantics, active-player/push mutation surfacing remain
+- Error/empty/retry/archived/offline states + ErrorBoundary (UX#9–12, #16, M2); deleted-message privacy in search/export (UX#14); mutation failure surfacing (UX#15); profiles visibility + public-profiles view (P0-3/H1). **PR #146: ErrorBoundary (M2) + ChannelView error/retry screen + MessageList error-vs-empty + catch-all 404 (UX#9/10/11)**; **PR #147: P0-3/H1 profiles visibility (email column dropped; server_admin column revoked, gating via `is_server_admin()` RPC)**; **PR #148: deleted-message filter in search + export (UX#14), reaction failure toast (UX#15, partial — active-player/push failures still logged)**; **PR #149: UX#12 archived semantics (join_channel rejects archived; ChannelView read-only banner + composer hidden; JoinChannel surfaces RPC message)**; offline state + full mutation pending-state rework remain
 - Modal keyboard/touch a11y (UX#18–20); dice check failure path (UX#13) — **PR #148: UX#13 fixed (warning kept out of the parsed notation; passed separately + shown in message content)**; a11y remains
 
 ### P2 — Code quality & refactor
@@ -169,5 +169,6 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | H (P1) | merged | `perf/query-streamlining` | #145 | ✅ |
 | I (P1) | merged | `fix/error-and-empty-states` | #146 | ✅ |
 | J (P1/P0-3) | merged | `fix/profile-visibility` | #147 | ✅ |
-| K (P1) | in progress | `fix/ux-robustness` | | |
+| K (P1) | merged | `fix/ux-robustness` | #148 | ✅ |
+| L (P1) | in progress | `fix/archived-channel-semantics` | | |
 | P1 wave | pending | | | |

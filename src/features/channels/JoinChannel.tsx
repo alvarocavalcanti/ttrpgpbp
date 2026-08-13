@@ -88,7 +88,9 @@ export function JoinChannel() {
       navigate(`/channel/${id}`)
     } catch (err: any) {
       console.error('Error joining channel:', err)
-      setError('Failed to join channel. Invalid password or invite code.')
+      // RPC exceptions are user-facing messages (invalid password/code, channel
+      // archived, limit reached), so surface them directly.
+      setError(err?.message || 'Failed to join channel. Invalid password or invite code.')
     } finally {
       setIsSubmitting(false)
     }

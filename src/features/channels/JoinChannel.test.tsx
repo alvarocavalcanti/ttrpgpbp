@@ -203,10 +203,10 @@ describe('JoinChannel', () => {
     })
   })
 
-  it('handles join error', async () => {
+  it('surfaces the RPC error message when joining fails', async () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview() as any)
-      .mockResolvedValueOnce({ error: new Error('RPC Failed') } as any)
+      .mockResolvedValueOnce({ error: new Error('This channel has been archived and can no longer be joined.') } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -224,7 +224,7 @@ describe('JoinChannel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to join channel. Invalid password or invite code.')).toBeInTheDocument()
+      expect(screen.getByText('This channel has been archived and can no longer be joined.')).toBeInTheDocument()
     })
   })
 
