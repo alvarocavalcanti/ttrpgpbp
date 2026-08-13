@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePushTargets } from './filter.ts'
+import { resolvePushTargets, buildPushPayload } from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -280,5 +280,21 @@ describe('resolvePushTargets', () => {
       const result = resolvePushTargets({ kind: 'turn' }, MEMBERS)
       expect(result.targetUserIds).toEqual([])
     })
+  })
+})
+
+describe('buildPushPayload', () => {
+  const target = { title: 'New message in The Den', body: 'Alv: hello', url: '/channel/c1' }
+
+  it('includes unread count and badge enabled', () => {
+    expect(buildPushPayload(target, 5, true)).toEqual({ ...target, unreadCount: 5, badgeEnabled: true })
+  })
+
+  it('carries badge disabled flag', () => {
+    expect(buildPushPayload(target, 5, false)).toEqual({ ...target, unreadCount: 5, badgeEnabled: false })
+  })
+
+  it('carries zero unread count', () => {
+    expect(buildPushPayload(target, 0, true).unreadCount).toBe(0)
   })
 })

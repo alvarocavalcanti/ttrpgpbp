@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload } from "./filter.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
 
 // Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma
@@ -227,7 +227,7 @@ serve(async (req) => {
     // Get notification preferences and subscriptions for these users
     const { data: prefs } = await serviceClient
       .from("notification_preferences")
-      .select("user_id, push_enabled")
+      .select("user_id, push_enabled, badge_enabled")
       .in("user_id", targetUserIds)
 
     const pushEnabledUserIds = targetUserIds.filter(uid => {
@@ -238,6 +238,20 @@ serve(async (req) => {
     if (pushEnabledUserIds.length === 0) {
       return json({ success: true, message: "Push disabled for all targets" }, 200, req)
     }
+
+    // Per-user badge_enabled (default true) and total unread, so the service
+    // worker can set the app icon badge count on supported platforms.
+    const badgeEnabledById = new Map<string, boolean>()
+    for (const uid of pushEnabledUserIds) {
+      const p = prefs?.find(pref => pref.user_id === uid)
+      badgeEnabledById.set(uid, p ? p.badge_enabled !== false : true)
+    }
+
+    const { data: unreadRows } = await serviceClient
+      .rpc("get_unread_totals", { p_user_ids: pushEnabledUserIds })
+    const unreadById = new Map<string, number>(
+      (unreadRows ?? []).map((row: { user_id: string; unread_count: number }) => [row.user_id, row.unread_count])
+    )
 
     const { data: subs } = await serviceClient
       .from("push_subscriptions")
@@ -263,7 +277,11 @@ serve(async (req) => {
     )
 
     const pushPromises = subs.map(async (sub) => {
-      const pushPayload = JSON.stringify({ title, body, url })
+      const pushPayload = JSON.stringify(buildPushPayload(
+        { title, body, url },
+        unreadById.get(sub.user_id) ?? 0,
+        badgeEnabledById.get(sub.user_id) ?? true
+      ))
 
       try {
         await webPush.sendNotification(

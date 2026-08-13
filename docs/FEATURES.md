@@ -96,6 +96,7 @@
 
 - **Push** — on by default
 - **In-app badge** — on by default
+- **Launcher icon badge** — when the PWA is installed, the home-screen icon shows the total unread count via the App Badging API (iOS 16.4+, desktop); respects the unread-badge preference and is updated in the background when a push arrives. Android has no badge API and shows a dot automatically only while a notification is active.
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")
 - **Permission banner** — prompts to enable push notifications on first load

@@ -38,6 +38,14 @@ export interface PushTargetResult {
   url: string
 }
 
+export interface PushPayload {
+  title: string
+  body: string
+  url: string
+  unreadCount: number
+  badgeEnabled: boolean
+}
+
 const CHANNEL_URL = (channelId: string) => `/channel/${channelId}`
 
 // Push bodies surface on the lock screen, so keep content short and never
@@ -123,4 +131,15 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     body,
     url: CHANNEL_URL(event.channel_id)
   }
+}
+
+// Shapes the per-user push payload sent to the service worker. Badge fields
+// let the SW set the app icon badge count on platforms that support it (iOS,
+// desktop). Pure: no IO.
+export function buildPushPayload(
+  target: { title: string; body: string; url: string },
+  unreadCount: number,
+  badgeEnabled: boolean
+): PushPayload {
+  return { ...target, unreadCount, badgeEnabled }
 }
