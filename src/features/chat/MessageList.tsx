@@ -22,9 +22,12 @@ interface MessageListProps {
   lastReadAt?: string | null
   onXCard?: (messageId: string) => void
   error?: Error | null
+  hasMore?: boolean
+  loadingOlder?: boolean
+  onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, error }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const endOfListRef = useRef<HTMLDivElement>(null)
 
@@ -64,6 +67,18 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
+      {hasMore && (
+        <div className="flex justify-center py-2">
+          <button
+            type="button"
+            onClick={onLoadOlder}
+            disabled={loadingOlder}
+            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+          >
+            {loadingOlder ? 'Loading older messages...' : 'Load older messages'}
+          </button>
+        </div>
+      )}
       {messages.map((message, index) => {
         const currentDate = dateLabels.get(message.id)!
         const prevMessage = index > 0 ? messages[index - 1] : null

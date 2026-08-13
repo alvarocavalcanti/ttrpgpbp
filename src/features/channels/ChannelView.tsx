@@ -21,7 +21,7 @@ export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { addToast } = useToast()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch, gmOnlyResourcesUrl } = useChannel(id)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
   const { npcs } = useChannelNpcs(id)
   const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
@@ -214,6 +214,9 @@ export function ChannelView() {
           lastReadAt={myMemberInfo?.last_read_at}
           onXCard={triggerXCard}
           error={messagesError}
+          hasMore={hasMore}
+          loadingOlder={loadingOlder}
+          onLoadOlder={loadOlder}
         />
         
         {!channel.is_archived && (
