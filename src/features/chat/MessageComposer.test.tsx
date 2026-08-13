@@ -214,6 +214,63 @@ describe('MessageComposer', () => {
     })
   })
 
+  it('linkifies @all to every member for the GM', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Everyone @all!' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Everyone [@all](user:all)!',
+        type: 'regular',
+        whisper_to: undefined,
+        active_player_ids: undefined,
+        mention_user_ids: ['u1']
+      })
+    })
+  })
+
+  it('does not linkify @all for non-GM players', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Everyone @all!' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'Everyone @all!',
+        type: 'regular',
+        whisper_to: undefined
+      })
+    })
+  })
+
+  it('shows the @all autocomplete option for the GM and inserts it', async () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Hi @a', selectionStart: 5 } })
+
+    expect(screen.getByRole('button', { name: /All players/ })).toBeInTheDocument()
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: /All players/ }))
+
+    await waitFor(() => {
+      expect((textarea as HTMLTextAreaElement).value).toBe('Hi @all ')
+    })
+  })
+
+  it('hides the @all autocomplete option for non-GM players', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @a', selectionStart: 5 } })
+
+    expect(screen.queryByRole('button', { name: /All players/ })).not.toBeInTheDocument()
+  })
+
   it('hides NPC mode from players', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))

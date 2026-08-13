@@ -25,6 +25,8 @@ Any message can be **replied to**. A reply renders a quote of the original messa
 
 Type `@CharacterName` to **mention** someone. Mentions autocomplete from channel members, render as a highlighted chip, and send the mentioned user a push notification.
 
+GMs can type **`@all`** to mention every player in the channel at once.
+
 ## Reactions
 
 React to any message with an **emoji**. The quick-emoji picker covers common reactions, and counts update live.

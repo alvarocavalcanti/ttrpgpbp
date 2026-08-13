@@ -51,7 +51,7 @@
 - **Deletable** — replaced with "deleted" marker (soft-delete)
 - URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
-- **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification
+- **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification. GMs can also use **`@all`** to mention every player at once
 - **Emoji reactions** — react to any message from a quick-emoji picker; counts update live and toggle per user
 - **Unread badges** — Lobby shows a "N new" badge per channel counting messages since the member's `last_read_at`; excludes the user's own and deleted messages
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read
