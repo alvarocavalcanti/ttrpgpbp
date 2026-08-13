@@ -31,7 +31,9 @@ REVOKE ALL ON FUNCTION admin_claim_channel(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_claim_channel(UUID) TO authenticated;
 
 -- Surface gm_id in the admin channel list so the client can badge orphaned
--- channels (gm_id IS NULL) and offer a Claim action.
+-- channels (gm_id IS NULL) and offer a Claim action. DROP first: CREATE OR
+-- REPLACE cannot change an existing function's return type (SQLSTATE 42P13).
+DROP FUNCTION IF EXISTS admin_list_channels();
 CREATE OR REPLACE FUNCTION admin_list_channels()
 RETURNS TABLE (
   id UUID,
