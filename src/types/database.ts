@@ -59,7 +59,7 @@ export interface Database {
         Row: {
           id: string
           name: string
-          gm_id: string
+          gm_id: string | null
           is_archived: boolean
           game_system: string
             invite_code: string | null
@@ -90,7 +90,7 @@ export interface Database {
         Update: {
           id?: string
           name?: string
-          gm_id?: string
+          gm_id?: string | null
           is_archived?: boolean
           game_system?: string
             invite_code?: string | null
@@ -616,11 +616,16 @@ export interface Database {
           id: string
           name: string
           game_system: string
+          gm_id: string | null
           member_count: number
           created_at: string
           last_message_at: string | null
           gm_display_name: string | null
         }[]
+      }
+      admin_claim_channel: {
+        Args: { p_channel_id: string }
+        Returns: undefined
       }
     }
     Enums: {
