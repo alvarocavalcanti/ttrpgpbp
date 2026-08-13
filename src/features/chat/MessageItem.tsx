@@ -15,7 +15,7 @@ interface MessageItemProps {
   isGM: boolean
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onRollDice?: (notation: string, replyToId?: string) => void
+  onRollDice?: (notation: string, replyToId?: string, warning?: string) => void
   isHighlighted?: boolean
   members?: Array<{ user_id: string; character_name: string; attributes?: any }>
   gameSystem?: string
@@ -181,8 +181,12 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               if (finalModifier !== null) {
                 finalModifier = clampModifier(gameSystem, finalModifier)
                 const sign = finalModifier >= 0 ? '+' : ''
-                const warning = isMissingMod ? `\n\n*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
-                onRollDice?.(`1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}${warning}`, message.id)
+                // Keep the explanatory warning out of the notation: parseAndRoll
+                // would reject it (UX#13). It is passed separately and appended
+                // to the message content by sendDiceRoll.
+                const notation = `1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
+                const warning = isMissingMod ? `*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
+                onRollDice?.(notation, message.id, warning || undefined)
               }
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-200 shadow-sm"
