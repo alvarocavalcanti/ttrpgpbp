@@ -40,7 +40,7 @@ describe('ChannelHelpModal', () => {
   it('calls onClose when backdrop clicked', () => {
     const onClose = vi.fn()
     render(<ChannelHelpModal onClose={onClose} />)
-    fireEvent.click(screen.getByRole('dialog').parentElement!)
+    fireEvent.click(screen.getByRole('dialog').previousElementSibling!)
     expect(onClose).toHaveBeenCalled()
   })
 

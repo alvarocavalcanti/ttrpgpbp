@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 type DiceRoll = Database['public']['Tables']['dice_rolls']['Row'] & {
   roller?: { display_name: string | null } | null
@@ -12,6 +13,7 @@ interface RollHistoryModalProps {
 }
 
 export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) {
+  useEscapeToClose(onClose)
   const [rolls, setRolls] = useState<DiceRoll[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

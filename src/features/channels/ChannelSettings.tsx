@@ -6,6 +6,7 @@ import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
@@ -17,6 +18,7 @@ interface ChannelSettingsProps {
 }
 
 export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUrlProp = null, onClose, onUpdate }: ChannelSettingsProps) {
+  useEscapeToClose(onClose)
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [name, setName] = useState(channel.name)

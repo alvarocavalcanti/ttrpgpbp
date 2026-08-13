@@ -195,6 +195,18 @@ describe('CreateChannelModal', () => {
     expect(mockOnClose).toHaveBeenCalled()
   })
 
+  it('closes on Escape', () => {
+    const mockOnClose = vi.fn()
+    render(
+      <MemoryRouter>
+        <CreateChannelModal onClose={mockOnClose} />
+      </MemoryRouter>
+    )
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(mockOnClose).toHaveBeenCalled()
+  })
+
   it('toggles password visibility', () => {
     render(
       <MemoryRouter>
