@@ -46,6 +46,7 @@ describe('AdminView', () => {
     vi.clearAllMocks()
     vi.mocked(useAuth).mockReturnValue(adminUser as any)
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
       return Promise.resolve({ data: null, error: null })
@@ -132,7 +133,10 @@ describe('AdminView', () => {
   })
 
   it('shows error state when RPCs fail', async () => {
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('DB down') } as any)
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      return Promise.resolve({ data: null, error: new Error('DB down') })
+    }) as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -149,6 +153,11 @@ describe('AdminView', () => {
       user: { id: 'u1' } as any,
       profile: { id: 'u1', server_admin: false } as any,
     } as any)
+
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
 
     render(
       <MemoryRouter initialEntries={['/admin']}>

@@ -1,0 +1,21 @@
+fix: stop exposing sensitive profile fields (H1 / P0-3)
+
+Any authenticated user could read every profile's email via the
+"Profiles are viewable by everyone" policy. profiles keeps its row-level
+select policy because chat legitimately needs cross-user display
+names/avatars, so the sensitive data is removed at the column level:
+
+- Drop the email column entirely (auth.users is the source of truth; the
+  app shows user.email from the session). With no column there is nothing
+  to enumerate. admin_list_users is recreated to read email from
+  auth.users, still gated behind is_server_admin().
+- Revoke SELECT (server_admin) from authenticated. Admin gating moves to
+  the existing is_server_admin() RPC via a new useIsServerAdmin hook.
+  AuthContext fetches explicit columns (no server_admin).
+
+Client:
+- useIsServerAdmin hook (loading-aware).
+- App nav, AdminView, Lobby, CreateChannelModal use the hook instead of
+  profile.server_admin.
+- ProfileSettings shows user.email instead of profile.email.
+- database.ts: drop email from the profiles type; add is_server_admin RPC.

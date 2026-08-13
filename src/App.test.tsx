@@ -17,8 +17,12 @@ vi.mock('./lib/supabase', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // useChannels fetches unread counts via a single RPC.
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    // useChannels fetches unread counts via a single RPC; admin gating uses the
+    // is_server_admin RPC. Non-admin by default unless a test overrides it.
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
   })
 
   it('renders login page initially when unauthenticated', async () => {
@@ -152,6 +156,11 @@ describe('App', () => {
       return listChain as any
     })
 
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
     render(<App />)
 
     await screen.findByText('RoleByPost')
@@ -270,7 +279,10 @@ describe('App', () => {
       if (table === 'profiles') return profileChain as any
       return listChain as any
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
 
     render(<App />)
 
