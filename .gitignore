@@ -39,3 +39,6 @@ supabase/.temp/
 
 # OpenCode Plans
 .opencode/plans/
+
+# Serena MCP
+.serena/
