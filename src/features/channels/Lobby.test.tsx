@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { usePushNotifications } from '../auth/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
+import { supabase } from '../../lib/supabase'
 
 vi.mock('./useChannels', () => ({
   useChannels: vi.fn()
@@ -40,6 +41,7 @@ describe('Lobby', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       preferences: { badge_enabled: true } as any
     } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: false, error: null } as any)
   })
 
   it('renders loading state', () => {
@@ -225,11 +227,13 @@ describe('Lobby', () => {
     expect(screen.queryByText('Create a New Channel')).not.toBeInTheDocument()
   })
 
-  it('does not cap server admins', () => {
+  it('does not cap server admins', async () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 'u1' },
       profile: { server_admin: true }
     } as any)
+
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: true, error: null } as any)
 
     vi.mocked(useChannels).mockReturnValue({
       myChannels: Array.from({ length: 12 }, (_, i) => ({
@@ -244,7 +248,7 @@ describe('Lobby', () => {
     render(<Lobby />, { wrapper: MemoryRouter })
 
     const createBtn = screen.getByRole('button', { name: 'Create Channel' })
-    expect(createBtn).not.toBeDisabled()
+    await waitFor(() => expect(createBtn).not.toBeDisabled())
 
     fireEvent.click(createBtn)
     expect(screen.getByText('Create a New Channel')).toBeInTheDocument()

@@ -13,6 +13,7 @@ import { ChannelView } from './features/channels/ChannelView'
 import { ArchivedChannels } from './features/channels/ArchivedChannels'
 import { AdminView } from './features/admin/AdminView'
 import { HelpPage } from './features/help/HelpPage'
+import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 
 export function NotFound() {
   return (
@@ -26,6 +27,7 @@ export function NotFound() {
 
 function AppNav() {
   const { user, profile, signOut } = useAuth()
+  const { isServerAdmin } = useIsServerAdmin()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -120,7 +122,7 @@ function AppNav() {
             >
               Help
             </Link>
-            {profile?.server_admin && (
+            {isServerAdmin && (
               <Link 
                 to="/admin" 
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

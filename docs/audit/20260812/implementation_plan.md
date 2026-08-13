@@ -25,7 +25,7 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 - Virtualization / pagination (C3/C5/H6, UX P1#1)
 - `useChannels` N+1 unread → aggregated RPC (C4, UX#5) ✅ (PR #145)
 - `useSearch` AbortController (M7); `setSearchParams` debounce (M10); `useSafetyCardEvents` GM gate (H10); single realtime channel (M9) ✅ (PR #145)
-- Error/empty/retry/archived/offline states + ErrorBoundary (UX#9–12, #16, M2); deleted-message privacy in search/export (UX#14); mutation failure surfacing (UX#15); profiles visibility + public-profiles view (P0-3/H1). **PR #146: ErrorBoundary (M2) + ChannelView error/retry screen + MessageList error-vs-empty + catch-all 404 (UX#9/10/11)**; archived/offline semantics, deleted-message privacy, mutation surfacing, profiles visibility remain
+- Error/empty/retry/archived/offline states + ErrorBoundary (UX#9–12, #16, M2); deleted-message privacy in search/export (UX#14); mutation failure surfacing (UX#15); profiles visibility + public-profiles view (P0-3/H1). **PR #146: ErrorBoundary (M2) + ChannelView error/retry screen + MessageList error-vs-empty + catch-all 404 (UX#9/10/11)**; **PR #147: P0-3/H1 profiles visibility (email column dropped; server_admin column revoked, gating via `is_server_admin()` RPC)**; archived/offline semantics, deleted-message privacy, mutation surfacing remain
 - Modal keyboard/touch a11y (UX#18–20); dice check failure path (UX#13)
 
 ### P2 — Code quality & refactor
@@ -167,5 +167,6 @@ Decisions (from user): client PBKDF2+salt; profiles visibility deferred to P1; f
 | F (P1) | merged | `fix/member-realtime` | #143 | ✅ |
 | G (P1) | merged | `perf/message-list-memoization` | #144 | ✅ |
 | H (P1) | merged | `perf/query-streamlining` | #145 | ✅ |
-| I (P1) | in progress | `fix/error-and-empty-states` | | |
+| I (P1) | merged | `fix/error-and-empty-states` | #146 | ✅ |
+| J (P1/P0-3) | in progress | `fix/profile-visibility` | | |
 | P1 wave | pending | | | |

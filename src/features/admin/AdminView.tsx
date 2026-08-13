@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
+import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 
 type AdminUser = {
   id: string
@@ -74,7 +74,6 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
 }
 
 export function AdminView() {
-  const { profile } = useAuth()
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [tab, setTab] = useState<Tab>('users')
@@ -86,19 +85,22 @@ export function AdminView() {
   const [isSaving, setIsSaving] = useState(false)
   const { value: maxChannels, loading: settingsLoading } = useAppSetting<number>('max_channels_per_user', 10)
 
+  const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
+
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
 
   useEffect(() => {
-    if (!profile?.server_admin) {
+    if (adminLoading) return
+    if (!isServerAdmin) {
       navigate('/')
       return
     }
     setChannelLimit(String(maxChannels))
-  }, [profile, maxChannels, navigate])
+  }, [isServerAdmin, adminLoading, maxChannels, navigate])
 
   useEffect(() => {
-    if (!profile?.server_admin) return
+    if (!isServerAdmin) return
     let mounted = true
 
     async function fetchData() {
@@ -125,9 +127,10 @@ export function AdminView() {
 
     fetchData()
     return () => { mounted = false }
-  }, [profile])
+  }, [isServerAdmin])
 
-  if (!profile?.server_admin) return null
+  if (adminLoading) return null
+  if (!isServerAdmin) return null
 
   const handleSaveLimit = async () => {
     const value = Number(channelLimit)

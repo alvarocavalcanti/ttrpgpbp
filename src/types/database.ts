@@ -28,7 +28,6 @@ export interface Database {
         Row: {
           id: string
           display_name: string | null
-          email: string | null
           avatar_url: string | null
           server_admin: boolean
           created_at: string
@@ -36,7 +35,6 @@ export interface Database {
         Insert: {
           id: string
           display_name?: string | null
-          email?: string | null
           avatar_url?: string | null
           server_admin?: boolean
           created_at?: string
@@ -44,7 +42,6 @@ export interface Database {
         Update: {
           id?: string
           display_name?: string | null
-          email?: string | null
           avatar_url?: string | null
           server_admin?: boolean
           created_at?: string
@@ -598,6 +595,10 @@ export interface Database {
           channel_id: string
           unread_count: number
         }[]
+      }
+      is_server_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       admin_list_users: {
         Args: Record<PropertyKey, never>

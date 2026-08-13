@@ -7,18 +7,20 @@ import { PermissionBanner } from '../notifications/PermissionBanner'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
+import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { MAX_CHANNELS_PER_USER } from '../../constants'
 
 export function Lobby() {
   const { myChannels, loading, error } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { preferences } = usePushNotifications()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
+  const { isServerAdmin } = useIsServerAdmin()
   const { addToast } = useToast()
   const [searchParams] = useSearchParams()
   const { value: maxChannels } = useAppSetting<number>('max_channels_per_user', MAX_CHANNELS_PER_USER)
 
-  const atChannelCap = !profile?.server_admin && myChannels.length >= maxChannels
+  const atChannelCap = !isServerAdmin && myChannels.length >= maxChannels
 
   const handleCreateClick = () => {
     if (atChannelCap) {

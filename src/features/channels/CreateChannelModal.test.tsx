@@ -42,6 +42,13 @@ describe('CreateChannelModal', () => {
       value: { randomUUID: () => '12345678-abcd' },
       configurable: true
     })
+
+    // Admin gating reads the is_server_admin RPC; non-admin by default so the
+    // channel-cap pre-check runs. create_channel mocks override per test.
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
   })
 
   it('creates channel atomically via create_channel RPC with password', async () => {
@@ -171,7 +178,8 @@ describe('CreateChannelModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Channel limit reached/)).toBeInTheDocument()
-      expect(supabase.rpc).not.toHaveBeenCalled()
+      // Admin-gating RPC may fire, but the create must not.
+      expect(supabase.rpc).not.toHaveBeenCalledWith('create_channel', expect.anything())
     })
   })
 

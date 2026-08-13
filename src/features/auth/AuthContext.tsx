@@ -4,7 +4,9 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 
-type Profile = Database['public']['Tables']['profiles']['Row']
+// server_admin is not readable from the profiles API anymore (H1/P0-3); admin
+// status comes from the is_server_admin() RPC via useIsServerAdmin.
+type Profile = Omit<Database['public']['Tables']['profiles']['Row'], 'server_admin'>
 
 interface AuthContextType {
   session: Session | null
@@ -33,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, display_name, avatar_url, created_at')
           .eq('id', userId)
           .single()
 

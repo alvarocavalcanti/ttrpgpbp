@@ -6,6 +6,7 @@ import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { MAX_CHANNELS_PER_USER } from '../../constants'
 import { useAppSetting } from '../../hooks/useAppSetting'
+import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 
 interface CreateChannelModalProps {
   onClose: () => void
@@ -13,6 +14,7 @@ interface CreateChannelModalProps {
 
 export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const { user, profile } = useAuth()
+  const { isServerAdmin } = useIsServerAdmin()
   const navigate = useNavigate()
   const { value: maxChannels } = useAppSetting<number>('max_channels_per_user', MAX_CHANNELS_PER_USER)
   
@@ -34,8 +36,8 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
 
     try {
       // Pre-check the channel cap so we don't leave an orphaned channel row
-      // when the join_channel RPC rejects the insert.
-      if (!profile?.server_admin) {
+      // when the create_channel RPC rejects the insert.
+      if (!isServerAdmin) {
         const { count } = await supabase
           .from('channel_members')
           .select('*, channel:channels!inner(id)', { count: 'exact', head: true })

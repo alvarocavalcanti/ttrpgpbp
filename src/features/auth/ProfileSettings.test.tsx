@@ -71,9 +71,7 @@ describe('ProfileSettings', () => {
       profile: {
         id: '123',
         display_name: 'Test Player',
-        email: 'user@example.com',
         avatar_url: 'https://example.com/avatar.jpg',
-        server_admin: false,
         created_at: '',
       },
       session: null,
@@ -97,9 +95,7 @@ describe('ProfileSettings', () => {
       profile: {
         id: '123',
         display_name: 'Test Player',
-        email: 'user@example.com',
         avatar_url: null,
-        server_admin: false,
         created_at: '',
       },
       session: null,
@@ -136,9 +132,7 @@ describe('ProfileSettings', () => {
       profile: {
         id: '123',
         display_name: 'Test Player',
-        email: 'user@example.com',
         avatar_url: null,
-        server_admin: false,
         created_at: '',
       },
       session: null,
