@@ -1,0 +1,67 @@
+import { Link } from 'react-router-dom'
+
+export function PrivacyPage() {
+  return (
+    <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <Link to="/" className="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-6">
+        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back
+      </Link>
+
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
+
+      <div className="bg-white shadow rounded-lg p-6 sm:p-8 space-y-8 text-sm text-gray-700 leading-relaxed">
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">What we collect</h2>
+          <p>
+            RoleByPost uses Google Sign-In (OAuth). When you sign in we receive your name,
+            email address, and profile picture. We store your display name, avatar, and the
+            messages, dice rolls, and channel memberships you create in the app.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Where data is stored</h2>
+          <p>
+            Your data is stored in a Supabase-hosted PostgreSQL database, including the
+            authentication records used by Google Sign-In. Push notification subscriptions
+            (browser endpoints) are stored so we can deliver notifications you opt into.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Google OAuth scopes</h2>
+          <p>
+            Sign-in uses the Google OAuth <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">email</code> and{' '}
+            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">profile</code> scopes. We do
+            not request access to your contacts, calendar, drive, or other Google data.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Your rights</h2>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <span className="font-semibold">Access / portability:</span> use{' '}
+              <span className="font-medium">Settings → Account &amp; Data → Download My Data</span>{' '}
+              to export your profile, memberships, and authored messages as JSON.
+            </li>
+            <li>
+              <span className="font-semibold">Erasure:</span> use{' '}
+              <span className="font-medium">Settings → Account &amp; Data → Delete Account</span>{' '}
+              to permanently delete your account and personal data. Your past messages are kept
+              anonymously so chat history for other players is preserved.
+            </li>
+          </ul>
+        </section>
+
+        <p className="text-xs text-gray-400">
+          This policy describes data handling for the RoleByPost application. Contact the server
+          admin to exercise any of these rights on behalf of an account you cannot access.
+        </p>
+      </div>
+    </div>
+  )
+}

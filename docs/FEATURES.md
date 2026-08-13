@@ -8,9 +8,13 @@
 - **Server admin flag** (`profiles.server_admin`, managed via DB) — exempts the user from the channel limit; enforced to a single admin
 - **Server Admin view** (`/admin`, via the "Server Admin" menu item, visible only to `server_admin`):
   - **Users tab** — display name, total active channels, joined date
-  - **Channels tab** — name, game system, member count, created and last-active dates
+  - **Channels tab** — name, game system, member count, created and last-active dates; orphaned channels (GM deleted their account) show an **Orphaned** badge with a **Claim** action that makes the admin the new GM
   - **Sortable tables** — click any Users/Channels column header to sort asc/desc (toggle on repeat click); tables scroll horizontally on mobile instead of cropping
   - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels.
+- **Account & Data** (in Settings) — GDPR controls:
+  - **Download My Data** — exports profile, channel memberships (with channel names), authored messages (including authored whispers), dice rolls, reactions, and notification preferences as a downloadable JSON file
+  - **Delete Account** — permanent erasure. Confirmation requires typing `DELETE`. Deletes the account and personal data (auth record, profile, memberships, dice rolls, reactions, preferences, push subscriptions); past messages are kept **anonymized** and the user's GM channels are **orphaned** for server-admin reclaim. The sole server admin cannot delete their own account.
+  - **Privacy Policy** link — `/privacy` page detailing Google OAuth scopes (`email`, `profile`), Supabase data storage, and access/erasure rights
 
 ## Channels & Lobby
 

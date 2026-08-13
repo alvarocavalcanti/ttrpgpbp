@@ -37,8 +37,8 @@ const users = [
 ]
 
 const channels = [
-  { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice' },
-  { id: 'c2', name: 'Empty', game_system: 'none', member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null },
+  { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', gm_id: 'u1', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice' },
+  { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null },
 ]
 
 describe('AdminView', () => {
@@ -81,6 +81,57 @@ describe('AdminView', () => {
     expect(screen.getByText('shadowdark')).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument()
     expect(screen.getByText('Empty')).toBeInTheDocument()
+  })
+
+  it('badges orphaned channels and claims them as GM', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+
+    expect(await screen.findByText('Orphaned')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Claim' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_claim_channel', { p_channel_id: 'c2' })
+      expect(addToast).toHaveBeenCalledWith('Channel claimed. You are now the GM.', 'success')
+    })
+  })
+
+  it('shows a toast when claiming fails', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_claim_channel') return Promise.resolve({ data: null, error: new Error('nope') })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim' }))
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('Failed to claim channel.', 'error')
+    })
   })
 
   it('rejects saving a limit below 10', async () => {

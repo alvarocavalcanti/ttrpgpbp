@@ -20,7 +20,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 |---|---|---|
 | `id` | UUID, PK | |
 | `name` | text | |
-| `gm_id` | UUID, FK → profiles | Creator, channel owner |
+| `gm_id` | UUID, FK → profiles, nullable | Creator, channel owner. Nullable + `ON DELETE SET NULL`: deleting a GM's account **orphans** the channel (chat history survives). Server admins reclaim orphans via `admin_claim_channel`. |
 | `is_archived` | boolean | Default `false`. True = hidden from main lobby, read-only/hidden |
 | `invite_code` | text, unique | For invite link sharing |
 | `map_url` | text, nullable | External link |
@@ -67,7 +67,7 @@ returns a safe projection (name, game_system, has_password) for the join form.
 |---|---|---|
 | `id` | UUID, PK | |
 | `channel_id` | UUID, FK → channels | |
-| `sender_id` | UUID, FK → profiles | |
+| `sender_id` | UUID, FK → profiles | `ON DELETE SET NULL` — when a user deletes their account, their messages stay but the author is anonymized |
 | `type` | text | `regular`, `scene`, `dice_roll`, `system` |
 | `content` | text | Markdown content |
 | `whisper_to` | UUID, FK → profiles, nullable | If set: visible only to sender + this user + GM |
@@ -114,6 +114,11 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages.
 - **dice_rolls**: Readable by channel members. Any member can insert (rolling dice).
 - **notification_preferences**: Users can only read/write their own row.
+
+### Admin / data-lifecycle functions
+
+- **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.
+- **`delete-account` edge function**: verifies the caller's JWT, rejects the sole server admin (would leave the app headless), then calls `auth.admin.deleteUser`. Cascades erase the user's profiles, memberships, dice rolls, reactions, preferences, and push subscriptions; their sent messages are anonymized (`sender_id SET NULL`) and whispers addressed to them are deleted (`whisper_to CASCADE`).
 
 ---
 
