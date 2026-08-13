@@ -203,6 +203,43 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load messages/)
   })
 
+  it('shows an archived banner and hides the composer for archived channels', async () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', is_archived: true, game_system: 'none' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      refetch: vi.fn()
+    } as any)
+
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(await screen.findByText(/archived and read-only/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Scene Description')).not.toBeInTheDocument()
+  })
+
   it('renders new messages divider from myMemberInfo.last_read_at', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },

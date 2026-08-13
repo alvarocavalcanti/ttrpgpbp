@@ -161,6 +161,12 @@ export function ChannelView() {
           </button>
         </div>
 
+        {channel.is_archived && (
+          <div className="px-4 py-2 bg-gray-200 text-gray-700 text-sm text-center" role="status">
+            This channel is archived and read-only. It can be restored by the GM.
+          </div>
+        )}
+
         <ChannelStatusBar
           channelId={channel.id}
           statusText={channel.status_text}
@@ -210,16 +216,18 @@ export function ChannelView() {
           error={messagesError}
         />
         
-        <MessageComposer 
-          isGM={isGM} 
-          members={whisperableMembers} 
-          npcs={npcs}
-          onSendMessage={sendMessage} 
-          onRollDice={sendDiceRoll}
-          replyTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
-          onXCard={() => triggerXCard()}
-        />
+        {!channel.is_archived && (
+          <MessageComposer 
+            isGM={isGM} 
+            members={whisperableMembers} 
+            npcs={npcs}
+            onSendMessage={sendMessage} 
+            onRollDice={sendDiceRoll}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onXCard={() => triggerXCard()}
+          />
+        )}
       </div>
 
       {/* Mobile Sidebar Overlay */}
