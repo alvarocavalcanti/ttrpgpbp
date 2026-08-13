@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MessageList } from './MessageList'
 import { useAuth } from '../auth/useAuth'
@@ -34,6 +34,43 @@ describe('MessageList', () => {
     )
     expect(screen.getByText(/Could not load messages/)).toBeInTheDocument()
     expect(screen.queryByText('No messages yet. Say hello!')).not.toBeInTheDocument()
+  })
+
+  it('renders a load-older button when hasMore is set and calls the handler', () => {
+    const onLoadOlder = vi.fn()
+    const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
+    render(
+      <MessageList
+        messages={msgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        hasMore
+        onLoadOlder={onLoadOlder}
+      />
+    )
+
+    const button = screen.getByRole('button', { name: 'Load older messages' })
+    fireEvent.click(button)
+    expect(onLoadOlder).toHaveBeenCalled()
+  })
+
+  it('disables the load-older button while older messages load', () => {
+    const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
+    render(
+      <MessageList
+        messages={msgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        hasMore
+        loadingOlder
+        onLoadOlder={vi.fn()}
+      />
+    )
+
+    const button = screen.getByRole('button', { name: 'Loading older messages...' })
+    expect(button).toBeDisabled()
   })
 
   it('renders list of messages', () => {

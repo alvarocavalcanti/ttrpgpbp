@@ -15,6 +15,10 @@ type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
 
 type Message = ChatMessage
 
+// Latest-N pagination: only a bounded window of history is held in memory;
+// older pages load on demand (C5).
+const PAGE_SIZE = 50
+
 // PostgREST can't embed self-referencing FKs via hint or bare embed, so we use
 // the `reply_message` computed relationship function (see migration
 // 20260807161732_add_reply_message_function.sql).
@@ -85,6 +89,8 @@ export function useMessages(channelId: string | undefined) {
   const [reactions, setReactions] = useState<Record<string, ReactionSummary[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -99,12 +105,15 @@ export function useMessages(channelId: string | undefined) {
           .from('messages')
           .select(MESSAGE_SELECT)
           .eq('channel_id', channelId as string)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false })
+          .limit(PAGE_SIZE)
 
         if (fetchError) throw fetchError
 
         if (mounted) {
-          setMessages((data || []).map(formatMessage))
+          // Newest-first fetch; reverse for ascending display.
+          setMessages((data || []).map(formatMessage).reverse())
+          setHasMore((data || []).length === PAGE_SIZE)
         }
       } catch (err: any) {
         console.error('Error fetching messages:', err)
@@ -156,11 +165,11 @@ export function useMessages(channelId: string | undefined) {
               .single()
 
             if (data && mounted) {
-              setMessages(prev => [...prev, formatMessage(data)])
+              setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, formatMessage(data)])
             }
           } else {
             if (mounted) {
-              setMessages(prev => [...prev, newMsg])
+              setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
             }
           }
         } else if (payload.eventType === 'UPDATE') {
@@ -199,6 +208,38 @@ export function useMessages(channelId: string | undefined) {
       subscription.unsubscribe()
     }
   }, [channelId, user?.id])
+
+  // Loads the page older than the oldest loaded message and prepends it.
+  const loadOlder = useCallback(async () => {
+    if (!channelId || loadingOlder || !hasMore || messages.length === 0) return
+    setLoadingOlder(true)
+    const oldest = messages[0]
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(MESSAGE_SELECT)
+        .eq('channel_id', channelId)
+        .lt('created_at', oldest.created_at)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE)
+      if (error) throw error
+
+      // ponytail: created_at cursor; equal timestamps at the boundary could
+      // straddle pages. Microsecond precision makes it a non-issue in practice;
+      // an id-based cursor is the upgrade path if it ever bites.
+      const older = (data || []).map(formatMessage).reverse()
+      setMessages(prev => {
+        const existing = new Set(prev.map(m => m.id))
+        return [...older.filter(m => !existing.has(m.id)), ...prev]
+      })
+      setHasMore((data || []).length === PAGE_SIZE)
+    } catch (err: any) {
+      console.error('Error loading older messages:', err)
+      setError(err)
+    } finally {
+      setLoadingOlder(false)
+    }
+  }, [channelId, loadingOlder, hasMore, messages])
 
   const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => {
     if (!channelId || !user) return
@@ -352,5 +393,5 @@ export function useMessages(channelId: string | undefined) {
     if (error) throw error
   }, [user?.id])
 
-  return { messages, reactions, loading, error, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction }
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction }
 }
