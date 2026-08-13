@@ -12,7 +12,7 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
 interface MemberListProps {
   members: ChannelMember[]
   isGM: boolean
-  gmId: string
+  gmId: string | null
   myUserId?: string
   gameSystem?: string
   channelId: string
