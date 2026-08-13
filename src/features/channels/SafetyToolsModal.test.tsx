@@ -54,7 +54,7 @@ describe('SafetyToolsModal', () => {
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }) }) } as any)
     const mockOnClose = vi.fn()
     render(<SafetyToolsModal channelId="c1" safetyToolsUrl={null} isGM={false} onClose={mockOnClose} />)
-    fireEvent.click(screen.getByRole('dialog').parentElement!)
+    fireEvent.click(screen.getByRole('dialog').previousElementSibling!)
     expect(mockOnClose).toHaveBeenCalled()
   })
 })

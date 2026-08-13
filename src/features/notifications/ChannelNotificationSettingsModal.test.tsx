@@ -80,7 +80,7 @@ describe('ChannelNotificationSettingsModal', () => {
     render(<ChannelNotificationSettingsModal channelId="c1" myMemberId="m1" onClose={onClose} />)
 
     const dialog = screen.getByRole('dialog')
-    fireEvent.click(dialog.parentElement!)
+    fireEvent.click(dialog.previousElementSibling!)
     expect(onClose).toHaveBeenCalled()
   })
 

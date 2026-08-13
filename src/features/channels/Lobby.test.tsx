@@ -218,7 +218,7 @@ describe('Lobby', () => {
     render(<Lobby />, { wrapper: MemoryRouter })
 
     const createBtn = screen.getByRole('button', { name: 'Create Channel' })
-    expect(createBtn).toBeDisabled()
+    expect(createBtn).toHaveAttribute('aria-disabled', 'true')
 
     // jsdom suppresses clicks on disabled buttons; the wrapper owns the onClick
     // so the toast still fires in the browser when a capped user clicks the FAB.

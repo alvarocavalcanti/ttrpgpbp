@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getChannelHelp, type HelpEntry } from './helpContent'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 interface ChannelHelpModalProps {
   onClose: () => void
@@ -10,34 +11,15 @@ interface ChannelHelpModalProps {
 export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
   const entries = getChannelHelp()
   const [selected, setSelected] = useState<HelpEntry | null>(null)
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [onClose])
+  useEscapeToClose(onClose)
 
   const active = selected ?? entries[0]
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75"
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClose()
-          e.preventDefault()
-        }
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75">
+      <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="Channel help"
       >

@@ -1,4 +1,5 @@
 import { useSafetyTools } from './useSafetyTools'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 interface SafetyToolsModalProps {
   channelId: string
@@ -8,25 +9,14 @@ interface SafetyToolsModalProps {
 }
 
 export function SafetyToolsModal({ channelId, safetyToolsUrl, isGM, onClose }: SafetyToolsModalProps) {
+  useEscapeToClose(onClose)
   const { safetyTools, loading } = useSafetyTools(channelId)
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75"
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClose()
-          e.preventDefault()
-        }
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75">
+      <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="Safety tools"
       >
