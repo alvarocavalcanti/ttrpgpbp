@@ -312,7 +312,7 @@ describe('ChannelSettings', () => {
   })
 
   it('handles export chat error', async () => {
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: null, error: new Error('err') }) }) }) })
+    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: null, error: new Error('err') }) }) }) }) })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -327,7 +327,7 @@ describe('ChannelSettings', () => {
 
   it('handles export chat with 5000 messages warning', async () => {
     const messages = Array.from({ length: 5000 }).map((_, i) => ({ content: `msg ${i}`, created_at: '2023-01-01', sender: { display_name: 'test' }, type: 'regular' }))
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: messages, error: null }) }) }) })
+    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: messages, error: null }) }) }) }) })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
     vi.stubGlobal('URL', { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() })
 
@@ -342,7 +342,7 @@ describe('ChannelSettings', () => {
 
   it('handles export chat', async () => {
     // Basic coverage for the button click
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [{ content: 'msg', created_at: '2023-01-01', sender: { display_name: 'test' } }], error: null }) }) }) })
+    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [{ content: 'msg', created_at: '2023-01-01', sender: { display_name: 'test' } }], error: null }) }) }) }) })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
 
     vi.stubGlobal('URL', { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() })

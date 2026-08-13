@@ -272,19 +272,20 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, user?.id])
 
-  const sendDiceRoll = useCallback(async (notation: string, replyToId?: string) => {
+  const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string) => {
     if (!channelId || !user) return
 
     // Perform the roll calculation
     const rollResult = parseAndRoll(notation)
 
-    // Insert message first
+    // Insert message first; an optional warning (e.g. a missing modifier notice
+    // from a check roll) is kept out of the notation but shown in the content.
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
         channel_id: channelId,
         sender_id: user.id,
-        content: `Rolled ${notation}: **${rollResult.total}**`,
+        content: `Rolled ${notation}: **${rollResult.total}**${warning ? `\n\n${warning}` : ''}`,
         type: 'dice_roll',
         reply_to: replyToId ?? null
       })

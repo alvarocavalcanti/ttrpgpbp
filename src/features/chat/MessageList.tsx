@@ -11,7 +11,7 @@ interface MessageListProps {
   isGM: boolean
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onRollDice?: (notation: string, replyToId?: string) => void
+  onRollDice?: (notation: string, replyToId?: string, warning?: string) => void
   highlightMessageId?: string | null
   members?: Array<{ user_id: string; character_name: string; attributes?: any }>
   gameSystem?: string

@@ -15,9 +15,11 @@ import { useChannelNpcs } from './useChannelNpcs'
 import { SafetyToolsModal } from './SafetyToolsModal'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
+import { useToast } from '../../contexts/ToastContext'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
+  const { addToast } = useToast()
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch, gmOnlyResourcesUrl } = useChannel(id)
   const { messages, reactions, loading: messagesLoading, error: messagesError, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
   const { npcs } = useChannelNpcs(id)
@@ -75,8 +77,9 @@ export function ChannelView() {
       }
     } catch (err) {
       console.error('Failed to toggle reaction:', err)
+      addToast('Failed to update reaction.', 'error')
     }
-  }, [addReaction, removeReaction])
+  }, [addReaction, removeReaction, addToast])
 
   if (channelLoading || messagesLoading) {
     return (

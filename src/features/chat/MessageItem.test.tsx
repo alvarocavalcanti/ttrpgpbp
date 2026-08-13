@@ -168,7 +168,7 @@ describe('MessageItem', () => {
     fireEvent.click(checkBtn)
     
     expect(window.prompt).toHaveBeenCalledWith('Enter modifier for STR Check:', '0')
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1', undefined)
   })
 
   it('handles ability checks with negative modifiers', () => {
@@ -184,7 +184,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'DEX Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1', undefined)
   })
 
   it('handles ability checks with zero modifiers', () => {
@@ -200,7 +200,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined)
   })
 
   it('handles ability checks with invalid modifiers', () => {
@@ -216,7 +216,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined)
   })
 
   it('handles ability checks when prompt is cancelled', () => {
@@ -433,7 +433,9 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[DEX Check](check:DEX)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} />)
     fireEvent.click(screen.getByText('DEX Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith(expect.stringContaining('1d20+3'), 'm1')
+    // Warning stays out of the notation (which the parser must accept) and is
+    // passed as a separate third argument.
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+3', 'm1', expect.stringContaining('Missing DEX modifier'))
   })
 
   it('renders check correctly for Shadowdark with modifier', async () => {
@@ -441,7 +443,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 4 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1')
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined)
   })
 
   it('clamps Shadowdark check modifier above 4 to 4', async () => {
@@ -449,7 +451,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 7 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1')
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined)
   })
 
   it('clamps Shadowdark check modifier below -4 to -4', async () => {
@@ -457,7 +459,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: -6 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20-4', 'm1')
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20-4', 'm1', undefined)
   })
 
   it('renders mention chips for user: links', () => {

@@ -160,6 +160,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
         .from('messages')
         .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
         .eq('channel_id', channel.id)
+        .eq('is_deleted', false)
         .order('created_at', { ascending: true })
         .limit(5000)
 

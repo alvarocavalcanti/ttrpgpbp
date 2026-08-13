@@ -49,7 +49,8 @@ describe('useSearch', () => {
     const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockEq = vi.fn().mockReturnValue({ textSearch: mockTextSearch })
+    const mockEq = vi.fn()
+    mockEq.mockReturnValue({ eq: mockEq, textSearch: mockTextSearch })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
@@ -83,7 +84,8 @@ describe('useSearch', () => {
     const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockEq = vi.fn().mockReturnValue({ textSearch: mockTextSearch })
+    const mockEq = vi.fn()
+    mockEq.mockReturnValue({ eq: mockEq, textSearch: mockTextSearch })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
