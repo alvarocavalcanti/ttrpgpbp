@@ -69,6 +69,7 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
   const matchedMembers = mentionState
     ? members.filter(m => m.character_name && m.character_name.toLowerCase().startsWith(mentionState.query.toLowerCase()))
     : []
+  const showAllMention = isGM && mentionState && 'all'.startsWith(mentionState.query.toLowerCase())
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -85,19 +86,19 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
     }
   }
 
-  const selectMention = (member: ChannelMember) => {
+  const selectMention = (name: string) => {
     if (!mentionState || !textareaRef.current) return
     const value = content
     const cursor = textareaRef.current.selectionStart ?? value.length
     const start = mentionState.start
-    const next = value.slice(0, start) + '@' + member.character_name + ' ' + value.slice(cursor)
+    const next = value.slice(0, start) + '@' + name + ' ' + value.slice(cursor)
     setContent(next)
     setMentionState(null)
     requestAnimationFrame(() => {
       const ta = textareaRef.current
       if (!ta) return
       ta.focus()
-      const pos = start + member.character_name.length + 2
+      const pos = start + name.length + 2
       ta.setSelectionRange(pos, pos)
     })
   }
@@ -119,7 +120,7 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
         finalContent = finalContent.replace(/(^|\s)(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/gi, '$1![]($2)')
       }
 
-      const { content: mentionContent, mentioned_user_ids } = linkifyMentions(finalContent, members)
+      const { content: mentionContent, mentioned_user_ids } = linkifyMentions(finalContent, members, { allMentionEnabled: isGM })
 
       const payload: any = {
         content: mentionContent,
@@ -159,9 +160,9 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
       return
     }
     // Enter/Tab while a mention is open picks the first match instead of submitting
-    if ((e.key === 'Enter' || e.key === 'Tab') && matchedMembers.length > 0) {
+    if ((e.key === 'Enter' || e.key === 'Tab') && (showAllMention || matchedMembers.length > 0)) {
       e.preventDefault()
-      selectMention(matchedMembers[0])
+      selectMention(showAllMention ? 'all' : matchedMembers[0].character_name)
     }
   }
 
@@ -395,13 +396,23 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
               </svg>
             </button>
             <div className="relative flex-1">
-              {matchedMembers.length > 0 && (
+              {(showAllMention || matchedMembers.length > 0) && (
                 <div className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {showAllMention && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); selectMention('all') }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center space-x-2"
+                    >
+                      <span className="font-medium text-gray-900">@all</span>
+                      <span className="text-xs text-gray-400">All players</span>
+                    </button>
+                  )}
                   {matchedMembers.map(m => (
                     <button
                       key={m.id}
                       type="button"
-                      onMouseDown={(e) => { e.preventDefault(); selectMention(m) }}
+                      onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center space-x-2"
                     >
                       {m.character_avatar_url && (

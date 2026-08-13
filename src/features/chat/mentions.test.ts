@@ -71,4 +71,34 @@ describe('linkifyMentions', () => {
     expect(content).toBe('Hello @Hero')
     expect(mentioned_user_ids).toEqual([])
   })
+
+  it('links @all to every member when enabled', () => {
+    const { content, mentioned_user_ids } = linkifyMentions('Roll init @all', MEMBERS, { allMentionEnabled: true })
+    expect(content).toBe('Roll init [@all](user:all)')
+    expect(mentioned_user_ids).toEqual(['u1', 'u2', 'u3'])
+  })
+
+  it('leaves @all alone when not enabled', () => {
+    const { content, mentioned_user_ids } = linkifyMentions('Roll init @all', MEMBERS)
+    expect(content).toBe('Roll init @all')
+    expect(mentioned_user_ids).toEqual([])
+  })
+
+  it('handles @all followed by punctuation', () => {
+    const { content, mentioned_user_ids } = linkifyMentions('Alright, @all!', MEMBERS, { allMentionEnabled: true })
+    expect(content).toBe('Alright, [@all](user:all)!')
+    expect(mentioned_user_ids).toEqual(['u1', 'u2', 'u3'])
+  })
+
+  it('leaves @all mid-word alone', () => {
+    const { content, mentioned_user_ids } = linkifyMentions('info@all.com', MEMBERS, { allMentionEnabled: true })
+    expect(content).toBe('info@all.com')
+    expect(mentioned_user_ids).toEqual([])
+  })
+
+  it('dedupes ids when @all and an explicit mention overlap', () => {
+    const { content, mentioned_user_ids } = linkifyMentions('@all see @Hero', MEMBERS, { allMentionEnabled: true })
+    expect(content).toBe('[@all](user:all) see [@Hero](user:u1)')
+    expect(mentioned_user_ids).toEqual(['u1', 'u2', 'u3'])
+  })
 })
