@@ -31,6 +31,32 @@ describe('linkifyDice', () => {
     const text = 'Make a STR Check or a Dexterity Check.'
     expect(linkifyDice(text)).toBe('Make a [STR Check](check:STR) or a [Dexterity Check](check:Dexterity).')
   })
+
+  it('captures a called-out DC in the check link', () => {
+    const text = 'Make a DC 12 DEX Check.'
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a [DEX Check](check:DEX:12).')
+  })
+
+  it('does not linkify checks for names outside the system attributes', () => {
+    const text = 'Make a DC 18 Athletics Check.'
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a DC 18 Athletics Check.')
+  })
+
+  it('derives check recognition from the provided system attributes', () => {
+    const text = 'Make a DEX Check and a Perception Check.'
+    // DEX is in the system list, Perception is not
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a [DEX Check](check:DEX) and a Perception Check.')
+  })
+
+  it('falls back to the generic attribute set when no system attributes are provided', () => {
+    const text = 'Make a STR Check or a Charisma Check.'
+    expect(linkifyDice(text)).toBe('Make a [STR Check](check:STR) or a [Charisma Check](check:Charisma).')
+  })
+
+  it('handles a DC check on a generic (no system) attribute', () => {
+    const text = 'Make a DC 10 Charisma Check.'
+    expect(linkifyDice(text)).toBe('Make a [Charisma Check](check:Charisma:10).')
+  })
 })
 
 describe('parseAndRoll', () => {

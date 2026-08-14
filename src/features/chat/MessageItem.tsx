@@ -15,7 +15,7 @@ interface MessageItemProps {
   isGM: boolean
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onRollDice?: (notation: string, replyToId?: string, warning?: string) => void
+  onRollDice?: (notation: string, replyToId?: string, warning?: string, dc?: number | null) => void
   isHighlighted?: boolean
   members?: Array<{ user_id: string; character_name: string; attributes?: any }>
   gameSystem?: string
@@ -66,6 +66,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
 
   const senderName = message.npc_name || members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
   const replySenderName = message.reply?.sender_id ? members?.find(m => m.user_id === message.reply?.sender_id)?.character_name : undefined
+
+  const systemAttributes = useMemo(() => getSystemAttributes(gameSystem), [gameSystem])
 
   useEffect(() => {
     if (isHighlighted && itemRef.current) {
@@ -147,7 +149,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
         )
       }
       if (href?.startsWith('check:')) {
-        const ability = href.slice(6)
+        const [ability, dcStr] = href.slice(6).split(':')
+        const dc = dcStr ? parseInt(dcStr, 10) : null
         return (
           <button
             type="button"
@@ -156,8 +159,6 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               let finalModifier: number | null = null
               let isMissingMod = false
               
-              const systemAttributes = getSystemAttributes(gameSystem)
-
               if (systemAttributes.includes(ability)) {
                 const myMember = members?.find(m => m.user_id === currentUserId)
                 const myAttributes = myMember?.attributes || {}
@@ -186,11 +187,11 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
                 // to the message content by sendDiceRoll.
                 const notation = `1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
                 const warning = isMissingMod ? `*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
-                onRollDice?.(notation, message.id, warning || undefined)
+                onRollDice?.(notation, message.id, warning || undefined, dc ?? undefined)
               }
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-200 shadow-sm"
-            title={`Roll ${ability} Check`}
+            title={`Roll ${ability} Check${dc ? ` (DC ${dc})` : ''}`}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
             {children}
@@ -218,7 +219,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
         />
       )
     }
-  }), [onRollDice, gameSystem, members, currentUserId, message.id])
+  }), [onRollDice, systemAttributes, members, currentUserId, message.id])
 
   const replyBlock = message.reply?.id ? (
     <button
@@ -299,7 +300,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               </div>
             </div>
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
           )}
           {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
         </div>
@@ -341,9 +342,24 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   }
 
   if (message.type === 'dice_roll') {
+    const isSuccess = message.roll_success === true
+    const isFailure = message.roll_success === false
+    const tone = isSuccess ? {
+      container: 'bg-green-50 border-green-100',
+      icon: 'bg-green-200 text-green-700',
+      label: 'text-green-800',
+    } : isFailure ? {
+      container: 'bg-red-50 border-red-100',
+      icon: 'bg-red-200 text-red-700',
+      label: 'text-red-800',
+    } : {
+      container: 'bg-indigo-50 border-indigo-100',
+      icon: 'bg-indigo-200 text-indigo-700',
+      label: 'text-indigo-800',
+    }
     return (
-      <div ref={itemRef} className={`flex items-center space-x-3 my-4 px-4 bg-indigo-50 py-3 rounded-lg border border-indigo-100 shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''}`}>
-        <div className="flex-shrink-0 bg-indigo-200 p-2 rounded-full text-indigo-700">
+      <div ref={itemRef} className={`flex items-center space-x-3 my-4 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''}`}>
+        <div className={`flex-shrink-0 ${tone.icon} p-2 rounded-full`}>
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
             <circle cx="8" cy="8" r="2" fill="currentColor" />
@@ -355,9 +371,16 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           {replyBlock}
-          <span className="text-xs font-semibold text-indigo-800 tracking-wide uppercase">
-            {senderName} rolled dice
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-semibold ${tone.label} tracking-wide uppercase`}>
+              {senderName} rolled dice
+            </span>
+            {typeof message.roll_success === 'boolean' && (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {isSuccess ? 'Success' : 'Failure'}
+              </span>
+            )}
+          </div>
           <div className="text-gray-900 text-lg">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
@@ -437,7 +460,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               </div>
             </div>
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content)}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
           )}
           {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
         </div>

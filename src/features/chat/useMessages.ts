@@ -299,11 +299,15 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, user?.id])
 
-  const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string) => {
+  const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
     if (!channelId || !user) return
 
     // Perform the roll calculation
     const rollResult = parseAndRoll(notation)
+
+    // A check with a called-out DC resolves to success/failure (meets beats).
+    const success = dc != null ? rollResult.total >= dc : null
+    const dcNote = dc != null ? `\n\n**${success ? 'Success' : 'Failure'}** (DC ${dc})` : ''
 
     // Insert message first; an optional warning (e.g. a missing modifier notice
     // from a check roll) is kept out of the notation but shown in the content.
@@ -312,9 +316,11 @@ export function useMessages(channelId: string | undefined) {
       .insert({
         channel_id: channelId,
         sender_id: user.id,
-        content: `Rolled ${notation}: **${rollResult.total}**${warning ? `\n\n${warning}` : ''}`,
+        content: `Rolled ${notation}: **${rollResult.total}**${dcNote}${warning ? `\n\n${warning}` : ''}`,
         type: 'dice_roll',
-        reply_to: replyToId ?? null
+        reply_to: replyToId ?? null,
+        roll_dc: dc ?? null,
+        roll_success: success
       })
       .select()
       .single()

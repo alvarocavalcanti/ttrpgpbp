@@ -7,17 +7,37 @@ export interface DiceRollResult {
 }
 
 const DICE_REGEX = /\b(\d+d\d+(?:(?:kh|kl|dh|dl)\d*)?(?:[+-]\d+)?)\b/gi
-const CHECK_REGEX = /\b(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) Check\b/gi
+
+// Fallback attribute set for channels with no game system (none/generic).
+const GENERIC_CHECK_ATTRIBUTES = [
+  'STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA',
+  'Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma',
+]
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Builds the ability-check matcher from the game system's attribute list.
+// Recognizes `DEX Check` and `DC 12 DEX Check`; the DC is captured for
+// success/failure evaluation at roll time.
+function checkRegex(attributes: string[]): RegExp {
+  const attrs = attributes.length > 0 ? attributes : GENERIC_CHECK_ATTRIBUTES
+  const alt = attrs.map(escapeRegex).join('|')
+  return new RegExp(`\\b(?:DC\\s+(\\d+)\\s+)?(${alt})\\s+Check\\b`, 'gi')
+}
 
 // Preprocesses text to turn dice notations into markdown links, skipping code blocks
-export function linkifyDice(text: string): string {
+export function linkifyDice(text: string, attributes?: string[]): string {
   if (!text) return text
   const parts = text.split(/(```[\s\S]*?```|`[^`]*`)/g)
   for (let i = 0; i < parts.length; i++) {
     if (i % 2 === 0) { // outside code blocks
       parts[i] = parts[i]
         .replace(DICE_REGEX, '[$1](dice:$1)')
-        .replace(CHECK_REGEX, '[$1 Check](check:$1)')
+        .replace(checkRegex(attributes || []), (_match, dc, ability) => {
+          return `[${ability} Check](check:${ability}${dc ? `:${dc}` : ''})`
+        })
     }
   }
   return parts.join('')
