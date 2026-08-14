@@ -14,6 +14,8 @@ import { ChannelView } from './features/channels/ChannelView'
 import { ArchivedChannels } from './features/channels/ArchivedChannels'
 import { AdminView } from './features/admin/AdminView'
 import { HelpPage } from './features/help/HelpPage'
+import { ChangelogPage } from './features/changelog/ChangelogPage'
+import { ChangelogProvider, useChangelog } from './features/changelog/useChangelog'
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 
 export function NotFound() {
@@ -29,6 +31,7 @@ export function NotFound() {
 function AppNav() {
   const { user, profile, signOut } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
+  const { openChangelog } = useChangelog()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -123,6 +126,16 @@ function AppNav() {
             >
               Help
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                openChangelog()
+              }}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Change Log
+            </button>
             <Link 
               to="/privacy" 
               className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -162,27 +175,30 @@ function App() {
     <ToastProvider>
       <AuthProvider>
         <BrowserRouter>
-          <div className="min-h-screen bg-gray-50 flex flex-col">
-            <AppNav />
-            <main className="flex-1 flex flex-col">
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<Lobby />} />
-                  <Route path="/archived" element={<ArchivedChannels />} />
-                  <Route path="/admin" element={<AdminView />} />
-                  <Route path="/join/:id" element={<JoinChannel />} />
-                  <Route path="/channel/:id" element={<ChannelView />} />
-                  <Route path="/settings" element={<ProfileSettings />} />
-                  <Route path="/help" element={<HelpPage />} />
-                  <Route path="/help/:topic" element={<HelpPage />} />
-                  <Route path="/privacy" element={<PrivacyPage />} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-          </div>
+          <ChangelogProvider>
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+              <AppNav />
+              <main className="flex-1 flex flex-col">
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/" element={<Lobby />} />
+                    <Route path="/archived" element={<ArchivedChannels />} />
+                    <Route path="/admin" element={<AdminView />} />
+                    <Route path="/join/:id" element={<JoinChannel />} />
+                    <Route path="/channel/:id" element={<ChannelView />} />
+                    <Route path="/settings" element={<ProfileSettings />} />
+                    <Route path="/help" element={<HelpPage />} />
+                    <Route path="/help/:topic" element={<HelpPage />} />
+                    <Route path="/changelog" element={<ChangelogPage />} />
+                    <Route path="/privacy" element={<PrivacyPage />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+            </div>
+          </ChangelogProvider>
         </BrowserRouter>
       </AuthProvider>
     </ToastProvider>

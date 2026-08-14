@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **What's New changelog modal** — when new features ship, a **What's New** modal appears on app load showing the 5 most recent changes. It can be dismissed until the next update (any change to `CHANGELOG.md` on a deploy) or forever. A **Change Log** menu item reopens the modal on demand, and a `/changelog` page shows the full history.
 - **Deployment and contributing docs** — `DEPLOYMENT.md` is a checklist for setting up a self-hosted instance (Supabase project, Google OAuth, VAPID keys, migrations, edge function, static frontend, first admin). `CONTRIBUTING.md` captures the project philosophy (chat-first, minimal features, UX priority) plus a concise contribution workflow that defers to `AGENTS.md` for full rules.
 - **MIT License** — the project is now licensed under the MIT License (`LICENSE`), documented in `package.json` and the README. You are free to self-host, modify, and build paid services from it as long as attribution to the original project is kept.
 - **AFK / Away status** — any player can mark themselves away from the member-list menu, optionally with an away message ("Away until Monday"). Away members show an AFK badge, a faded/grayscale avatar, and their away message in the member list, and their name appears struck-through with an (AFK) tag in the active-player status bar. While away, "It's your turn" push notifications are suppressed (enforced in the push-notifications edge function).
