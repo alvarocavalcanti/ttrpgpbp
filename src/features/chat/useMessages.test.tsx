@@ -11,10 +11,7 @@ vi.mock('../auth/useAuth', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
-    channel: vi.fn(),
-    functions: {
-      invoke: vi.fn().mockResolvedValue({ error: null })
-    }
+    channel: vi.fn()
   }
 }))
 
@@ -36,8 +33,8 @@ function mockFrom({
   })
 }
 
-// Message insert now returns the new row's id (`.select('id').single()`), which
-// is what gets passed to the push-notifications function.
+// Message insert returns the new row's id (`.select('id').single()`). Push is
+// fired by a DB trigger server-side, so the id is not consumed by the hook.
 function mockInsertMessage(id = 'msg1') {
   return vi.fn().mockReturnValue({
     select: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id }, error: null }) })
@@ -267,9 +264,6 @@ describe('useMessages', () => {
     })
 
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ reply_to: 'm1' }))
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('push-notifications', expect.objectContaining({
-      body: expect.objectContaining({ table: 'messages', message_id: 'msg1', mention_user_ids: ['u2'] })
-    }))
   })
 
   it('upserts the NPC roster and inserts an NPC message with snapshot columns', async () => {
@@ -305,9 +299,6 @@ describe('useMessages', () => {
       type: 'npc',
       npc_name: 'Goblin King',
       npc_avatar_url: 'https://example.com/king.png'
-    }))
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('push-notifications', expect.objectContaining({
-      body: expect.objectContaining({ table: 'messages', message_id: 'msg1' })
     }))
   })
 
@@ -400,105 +391,6 @@ describe('useMessages', () => {
     })
     expect(mockDelete).toHaveBeenCalled()
     expect(mockMatchDelete).toHaveBeenCalledWith({ message_id: 'm1', user_id: 'u1', emoji: '👍' })
-  })
-
-  it('catches push-notification edge function error on sendMessage', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const mockInsert = mockInsertMessage()
-    mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
-      tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return {}
-      }
-    })
-    mockChannels()
-
-    vi.mocked(supabase.functions.invoke).mockRejectedValue(new Error('Edge Error'))
-
-    const { result } = renderHook(() => useMessages('c1'))
-
-    await waitFor(() => expect(result.current.loading).toBe(false))
-
-    await act(async () => {
-      await result.current.sendMessage({ content: 'Hello', type: 'regular' })
-    })
-
-    expect(console.error).toHaveBeenCalledWith('Failed to trigger push for message', expect.any(Error))
-  })
-
-  it('catches push-notification edge function error on sendDiceRoll', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    const mockSelectMsg = vi.fn().mockResolvedValue({ data: { id: 'm1' }, error: null })
-    const mockInsertMsg = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSelectMsg }) })
-    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
-
-    mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
-      tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsertMsg, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'dice_rolls') return { insert: mockInsertDice }
-        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return {}
-      }
-    })
-    mockChannels()
-
-    vi.mocked(supabase.functions.invoke).mockRejectedValue(new Error('Edge Error'))
-
-    const { result } = renderHook(() => useMessages('c1'))
-
-    await waitFor(() => expect(result.current.loading).toBe(false))
-
-    await act(async () => {
-      await result.current.sendDiceRoll('1d20')
-    })
-
-    expect(console.error).toHaveBeenCalledWith('Failed to trigger push for message', expect.any(Error))
-  })
-
-  it('catches push-notification edge function error on updating active_player_ids', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const mockInsert = mockInsertMessage()
-    const mockEqReset = vi.fn().mockResolvedValue({ error: null })
-    const mockInSet = vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ data: [{ id: 'm1' }], error: null }) })
-    const mockEqSet = vi.fn().mockReturnValue({ in: mockInSet })
-    const mockUpdate = vi.fn().mockImplementation((payload) => {
-      if (payload.is_active_player === false) {
-        return { eq: mockEqReset }
-      }
-      return { eq: mockEqSet }
-    })
-
-    mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
-      tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'channel_members') return { update: mockUpdate }
-        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return {}
-      }
-    })
-    mockChannels()
-
-    vi.mocked(supabase.functions.invoke).mockImplementation((_name: string, args: any) => {
-      if (args?.body?.table === 'channel_members') {
-        return Promise.reject(new Error('Edge Error Turn Change'))
-      }
-      return Promise.resolve({ error: null } as any)
-    })
-
-    const { result } = renderHook(() => useMessages('c1'))
-
-    await waitFor(() => expect(result.current.loading).toBe(false))
-
-    await act(async () => {
-      await result.current.sendMessage({ content: 'Hello', type: 'regular', active_player_ids: ['u2'] })
-    })
-
-    expect(console.error).toHaveBeenCalledWith('Failed to trigger push for turn', expect.any(Error))
   })
 
   it('updates active_player_ids when sending a message', async () => {

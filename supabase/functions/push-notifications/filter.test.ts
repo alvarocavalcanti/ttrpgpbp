@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePushTargets, buildPushPayload } from './filter.ts'
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets } from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -296,5 +296,53 @@ describe('buildPushPayload', () => {
 
   it('carries zero unread count', () => {
     expect(buildPushPayload(target, 0, true).unreadCount).toBe(0)
+  })
+})
+
+describe('extractMentionUserIds', () => {
+  it('extracts ids from linkified mention chips', () => {
+    const content = 'Hey [@Hero](user:u2) and [@Me](user:u1), roll initiative!'
+    expect(extractMentionUserIds(content)).toEqual(['u2', 'u1'])
+  })
+
+  it('extracts the @all sentinel', () => {
+    expect(extractMentionUserIds('[@all](user:all) lets go')).toEqual(['all'])
+  })
+
+  it('dedupes repeated mentions of the same user', () => {
+    const content = '[@Hero](user:u2) again [@Hero](user:u2)'
+    expect(extractMentionUserIds(content)).toEqual(['u2'])
+  })
+
+  it('ignores prose containing user: fragments outside a chip', () => {
+    expect(extractMentionUserIds('a (user:u2) fragment')).toEqual([])
+  })
+
+  it('returns empty for null, empty, and mention-free content', () => {
+    expect(extractMentionUserIds(null)).toEqual([])
+    expect(extractMentionUserIds(undefined)).toEqual([])
+    expect(extractMentionUserIds('no mentions here')).toEqual([])
+  })
+})
+
+describe('resolveMentionTargets', () => {
+  it('returns empty when there are no mentions', () => {
+    expect(resolveMentionTargets([], MEMBERS, 'u1')).toEqual([])
+  })
+
+  it('filters the sender out of the routing list', () => {
+    expect(resolveMentionTargets(['u1', 'u2', 'u3'], MEMBERS, 'u1')).toEqual(['u2', 'u3'])
+  })
+
+  it('expands the all sentinel to every member and excludes the sender', () => {
+    expect(resolveMentionTargets(['all'], MEMBERS, 'u1')).toEqual(['u2', 'u3', 'u4'])
+  })
+
+  it('expands all even when combined with explicit mentions', () => {
+    expect(resolveMentionTargets(['all', 'u2'], MEMBERS, 'u1')).toEqual(['u2', 'u3', 'u4'])
+  })
+
+  it('dedupes repeated ids', () => {
+    expect(resolveMentionTargets(['u2', 'u2', 'u3'], MEMBERS, 'u1')).toEqual(['u2', 'u3'])
   })
 })

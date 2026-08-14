@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets, buildPushPayload } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets } from "./filter.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
 
 // Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma
@@ -24,7 +24,7 @@ function isAllowedOrigin(origin: string): boolean {
 
 function corsHeaders(req: Request): Record<string, string> {
   const headers: Record<string, string> = {
-    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-push-secret",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   }
   const origin = req.headers.get("origin")
@@ -52,16 +52,13 @@ interface BuiltEvent {
   members: PushMember[]
 }
 
-// Message events: the caller supplies a message_id and (optionally) the
-// mention routing list. Everything else — channel, sender, content, whisper
-// target — is read from the database so a caller cannot spoof other users'
-// messages. Caller must be the sender and a (non-blocked) member of the
-// channel.
+// Message events: the trigger supplies a message_id. Channel, sender, content,
+// whisper target, and mentions are all read from the database. The trigger only
+// fires for authenticated, RLS-passing inserts, so there is no caller identity
+// to check here — the shared secret is the trust boundary.
 async function buildMessageEvent(
   payload: Record<string, unknown>,
-  userId: string,
-  serviceClient: ReturnType<typeof createClient>,
-  userClient: ReturnType<typeof createClient>
+  serviceClient: ReturnType<typeof createClient>
 ): Promise<BuiltEvent> {
   const messageId = payload.message_id
   if (typeof messageId !== "string") {
@@ -77,14 +74,6 @@ async function buildMessageEvent(
   if (error || !message) {
     throw new HttpError(404, "Message not found")
   }
-  if (message.sender_id !== userId) {
-    throw new HttpError(403, "Forbidden")
-  }
-
-  const { data: isMember } = await userClient.rpc("is_channel_member", { c_id: message.channel_id })
-  if (!isMember) {
-    throw new HttpError(403, "Forbidden")
-  }
 
   const [{ data: channel }, { data: sender }, { data: whisperTarget }, { data: fetchedMembers }] = await Promise.all([
     serviceClient.from("channels").select("name, gm_id").eq("id", message.channel_id).maybeSingle(),
@@ -98,8 +87,18 @@ async function buildMessageEvent(
       .eq("channel_id", message.channel_id),
   ])
 
+  const members = fetchedMembers ?? []
+
+  // Mentions are parsed from the persisted markdown chips, not trusted from the
+  // request, so routing works for any caller.
+  const mentionIds = resolveMentionTargets(
+    extractMentionUserIds(message.content),
+    members,
+    message.sender_id
+  )
+
   return {
-    members: fetchedMembers ?? [],
+    members,
     event: {
       kind: "message",
       channel_id: message.channel_id,
@@ -111,18 +110,17 @@ async function buildMessageEvent(
       npc_name: message.npc_name,
       whisper_to: message.whisper_to,
       whisper_target_name: whisperTarget?.display_name,
-      mention_user_ids: Array.isArray(payload.mention_user_ids) ? payload.mention_user_ids as string[] : undefined,
+      mention_user_ids: mentionIds.length > 0 ? mentionIds : undefined,
       gm_id: channel?.gm_id,
     },
   }
 }
 
-// Turn events: the caller supplies a member_id. Only the GM of the channel may
-// mark a player as active, so the caller must be the channel GM. Content comes
-// from the database.
+// Turn events: the trigger supplies a member_id. Only a false -> true
+// is_active_player transition fires the trigger, so the member is always an
+// active player here; the guard below keeps direct API misuse harmless.
 async function buildTurnEvent(
   payload: Record<string, unknown>,
-  userClient: ReturnType<typeof createClient>,
   serviceClient: ReturnType<typeof createClient>
 ): Promise<BuiltEvent & { isActivePlayer: boolean }> {
   const memberId = payload.member_id
@@ -138,11 +136,6 @@ async function buildTurnEvent(
 
   if (error || !member) {
     throw new HttpError(404, "Member not found")
-  }
-
-  const { data: isGm } = await userClient.rpc("is_channel_gm", { c_id: member.channel_id })
-  if (!isGm) {
-    throw new HttpError(403, "Forbidden")
   }
 
   const [{ data: channel }, { data: fetchedMembers }] = await Promise.all([
@@ -173,27 +166,24 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")
-    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Missing Supabase configuration")
       return json({ error: "Internal server error" }, 500, req)
     }
 
-    // verify_jwt = true means the platform has already validated the token, but
-    // we still resolve the authenticated user to authorize each event.
-    const authHeader = req.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return json({ error: "Unauthorized" }, 401, req)
-    }
-    const accessToken = authHeader.slice("Bearer ".length)
-
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey)
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    })
 
-    const { data: { user } } = await userClient.auth.getUser()
-    if (!user) {
+    // Auth: only the DB trigger may call this function (verify_jwt is off).
+    // The trigger signs its calls with a shared secret stored in
+    // push_notification_config; the same value gates direct calls.
+    const { data: configRows } = await serviceClient
+      .from("push_notification_config")
+      .select("key, value")
+    const config = new Map<string, string>(
+      (configRows ?? []).map((row: { key: string; value: string }) => [row.key, row.value])
+    )
+    const internalSecret = config.get("PUSH_INTERNAL_SECRET")
+    if (!internalSecret || req.headers.get("x-push-secret") !== internalSecret) {
       return json({ error: "Unauthorized" }, 401, req)
     }
 
@@ -204,11 +194,11 @@ serve(async (req) => {
     let members: PushMember[]
 
     if (table === "messages") {
-      const built = await buildMessageEvent(payload, user.id, serviceClient, userClient)
+      const built = await buildMessageEvent(payload, serviceClient)
       event = built.event
       members = built.members
     } else if (table === "channel_members") {
-      const built = await buildTurnEvent(payload, userClient, serviceClient)
+      const built = await buildTurnEvent(payload, serviceClient)
       if (!built.isActivePlayer) {
         return json({ success: true, message: "Not an active player event" }, 200, req)
       }
