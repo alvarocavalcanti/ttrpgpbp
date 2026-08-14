@@ -10,6 +10,7 @@ Everything the **GM** can do to run and manage a channel.
 Open **Settings** from the channel sidebar to configure:
 
 - Channel name and game system
+- **Channel avatar** — upload an image shown in the channel list and header (requires the server admin to enable image uploads)
 - Status bar text and active player(s)
 - Map, resources, and GM resources URLs
 - Safety Tools Doc URL and Lines & Veils

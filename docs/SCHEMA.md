@@ -20,6 +20,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 |---|---|---|
 | `id` | UUID, PK | |
 | `name` | text | |
+| `avatar_url` | text, nullable | Public URL of the uploaded channel avatar (path `{channel_id}/avatar/*.jpg` in the `images` storage bucket) |
 | `gm_id` | UUID, FK → profiles, nullable | Creator, channel owner. Nullable + `ON DELETE SET NULL`: deleting a GM's account **orphans** the channel (chat history survives). Server admins reclaim orphans via `admin_claim_channel`. |
 | `is_archived` | boolean | Default `false`. True = hidden from main lobby, read-only/hidden |
 | `invite_code` | text, unique | For invite link sharing |
@@ -114,6 +115,15 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages.
 - **dice_rolls**: Readable by channel members. Any member can insert (rolling dice).
 - **notification_preferences**: Users can only read/write their own row.
+- **storage.objects (`images` bucket)**: Public bucket (plain public URLs for avatars). Reads are public; writes (INSERT/UPDATE/DELETE) are restricted to the GM of the channel named by the object path's first segment (`is_channel_gm(storage.foldername(name)[1]::uuid)`).
+
+### `app_settings`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `max_channels_per_user` | number | 10 | Channel cap for non-admin users |
+| `image_uploading_enabled` | boolean | `false` | Master toggle for image uploads; off keeps the server near zero cost |
+| `image_max_size_mb` | number | 5 | Max upload size before client-side resize |
 
 ### Admin / data-lifecycle functions
 

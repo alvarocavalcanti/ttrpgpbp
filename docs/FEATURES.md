@@ -10,7 +10,7 @@
   - **Users tab** — display name, total active channels, joined date
   - **Channels tab** — name, game system, member count, created and last-active dates; orphaned channels (GM deleted their account) show an **Orphaned** badge with a **Claim** action that makes the admin the new GM
   - **Sortable tables** — click any Users/Channels column header to sort asc/desc (toggle on repeat click); tables scroll horizontally on mobile instead of cropping
-  - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels.
+  - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels. Also configures **Image Uploads**: a master **allow image uploads** toggle (off by default to keep the server at near-zero cost) and a **maximum image size** (1–50 MB).
 - **Account & Data** (in Settings) — GDPR controls:
   - **Download My Data** — exports profile, channel memberships (with channel names), authored messages (including authored whispers), dice rolls, reactions, and notification preferences as a downloadable JSON file
   - **Delete Account** — permanent erasure. Confirmation requires typing `DELETE`. Deletes the account and personal data (auth record, profile, memberships, dice rolls, reactions, preferences, push subscriptions); past messages are kept **anonymized** and the user's GM channels are **orphaned** for server-admin reclaim. The sole server admin cannot delete their own account.
@@ -22,6 +22,7 @@
 - **Channel limit** — non-server-admins are capped at **N active channels**, where N is the admin-configured `app_settings.max_channels_per_user` (default 10). Server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast. Existing members over a lowered limit are never kicked.
 - **Lobby** lists only the private channels the user has joined
 - **Lobby shows your role per channel** — a "GM" badge when you run the channel, a "Player" badge otherwise
+- **Channel avatar** — GMs can upload an image avatar (WhatsApp/Signal-style) from Channel Settings; it shows in the channel list and the channel header. Images are downscaled client-side to ~512 px JPEG before upload into Supabase Storage, and uploads require the server admin to enable image uploads (off by default)
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
 - Channels are **private** and joined via invite link

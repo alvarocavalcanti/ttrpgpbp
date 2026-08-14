@@ -59,6 +59,7 @@ export interface Database {
         Row: {
           id: string
           name: string
+          avatar_url: string | null
           gm_id: string | null
           is_archived: boolean
           game_system: string
@@ -75,6 +76,7 @@ export interface Database {
         Insert: {
           id?: string
           name: string
+          avatar_url?: string | null
           gm_id: string
           is_archived?: boolean
           game_system?: string
@@ -90,6 +92,7 @@ export interface Database {
         Update: {
           id?: string
           name?: string
+          avatar_url?: string | null
           gm_id?: string | null
           is_archived?: boolean
           game_system?: string

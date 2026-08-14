@@ -145,6 +145,19 @@ export function ChannelView() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </Link>
+            {channel.avatar_url ? (
+              <img
+                src={channel.avatar_url}
+                alt=""
+                referrerPolicy="no-referrer"
+                data-testid="channel-header-avatar"
+                className="h-9 w-9 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div data-testid="channel-header-avatar" className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                {(channel.name[0] || '#').toUpperCase()}
+              </div>
+            )}
             <h2 className="text-xl font-bold text-gray-900">{channel.name}</h2>
           </div>
           
