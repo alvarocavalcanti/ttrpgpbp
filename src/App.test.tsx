@@ -17,6 +17,9 @@ vi.mock('./lib/supabase', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Keep the changelog modal from auto-opening during App-level tests; the
+    // dedicated "Change Log" menu item test covers it explicitly.
+    localStorage.setItem('changelog:forever', 'true')
     // useChannels fetches unread counts via a single RPC; admin gating uses the
     // is_server_admin RPC. Non-admin by default unless a test overrides it.
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
@@ -291,6 +294,47 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Server Admin'))
     expect(await screen.findByText('Users')).toBeInTheDocument()
     expect(screen.getByText('Server Admin')).toBeInTheDocument()
+  })
+
+  it('opens the changelog modal from the Change Log menu item', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+
+    await screen.findByText('RoleByPost')
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByText('Change Log'))
+    expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
   })
 })
 

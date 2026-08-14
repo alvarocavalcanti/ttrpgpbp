@@ -128,3 +128,9 @@
 - Help content is authored as Markdown files in [docs/help/](docs/help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic is just adding/removing a `.md` file
 - **Screenshots** live in `public/help/` and are referenced from frontmatter; the PWA precaches them
 - AGENTS.md requires help content and screenshots to be updated alongside feature/UI changes
+
+## Changelog
+
+- **What's New modal** — on app load, if `CHANGELOG.md` has changed since the user last dismissed it, a **What's New** modal shows the 5 most recent changes
+- **Dismissal** — "Dismiss" suppresses it until the next changelog update; "Don't show again" suppresses it forever (both stored per-device in localStorage). The modal can always be reopened via the **Change Log** menu item.
+- **Full changelog** — the modal links to a `/changelog` page rendering the complete `docs/CHANGELOG.md`
