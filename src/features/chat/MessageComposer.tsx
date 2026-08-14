@@ -41,6 +41,7 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
   const [error, setError] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const matchedNpc = npcName.trim()
@@ -70,6 +71,18 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
     ? members.filter(m => m.character_name && m.character_name.toLowerCase().startsWith(mentionState.query.toLowerCase()))
     : []
   const showAllMention = isGM && mentionState && 'all'.startsWith(mentionState.query.toLowerCase())
+  // Flattened option list: @all first (GM only), then matching members.
+  const mentionOptions = [
+    ...(showAllMention ? ['all' as string] : []),
+    ...matchedMembers.map(m => m.character_name),
+  ]
+  const mentionOpen = mentionOptions.length > 0
+  const memberStartIndex = showAllMention ? 1 : 0
+
+  // Keep the highlight on a valid option when the list shrinks.
+  useEffect(() => {
+    setActiveMentionIndex(i => (mentionOpen ? Math.min(i, mentionOptions.length - 1) : 0))
+  }, [mentionOptions.length, mentionOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -159,10 +172,22 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
       handleSubmit(e as any)
       return
     }
-    // Enter/Tab while a mention is open picks the first match instead of submitting
-    if ((e.key === 'Enter' || e.key === 'Tab') && (showAllMention || matchedMembers.length > 0)) {
-      e.preventDefault()
-      selectMention(showAllMention ? 'all' : matchedMembers[0].character_name)
+    // Enter/Tab while a mention is open picks the highlighted option instead of submitting
+    if (mentionOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActiveMentionIndex(i => (i + 1) % mentionOptions.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActiveMentionIndex(i => (i - 1 + mentionOptions.length) % mentionOptions.length)
+        return
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        selectMention(mentionOptions[activeMentionIndex])
+      }
     }
   }
 
@@ -397,31 +422,38 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
             </button>
             <div className="relative flex-1">
               {(showAllMention || matchedMembers.length > 0) && (
-                <div className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {showAllMention && (
                     <button
                       type="button"
+                      role="option"
+                      aria-selected={activeMentionIndex === 0}
                       onMouseDown={(e) => { e.preventDefault(); selectMention('all') }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center space-x-2"
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50' : 'hover:bg-indigo-50'}`}
                     >
                       <span className="font-medium text-gray-900">@all</span>
                       <span className="text-xs text-gray-400">All players</span>
                     </button>
                   )}
-                  {matchedMembers.map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center space-x-2"
-                    >
-                      {m.character_avatar_url && (
-                        <img className="h-5 w-5 rounded-full" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
-                      )}
-                      <span className="font-medium text-gray-900">{m.character_name}</span>
-                      {m.profile?.display_name && <span className="text-xs text-gray-400">({m.profile.display_name})</span>}
-                    </button>
-                  ))}
+                  {matchedMembers.map((m, i) => {
+                    const active = activeMentionIndex === memberStartIndex + i
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50' : 'hover:bg-indigo-50'}`}
+                      >
+                        {m.character_avatar_url && (
+                          <img className="h-5 w-5 rounded-full" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
+                        )}
+                        <span className="font-medium text-gray-900">{m.character_name}</span>
+                        {m.profile?.display_name && <span className="text-xs text-gray-400">({m.profile.display_name})</span>}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
               <textarea

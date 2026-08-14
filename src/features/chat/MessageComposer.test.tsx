@@ -207,11 +207,65 @@ describe('MessageComposer', () => {
     
     expect(screen.getByText('Hero')).toBeInTheDocument()
     
-    fireEvent.mouseDown(screen.getByRole('button', { name: /Hero/ }))
+    fireEvent.mouseDown(screen.getByRole('option', { name: /Hero/ }))
     
     await waitFor(() => {
       expect((textarea as HTMLTextAreaElement).value).toContain('@Hero ')
     })
+  })
+
+  it('highlights the first mention option by default', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @H', selectionStart: 5 } })
+
+    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('moves the highlight with arrow keys and inserts the highlighted option on Enter', async () => {
+    const multiMembers: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } },
+      { id: 'm2', user_id: 'u2', character_name: 'Archer', profile: { display_name: 'P2' } },
+    ]
+    render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'false')
+
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await waitFor(() => {
+      expect((textarea as HTMLTextAreaElement).value).toBe('Hi @Archer ')
+    })
+  })
+
+  it('wraps the highlight around with ArrowUp', () => {
+    const multiMembers: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } },
+      { id: 'm2', user_id: 'u2', character_name: 'Archer', profile: { display_name: 'P2' } },
+    ]
+    render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+
+    fireEvent.keyDown(textarea, { key: 'ArrowUp' })
+    expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('navigates @all as the first option for the GM', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+
+    expect(screen.getByRole('option', { name: /All players/ })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('linkifies @all to every member for the GM', async () => {
@@ -254,9 +308,9 @@ describe('MessageComposer', () => {
     const textarea = screen.getByPlaceholderText(/Type a message/i)
     fireEvent.change(textarea, { target: { value: 'Hi @a', selectionStart: 5 } })
 
-    expect(screen.getByRole('button', { name: /All players/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /All players/ })).toBeInTheDocument()
 
-    fireEvent.mouseDown(screen.getByRole('button', { name: /All players/ }))
+    fireEvent.mouseDown(screen.getByRole('option', { name: /All players/ }))
 
     await waitFor(() => {
       expect((textarea as HTMLTextAreaElement).value).toBe('Hi @all ')
@@ -268,7 +322,7 @@ describe('MessageComposer', () => {
 
     fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @a', selectionStart: 5 } })
 
-    expect(screen.queryByRole('button', { name: /All players/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /All players/ })).not.toBeInTheDocument()
   })
 
   it('hides NPC mode from players', () => {
