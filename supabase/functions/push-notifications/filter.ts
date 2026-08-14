@@ -143,3 +143,32 @@ export function buildPushPayload(
 ): PushPayload {
   return { ...target, unreadCount, badgeEnabled }
 }
+
+// Server-side mention parsing. The client persists mentions as markdown chips
+// (`[@Hero](user:uuid)`, plus `[@all](user:all)` for the GM's @all), so push
+// routing no longer depends on a client-supplied id list. Only chip links are
+// matched, so prose containing a `(user:...)` fragment is ignored.
+const MENTION_LINK_RE = /\[@[^\]]*\]\(user:([a-zA-Z0-9-]+)\)/g
+
+export function extractMentionUserIds(content: string | null | undefined): string[] {
+  if (!content) return []
+  const ids = new Set<string>()
+  for (const match of content.matchAll(MENTION_LINK_RE)) {
+    ids.add(match[1])
+  }
+  return [...ids]
+}
+
+// Resolves extracted mention ids to a routing list: expands the `all` sentinel
+// to every member and excludes the sender. Empty when there are no mentions.
+export function resolveMentionTargets(
+  mentionIds: string[],
+  members: PushMember[],
+  senderId: string
+): string[] {
+  if (mentionIds.length === 0) return []
+  const ids = mentionIds.includes('all')
+    ? members.map(m => m.user_id)
+    : mentionIds
+  return [...new Set(ids)].filter(uid => uid !== senderId)
+}

@@ -12,8 +12,10 @@ max_rows = 1000
 
 [functions.push-notifications]
 enabled = true
-# Require a signed-in user JWT; the function rejects anonymous invocations.
-verify_jwt = true
+# Auth is done inside the function via a shared secret (x-push-secret header
+# matched against push_notification_config). The DB trigger — not a browser — is
+# now the only caller, so platform JWT verification is off.
+verify_jwt = false
 import_map = "./functions/push-notifications/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

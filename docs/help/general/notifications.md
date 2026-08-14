@@ -4,7 +4,7 @@ title: Notifications
 
 ## Notification types
 
-- **Push** — browser push notifications, on by default
+- **Push** — browser push notifications, on by default. Delivery is handled by the server as soon as a message lands, so it works even if the sender closes the app right after sending.
 - **In-app badge** — an unread badge in the app, on by default
 - **Home-screen badge** — when the app is installed, the icon on your home screen shows your total unread count. Supported on iOS 16.4+ and desktop; it updates even when the app is closed. On Android the badge is handled by the OS and only shows a dot while a notification is active.
 - **Email** — off by default

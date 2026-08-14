@@ -256,7 +256,7 @@ export function useMessages(channelId: string | undefined) {
       if (npcError) throw npcError
     }
 
-    const { data: inserted, error } = await supabase
+    const { error } = await supabase
       .from('messages')
       .insert({
         channel_id: channelId,
@@ -272,14 +272,9 @@ export function useMessages(channelId: string | undefined) {
       .single()
     if (error) throw error
 
-    // Invoke push notifications function for the new message. The function
-    // derives content/channel/sender from the message row by id.
-    const messageId = inserted?.id
-    if (messageId) {
-      supabase.functions.invoke('push-notifications', {
-        body: { table: 'messages', message_id: messageId, mention_user_ids: payload.mention_user_ids }
-      }).catch(err => console.error('Failed to trigger push for message', err))
-    }
+    // Push notifications are fired server-side by a DB trigger on the messages
+    // insert (see 20260814120000_server_side_push_trigger.sql), so delivery no
+    // longer depends on this client.
 
     // If active_player_ids is provided, update the channel_members table
     if (payload.active_player_ids) {
@@ -290,25 +285,16 @@ export function useMessages(channelId: string | undefined) {
         .eq('channel_id', channelId)
       if (resetError) console.error('Failed to reset active players', resetError)
 
-      // 2. Set selected to true
+      // 2. Set selected to true. The DB trigger fires the turn push for any
+      // member whose is_active_player flips false -> true.
       if (payload.active_player_ids.length > 0) {
-        const { error: setActiveError, data: updatedMembers } = await supabase
+        const { error: setActiveError } = await supabase
           .from('channel_members')
           .update({ is_active_player: true })
           .eq('channel_id', channelId)
           .in('user_id', payload.active_player_ids)
-          .select()
 
         if (setActiveError) console.error('Failed to set active players', setActiveError)
-
-        // Trigger push for active players
-        if (updatedMembers) {
-          updatedMembers.forEach(member => {
-            supabase.functions.invoke('push-notifications', {
-              body: { table: 'channel_members', member_id: member.id }
-            }).catch(err => console.error('Failed to trigger push for turn', err))
-          })
-        }
       }
     }
   }, [channelId, user?.id])
@@ -352,11 +338,6 @@ export function useMessages(channelId: string | undefined) {
       })
 
     if (rollError) throw rollError
-
-    // Invoke push notifications function for the new dice roll
-    supabase.functions.invoke('push-notifications', {
-      body: { table: 'messages', message_id: message.id }
-    }).catch(err => console.error('Failed to trigger push for message', err))
   }, [channelId, user?.id])
 
   const editMessage = useCallback(async (messageId: string, content: string) => {

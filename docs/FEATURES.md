@@ -99,6 +99,7 @@
 ## Notifications
 
 - **Push** — on by default
+- **Server-side delivery** — push is triggered by a database trigger on new messages / active-player changes, so delivery no longer depends on the sender's browser being open or connected when they send
 - **In-app badge** — on by default
 - **Launcher icon badge** — when the PWA is installed, the home-screen icon shows the total unread count via the App Badging API (iOS 16.4+, desktop); respects the unread-badge preference and is updated in the background when a push arrives. Android has no badge API and shows a dot automatically only while a notification is active.
 - **Email** — off by default

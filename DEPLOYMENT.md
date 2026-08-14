@@ -65,12 +65,30 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 
   (Alternative: run each file manually in the Supabase SQL editor. `supabase db push` is the supported path.)
 
+- [ ] Configure the server-side push trigger. Push notifications are fired by a
+  Postgres trigger (`pg_net`) that calls the `push-notifications` edge function,
+  so it needs the function URL and a shared secret. Generate a secret and store
+  both in `push_notification_config`:
+
+  ```bash
+  openssl rand -base64 32
+  ```
+
+  ```sql
+  INSERT INTO push_notification_config (key, value) VALUES
+    ('PUSH_FUNCTION_URL', 'https://<project-ref>.supabase.co/functions/v1/push-notifications'),
+    ('PUSH_INTERNAL_SECRET', '<generated-secret>');
+  ```
+
+  Until this is done the trigger skips (no push), but message sending is unaffected.
+
 ## 6. Deploy the edge function
 
-The push-notifications function requires a signed-in user JWT (`verify_jwt = true`
-in `supabase/config.toml`), so anonymous calls are rejected. Callers may only
-trigger notifications for messages they sent in channels they belong to (GMs for
-turn events).
+The push-notifications function is invoked server-side by a Postgres trigger and
+authenticated with the `x-push-secret` header against the
+`PUSH_INTERNAL_SECRET` value stored in `push_notification_config`
+(`verify_jwt = false` in `supabase/config.toml`). It is no longer called by the
+browser, so no user JWT is involved.
 
 - [ ] Deploy the push-notifications function:
 
