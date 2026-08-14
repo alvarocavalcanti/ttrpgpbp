@@ -23,7 +23,7 @@ Any message can be **replied to**. A reply renders a quote of the original messa
 
 ## Mentions
 
-Type `@CharacterName` to **mention** someone. Mentions autocomplete from channel members, render as a highlighted chip, and send the mentioned user a push notification.
+Type `@CharacterName` to **mention** someone. Mentions autocomplete from channel members, render as a highlighted chip, and send the mentioned user a push notification. On desktop, use the **arrow keys** to move the highlight through the suggestions and **Enter/Tab** to select one.
 
 GMs can type **`@all`** to mention every player in the channel at once.
 
