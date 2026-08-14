@@ -485,6 +485,113 @@ describe('useMessages', () => {
     vi.restoreAllMocks()
   })
 
+  it('stores the DC and success flag when a check rolls at or above the DC', async () => {
+    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg2' }, error: null })
+    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
+    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
+
+    const mockInsert = vi.fn().mockImplementation((payload) => {
+      if (payload.type === 'dice_roll') {
+        return { select: mockSelectMessage }
+      }
+      return Promise.resolve({ error: null })
+    })
+
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendDiceRoll('1d20+2', 'parent1', undefined, 12)
+    })
+
+    // Math.random 0.5 -> d20 roll of 11, +2 = 13, meets DC 12
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      channel_id: 'c1',
+      sender_id: 'u1',
+      content: 'Rolled 1d20+2: **13**\n\n**Success** (DC 12)',
+      type: 'dice_roll',
+      reply_to: 'parent1',
+      roll_dc: 12,
+      roll_success: true
+    }))
+
+    expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({
+      message_id: 'msg2',
+      channel_id: 'c1',
+      roller_id: 'u1',
+      notation: '1d20+2',
+      result: 13,
+      breakdown: {
+        rolls: [11],
+        dropped: [],
+        modifier: 2
+      }
+    }))
+
+    vi.restoreAllMocks()
+  })
+
+  it('marks a check as failure when the total is below the DC', async () => {
+    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg3' }, error: null })
+    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
+    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
+
+    const mockInsert = vi.fn().mockImplementation((payload) => {
+      if (payload.type === 'dice_roll') {
+        return { select: mockSelectMessage }
+      }
+      return Promise.resolve({ error: null })
+    })
+
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendDiceRoll('1d20-2', undefined, undefined, 15)
+    })
+
+    // Math.random 0.5 -> d20 roll of 11, -2 = 9, below DC 15
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      channel_id: 'c1',
+      sender_id: 'u1',
+      content: 'Rolled 1d20-2: **9**\n\n**Failure** (DC 15)',
+      type: 'dice_roll',
+      reply_to: null,
+      roll_dc: 15,
+      roll_success: false
+    }))
+
+    vi.restoreAllMocks()
+  })
+
   it('exposes hasMore when the initial page is full', async () => {
     const full = Array.from({ length: 50 }, (_, i) => ({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
     const mockLimit = vi.fn().mockResolvedValue({ data: full, error: null })

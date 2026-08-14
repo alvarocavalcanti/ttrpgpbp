@@ -279,6 +279,8 @@ export interface Database {
           reply_to: string | null
           npc_name: string | null
           npc_avatar_url: string | null
+          roll_dc: number | null
+          roll_success: boolean | null
           is_edited: boolean
           is_deleted: boolean
           search_vector: unknown | null
@@ -295,6 +297,8 @@ export interface Database {
           reply_to?: string | null
           npc_name?: string | null
           npc_avatar_url?: string | null
+          roll_dc?: number | null
+          roll_success?: boolean | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null
@@ -311,6 +315,8 @@ export interface Database {
           reply_to?: string | null
           npc_name?: string | null
           npc_avatar_url?: string | null
+          roll_dc?: number | null
+          roll_success?: boolean | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null

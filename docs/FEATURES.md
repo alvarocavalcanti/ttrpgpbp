@@ -86,6 +86,7 @@
   - `kh`/`kl`/`dh`/`dl` with or without an explicit count
 - Roll result shows full breakdown: `2d20kh1: **18**: [18, 7]`
 - **Ability checks** (`STR Check`, `DEX Check`, etc.) — prompts for modifier, rolls d20
+- **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats)
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
   - UI available to both GM and players

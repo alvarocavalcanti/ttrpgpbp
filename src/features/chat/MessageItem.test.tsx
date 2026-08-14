@@ -168,7 +168,7 @@ describe('MessageItem', () => {
     fireEvent.click(checkBtn)
     
     expect(window.prompt).toHaveBeenCalledWith('Enter modifier for STR Check:', '0')
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1', undefined)
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1', undefined, undefined)
   })
 
   it('handles ability checks with negative modifiers', () => {
@@ -184,7 +184,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'DEX Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1', undefined)
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1', undefined, undefined)
   })
 
   it('handles ability checks with zero modifiers', () => {
@@ -200,7 +200,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined)
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined, undefined)
   })
 
   it('handles ability checks with invalid modifiers', () => {
@@ -216,7 +216,7 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
-    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined)
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined, undefined)
   })
 
   it('handles ability checks when prompt is cancelled', () => {
@@ -435,7 +435,7 @@ describe('MessageItem', () => {
     fireEvent.click(screen.getByText('DEX Check'))
     // Warning stays out of the notation (which the parser must accept) and is
     // passed as a separate third argument.
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+3', 'm1', expect.stringContaining('Missing DEX modifier'))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+3', 'm1', expect.stringContaining('Missing DEX modifier'), undefined)
   })
 
   it('renders check correctly for Shadowdark with modifier', async () => {
@@ -443,7 +443,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 4 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined)
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined, undefined)
   })
 
   it('clamps Shadowdark check modifier above 4 to 4', async () => {
@@ -451,7 +451,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 7 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined)
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined, undefined)
   })
 
   it('clamps Shadowdark check modifier below -4 to -4', async () => {
@@ -459,7 +459,60 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: -6 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20-4', 'm1', undefined)
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20-4', 'm1', undefined, undefined)
+  })
+
+  it('passes the called-out DC to onRollDice for DC checks', async () => {
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('2'))
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: 'Make a DC 12 DEX Check', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { DEX: 2 }}]} />)
+    fireEvent.click(screen.getByText('DEX Check'))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+2', 'm1', undefined, 12)
+  })
+
+  it('renders a successful check result in green with a Success badge', () => {
+    const msg: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20+2: **18**\n\n**Success** (DC 12)',
+      sender: { display_name: 'Hero' },
+      roll_dc: 12,
+      roll_success: true
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const card = container.querySelector('.max-w-lg')
+    expect(card?.className).toContain('bg-green-50')
+    const badge = container.querySelector('span.bg-green-100')
+    expect(badge).not.toBeNull()
+    expect(badge?.textContent).toBe('Success')
+  })
+
+  it('renders a failed check result in red with a Failure badge', () => {
+    const msg: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20+2: **10**\n\n**Failure** (DC 12)',
+      sender: { display_name: 'Hero' },
+      roll_dc: 12,
+      roll_success: false
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const card = container.querySelector('.max-w-lg')
+    expect(card?.className).toContain('bg-red-50')
+    const badge = container.querySelector('span.bg-red-100')
+    expect(badge).not.toBeNull()
+    expect(badge?.textContent).toBe('Failure')
+  })
+
+  it('keeps the default indigo styling when no DC was attached', () => {
+    const msg: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20+2: **18**',
+      sender: { display_name: 'Hero' }
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const card = container.querySelector('.max-w-lg')
+    expect(card?.className).toContain('bg-indigo-50')
+    expect(container.querySelector('span.bg-green-100, span.bg-red-100')).toBeNull()
   })
 
   it('renders mention chips for user: links', () => {
