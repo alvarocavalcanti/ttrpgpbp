@@ -82,6 +82,19 @@ export function Lobby() {
                     <div className="px-4 py-4 sm:px-6">
                       <div className="flex flex-col space-y-1 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                         <div className="flex items-center space-x-3">
+                          {channel.avatar_url ? (
+                            <img
+                              src={channel.avatar_url}
+                              alt=""
+                              referrerPolicy="no-referrer"
+                              data-testid="channel-avatar"
+                              className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div data-testid="channel-avatar" className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                              {(channel.name[0] || '#').toUpperCase()}
+                            </div>
+                          )}
                           <p className="text-sm font-medium text-indigo-600 truncate">
                             {channel.name}
                           </p>

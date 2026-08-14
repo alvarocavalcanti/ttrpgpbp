@@ -3,11 +3,16 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
 import { supabase } from '../../lib/supabase'
+import { useChannelAvatar } from './useChannelAvatar'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn()
   }
+}))
+
+vi.mock('./useChannelAvatar', () => ({
+  useChannelAvatar: vi.fn()
 }))
 
 vi.mock('../../lib/crypto', () => ({
@@ -42,6 +47,12 @@ describe('ChannelSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAddToast.mockClear()
+    vi.mocked(useChannelAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar: vi.fn().mockResolvedValue('https://img/new.jpg')
+    } as any)
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: { 
@@ -384,4 +395,93 @@ describe('ChannelSettings', () => {
     })
   })
 
+  it('renders the avatar upload input when uploads are enabled', () => {
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    const input = screen.getByLabelText('Channel Avatar')
+    expect(input).toBeInTheDocument()
+    expect(input).not.toBeDisabled()
+    expect(screen.queryByText(/Image uploads are disabled/)).not.toBeInTheDocument()
+  })
+
+  it('shows the current avatar image when the channel has one', () => {
+    render(
+      <ChannelSettings channel={{ ...mockChannel, avatar_url: 'https://img/current.jpg' }} onClose={vi.fn()} onUpdate={vi.fn()} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(screen.getByAltText('Channel avatar')).toHaveAttribute('src', 'https://img/current.jpg')
+  })
+
+  it('uploads the selected file and previews the new avatar', async () => {
+    const uploadAvatar = vi.fn().mockResolvedValue('https://img/uploaded.jpg')
+    vi.mocked(useChannelAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar
+    } as any)
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Channel Avatar'), {
+      target: { files: [new File(['data'], 'photo.png', { type: 'image/png' })] }
+    })
+
+    await waitFor(() => {
+      expect(uploadAvatar).toHaveBeenCalled()
+      expect(screen.getByAltText('Channel avatar')).toHaveAttribute('src', 'https://img/uploaded.jpg')
+    })
+  })
+
+  it('rejects non-image file selections', async () => {
+    const uploadAvatar = vi.fn()
+    vi.mocked(useChannelAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar
+    } as any)
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Channel Avatar'), {
+      target: { files: [new File(['data'], 'notes.txt', { type: 'text/plain' })] }
+    })
+
+    expect(await screen.findByText('Please choose an image file.')).toBeInTheDocument()
+    expect(uploadAvatar).not.toHaveBeenCalled()
+  })
+
+  it('shows the upload error message on failure', async () => {
+    const uploadAvatar = vi.fn().mockRejectedValue(new Error('Image is too large (max 5 MB)'))
+    vi.mocked(useChannelAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar
+    } as any)
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Channel Avatar'), {
+      target: { files: [new File(['data'], 'photo.png', { type: 'image/png' })] }
+    })
+
+    expect(await screen.findByText('Image is too large (max 5 MB)')).toBeInTheDocument()
+  })
+
+  it('disables the input and shows a note when uploads are disabled by the admin', () => {
+    vi.mocked(useChannelAvatar).mockReturnValue({
+      uploadEnabled: false,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar: vi.fn()
+    } as any)
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByLabelText('Channel Avatar')).toBeDisabled()
+    expect(screen.getByText(/Image uploads are disabled by the server admin/)).toBeInTheDocument()
+  })
 })

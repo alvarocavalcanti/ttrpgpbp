@@ -280,4 +280,32 @@ describe('Lobby', () => {
     expect(gmLink).toHaveTextContent('GM')
     expect(gmLink).not.toHaveTextContent('Player')
   })
+
+  it('renders the channel avatar image when set', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'My Channel', avatar_url: 'https://img/av.jpg', member: { character_name: 'Hero' } } as any,
+      ],
+      loading: false,
+      error: null,
+    })
+
+    const { getByTestId } = render(<Lobby />, { wrapper: MemoryRouter })
+    expect(getByTestId('channel-avatar').tagName).toBe('IMG')
+    expect(getByTestId('channel-avatar')).toHaveAttribute('src', 'https://img/av.jpg')
+  })
+
+  it('falls back to the channel initial when no avatar is set', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'My Channel', member: { character_name: 'Hero' } } as any,
+      ],
+      loading: false,
+      error: null,
+    })
+
+    const { getByTestId } = render(<Lobby />, { wrapper: MemoryRouter })
+    expect(getByTestId('channel-avatar').tagName).toBe('DIV')
+    expect(getByTestId('channel-avatar')).toHaveTextContent('M')
+  })
 })

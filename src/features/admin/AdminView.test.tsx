@@ -23,7 +23,14 @@ vi.mock('../../contexts/ToastContext', () => ({
 }))
 
 vi.mock('../../hooks/useAppSetting', () => ({
-  useAppSetting: vi.fn().mockReturnValue({ value: 10, loading: false, error: null, refresh: vi.fn() }),
+  useAppSetting: vi.fn().mockImplementation((key: string, fallback: any) => {
+    const map: Record<string, unknown> = {
+      max_channels_per_user: 10,
+      image_uploading_enabled: false,
+      image_max_size_mb: 5,
+    }
+    return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
+  }),
 }))
 
 const adminUser = {
@@ -44,6 +51,14 @@ const channels = [
 describe('AdminView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useAppSetting).mockImplementation((key: string, fallback: any) => {
+      const map: Record<string, unknown> = {
+        max_channels_per_user: 10,
+        image_uploading_enabled: false,
+        image_max_size_mb: 5,
+      }
+      return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
+    })
     vi.mocked(useAuth).mockReturnValue(adminUser as any)
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
@@ -231,6 +246,77 @@ describe('AdminView', () => {
     await screen.findByText('Alice')
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     expect(await screen.findByLabelText('Maximum Channels per user')).toHaveValue(12)
+  })
+
+  it('renders the image upload settings with the configured values', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+
+    const enabledToggle = await screen.findByLabelText('Allow image uploads (channel avatars)')
+    expect(enabledToggle).not.toBeChecked()
+    expect(screen.getByLabelText('Maximum image size (MB)')).toHaveValue(5)
+  })
+
+  it('saves image upload settings via app_settings upsert', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockReturnValue({ upsert: mockUpsert } as any)
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+
+    fireEvent.click(await screen.findByLabelText('Allow image uploads (channel avatars)'))
+    fireEvent.change(screen.getByLabelText('Maximum image size (MB)'), { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Image Settings' }))
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledWith(
+        [
+          { key: 'image_uploading_enabled', value: true },
+          { key: 'image_max_size_mb', value: 8 },
+        ],
+        { onConflict: 'key' }
+      )
+      expect(addToast).toHaveBeenCalledWith('Image upload settings updated.', 'success')
+    })
+  })
+
+  it('rejects an out-of-range image size', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    const mockUpsert = vi.fn()
+    vi.mocked(supabase.from).mockReturnValue({ upsert: mockUpsert } as any)
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+
+    await screen.findByLabelText('Allow image uploads (channel avatars)')
+    fireEvent.change(screen.getByLabelText('Maximum image size (MB)'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Image Settings' }))
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('Maximum image size must be between 1 and 50 MB.', 'error')
+    })
+    expect(mockUpsert).not.toHaveBeenCalled()
   })
 
   it('wraps the users table in a horizontally scrollable container', async () => {

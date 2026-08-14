@@ -6,6 +6,7 @@ import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
+import { useChannelAvatar } from './useChannelAvatar'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 type Channel = Database['public']['Tables']['channels']['Row']
@@ -46,6 +47,29 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
+
+  const { uploadEnabled, settingsLoading, uploading, uploadAvatar } = useChannelAvatar(channel.id, () => {
+    addToast('Channel avatar updated', 'success')
+  })
+  const [avatarUrl, setAvatarUrl] = useState(channel.avatar_url || '')
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.')
+      return
+    }
+    setAvatarError(null)
+    try {
+      const publicUrl = await uploadAvatar(file)
+      if (publicUrl) setAvatarUrl(publicUrl)
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : 'Failed to upload avatar.')
+    }
+  }
 
   const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
 
@@ -248,6 +272,40 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   >
                     Copy
                   </button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="Channel avatar"
+                      referrerPolicy="no-referrer"
+                      className="h-12 w-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-lg font-medium">
+                      {(name[0] || '#').toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label htmlFor="channelAvatar" className="block text-sm font-medium text-gray-700">Channel Avatar</label>
+                  <p className="text-xs text-gray-400 mt-0.5 mb-1">Shown in the channel list and header.</p>
+                  <input
+                    type="file"
+                    id="channelAvatar"
+                    accept="image/*"
+                    disabled={uploading || !uploadEnabled || settingsLoading}
+                    onChange={handleAvatarChange}
+                    className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50"
+                  />
+                  {uploading && <p className="text-xs text-gray-500 mt-1">Uploading...</p>}
+                  {!uploadEnabled && !settingsLoading && (
+                    <p className="text-xs text-amber-600 mt-1">Image uploads are disabled by the server admin.</p>
+                  )}
+                  {avatarError && <p className="text-xs text-red-600 mt-1">{avatarError}</p>}
                 </div>
               </div>
 

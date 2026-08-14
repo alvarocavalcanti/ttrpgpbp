@@ -584,6 +584,48 @@ describe('ChannelView search functionality', () => {
     })
   })
 
+  it('renders the channel avatar in the header when set', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', avatar_url: 'https://img/av.jpg' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const avatar = screen.getByTestId('channel-header-avatar')
+    expect(avatar.tagName).toBe('IMG')
+    expect(avatar).toHaveAttribute('src', 'https://img/av.jpg')
+  })
+
+  it('falls back to the channel initial in the header when no avatar is set', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const avatar = screen.getByTestId('channel-header-avatar')
+    expect(avatar.tagName).toBe('DIV')
+    expect(avatar).toHaveTextContent('T')
+  })
+
   it('shows the X-Card alert banner for the GM and dismisses it', () => {
     const mockDismiss = vi.fn()
     vi.mocked(useSafetyCardEvents).mockReturnValue({
