@@ -12,7 +12,7 @@ Open **Settings** from the channel sidebar to configure:
 - Channel name and game system
 - **Channel avatar** — upload an image shown in the channel list and header (requires the server admin to enable image uploads)
 - Status bar text and active player(s)
-- Map, resources, and GM resources URLs
+- Map, resources, and GM resources URLs — the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
 - Safety Tools Doc URL and Lines & Veils
 
 ## Managing members
@@ -31,5 +31,6 @@ Channels are private and joined via **invite link**. The GM can set an optional 
 ## Messages
 
 - GMs can post **Scene** and **NPC** messages
+- **Upload images** — with image uploads enabled, the GM composer has an **Upload** button (in the "+" options) that uploads an image and inserts it into the message at the cursor
 - Send **whispers** to a single player, visible only to them
 - Scene messages can be edited or deleted at any time by the GM

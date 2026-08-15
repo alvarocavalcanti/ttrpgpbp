@@ -116,7 +116,7 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages.
 - **dice_rolls**: Readable by channel members. Any member can insert (rolling dice).
 - **notification_preferences**: Users can only read/write their own row.
-- **storage.objects (`images` bucket)**: Public bucket (plain public URLs for avatars). Reads are public; writes (INSERT/UPDATE/DELETE) are restricted to the GM of the channel named by the object path's first segment (`is_channel_gm(storage.foldername(name)[1]::uuid)`).
+- **storage.objects (`images` bucket)**: Public bucket (plain public URLs for avatars). Reads are public; writes (INSERT/UPDATE/DELETE) are restricted to the GM of the channel named by the object path's first segment (`is_channel_gm(storage.foldername(name)[1]::uuid)`). Object paths are `{channel_id}/{avatar|message|map|resources|npc}/{uuid}.jpg`.
 
 ### `app_settings`
 
@@ -125,11 +125,13 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 | `max_channels_per_user` | number | 10 | Channel cap for non-admin users |
 | `image_uploading_enabled` | boolean | `false` | Master toggle for image uploads; off keeps the server near zero cost |
 | `image_max_size_mb` | number | 5 | Max upload size before client-side resize |
+| `image_retention_days` | number | 0 | `0` keeps images forever; otherwise the `cleanup-images` edge function deletes images older than this many days |
 
 ### Admin / data-lifecycle functions
 
 - **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.
 - **`delete-account` edge function**: verifies the caller's JWT, rejects the sole server admin (would leave the app headless), then calls `auth.admin.deleteUser`. Cascades erase the user's profiles, memberships, dice rolls, reactions, preferences, and push subscriptions; their sent messages are anonymized (`sender_id SET NULL`) and whispers addressed to them are deleted (`whisper_to CASCADE`).
+- **`cleanup-images` edge function**: scheduled daily; deletes `images` bucket objects older than `app_settings.image_retention_days` (no-op while 0). Storage-level retention, so there is no per-message tracking table.
 
 ---
 

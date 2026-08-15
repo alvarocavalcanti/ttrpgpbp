@@ -28,6 +28,7 @@ vi.mock('../../hooks/useAppSetting', () => ({
       max_channels_per_user: 10,
       image_uploading_enabled: false,
       image_max_size_mb: 5,
+      image_retention_days: 0,
     }
     return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
   }),
@@ -56,6 +57,7 @@ describe('AdminView', () => {
         max_channels_per_user: 10,
         image_uploading_enabled: false,
         image_max_size_mb: 5,
+        image_retention_days: 0,
       }
       return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
     })
@@ -287,6 +289,7 @@ describe('AdminView', () => {
     const enabledToggle = await screen.findByLabelText('Allow image uploads (channel avatars)')
     expect(enabledToggle).not.toBeChecked()
     expect(screen.getByLabelText('Maximum image size (MB)')).toHaveValue(5)
+    expect(screen.getByLabelText('Auto-delete images older than (days)')).toHaveValue(0)
   })
 
   it('saves image upload settings via app_settings upsert', async () => {
@@ -306,6 +309,7 @@ describe('AdminView', () => {
 
     fireEvent.click(await screen.findByLabelText('Allow image uploads (channel avatars)'))
     fireEvent.change(screen.getByLabelText('Maximum image size (MB)'), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText('Auto-delete images older than (days)'), { target: { value: '30' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Image Settings' }))
 
     await waitFor(() => {
@@ -313,6 +317,7 @@ describe('AdminView', () => {
         [
           { key: 'image_uploading_enabled', value: true },
           { key: 'image_max_size_mb', value: 8 },
+          { key: 'image_retention_days', value: 30 },
         ],
         { onConflict: 'key' }
       )
@@ -341,6 +346,31 @@ describe('AdminView', () => {
 
     await waitFor(() => {
       expect(addToast).toHaveBeenCalledWith('Maximum image size must be between 1 and 50 MB.', 'error')
+    })
+    expect(mockUpsert).not.toHaveBeenCalled()
+  })
+
+  it('rejects an out-of-range image retention', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    const mockUpsert = vi.fn()
+    vi.mocked(supabase.from).mockReturnValue({ upsert: mockUpsert } as any)
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+
+    await screen.findByLabelText('Allow image uploads (channel avatars)')
+    fireEvent.change(screen.getByLabelText('Auto-delete images older than (days)'), { target: { value: '400' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Image Settings' }))
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('Image retention must be between 0 and 365 days.', 'error')
     })
     expect(mockUpsert).not.toHaveBeenCalled()
   })
