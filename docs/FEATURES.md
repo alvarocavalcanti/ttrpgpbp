@@ -4,6 +4,8 @@
 
 - Google account sign-in
 - Per-channel **character name** (max 20 characters) and **avatar**
+- **Character modifiers** — per-game-system attribute modifier fields (e.g. STR/DEX); inputs accept integers only (floats/exponents/stray characters are rejected) and are clamped to the system's bounds
+- **Character notes** — a plain-text notes field per player (backstory, reminders), shown in the member list
 - Optional **character sheet URL** per user per channel
 - **Server admin flag** (`profiles.server_admin`, managed via DB) — exempts the user from the channel limit; enforced to a single admin
 - **Server Admin view** (`/admin`, via the "Server Admin" menu item, visible only to `server_admin`):

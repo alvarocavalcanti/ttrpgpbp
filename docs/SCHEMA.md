@@ -55,6 +55,7 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `user_id` | UUID, FK → profiles | |
 | `character_name` | text | |
 | `character_avatar_url` | text, nullable | |
+| `character_notes` | text, nullable | Plain-text notes (no markdown), shown in the member list |
 | `character_sheet_url` | text, nullable | |
 | `is_active_player` | boolean | Default `false`. Multiple can be active. |
 | `is_blocked` | boolean | Default `false`. Blocked members lose channel access (`is_channel_member()` excludes them) and can be unblocked by the GM. (Kick deletes the row) |

@@ -231,6 +231,9 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                       <p className="text-xs text-gray-500 truncate">
                         {member.profile?.display_name}
                       </p>
+                      {member.character_notes && (
+                        <p className="text-xs text-gray-400 truncate">{member.character_notes}</p>
+                      )}
                       {member.is_away && member.away_message && (
                         <p className="text-xs text-gray-400 italic truncate">
                           {member.away_message}

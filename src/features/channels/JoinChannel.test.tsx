@@ -22,7 +22,7 @@ vi.mock('../../lib/crypto', () => ({
   hashPasswordWithSalt: vi.fn().mockResolvedValue('hashed_password')
 }))
 
-const preview = (overrides: Partial<{ name: string; has_password: boolean }> = {}) => ({
+const preview = (overrides: Partial<{ name: string; game_system: string; has_password: boolean }> = {}) => ({
   data: [{
     id: '123',
     name: 'Test Channel',
@@ -314,5 +314,48 @@ describe('JoinChannel', () => {
     fireEvent.click(hideBtn)
 
     expect(passwordInput).toHaveAttribute('type', 'password')
+  })
+
+  it('accepts only integer stat input and joins with clamped modifiers', async () => {
+    const mockEqUser = vi.fn().mockResolvedValue({ error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ eq: mockEqUser })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channel_members') return { update: mockUpdate } as any
+      return {} as any
+    })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview({ game_system: 'shadowdark' }) as any)
+      .mockResolvedValueOnce({ error: null } as any)
+
+    render(
+      <MemoryRouter initialEntries={['/join/123']}>
+        <Routes>
+          <Route path="/join/:id" element={<JoinChannel />} />
+          <Route path="/channel/:id" element={<div data-testid="success-redirect" />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('STR')).toBeInTheDocument()
+    })
+
+    const strInput = screen.getByLabelText('STR')
+    // Non-integer keystrokes are ignored.
+    fireEvent.change(strInput, { target: { value: '2.5' } })
+    expect(strInput).toHaveValue('')
+    fireEvent.change(strInput, { target: { value: '6' } })
+    expect(strInput).toHaveValue('6')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
+
+    await waitFor(() => {
+      // Shadowdark clamps modifiers to [-4, 4].
+      expect(mockUpdate).toHaveBeenCalledWith({ attributes: { STR: 4 } })
+      expect(mockEqChannel).toHaveBeenCalledWith('channel_id', '123')
+      expect(mockEqUser).toHaveBeenCalledWith('user_id', 'u1')
+      expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
+    })
   })
 })

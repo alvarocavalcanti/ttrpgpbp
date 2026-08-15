@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
-import { getSystemAttributes, clampModifier } from '../../game-systems'
+import { getSystemAttributes, clampModifier, isValidModifierInput } from '../../game-systems'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
 
@@ -15,7 +15,16 @@ interface EditCharacterModalProps {
 export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: EditCharacterModalProps) {
   const [characterName, setCharacterName] = useState(member.character_name)
   const [characterSheetUrl, setCharacterSheetUrl] = useState(member.character_sheet_url || '')
-  const [attributes, setAttributes] = useState<any>(member.attributes || {})
+  const [characterNotes, setCharacterNotes] = useState(member.character_notes || '')
+  const systemAttributes = getSystemAttributes(gameSystem)
+  const [attributeInputs, setAttributeInputs] = useState<Record<string, string>>(() => {
+    const attrs = (member.attributes || {}) as Record<string, unknown>
+    const out: Record<string, string> = {}
+    for (const attr of systemAttributes) {
+      out[attr] = attrs[attr] != null ? String(attrs[attr]) : '0'
+    }
+    return out
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,12 +33,22 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
     setIsSubmitting(true)
     setError(null)
 
+    // Persist only integers within the system's modifier bounds. Unknown
+    // attribute keys are kept as-is.
+    const attributes = { ...(member.attributes || {}) }
+    for (const attr of systemAttributes) {
+      const raw = attributeInputs[attr]
+      const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0
+      attributes[attr] = clampModifier(gameSystem, num)
+    }
+
     try {
       const { error: updateError } = await supabase
         .from('channel_members')
         .update({
           character_name: characterName,
           character_sheet_url: characterSheetUrl || null,
+          character_notes: characterNotes.trim() || null,
           attributes
         })
         .eq('id', member.id)
@@ -46,15 +65,16 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
   }
 
   const handleAttributeChange = (attr: string, value: string) => {
-    const num = parseInt(value, 10)
-    const clamped = clampModifier(gameSystem, isNaN(num) ? 0 : num)
-    setAttributes((prev: any) => ({
-      ...prev,
-      [attr]: clamped
-    }))
+    if (!isValidModifierInput(value)) return
+    setAttributeInputs(prev => ({ ...prev, [attr]: value }))
   }
 
-  const systemAttributes = getSystemAttributes(gameSystem)
+  const handleAttributeBlur = (attr: string) => {
+    setAttributeInputs(prev => ({
+      ...prev,
+      [attr]: String(clampModifier(gameSystem, /^-?\d+$/.test(prev[attr]) ? parseInt(prev[attr], 10) : 0)),
+    }))
+  }
 
   return (
     <div className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -95,6 +115,19 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
                 />
               </div>
 
+              <div>
+                <label htmlFor="charNotes" className="block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  id="charNotes"
+                  rows={3}
+                  maxLength={500}
+                  value={characterNotes}
+                  onChange={(e) => setCharacterNotes(e.target.value)}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  placeholder="Backstory, personality, reminders... (plain text)"
+                />
+              </div>
+
               {systemAttributes.length > 0 && (
                 <div className="pt-4 border-t border-gray-200">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Attributes (Modifiers)</h4>
@@ -103,10 +136,13 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
                       <div key={attr}>
                         <label htmlFor={attr} className="block text-xs font-medium text-gray-700">{attr}</label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           id={attr}
-                          value={attributes[attr] ?? 0}
+                          value={attributeInputs[attr]}
                           onChange={(e) => handleAttributeChange(attr, e.target.value)}
+                          onBlur={() => handleAttributeBlur(attr)}
+                          pattern="-?[0-9]*"
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
                         />
                       </div>

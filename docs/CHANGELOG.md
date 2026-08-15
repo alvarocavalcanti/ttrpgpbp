@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Character notes** — a plain-text notes field per player, shown in the member list.
 - **Channel avatar** — GMs can upload an image avatar (WhatsApp/Signal-style) from Channel Settings; it shows in the channel list and the channel header. Images are downscaled client-side to ~512 px JPEG and stored in Supabase Storage, with uploads gated by a new server-admin toggle (image uploads are off by default).
 - **What's New changelog modal** — when new features ship, a **What's New** modal appears on app load showing the 5 most recent changes. It can be dismissed until the next update (any change to `CHANGELOG.md` on a deploy) or forever. A **Change Log** menu item reopens the modal on demand, and a `/changelog` page shows the full history.
 - **Deployment and contributing docs** — `DEPLOYMENT.md` is a checklist for setting up a self-hosted instance (Supabase project, Google OAuth, VAPID keys, migrations, edge function, static frontend, first admin). `CONTRIBUTING.md` captures the project philosophy (chat-first, minimal features, UX priority) plus a concise contribution workflow that defers to `AGENTS.md` for full rules.

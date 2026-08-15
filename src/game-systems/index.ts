@@ -30,3 +30,10 @@ export function clampModifier(systemId: string | undefined, value: number): numb
   const max = system?.maxModifier ?? DEFAULT_MODIFIER_LIMITS.max
   return Math.min(Math.max(value, min), max)
 }
+
+// Attribute-modifier inputs accept integers only: an optional leading minus
+// followed by digits. Floats, exponents, and stray characters are rejected so
+// the field can never hold a non-numerical value (UX#170).
+export function isValidModifierInput(value: string): boolean {
+  return /^-?\d*$/.test(value)
+}
