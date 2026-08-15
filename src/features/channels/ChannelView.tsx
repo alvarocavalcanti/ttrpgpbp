@@ -7,6 +7,9 @@ import { MemberList } from './MemberList'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
 import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
+import { useAuth } from '../auth/useAuth'
+import { usePushNotifications } from '../auth/usePushNotifications'
+import { notifyChannelRead } from '../../lib/channelRead'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
@@ -20,7 +23,19 @@ import { useToast } from '../../contexts/ToastContext'
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
   const { addToast } = useToast()
-  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch, gmOnlyResourcesUrl } = useChannel(id)
+  const { user } = useAuth()
+  const { preferences } = usePushNotifications()
+
+  // Fire once per channel visit: once the read (last_read_at) has committed,
+  // dismiss the channel's system notifications and refresh the launcher badge.
+  const readHandledRef = useRef<string | null>(null)
+  const handleChannelRead = useCallback(() => {
+    if (!id || !user?.id || readHandledRef.current === id) return
+    readHandledRef.current = id
+    void notifyChannelRead(id, user.id, preferences?.badge_enabled !== false)
+  }, [id, user?.id, preferences?.badge_enabled])
+
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
   const { npcs } = useChannelNpcs(id)
   const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
