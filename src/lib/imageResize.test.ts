@@ -6,15 +6,15 @@ describe('computeResizedDimensions', () => {
     expect(computeResizedDimensions(300, 200, 512)).toEqual({ width: 300, height: 200 })
   })
 
-  it('downscales the larger dimension to the cap preserving aspect ratio', () => {
+  it('scales down the larger dimension to the cap preserving aspect ratio', () => {
     expect(computeResizedDimensions(1600, 900, 512)).toEqual({ width: 512, height: 288 })
   })
 
-  it('downscales when only one dimension exceeds the cap', () => {
+  it('scales down when only one dimension exceeds the cap', () => {
     expect(computeResizedDimensions(200, 1000, 512)).toEqual({ width: 102, height: 512 })
   })
 
-  it('never upscales', () => {
+  it('never scales up', () => {
     expect(computeResizedDimensions(10, 10, 512)).toEqual({ width: 10, height: 10 })
   })
 
@@ -43,7 +43,7 @@ describe('resizeImageFile', () => {
     vi.restoreAllMocks()
   })
 
-  it('downscales, re-encodes as JPEG, and returns a File', async () => {
+  it('scales down, re-encodes as JPEG, and returns a File', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' })
     const resized = await resizeImageFile(file)
 
