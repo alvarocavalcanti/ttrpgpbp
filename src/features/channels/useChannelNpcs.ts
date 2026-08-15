@@ -8,31 +8,35 @@ export function useChannelNpcs(channelId: string | undefined) {
   const [npcs, setNpcs] = useState<Npc[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let mounted = true
+  const fetchNpcs = useCallback(async (mounted: { current: boolean }) => {
     if (!channelId) {
-      setLoading(false)
+      if (mounted.current) setLoading(false)
       return
     }
-    const cid = channelId
-
-    async function fetchNpcs() {
-      const { data, error } = await supabase
-        .from('channel_npcs')
-        .select('*')
-        .eq('channel_id', cid)
-        .order('name', { ascending: true })
-      if (error) {
-        console.error('Failed to fetch channel NPCs:', error)
-      } else if (mounted) {
-        setNpcs(data || [])
-      }
-      if (mounted) setLoading(false)
+    const { data, error } = await supabase
+      .from('channel_npcs')
+      .select('*')
+      .eq('channel_id', channelId)
+      .order('name', { ascending: true })
+    if (error) {
+      console.error('Failed to fetch channel NPCs:', error)
+    } else if (mounted.current) {
+      setNpcs(data || [])
     }
-
-    fetchNpcs()
-    return () => { mounted = false }
+    if (mounted.current) setLoading(false)
   }, [channelId])
+
+  useEffect(() => {
+    const mounted = { current: true }
+    setLoading(true)
+    void fetchNpcs(mounted)
+    return () => { mounted.current = false }
+  }, [fetchNpcs])
+
+  const refetch = useCallback(() => {
+    const mounted = { current: true }
+    void fetchNpcs(mounted)
+  }, [fetchNpcs])
 
   const addNpc = useCallback((npc: Npc) => {
     setNpcs(prev => prev.some(n => n.name.toLowerCase() === npc.name.toLowerCase())
@@ -40,5 +44,63 @@ export function useChannelNpcs(channelId: string | undefined) {
       : [...prev, npc].sort((a, b) => a.name.localeCompare(b.name)))
   }, [])
 
-  return { npcs, loading, addNpc }
+  // Creates (or reuses, on a name collision) an NPC and refreshes the roster.
+  const createNpc = useCallback(async (name: string, avatarUrl: string): Promise<boolean> => {
+    if (!channelId) return false
+    // ignoreDuplicates keeps a concurrently-created same-name NPC's row intact,
+    // mirroring the composer's upsert against the (channel_id, name) unique.
+    const { error } = await supabase
+      .from('channel_npcs')
+      .upsert(
+        { channel_id: channelId, name, avatar_url: avatarUrl },
+        { onConflict: 'channel_id,name', ignoreDuplicates: true }
+      )
+    if (error) {
+      console.error('Failed to create channel NPC:', error)
+      return false
+    }
+    refetch()
+    return true
+  }, [channelId, refetch])
+
+  const renameNpc = useCallback(async (id: string, name: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('channel_npcs')
+      .update({ name })
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to rename channel NPC:', error)
+      return false
+    }
+    refetch()
+    return true
+  }, [refetch])
+
+  const repictureNpc = useCallback(async (id: string, avatarUrl: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('channel_npcs')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to repicture channel NPC:', error)
+      return false
+    }
+    refetch()
+    return true
+  }, [refetch])
+
+  const deleteNpc = useCallback(async (id: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('channel_npcs')
+      .delete()
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to delete channel NPC:', error)
+      return false
+    }
+    refetch()
+    return true
+  }, [refetch])
+
+  return { npcs, loading, refetch, addNpc, createNpc, renameNpc, repictureNpc, deleteNpc }
 }

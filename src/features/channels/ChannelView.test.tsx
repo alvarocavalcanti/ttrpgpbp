@@ -443,6 +443,66 @@ describe('ChannelView search functionality', () => {
     expect(items).not.toContain('GM Resources')
   })
 
+  it('shows the NPCs sidebar item and opens the management modal for GMs', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const sidebar = screen.getByTestId('sidebar-menu')
+    const items = Array.from(sidebar.querySelectorAll('a, button'))
+      .map(el => el.textContent?.trim())
+
+    expect(items).toContain('NPCs')
+    fireEvent.click(screen.getByText('NPCs'))
+    expect(screen.getByRole('dialog', { name: 'Manage NPCs' })).toBeInTheDocument()
+  })
+
+  it('does not show the NPCs sidebar item for non-GMs', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const sidebar = screen.getByTestId('sidebar-menu')
+    const items = Array.from(sidebar.querySelectorAll('a, button'))
+      .map(el => el.textContent?.trim())
+
+    expect(items).not.toContain('NPCs')
+  })
+
   it('shows GM Resources link to GM when set', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },
