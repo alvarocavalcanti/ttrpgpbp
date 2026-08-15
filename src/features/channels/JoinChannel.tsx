@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
-import { getSystemAttributes, clampModifier } from '../../game-systems'
+import { getSystemAttributes, clampModifier, isValidModifierInput } from '../../game-systems'
 
 interface JoinChannelPreview {
   id: string
@@ -78,9 +78,15 @@ export function JoinChannel() {
       if (rpcError) throw rpcError
 
       if (Object.keys(attributes).length > 0) {
+        // Inputs hold sanitized integer strings; persist clamped numbers.
+        const numericAttributes: Record<string, number> = {}
+        for (const [attr, raw] of Object.entries(attributes as Record<string, string>)) {
+          const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0
+          numericAttributes[attr] = clampModifier(channel?.game_system, num)
+        }
         await supabase
           .from('channel_members')
-          .update({ attributes })
+          .update({ attributes: numericAttributes })
           .eq('channel_id', id)
           .eq('user_id', user.id)
       }
@@ -97,11 +103,10 @@ export function JoinChannel() {
   }
 
   const handleAttributeChange = (attr: string, value: string) => {
-    const num = parseInt(value, 10)
-    const clamped = clampModifier(channel?.game_system, isNaN(num) ? 0 : num)
+    if (!isValidModifierInput(value)) return
     setAttributes((prev: any) => ({
       ...prev,
-      [attr]: clamped
+      [attr]: value
     }))
   }
 
@@ -166,10 +171,12 @@ export function JoinChannel() {
                   <div key={attr}>
                     <label htmlFor={attr} className="block text-xs font-medium text-gray-700">{attr}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       id={attr}
                       value={attributes[attr] ?? ''}
                       onChange={(e) => handleAttributeChange(attr, e.target.value)}
+                      pattern="-?[0-9]*"
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
                     />
                   </div>

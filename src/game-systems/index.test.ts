@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getSystemAttributes, clampModifier, DEFAULT_MODIFIER_LIMITS } from './index'
+import { getSystemAttributes, clampModifier, DEFAULT_MODIFIER_LIMITS, isValidModifierInput } from './index'
 
 describe('Game Systems', () => {
   it('returns empty array for unknown or generic system', () => {
@@ -40,5 +40,24 @@ describe('clampModifier', () => {
     expect(clampModifier('shadowdark', 4)).toBe(4)
     expect(clampModifier('shadowdark', -4)).toBe(-4)
     expect(clampModifier('shadowdark', 0)).toBe(0)
+  })
+})
+
+describe('isValidModifierInput', () => {
+  it('accepts integers and a leading minus', () => {
+    expect(isValidModifierInput('0')).toBe(true)
+    expect(isValidModifierInput('3')).toBe(true)
+    expect(isValidModifierInput('-4')).toBe(true)
+    expect(isValidModifierInput('-')).toBe(true)
+    expect(isValidModifierInput('')).toBe(true)
+  })
+
+  it('rejects floats, exponents, and stray characters', () => {
+    expect(isValidModifierInput('1.5')).toBe(false)
+    expect(isValidModifierInput('1e3')).toBe(false)
+    expect(isValidModifierInput('abc')).toBe(false)
+    expect(isValidModifierInput('1-2')).toBe(false)
+    expect(isValidModifierInput('--3')).toBe(false)
+    expect(isValidModifierInput('+2')).toBe(false)
   })
 })

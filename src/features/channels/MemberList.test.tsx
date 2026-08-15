@@ -399,4 +399,14 @@ describe('MemberList', () => {
       expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
+
+  it('renders character notes as plain text', () => {
+    const members: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', character_notes: 'Wary of goblins.', is_blocked: false, profile: { display_name: 'Player One' } },
+      { id: 'm2', user_id: 'u2', character_name: 'Sidekick', is_blocked: false, profile: { display_name: 'Player Two' } }
+    ]
+    render(<MemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText('Wary of goblins.')).toBeInTheDocument()
+  })
 })

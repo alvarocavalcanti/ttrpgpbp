@@ -149,6 +149,7 @@ export interface Database {
           user_id: string
           character_name: string
           character_avatar_url: string | null
+          character_notes: string | null
           character_sheet_url: string | null
           is_active_player: boolean
           is_blocked: boolean
@@ -167,6 +168,7 @@ export interface Database {
           user_id: string
           character_name: string
           character_avatar_url?: string | null
+          character_notes?: string | null
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
@@ -185,6 +187,7 @@ export interface Database {
           user_id?: string
           character_name?: string
           character_avatar_url?: string | null
+          character_notes?: string | null
           character_sheet_url?: string | null
           is_active_player?: boolean
           is_blocked?: boolean
