@@ -57,3 +57,20 @@ self.addEventListener('notificationclick', (event) => {
     )
   }
 })
+
+// The page asks us to dismiss a channel's system notifications once it has
+// been read, so reading in the app clears the tray instead of leaving stale
+// notifications behind.
+self.addEventListener('message', (event) => {
+  const data = event.data as { type?: string; channelId?: string }
+  if (data?.type !== 'CLOSE_CHANNEL_NOTIFICATIONS' || !data.channelId) return
+
+  event.waitUntil(
+    self.registration.getNotifications().then((notifications) => {
+      const channelUrl = `/channel/${data.channelId}`
+      notifications
+        .filter(n => n.data?.url?.includes(channelUrl))
+        .forEach(n => n.close())
+    })
+  )
+})

@@ -8,7 +8,7 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
 }
 
-export function useChannel(channelId: string | undefined) {
+export function useChannel(channelId: string | undefined, onRead?: () => void) {
   const { user } = useAuth()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
@@ -68,6 +68,7 @@ export function useChannel(channelId: string | undefined) {
             .eq('id', myMember.id)
             .then(({ error }) => {
               if (error) console.error('Failed to update last_read_at', error)
+              else onRead?.()
             })
         }
       } catch (err: any) {
