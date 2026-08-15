@@ -8,6 +8,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { updateAppBadge } from '../../lib/appBadge'
 import { MAX_CHANNELS_PER_USER } from '../../constants'
 
 export function Lobby() {
@@ -32,16 +33,8 @@ export function Lobby() {
 
   useEffect(() => {
     // Set App Badge if supported and enabled
-    if ('setAppBadge' in navigator && preferences?.badge_enabled !== false) {
-      const totalUnread = myChannels.reduce((sum, ch) => sum + (ch.unread_count || 0), 0)
-      if (totalUnread > 0) {
-        navigator.setAppBadge(totalUnread).catch(console.error)
-      } else {
-        navigator.clearAppBadge().catch(console.error)
-      }
-    } else if ('clearAppBadge' in navigator) {
-      navigator.clearAppBadge().catch(console.error)
-    }
+    const totalUnread = myChannels.reduce((sum, ch) => sum + (ch.unread_count || 0), 0)
+    updateAppBadge(totalUnread, preferences?.badge_enabled !== false)
   }, [myChannels, preferences])
 
   if (loading) {

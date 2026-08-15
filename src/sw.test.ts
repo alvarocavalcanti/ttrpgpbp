@@ -8,10 +8,17 @@ interface PushEventLike {
 }
 
 let pushHandler: (event: PushEventLike) => void
+let messageHandler: ((event: any) => void) | undefined
 
 function dispatchPush(payload: Record<string, unknown>) {
   const waitUntil = vi.fn()
   pushHandler({ data: { json: () => payload }, waitUntil })
+  return waitUntil
+}
+
+function dispatchMessage(payload: unknown) {
+  const waitUntil = vi.fn((p: Promise<unknown>) => p)
+  messageHandler?.({ data: payload, waitUntil })
   return waitUntil
 }
 
@@ -27,6 +34,8 @@ describe('sw push handler badge', () => {
     const push = addEventListener.mock.calls.find(([type]) => type === 'push')
     if (!push) throw new Error('push listener not registered')
     pushHandler = push[1] as (event: PushEventLike) => void
+    const message = addEventListener.mock.calls.find(([type]) => type === 'message')
+    if (message) messageHandler = message[1] as (event: any) => void
   })
 
   beforeEach(() => {
@@ -72,5 +81,46 @@ describe('sw push handler badge', () => {
     const waitUntil = dispatchPush({ title: 'Hi', unreadCount: 3 })
     expect(setAppBadge).not.toHaveBeenCalled()
     expect(waitUntil).toHaveBeenCalled()
+  })
+})
+
+describe('sw message handler closes channel notifications', () => {
+  let getNotifications: ReturnType<typeof vi.fn>
+  let close: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    close = vi.fn()
+    getNotifications = vi.fn().mockResolvedValue([
+      { data: { url: '/channel/c1' }, close },
+      { data: { url: '/channel/c1/extra' }, close },
+      { data: { url: '/channel/c2' }, close },
+      { data: { url: '/' }, close },
+    ])
+    Object.defineProperty(self, 'registration', {
+      value: { getNotifications },
+      configurable: true,
+      writable: true,
+    })
+  })
+
+  it('closes only the notifications for the given channel', async () => {
+    const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
+    await waitUntil.mock.calls[0][0]
+
+    expect(getNotifications).toHaveBeenCalled()
+    expect(close).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores messages without a channelId', async () => {
+    const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS' })
+    expect(waitUntil).not.toHaveBeenCalled()
+    expect(getNotifications).not.toHaveBeenCalled()
+  })
+
+  it('ignores unrelated message types', async () => {
+    const waitUntil = dispatchMessage({ type: 'SOMETHING_ELSE', channelId: 'c1' })
+    expect(waitUntil).not.toHaveBeenCalled()
+    expect(getNotifications).not.toHaveBeenCalled()
   })
 })

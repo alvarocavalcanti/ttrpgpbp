@@ -1,9 +1,11 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
+import { usePushNotifications } from '../auth/usePushNotifications'
+import { notifyChannelRead } from '../../lib/channelRead'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
 
@@ -17,6 +19,14 @@ vi.mock('../chat/useMessages', () => ({
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: { id: 'user1' } })
+}))
+
+vi.mock('../auth/usePushNotifications', () => ({
+  usePushNotifications: vi.fn()
+}))
+
+vi.mock('../../lib/channelRead', () => ({
+  notifyChannelRead: vi.fn()
 }))
 
 vi.mock('../search/SearchModal', () => ({
@@ -37,6 +47,7 @@ const useMessagesMock = () => (useMessages as unknown as () => any)()
 describe('ChannelView search functionality', () => {
   beforeEach(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
     vi.mocked(useSafetyCardEvents).mockReturnValue({
       alertActive: false,
       alertCount: 0,
@@ -662,5 +673,38 @@ describe('ChannelView search functionality', () => {
     )
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('dismisses the channel notifications once the channel is read', async () => {
+    let onRead: (() => void) | undefined
+    vi.mocked(useChannel).mockImplementation((_id: string | undefined, cb?: () => void) => {
+      onRead = cb
+      return {
+        channel: { id: 'c1', name: 'Test Channel' },
+        members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+        loading: false,
+        error: null,
+        isGM: false,
+        myMemberInfo: { user_id: 'user1' },
+        refetch: vi.fn()
+      } as any
+    })
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    await screen.findByText('Test Channel')
+    act(() => onRead?.())
+
+    await waitFor(() => {
+      expect(notifyChannelRead).toHaveBeenCalledWith('c1', 'user1', true)
+    })
   })
 })
