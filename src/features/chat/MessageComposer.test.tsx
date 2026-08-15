@@ -500,4 +500,15 @@ describe('MessageComposer', () => {
     })
     expect(await screen.findByAltText('NPC portrait preview')).toHaveAttribute('src', 'https://supabase/images/c1/npc/u.jpg')
   })
+
+  it('applies dark-mode backgrounds to the composer inputs', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+
+    expect(screen.getByPlaceholderText(/Type a message/i)).toHaveClass('dark:bg-gray-800')
+    expect(screen.getByLabelText('Whisper:')).toHaveClass('dark:bg-gray-800')
+
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    expect(screen.getByPlaceholderText(/Speak as an NPC/i)).toHaveClass('dark:bg-[#2a2620]')
+  })
 })

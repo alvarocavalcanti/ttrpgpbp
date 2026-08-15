@@ -351,7 +351,7 @@ export function AdminView() {
                 min={10}
                 value={channelLimit}
                 onChange={(e) => setChannelLimit(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 Cannot be less than 10. Users already over the limit keep their existing channels.
@@ -393,7 +393,7 @@ export function AdminView() {
                     max={50}
                     value={imageMaxSize}
                     onChange={(e) => setImageMaxSize(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Between 1 and 50 MB.</p>
                 </div>
@@ -406,7 +406,7 @@ export function AdminView() {
                     max={365}
                     value={imageRetention}
                     onChange={(e) => setImageRetention(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">0 keeps images forever. A daily cleanup function deletes older images.</p>
                 </div>

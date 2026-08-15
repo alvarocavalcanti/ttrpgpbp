@@ -362,7 +362,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                       else if (val === 'clear') setActivePlayerIds([])
                       else setActivePlayerIds([val])
                     }}
-                    className="border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">(No change)</option>
                     <option value="clear">Clear Active Player</option>
@@ -382,7 +382,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                     id="whisperTo"
                     value={whisperTo}
                     onChange={(e) => setWhisperTo(e.target.value)}
-                    className="border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Everyone (Public)</option>
                     {members.map(m => (
@@ -405,7 +405,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                   onChange={(e) => setNpcName(e.target.value)}
                   placeholder="NPC name (reuse existing or create new)"
                   aria-label="NPC Name"
-                  className="block w-full border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 {npcNameMatches.length > 0 && (
                   <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -544,7 +544,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 placeholder={isScene ? "Describe the scene..." : isNpc ? (npcName ? `Speak as ${npcName}...` : 'Speak as an NPC...') : whisperTo ? "Type a private whisper..." : "Type a message... (Markdown supported, @ to mention)"}
-                className={`block w-full border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : ''}`}
+                className={`block w-full border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />
             </div>

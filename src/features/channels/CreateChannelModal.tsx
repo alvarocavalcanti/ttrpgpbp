@@ -102,7 +102,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="e.g. Curse of Strahd"
                 />
               </div>
@@ -116,7 +116,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   maxLength={20}
                   value={characterName}
                   onChange={(e) => setCharacterName(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="e.g. The DM"
                 />
               </div>
@@ -127,7 +127,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   id="gameSystem"
                   value={gameSystem}
                   onChange={(e) => setGameSystem(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
                 >
                   {GAME_SYSTEM_OPTIONS.map(sys => (
                     <option key={sys.id} value={sys.id}>{sys.name}</option>
@@ -145,7 +145,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
+                    className="bg-white dark:bg-gray-800 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
                     placeholder="Leave blank for open access"
                   />
                   <button

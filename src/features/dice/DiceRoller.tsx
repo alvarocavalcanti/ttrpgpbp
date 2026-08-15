@@ -64,7 +64,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
                 max="100"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
+                className="bg-white dark:bg-gray-800 w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
                 disabled={diceType === 'd20' && advDis !== 'none'}
               />
               <select
@@ -73,7 +73,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
                   setDiceType(e.target.value)
                   if (e.target.value !== 'd20') setAdvDis('none')
                 }}
-                className="flex-1 border-gray-300 dark:border-gray-600 rounded text-sm py-1 pl-2 pr-8"
+                className="bg-white dark:bg-gray-800 flex-1 border-gray-300 dark:border-gray-600 rounded text-sm py-1 pl-2 pr-8"
               >
                 <option value="d4">d4</option>
                 <option value="d6">d6</option>
@@ -91,7 +91,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
                 type="number"
                 value={modifier}
                 onChange={(e) => setModifier(parseInt(e.target.value) || 0)}
-                className="w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
+                className="bg-white dark:bg-gray-800 w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
               />
             </div>
 

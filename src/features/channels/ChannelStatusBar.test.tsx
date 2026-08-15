@@ -46,6 +46,15 @@ describe('ChannelStatusBar', () => {
     expect(container.querySelector('.line-clamp-1')).not.toBeInTheDocument()
   })
 
+  it('applies dark-mode prose variants to the status markdown', () => {
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="**Bold** status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    const prose = container.querySelector('.prose')!
+    expect(prose).toHaveClass('text-amber-900', 'dark:text-amber-200')
+    expect(prose).toHaveClass('dark:prose-p:text-amber-200')
+    expect(prose).toHaveClass('dark:prose-strong:text-amber-200')
+    expect(prose).not.toHaveClass('prose-amber')
+  })
+
   it('allows GM to edit status', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })

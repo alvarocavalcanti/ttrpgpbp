@@ -474,6 +474,33 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByRole('dialog', { name: 'Manage NPCs' })).toBeInTheDocument()
   })
 
+  it('applies dark-mode classes to the NPCs sidebar item', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const npcBtn = Array.from(screen.getByTestId('sidebar-menu').querySelectorAll('button'))
+      .find(b => b.textContent?.trim() === 'NPCs')!
+    expect(npcBtn).toHaveClass('text-gray-700', 'dark:text-gray-300', 'dark:hover:bg-gray-700')
+  })
+
   it('does not show the NPCs sidebar item for non-GMs', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },

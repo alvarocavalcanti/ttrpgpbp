@@ -348,7 +348,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                 />
               </div>
 
@@ -358,7 +358,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   id="gameSystem"
                   value={gameSystem}
                   onChange={(e) => setGameSystem(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
                 >
                   {GAME_SYSTEM_OPTIONS.map(sys => (
                     <option key={sys.id} value={sys.id}>{sys.name}</option>
@@ -388,7 +388,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                       id="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
+                      className="bg-white dark:bg-gray-800 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
                       placeholder="Leave blank to remove password"
                     />
                     <button
@@ -436,7 +436,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   id="mapUrl"
                   value={mapUrl}
                   onChange={(e) => setMapUrl(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://owlbear.rodeo/..."
                 />
                 {mapError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{mapError}</p>}
@@ -462,7 +462,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   id="resourcesUrl"
                   value={resourcesUrl}
                   onChange={(e) => setResourcesUrl(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://drive.google.com/..."
                 />
                 {resourcesError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{resourcesError}</p>}
@@ -475,7 +475,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                     id="gmOnlyResourcesUrl"
                     value={gmOnlyResourcesUrl}
                     onChange={(e) => setGmOnlyResourcesUrl(e.target.value)}
-                    className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                     placeholder="https://lorekeeper.app/..."
                   />
                 </div>
@@ -506,7 +506,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                           onChange={(e) => setSafetyLines(e.target.value)}
                           rows={3}
                           placeholder="Hard limits the group agrees never to cross (one per line)."
-                          className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                         />
                       </div>
                       <div>
@@ -517,7 +517,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                           onChange={(e) => setSafetyVeils(e.target.value)}
                           rows={3}
                           placeholder="Topics that happen off-screen when they come up (one per line)."
-                          className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                         />
                       </div>
                       <div>
@@ -527,7 +527,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                           id="safetyToolsUrl"
                           value={safetyToolsUrl}
                           onChange={(e) => setSafetyToolsUrl(e.target.value)}
-                          className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                           placeholder="https://docs.google.com/document/d/..."
                         />
                         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
