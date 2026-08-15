@@ -34,7 +34,7 @@ describe('linkifyDice', () => {
 
   it('captures a called-out DC in the check link', () => {
     const text = 'Make a DC 12 DEX Check.'
-    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a [DEX Check](check:DEX:12).')
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a [DEX Check (DC 12)](check:DEX:12).')
   })
 
   it('does not linkify checks for names outside the system attributes', () => {
@@ -55,7 +55,7 @@ describe('linkifyDice', () => {
 
   it('handles a DC check on a generic (no system) attribute', () => {
     const text = 'Make a DC 10 Charisma Check.'
-    expect(linkifyDice(text)).toBe('Make a [Charisma Check](check:Charisma:10).')
+    expect(linkifyDice(text)).toBe('Make a [Charisma Check (DC 10)](check:Charisma:10).')
   })
 })
 
