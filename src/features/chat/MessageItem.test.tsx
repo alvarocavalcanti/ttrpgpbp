@@ -467,7 +467,8 @@ describe('MessageItem', () => {
     const mockOnRoll = vi.fn()
     const msg = { id: 'm1', type: 'scene', content: 'Make a DC 12 DEX Check', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { DEX: 2 }}]} />)
-    fireEvent.click(screen.getByText('DEX Check'))
+    expect(screen.getByText('DEX Check (DC 12)')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'DEX Check (DC 12)' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+2', 'm1', undefined, 12)
   })
 

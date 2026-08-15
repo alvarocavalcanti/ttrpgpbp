@@ -36,7 +36,7 @@ export function linkifyDice(text: string, attributes?: string[]): string {
       parts[i] = parts[i]
         .replace(DICE_REGEX, '[$1](dice:$1)')
         .replace(checkRegex(attributes || []), (_match, dc, ability) => {
-          return `[${ability} Check](check:${ability}${dc ? `:${dc}` : ''})`
+          return `[${ability} Check${dc ? ` (DC ${dc})` : ''}](check:${ability}${dc ? `:${dc}` : ''})`
         })
     }
   }
