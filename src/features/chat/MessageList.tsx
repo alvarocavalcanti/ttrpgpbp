@@ -29,7 +29,15 @@ interface MessageListProps {
 
 export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
+  const listRef = useRef<HTMLDivElement>(null)
   const endOfListRef = useRef<HTMLDivElement>(null)
+
+  // Scroll position bookkeeping: prepending older messages must keep the
+  // viewport anchored where the user is, not jump back to the bottom.
+  const scrollInfoRef = useRef({ height: 0, top: 0 })
+  const prevLenRef = useRef(0)
+  const firstIdRef = useRef<string | undefined>(undefined)
+  const lastIdRef = useRef<string | undefined>(undefined)
 
   // Date labels are expensive (ICU locale lookup); compute once per message id
   // and look up in the render loop instead of re-formatting every pass.
@@ -46,11 +54,31 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     [lastReadAt]
   )
 
-  // Auto-scroll to bottom when new messages arrive, unless we are highlighting a message
+  // Auto-scroll to the newest message when new ones arrive, unless we are
+  // highlighting a message. Loading older history (prepending) preserves the
+  // current scroll position instead of snapping back to the bottom.
   useEffect(() => {
-    if (!highlightMessageId) {
+    const list = listRef.current
+    const firstId = messages[0]?.id
+    const lastId = messages[messages.length - 1]?.id
+    const grew = messages.length > prevLenRef.current
+    const initialLoad = prevLenRef.current === 0 && messages.length > 0
+    const prepended = grew && firstIdRef.current !== undefined && firstId !== firstIdRef.current
+    const appended = grew && lastId !== undefined && lastId !== lastIdRef.current
+    prevLenRef.current = messages.length
+    firstIdRef.current = firstId
+    lastIdRef.current = lastId
+
+    if (highlightMessageId) return
+
+    if (prepended && list) {
+      const addedHeight = list.scrollHeight - scrollInfoRef.current.height
+      list.scrollTop = scrollInfoRef.current.top + addedHeight
+    } else if (initialLoad || appended) {
       endOfListRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
+
+    if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
   }, [messages, highlightMessageId])
 
   if (messages.length === 0) {
@@ -66,7 +94,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
+    <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
       {hasMore && (
         <div className="flex justify-center py-2">
           <button
