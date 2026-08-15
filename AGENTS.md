@@ -71,6 +71,19 @@ Boundaries: code/commits/PRs written normal.
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
+## UI Best Practices
+
+Every UI change must follow these conventions:
+
+- **Validations on user input** — enforce min/max bounds at the point of input, not just on save: `maxLength` on text inputs, numeric ranges for numbers, size caps for uploads, integer-only where decimals don't make sense. Reject invalid input as it is typed (ignore the keystroke / `onChange` sanitization) instead of silently coercing or letting the backend reject it. Show a clear inline error when a value can't be fixed automatically.
+- **Empty states** — every list/table view needs an explicit empty state ("No X yet" + a call to action when appropriate), never a blank region.
+- **Loading & error states** — every async fetch shows a spinner while loading and a friendly, actionable error on failure (with a Retry when sensible). A failed sub-request must never blank the whole screen — degrade gracefully (e.g. show the error banner, keep the rest usable).
+- **Scrolling interactions** — never yank the user's scroll position. Loading older content (pagination prepends) must preserve the current viewport; only real appends or the initial load scroll to the bottom. Avoid layout shift from late-rendered content.
+- **Sanitization of free text** — user-provided notes/bio fields are plain text: trim, cap length, and never render them as markdown/HTML (React text nodes escape by default — keep it that way).
+- **Reuse existing patterns** — before writing a new component/input/hook, check for an existing one (avatar fallbacks, modifier clamping, `useAppSetting`, toast, escape-to-close, etc.) and reuse it.
+- **Accessibility basics** — inputs have visible `<label>`s, interactive elements have accessible names/`aria-label`, focus states are visible, and modals close on Escape.
+- **Tests for all of the above** — validation rejection, empty/loading/error states, scroll anchoring, and sanitization paths get explicit tests.
+
 ## Local Testing
 
 1. **Start Local DB:** `npx supabase start`

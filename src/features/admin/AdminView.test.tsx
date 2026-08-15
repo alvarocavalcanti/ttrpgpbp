@@ -214,6 +214,32 @@ describe('AdminView', () => {
     expect(await screen.findByText('Failed to load admin data.')).toBeInTheDocument()
   })
 
+  it('captures a broken admin_list_users (42804) so the admin screen is unusable', async () => {
+    // Regression: admin_list_users() declared email TEXT but returned
+    // auth.users.email (varchar(255)) without a cast, so the API answered
+    // 42804 "Returned type character varying(255) does not match expected
+    // type text in column 3" and the whole admin page failed to load.
+    const apiError = { code: '42804', message: 'structure of query does not match function result type' }
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_users') return Promise.resolve({ data: null, error: apiError })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Failed to load admin data.')).toBeInTheDocument()
+    // No data surfaces, so no admin action (claim, settings, lists) is usable.
+    expect(screen.queryByText('Alice')).not.toBeInTheDocument()
+    expect(screen.queryByText('Curse of Strahd')).not.toBeInTheDocument()
+  })
+
   it('redirects non-admin users away', async () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 'u1' } as any,
