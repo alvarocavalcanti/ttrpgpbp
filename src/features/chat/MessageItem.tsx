@@ -140,7 +140,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               e.preventDefault()
               onRollDice?.(notation, message.id)
             }}
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors cursor-pointer border border-indigo-200 shadow-sm"
+            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer border border-indigo-200 dark:border-indigo-800 shadow-sm"
             title={`Roll ${notation}`}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} /><circle cx="8" cy="8" r="2" fill="currentColor" /><circle cx="16" cy="8" r="2" fill="currentColor" /><circle cx="12" cy="12" r="2" fill="currentColor" /><circle cx="8" cy="16" r="2" fill="currentColor" /><circle cx="16" cy="16" r="2" fill="currentColor" /></svg>
@@ -190,7 +190,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
                 onRollDice?.(notation, message.id, warning || undefined, dc ?? undefined)
               }
             }}
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-200 shadow-sm"
+            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800 shadow-sm"
             title={`Roll ${ability} Check${dc ? ` (DC ${dc})` : ''}`}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
@@ -200,7 +200,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       }
       if (href?.startsWith('user:')) {
         return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium text-xs border border-indigo-100">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium text-xs border border-indigo-100 dark:border-indigo-900">
             {children}
           </span>
         )
@@ -226,12 +226,12 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       type="button"
       onClick={() => onJumpToMessage?.(message.reply!.id)}
       disabled={!onJumpToMessage}
-      className="mt-1 w-full text-left px-2 py-1.5 rounded-md bg-gray-50 border-l-2 border-indigo-300 hover:bg-indigo-50 transition-colors"
+      className="mt-1 w-full text-left px-2 py-1.5 rounded-md bg-gray-50 dark:bg-gray-900 border-l-2 border-indigo-300 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors"
     >
-      <span className="text-xs font-medium text-indigo-700">
+      <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
         Replying to {replySenderName || 'someone'}
       </span>
-      <span className="block text-xs text-gray-500 truncate">
+      <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
         {message.reply!.is_deleted ? 'This message was deleted.' : snippet(message.reply!.content) || '(no text)'}
       </span>
     </button>
@@ -244,7 +244,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
           key={r.emoji}
           type="button"
           onClick={() => handleToggleReaction(r.emoji)}
-          className={`px-1.5 py-0.5 rounded-full text-xs border transition-colors ${r.hasReacted ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}
+          className={`px-1.5 py-0.5 rounded-full text-xs border transition-colors ${r.hasReacted ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
           aria-label={`Reaction ${r.emoji}, ${r.count}`}
         >
           <span className="mr-0.5">{r.emoji}</span>
@@ -260,8 +260,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
 
   if (isSystem) {
     return (
-      <div ref={itemRef} className={`flex justify-center my-4 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 rounded-lg p-2' : ''}`}>
-        <div className="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full">
+      <div ref={itemRef} className={`flex justify-center my-4 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900 rounded-lg p-2' : ''}`}>
+        <div className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-3 py-1 rounded-full">
           {message.content}
         </div>
       </div>
@@ -270,14 +270,14 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
 
   if (isScene) {
     return (
-      <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] border-y-2 border-[#e6d0a4] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
-        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] prose-headings:text-[#4a3b31] prose-strong:text-[#4a3b31] prose-em:text-[#5c4a3d] prose-a:text-[#4a3b31] prose-blockquote:text-[#5c4a3d] prose-blockquote:border-[#e6d0a4] prose-ul:text-[#5c4a3d] prose-ol:text-[#5c4a3d] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31]">
+      <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] dark:bg-[#2a2620] border-y-2 border-[#e6d0a4] dark:border-[#4a4238] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
+        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] dark:prose-p:text-[#d8cfc0] prose-headings:text-[#4a3b31] dark:prose-headings:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6] prose-em:text-[#5c4a3d] dark:prose-em:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-blockquote:text-[#5c4a3d] dark:prose-blockquote:text-[#d8cfc0] prose-blockquote:border-[#e6d0a4] dark:prose-blockquote:border-[#4a4238] prose-ul:text-[#5c4a3d] dark:prose-ul:text-[#d8cfc0] prose-ol:text-[#5c4a3d] dark:prose-ol:text-[#d8cfc0] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] dark:[&>p:last-child]:bg-[#3a342a] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31] dark:[&>p:last-child]:text-[#ece4d6]">
           {isEditing ? (
             <div className="mt-2 text-left">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                className="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                 rows={3}
               />
               <div className="mt-2 flex space-x-2">
@@ -293,7 +293,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
                   type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSubmitting}
-                  className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel
                 </button>
@@ -302,22 +302,22 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
           ) : (
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
           )}
-          {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+          {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
         </div>
         {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             {onReply && (
-              <button type="button" onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
+              <button type="button" onClick={() => onReply(message)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 p-1" aria-label="Reply">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
               </button>
             )}
             {canEdit && (
-              <button type="button" onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
+              <button type="button" onClick={() => setIsEditing(true)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 p-1" aria-label="Edit">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
             )}
             {(canEdit || isGM) && (
-              <button type="button" onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
+              <button type="button" onClick={handleDelete} className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 ml-1" aria-label="Delete">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             )}
@@ -325,7 +325,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               <button
                 type="button"
                 onClick={() => onXCard(message.id)}
-                className="text-gray-400 hover:text-red-600 p-1 ml-1"
+                className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 ml-1"
                 aria-label="X-Card"
                 title="X-Card: privately flag this scene to the GM"
               >
@@ -345,17 +345,17 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     const isSuccess = message.roll_success === true
     const isFailure = message.roll_success === false
     const tone = isSuccess ? {
-      container: 'bg-green-50 border-green-100',
-      icon: 'bg-green-200 text-green-700',
-      label: 'text-green-800',
+      container: 'bg-green-50 dark:bg-green-950 border-green-100 dark:border-green-900',
+      icon: 'bg-green-200 dark:bg-green-800 text-green-700 dark:text-green-400',
+      label: 'text-green-800 dark:text-green-300',
     } : isFailure ? {
-      container: 'bg-red-50 border-red-100',
-      icon: 'bg-red-200 text-red-700',
-      label: 'text-red-800',
+      container: 'bg-red-50 dark:bg-red-950 border-red-100 dark:border-red-900',
+      icon: 'bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-400',
+      label: 'text-red-800 dark:text-red-300',
     } : {
-      container: 'bg-indigo-50 border-indigo-100',
-      icon: 'bg-indigo-200 text-indigo-700',
-      label: 'text-indigo-800',
+      container: 'bg-indigo-50 dark:bg-indigo-950 border-indigo-100 dark:border-indigo-900',
+      icon: 'bg-indigo-200 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-300',
+      label: 'text-indigo-800 dark:text-indigo-200',
     }
     return (
       <div ref={itemRef} className={`flex items-center space-x-3 my-4 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''}`}>
@@ -376,12 +376,12 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               {senderName} rolled dice
             </span>
             {typeof message.roll_success === 'boolean' && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isSuccess ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
                 {isSuccess ? 'Success' : 'Failure'}
               </span>
             )}
           </div>
-          <div className="text-gray-900 text-lg">
+          <div className="text-gray-900 dark:text-gray-100 text-lg">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
         </div>
@@ -390,20 +390,20 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   }
 
   return (
-    <div ref={itemRef} className={`group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 rounded-lg border border-purple-100' : ''} ${isNpc ? 'bg-[#fdf6e3] rounded-lg border border-[#e6d0a4]' : ''} ${isHighlighted ? 'bg-yellow-50 ring-2 ring-yellow-400 rounded-lg' : ''}`}>
+    <div ref={itemRef} className={`group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] rounded-lg border border-[#e6d0a4] dark:border-[#4a4238]' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''}`}>
       <div className="flex-shrink-0">
         {isNpc ? (
           message.npc_avatar_url ? (
             <img className="h-10 w-10 rounded-full" src={message.npc_avatar_url} alt="" referrerPolicy="no-referrer" />
           ) : (
-            <div className="h-10 w-10 rounded-full bg-[#e6d0a4] flex items-center justify-center text-[#5c4a3d] font-serif">
+            <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif">
               {message.npc_name?.[0]?.toUpperCase() || '?'}
             </div>
           )
         ) : message.sender?.avatar_url ? (
           <img className="h-10 w-10 rounded-full" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
         ) : (
-          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500">
+          <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400">
             {senderName?.[0]?.toUpperCase() || '?'}
           </div>
         )}
@@ -411,33 +411,33 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline space-x-2">
-          <span className={`text-sm font-medium ${isNpc ? 'font-serif text-[#4a3b31]' : 'text-gray-900'}`}>
+          <span className={`text-sm font-medium ${isNpc ? 'font-serif text-[#4a3b31] dark:text-[#ece4d6]' : 'text-gray-900 dark:text-gray-100'}`}>
             {senderName}
           </span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {formatTimestamp(message.created_at)}
           </span>
           {isWhisper && (
-            <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
               Whisper to {message.whisper_to === currentUserId ? 'You' : message.whisper_target?.display_name}
             </span>
           )}
           {message.is_edited && !message.is_deleted && (
-            <span className="text-xs text-gray-400 italic">(edited)</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 italic">(edited)</span>
           )}
         </div>
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 prose prose-sm prose-indigo max-w-none break-words ${isNpc ? 'font-serif text-[#5c4a3d] prose-a:text-[#4a3b31] prose-strong:text-[#4a3b31]' : ''}`}>
+        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo max-w-none break-words ${isNpc ? 'font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6]' : ''}`}>
           {message.is_deleted ? (
-            <span className="text-gray-400 italic">This message was deleted.</span>
+            <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
           ) : isEditing ? (
             <div className="mt-2">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                className="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                 rows={3}
               />
               <div className="mt-2 flex space-x-2">
@@ -453,7 +453,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
                   type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSubmitting}
-                  className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel
                 </button>
@@ -462,7 +462,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
           ) : (
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
           )}
-          {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+          {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
         </div>
 
         {!message.is_deleted && !isEditing && (
@@ -476,17 +476,17 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
         <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-sm:opacity-100 transition-opacity">
           {onReply && (
-            <button type="button" onClick={() => onReply(message)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Reply">
+            <button type="button" onClick={() => onReply(message)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 p-1" aria-label="Reply">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
             </button>
           )}
           {canEdit && (
-            <button type="button" onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-indigo-600 p-1" aria-label="Edit">
+            <button type="button" onClick={() => setIsEditing(true)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 p-1" aria-label="Edit">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             </button>
           )}
           {(canEdit || isGM) && (
-            <button type="button" onClick={handleDelete} className="text-gray-400 hover:text-red-600 p-1 ml-1" aria-label="Delete">
+            <button type="button" onClick={handleDelete} className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 ml-1" aria-label="Delete">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
           )}
@@ -494,7 +494,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             <button
               type="button"
               onClick={() => onXCard(message.id)}
-              className="text-gray-400 hover:text-red-600 p-1 ml-1"
+              className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 ml-1"
               aria-label="X-Card"
               title="X-Card: privately flag this scene to the GM"
             >

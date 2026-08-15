@@ -115,20 +115,20 @@ export function JoinChannel() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
       </div>
     )
   }
 
   if (!channel && !inviteCode) {
     return (
-      <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded-lg shadow-sm text-center">
-        <h2 className="text-xl font-medium text-gray-900 mb-2">Channel Not Found</h2>
-        <p className="text-gray-500 mb-4">{error}</p>
+      <div className="max-w-md mx-auto mt-12 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-center">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Channel Not Found</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="text-indigo-600 hover:text-indigo-800 font-medium"
+          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium"
         >
           Return to Lobby
         </button>
@@ -138,17 +138,17 @@ export function JoinChannel() {
 
   return (
     <div className="max-w-md mx-auto mt-12 px-4 sm:px-6">
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Join Channel</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Join Channel</h2>
           {channel?.name && (
-            <p className="text-indigo-600 font-medium mt-2 text-lg">{channel.name}</p>
+            <p className="text-indigo-600 dark:text-indigo-400 font-medium mt-2 text-lg">{channel.name}</p>
           )}
         </div>
         
         <form onSubmit={handleJoin} className="space-y-6">
           <div>
-            <label htmlFor="characterName" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="characterName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Character Name
             </label>
             <input
@@ -158,18 +158,18 @@ export function JoinChannel() {
               maxLength={20}
               value={characterName}
               onChange={(e) => setCharacterName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
               placeholder="Who will you play as?"
             />
           </div>
 
           {systemAttributes.length > 0 && (
-            <div className="pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Attributes (Modifiers) - Optional</h4>
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Attributes (Modifiers) - Optional</h4>
               <div className="grid grid-cols-3 gap-4">
                 {systemAttributes.map(attr => (
                   <div key={attr}>
-                    <label htmlFor={attr} className="block text-xs font-medium text-gray-700">{attr}</label>
+                    <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -177,18 +177,18 @@ export function JoinChannel() {
                       value={attributes[attr] ?? ''}
                       onChange={(e) => handleAttributeChange(attr, e.target.value)}
                       pattern="-?[0-9]*"
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
+                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
                     />
                   </div>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-gray-500">Enter your modifiers (e.g. -2, 0, 3), not your base scores.</p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Enter your modifiers (e.g. -2, 0, 3), not your base scores.</p>
             </div>
           )}
 
           {channel?.has_password && !inviteCode && (
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Channel Password
               </label>
               <div className="relative mt-1">
@@ -198,12 +198,12 @@ export function JoinChannel() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
+                  className="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -222,13 +222,13 @@ export function JoinChannel() {
           )}
           
           {inviteCode && (
-            <div className="bg-green-50 text-green-800 p-3 rounded-md text-sm text-center">
+            <div className="bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-300 p-3 rounded-md text-sm text-center">
               You are joining with a valid invite link.
             </div>
           )}
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 p-3 rounded-md">
               {error}
             </div>
           )}
@@ -244,7 +244,7 @@ export function JoinChannel() {
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
             >
               Cancel
             </button>

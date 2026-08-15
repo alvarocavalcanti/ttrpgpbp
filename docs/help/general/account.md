@@ -6,6 +6,10 @@ title: Account & Settings
 
 Your account has a **display name** and **avatar**, shown in the app header. Edit them from the **Settings** page, reachable from the menu in the top-right.
 
+## Dark mode
+
+A **sun/moon toggle** in the app header (and on the login page) switches between light and dark theme. Your choice is remembered; by default the app follows your device's light/dark preference.
+
 ## Per-channel character name
 
 Each channel has its own **character name** (max 20 characters) and avatar, so you can play a different character in each campaign.

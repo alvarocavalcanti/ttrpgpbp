@@ -99,26 +99,26 @@ export function ChannelView() {
   if (channelLoading || messagesLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
       </div>
     )
   }
 
   if (myMemberInfo?.is_blocked) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
-        <h2 className="text-xl font-medium text-gray-900 mb-2">Access Removed</h2>
-        <p className="text-gray-500 mb-6">You&apos;ve been removed from this channel.</p>
-        <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">Return to Lobby</Link>
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 px-4">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Access Removed</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">You&apos;ve been removed from this channel.</p>
+        <Link to="/" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium">Return to Lobby</Link>
       </div>
     )
   }
 
   if (error && !channel) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
-        <h2 className="text-xl font-medium text-gray-900 mb-2">Could not load this channel</h2>
-        <p className="text-gray-500 mb-6">There was a problem fetching this channel.</p>
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 px-4">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Could not load this channel</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">There was a problem fetching this channel.</p>
         <div className="flex gap-3">
           <button
             type="button"
@@ -129,7 +129,7 @@ export function ChannelView() {
           </button>
           <Link
             to="/"
-            className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm"
+            className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 sm:text-sm"
           >
             Back to Lobby
           </Link>
@@ -150,12 +150,12 @@ export function ChannelView() {
   const whisperableMembers = members.filter(m => m.user_id !== myMemberInfo?.user_id)
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-white relative">
+    <div className="flex h-[100dvh] overflow-hidden bg-white dark:bg-gray-800 relative">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-gray-50 border-r border-gray-200">
-        <div className="px-4 sm:px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm z-10">
+      <div className="flex-1 flex flex-col min-w-0 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+        <div className="px-4 sm:px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shadow-sm z-10">
           <div className="flex items-center space-x-3">
-            <Link to="/" className="text-gray-500 hover:text-indigo-600 transition-colors" aria-label="Back to Lobby">
+            <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label="Back to Lobby">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
@@ -169,11 +169,11 @@ export function ChannelView() {
                 className="h-9 w-9 rounded-full object-cover flex-shrink-0"
               />
             ) : (
-              <div data-testid="channel-header-avatar" className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 flex-shrink-0">
+              <div data-testid="channel-header-avatar" className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 flex-shrink-0">
                 {(channel.name[0] || '#').toUpperCase()}
               </div>
             )}
-            <h2 className="text-xl font-bold text-gray-900">{channel.name}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{channel.name}</h2>
           </div>
           
           {/* Mobile Sidebar Toggle */}
@@ -181,7 +181,7 @@ export function ChannelView() {
             type="button"
             aria-label="Toggle sidebar menu"
             onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-            className="lg:hidden text-gray-500 hover:text-indigo-600 p-2 rounded-md bg-gray-50 hover:bg-indigo-50"
+            className="lg:hidden text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 p-2 rounded-md bg-gray-50 dark:bg-gray-900 hover:bg-indigo-50 dark:hover:bg-indigo-950"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -190,7 +190,7 @@ export function ChannelView() {
         </div>
 
         {channel.is_archived && (
-          <div className="px-4 py-2 bg-gray-200 text-gray-700 text-sm text-center" role="status">
+          <div className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm text-center" role="status">
             This channel is archived and read-only. It can be restored by the GM.
           </div>
         )}
@@ -204,13 +204,13 @@ export function ChannelView() {
         />
 
         {messagesError && (
-          <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-red-700 text-sm" role="alert">
+          <div className="px-4 py-2 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm" role="alert">
             Failed to load messages. Refresh the page to try again.
           </div>
         )}
 
         {alertActive && (
-          <div className="px-4 py-2 bg-red-600 border-b border-red-700 text-white text-sm flex items-center justify-between" role="alert">
+          <div className="px-4 py-2 bg-red-600 border-b border-red-700 dark:border-red-500 text-white text-sm flex items-center justify-between" role="alert">
             <span className="flex items-center space-x-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
@@ -267,7 +267,7 @@ export function ChannelView() {
         <div
           role="button"
           tabIndex={0}
-          className="fixed inset-0 bg-gray-600 bg-opacity-75 z-20 lg:hidden"
+          className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 z-20 lg:hidden"
           onClick={() => setShowMobileSidebar(false)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -280,13 +280,13 @@ export function ChannelView() {
 
       {/* Sidebar */}
       <div className={`
-        absolute inset-y-0 right-0 z-30 w-80 bg-white overflow-y-auto border-l border-gray-200
+        absolute inset-y-0 right-0 z-30 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700
         transform transition-transform duration-300 ease-in-out
         lg:relative lg:translate-x-0
         ${showMobileSidebar ? 'translate-x-0' : 'translate-x-full'}
       `}>
-        <div className="lg:hidden flex justify-end p-2 border-b border-gray-100">
-          <button type="button" onClick={() => setShowMobileSidebar(false)} className="text-gray-400 hover:text-gray-600 p-2">
+        <div className="lg:hidden flex justify-end p-2 border-b border-gray-100 dark:border-gray-800">
+          <button type="button" onClick={() => setShowMobileSidebar(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -299,13 +299,13 @@ export function ChannelView() {
           onUpdate={refetch}
           gameSystem={channel.game_system}
         />
-        <div data-testid="sidebar-menu" className="divide-y divide-gray-100 border-t border-gray-100">
+        <div data-testid="sidebar-menu" className="divide-y divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-800">
           {isGM && gmOnlyResourcesUrl && (
             <a
               href={gmOnlyResourcesUrl}
               target="_blank"
               rel="noreferrer"
-              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               GM Resources
             </a>
@@ -315,7 +315,7 @@ export function ChannelView() {
               href={channel.map_url}
               target="_blank"
               rel="noreferrer"
-              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Map
             </a>
@@ -323,7 +323,7 @@ export function ChannelView() {
           <button
             type="button"
             onClick={() => setShowNotificationSettings(true)}
-            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Notifications
           </button>
@@ -332,7 +332,7 @@ export function ChannelView() {
               href={channel.resources_url}
               target="_blank"
               rel="noreferrer"
-              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Resources
             </a>
@@ -342,7 +342,7 @@ export function ChannelView() {
               href={channel.safety_tools_url}
               target="_blank"
               rel="noreferrer"
-              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Safety Tools Doc
             </a>
@@ -350,28 +350,28 @@ export function ChannelView() {
           <button
             type="button"
             onClick={() => setShowSafetyTools(true)}
-            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Safety Tools
           </button>
           <button
             type="button"
             onClick={() => setShowRollHistory(true)}
-            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Rolls
           </button>
           <button
             type="button"
             onClick={() => setShowSearch(true)}
-            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Search
           </button>
           <button
             type="button"
             onClick={() => setShowHelp(true)}
-            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Help
           </button>
@@ -379,7 +379,7 @@ export function ChannelView() {
             <button
               type="button"
               onClick={() => setShowSettings(true)}
-              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Settings
             </button>

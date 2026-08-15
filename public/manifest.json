@@ -4,8 +4,8 @@
   "description": "A modern Play-by-Post App",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#111827",
+  "theme_color": "#111827",
   "icons": [
     {
       "src": "/pwa-192x192.png",

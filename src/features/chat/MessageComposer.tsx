@@ -240,23 +240,23 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
 
   return (
-    <div className="bg-white border-t border-gray-200 p-2 sm:p-4">
+    <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2 sm:p-4">
       <form onSubmit={handleSubmit}>
         <div className="flex flex-col space-y-2">
           {/* Reply target bar */}
           {replyTo && (
-            <div className="flex items-center space-x-2 px-2 text-sm bg-indigo-50 border border-indigo-100 rounded-md py-1.5">
-              <svg className="w-4 h-4 flex-shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="flex items-center space-x-2 px-2 text-sm bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-md py-1.5">
+              <svg className="w-4 h-4 flex-shrink-0 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
-              <span className="text-xs text-gray-700 truncate">
-                <span className="font-medium text-indigo-700">Replying to {replyTo.senderName || 'someone'}:</span>{' '}
+              <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
+                <span className="font-medium text-indigo-700 dark:text-indigo-300">Replying to {replyTo.senderName || 'someone'}:</span>{' '}
                 {replyTo.content.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')}
               </span>
               <button
                 type="button"
                 onClick={onCancelReply}
-                className="ml-auto p-0.5 text-gray-400 hover:text-gray-600"
+                className="ml-auto p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                 aria-label="Cancel reply"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -277,7 +277,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 <button
                   type="button"
                   onClick={onXCard}
-                  className="flex items-center space-x-1.5 shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors focus:outline-none"
+                  className="flex items-center space-x-1.5 shrink-0 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 px-2 py-1 rounded-lg transition-colors focus:outline-none"
                   aria-label="X-Card"
                   title="X-Card: privately flag the current scene to the GM"
                 >
@@ -291,13 +291,13 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
               {isGM && (
                 <div className="flex items-center space-x-4 shrink-0">
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Scene Description">
+                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Scene Description">
                     <input
                       type="checkbox"
                       aria-label="Scene Description"
                       checked={isScene}
                       onChange={(e) => { setIsScene(e.target.checked); if (e.target.checked) setIsNpc(false) }}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      className="rounded text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
                     />
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
@@ -305,13 +305,13 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                     <span className="hidden sm:inline">Scene</span>
                   </label>
 
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Speak as an NPC">
+                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Speak as an NPC">
                     <input
                       type="checkbox"
                       aria-label="NPC Mode"
                       checked={isNpc}
                       onChange={(e) => toggleNpc(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      className="rounded text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
                     />
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -319,13 +319,13 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                     <span className="hidden sm:inline">NPC</span>
                   </label>
 
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors" title="Load Image URLs">
+                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Load Image URLs">
                     <input
                       type="checkbox"
                       aria-label="Load Image URLs"
                       checked={loadImages}
                       onChange={(e) => setLoadImages(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      className="rounded text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
                     />
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -333,7 +333,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                     <span className="hidden sm:inline">Load Images</span>
                   </label>
 
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Upload an image">
+                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Upload an image">
                     <input
                       type="file"
                       accept="image/*"
@@ -352,7 +352,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
               {isGM && (
                 <div className="flex items-center space-x-2 shrink-0">
-                  <label htmlFor="activePlayers" className="text-gray-700">Active Player:</label>
+                  <label htmlFor="activePlayers" className="text-gray-700 dark:text-gray-300">Active Player:</label>
                   <select
                     id="activePlayers"
                     value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
@@ -362,7 +362,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                       else if (val === 'clear') setActivePlayerIds([])
                       else setActivePlayerIds([val])
                     }}
-                    className="border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">(No change)</option>
                     <option value="clear">Clear Active Player</option>
@@ -377,12 +377,12 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
               {!isScene && (
                 <div className="flex items-center space-x-2 shrink-0">
-                  <label htmlFor="whisperTo" className="text-gray-700">Whisper:</label>
+                  <label htmlFor="whisperTo" className="text-gray-700 dark:text-gray-300">Whisper:</label>
                   <select
                     id="whisperTo"
                     value={whisperTo}
                     onChange={(e) => setWhisperTo(e.target.value)}
-                    className="border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Everyone (Public)</option>
                     {members.map(m => (
@@ -405,19 +405,19 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                   onChange={(e) => setNpcName(e.target.value)}
                   placeholder="NPC name (reuse existing or create new)"
                   aria-label="NPC Name"
-                  className="block w-full border-gray-300 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 {npcNameMatches.length > 0 && (
-                  <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {npcNameMatches.map(n => (
                       <button
                         key={n.id}
                         type="button"
                         onMouseDown={(e) => { e.preventDefault(); setNpcName(n.name); setNpcAvatarUrl(n.avatar_url) }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center space-x-2"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950 flex items-center space-x-2"
                       >
                         <img className="h-5 w-5 rounded-full" src={n.avatar_url} alt="" referrerPolicy="no-referrer" />
-                        <span className="font-medium text-gray-900">{n.name}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{n.name}</span>
                       </button>
                     ))}
                   </div>
@@ -434,7 +434,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
               <button
                 type="button"
                 onClick={() => setNpcAvatarUrl(randomNpcIconUrl())}
-                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors"
                 aria-label="Randomize NPC portrait"
                 title="Random portrait"
               >
@@ -445,7 +445,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
               <button
                 type="button"
                 onClick={() => setShowIconPicker(true)}
-                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors"
                 aria-label="Choose NPC portrait"
                 title="Choose portrait"
               >
@@ -454,7 +454,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 </svg>
               </button>
               <label
-                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Upload portrait"
               >
                 <input
@@ -480,13 +480,13 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
           )}
 
           {error && (
-            <div className="mb-2 p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+            <div className="mb-2 p-2 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 text-sm rounded-md border border-red-200 dark:border-red-800">
               {error}
             </div>
           )}
 
           {imageError && (
-            <div className="mb-2 p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200" role="alert">
+            <div className="mb-2 p-2 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 text-sm rounded-md border border-red-200 dark:border-red-800" role="alert">
               {imageError}
             </div>
           )}
@@ -495,7 +495,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="mb-1 p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors focus:outline-none flex-shrink-0"
+              className="mb-1 p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none flex-shrink-0"
               aria-label="Toggle options"
             >
               <svg className={`w-6 h-6 transform transition-transform ${isExpanded ? 'rotate-45 text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -504,17 +504,17 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             </button>
             <div className="relative flex-1">
               {(showAllMention || matchedMembers.length > 0) && (
-                <div role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {showAllMention && (
                     <button
                       type="button"
                       role="option"
                       aria-selected={activeMentionIndex === 0}
                       onMouseDown={(e) => { e.preventDefault(); selectMention('all') }}
-                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50' : 'hover:bg-indigo-50'}`}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                     >
-                      <span className="font-medium text-gray-900">@all</span>
-                      <span className="text-xs text-gray-400">All players</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">@all</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">All players</span>
                     </button>
                   )}
                   {matchedMembers.map((m, i) => {
@@ -526,13 +526,13 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                         role="option"
                         aria-selected={active}
                         onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
-                        className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50' : 'hover:bg-indigo-50'}`}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                       >
                         {m.character_avatar_url && (
                           <img className="h-5 w-5 rounded-full" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
                         )}
-                        <span className="font-medium text-gray-900">{m.character_name}</span>
-                        {m.profile?.display_name && <span className="text-xs text-gray-400">({m.profile.display_name})</span>}
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{m.character_name}</span>
+                        {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-500">({m.profile.display_name})</span>}
                       </button>
                     )
                   })}
@@ -544,7 +544,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 placeholder={isScene ? "Describe the scene..." : isNpc ? (npcName ? `Speak as ${npcName}...` : 'Speak as an NPC...') : whisperTo ? "Type a private whisper..." : "Type a message... (Markdown supported, @ to mention)"}
-                className={`block w-full border-gray-300 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] font-serif' : whisperTo ? 'bg-purple-50' : ''}`}
+                className={`block w-full border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : ''}`}
                 rows={1}
               />
             </div>
@@ -560,7 +560,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             </button>
           </div>
           {!isTouchDevice && (
-            <div className="text-xs text-gray-400 text-right pr-12">
+            <div className="text-xs text-gray-400 dark:text-gray-500 text-right pr-12">
               Tip: {isMac ? '⌘' : 'Ctrl'} + Enter to send
             </div>
           )}

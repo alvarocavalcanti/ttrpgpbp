@@ -27,14 +27,14 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
         aria-label="Add reaction"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+        className="p-1 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-2 grid grid-cols-8 gap-1 w-64">
+        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-8 gap-1 w-64">
           {QUICK_EMOJIS.map(emoji => (
             <button
               key={emoji}
@@ -43,7 +43,7 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
                 setOpen(false)
                 onPick(emoji)
               }}
-              className="hover:bg-gray-100 rounded p-1 text-lg leading-none"
+              className="hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 text-lg leading-none"
             >
               {emoji}
             </button>

@@ -34,9 +34,9 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center px-2 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="inline-flex items-center px-2 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
-        <svg className="w-4 h-4 mr-1 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <svg className="w-4 h-4 mr-1 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
           <circle cx="8" cy="8" r="2" fill="currentColor" />
           <circle cx="16" cy="8" r="2" fill="currentColor" />
@@ -48,10 +48,10 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full mb-2 left-0 w-64 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-50">
+        <div className="absolute bottom-full mb-2 left-0 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-gray-900">Dice Roller</h3>
-            <button type="button" onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-500">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dice Roller</h3>
+            <button type="button" onClick={() => setIsOpen(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -64,7 +64,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
                 max="100"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 border-gray-300 rounded text-sm py-1"
+                className="w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
                 disabled={diceType === 'd20' && advDis !== 'none'}
               />
               <select
@@ -73,7 +73,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
                   setDiceType(e.target.value)
                   if (e.target.value !== 'd20') setAdvDis('none')
                 }}
-                className="flex-1 border-gray-300 rounded text-sm py-1 pl-2 pr-8"
+                className="flex-1 border-gray-300 dark:border-gray-600 rounded text-sm py-1 pl-2 pr-8"
               >
                 <option value="d4">d4</option>
                 <option value="d6">d6</option>
@@ -86,35 +86,35 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
             </div>
 
             <div className="flex items-center space-x-2">
-              <span className="text-gray-500 text-sm font-medium w-4 text-center">+/-</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm font-medium w-4 text-center">+/-</span>
               <input
                 type="number"
                 value={modifier}
                 onChange={(e) => setModifier(parseInt(e.target.value) || 0)}
-                className="w-16 border-gray-300 rounded text-sm py-1"
+                className="w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
               />
             </div>
 
             {diceType === 'd20' && (
-              <div className="flex items-center bg-gray-100 p-1 rounded-md">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-md">
                 <button
                   type="button"
                   onClick={() => setAdvDis(advDis === 'none' ? 'none' : 'none')}
-                  className={`flex-1 text-xs py-1 rounded transition-colors ${advDis === 'none' ? 'bg-white shadow-sm font-medium text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex-1 text-xs py-1 rounded transition-colors ${advDis === 'none' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Normal
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdvDis('adv')}
-                  className={`flex-1 text-xs py-1 rounded transition-colors ${advDis === 'adv' ? 'bg-green-100 shadow-sm font-medium text-green-800 border border-green-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex-1 text-xs py-1 rounded transition-colors ${advDis === 'adv' ? 'bg-green-100 dark:bg-green-900 shadow-sm font-medium text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Adv
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdvDis('dis')}
-                  className={`flex-1 text-xs py-1 rounded transition-colors ${advDis === 'dis' ? 'bg-red-100 shadow-sm font-medium text-red-800 border border-red-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex-1 text-xs py-1 rounded transition-colors ${advDis === 'dis' ? 'bg-red-100 dark:bg-red-900 shadow-sm font-medium text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Dis
                 </button>

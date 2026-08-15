@@ -2,6 +2,8 @@
 
 ## Users & Auth
 
+- **Dark mode** — a sun/moon toggle in the app header (and login page) switches between light and dark themes. The choice persists per device; the default follows the OS light/dark preference (applied before first paint to avoid a flash)
+
 - Google account sign-in
 - Per-channel **character name** (max 20 characters) and **avatar**
 - **Character modifiers** — per-game-system attribute modifier fields (e.g. STR/DEX); inputs accept integers only (floats/exponents/stray characters are rejected) and are clamped to the system's bounds
