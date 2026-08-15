@@ -139,4 +139,13 @@ describe('NpcManagementModal', () => {
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
+
+  it('applies dark-mode surface classes to surfaces, rows, and inputs', () => {
+    const { container } = render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
+    expect(screen.getByRole('dialog')).toHaveClass('bg-white', 'dark:bg-gray-800')
+    const row = container.querySelector('li')!
+    expect(row).toHaveClass('dark:bg-gray-900')
+    expect(screen.getByLabelText('New NPC name')).toHaveClass('dark:bg-gray-800')
+    expect(screen.getByText('Goblin King')).toHaveClass('dark:text-gray-100')
+  })
 })

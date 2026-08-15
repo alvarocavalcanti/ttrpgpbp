@@ -62,7 +62,7 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search icons (e.g. dragon, skull)..."
             aria-label="Search icons"
-            className="w-full border-gray-300 dark:border-gray-600 rounded-md text-sm py-2 px-3 mb-3 focus:ring-indigo-500 focus:border-indigo-500 border"
+            className="bg-white dark:bg-gray-800 w-full border-gray-300 dark:border-gray-600 rounded-md text-sm py-2 px-3 mb-3 focus:ring-indigo-500 focus:border-indigo-500 border"
             autoFocus
           />
           <div className="max-h-80 overflow-y-auto">

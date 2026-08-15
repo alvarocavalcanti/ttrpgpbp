@@ -381,7 +381,7 @@ export function ChannelView() {
             <button
               type="button"
               onClick={() => setShowNpcs(true)}
-              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               NPCs
             </button>

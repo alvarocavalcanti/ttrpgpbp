@@ -98,19 +98,19 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80">
       <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
-        className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto"
+        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="Manage NPCs"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">NPCs</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">NPCs</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-1"
             aria-label="Close NPC management"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -119,23 +119,23 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
 
         {loading ? (
           <div className="animate-pulse space-y-4 py-1">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
           </div>
         ) : (
           <>
             {npcs.length === 0 ? (
-              <p className="text-sm text-gray-500 py-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400 py-4">
                 No NPCs yet. Create one below, or speak as a new NPC from the composer.
               </p>
             ) : (
               <ul className="space-y-2 mb-4">
                 {npcs.map(npc => (
-                  <li key={npc.id} className="flex items-center space-x-3 p-2 rounded-md bg-gray-50">
+                  <li key={npc.id} className="flex items-center space-x-3 p-2 rounded-md bg-gray-50 dark:bg-gray-900">
                     {npc.avatar_url ? (
                       <img className="h-10 w-10 rounded-full flex-shrink-0" src={npc.avatar_url} alt="" referrerPolicy="no-referrer" />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-[#e6d0a4] flex items-center justify-center text-[#5c4a3d] font-serif flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif flex-shrink-0">
                         {npc.name[0]?.toUpperCase() || '?'}
                       </div>
                     )}
@@ -145,29 +145,29 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           aria-label="NPC name"
-                          className="flex-1 min-w-0 border-gray-300 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                          className="flex-1 min-w-0 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                           autoFocus
                           onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditingId(null) }}
                         />
-                        <button type="button" onClick={handleRename} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium shrink-0">
+                        <button type="button" onClick={handleRename} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium shrink-0">
                           Save
                         </button>
                       </div>
                     ) : (
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{npc.name}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{npc.name}</p>
                       </div>
                     )}
                     <div className="flex items-center space-x-1 flex-shrink-0">
                       {editingId === npc.id ? (
-                        <button type="button" onClick={() => setEditingId(null)} className="p-1.5 text-gray-400 hover:text-gray-600" aria-label="Cancel rename">
+                        <button type="button" onClick={() => setEditingId(null)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" aria-label="Cancel rename">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => { setEditingId(npc.id); setEditName(npc.name) }}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600"
+                          className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                           aria-label={`Rename ${npc.name}`}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -176,7 +176,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                       <button
                         type="button"
                         onClick={() => setPickingForId(npc.id)}
-                        className="p-1.5 text-gray-400 hover:text-indigo-600"
+                        className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                         aria-label={`Choose portrait for ${npc.name}`}
                         title="Choose portrait"
                       >
@@ -185,13 +185,13 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                       <button
                         type="button"
                         onClick={() => handleRepicture(npc.id, randomNpcIconUrl())}
-                        className="p-1.5 text-gray-400 hover:text-indigo-600"
+                        className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                         aria-label={`Randomize portrait for ${npc.name}`}
                         title="Random portrait"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                       </button>
-                      <label className="p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer disabled:opacity-50" title="Upload portrait">
+                      <label className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer disabled:opacity-50" title="Upload portrait">
                         <input
                           type="file"
                           accept="image/*"
@@ -205,7 +205,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                       <button
                         type="button"
                         onClick={() => handleDelete(npc)}
-                        className="p-1.5 text-gray-400 hover:text-red-600"
+                        className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
                         aria-label={`Delete ${npc.name}`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -216,8 +216,8 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
               </ul>
             )}
 
-            <div className="border-t border-gray-100 pt-4">
-              <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-2">Add NPC</h4>
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2">Add NPC</h4>
               <div className="flex items-center gap-2">
                 <input
                   value={newName}
@@ -225,20 +225,20 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                   placeholder="NPC name"
                   aria-label="New NPC name"
                   maxLength={40}
-                  className="flex-1 min-w-0 border-gray-300 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="flex-1 min-w-0 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
                 />
                 {newAvatar ? (
                   <img className="h-8 w-8 rounded-full flex-shrink-0" src={newAvatar} alt="New NPC portrait preview" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 flex-shrink-0">
                     <span className="text-xs font-medium">?</span>
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={() => setPickingForId('new')}
-                  className="p-1.5 text-gray-400 hover:text-indigo-600"
+                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                   aria-label="Choose portrait for new NPC"
                   title="Choose portrait"
                 >
@@ -247,13 +247,13 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                 <button
                   type="button"
                   onClick={() => setNewAvatar(randomNpcIconUrl())}
-                  className="p-1.5 text-gray-400 hover:text-indigo-600"
+                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                   aria-label="Randomize new NPC portrait"
                   title="Random portrait"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
-                <label className="p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer disabled:opacity-50" title="Upload portrait">
+                <label className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer disabled:opacity-50" title="Upload portrait">
                   <input
                     type="file"
                     accept="image/*"
