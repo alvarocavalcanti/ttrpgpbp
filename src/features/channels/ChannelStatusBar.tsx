@@ -50,18 +50,18 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
   if (!hasContent && !isGM && !isEditing) return null
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200">
+    <div className="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800">
       {activePlayers.length > 0 && !isEditing && (
-        <div className="px-4 py-1.5 sm:px-6 border-b border-amber-200 flex items-center space-x-2 flex-wrap">
-          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Active:</span>
-          <span className="text-sm font-medium text-amber-900">
+        <div className="px-4 py-1.5 sm:px-6 border-b border-amber-200 dark:border-amber-800 flex items-center space-x-2 flex-wrap">
+          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider">Active:</span>
+          <span className="text-sm font-medium text-amber-900 dark:text-amber-200">
             {activePlayers.map((p, i) => (
               <span key={p.user_id}>
                 {i > 0 && ', '}
                 <span className={p.is_away ? 'line-through opacity-50' : ''}>
                   {p.character_name}
                 </span>
-                {p.is_away && <span className="text-xs font-bold text-amber-600 uppercase ml-1">(AFK)</span>}
+                {p.is_away && <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase ml-1">(AFK)</span>}
               </span>
             ))}
           </span>
@@ -76,10 +76,10 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 placeholder="Write status, initiative order, or timers here... (Markdown supported)"
-                className="w-full border-amber-300 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white p-2"
+                className="w-full border-amber-300 dark:border-amber-700 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white dark:bg-gray-800 p-2"
                 rows={4}
               />
-              {error && <div className="text-red-600 text-xs mt-1">{error}</div>}
+              {error && <div className="text-red-600 dark:text-red-400 text-xs mt-1">{error}</div>}
               <div className="flex space-x-2">
                 <button
                   type="button"
@@ -96,7 +96,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                     setEditContent(statusText || '')
                   }}
                   disabled={isSubmitting}
-                  className="px-3 py-1 bg-amber-200 text-amber-800 text-xs font-medium rounded hover:bg-amber-300"
+                  className="px-3 py-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-300 text-xs font-medium rounded hover:bg-amber-300 dark:hover:bg-amber-800"
                 >
                   Cancel
                 </button>
@@ -104,7 +104,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             </div>
           ) : (
             <div className="relative">
-              <div className={`prose prose-sm prose-amber max-w-none text-amber-900 ${isExpanded ? '' : 'line-clamp-1'}`}>
+              <div className={`prose prose-sm prose-amber max-w-none text-amber-900 dark:text-amber-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
                 {statusText ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{statusText}</ReactMarkdown>
                 ) : (
@@ -120,7 +120,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="text-amber-600 hover:text-amber-800 text-xs font-medium px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 text-xs font-medium px-2 py-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors"
             >
               Edit
             </button>
@@ -130,7 +130,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="text-amber-600 hover:text-amber-800 p-1 rounded hover:bg-amber-100 transition-colors"
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors"
               title={isExpanded ? "Collapse Status" : "Expand Status"}
             >
               <svg 

@@ -17,13 +17,14 @@ import { HelpPage } from './features/help/HelpPage'
 import { ChangelogPage } from './features/changelog/ChangelogPage'
 import { ChangelogProvider, useChangelog } from './features/changelog/useChangelog'
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
+import { ThemeToggle } from './components/ThemeToggle'
 
 export function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
-      <h1 className="text-xl font-medium text-gray-900 mb-2">Page not found</h1>
-      <p className="text-gray-500 mb-6">The page you&apos;re looking for does not exist.</p>
-      <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">Return to Lobby</Link>
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 px-4">
+      <h1 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Page not found</h1>
+      <p className="text-gray-500 dark:text-gray-400 mb-6">The page you&apos;re looking for does not exist.</p>
+      <Link to="/" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium">Return to Lobby</Link>
     </div>
   )
 }
@@ -62,8 +63,8 @@ function AppNav() {
   if (!user || location.pathname.startsWith('/channel/')) return null
 
   return (
-    <header className="bg-white shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
-      <Link to="/" className="flex items-center gap-2 text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
+    <header className="bg-white dark:bg-gray-800 shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
+      <Link to="/" className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate">
         <img src="/RoleByPost.png" alt="" className="w-8 h-8 rounded" />
         RoleByPost
       </Link>
@@ -77,14 +78,15 @@ function AppNav() {
               placeholder="Search..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-24 sm:w-48 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-24 sm:w-48 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </form>
         )}
+        <ThemeToggle />
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none"
+          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none"
           aria-label="Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,17 +95,17 @@ function AppNav() {
         </button>
 
         {menuOpen && (
-          <div className="absolute right-4 top-14 mt-2 w-48 bg-white rounded-md shadow-lg py-1 border border-gray-200 z-50">
+          <div className="absolute right-4 top-14 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-50">
             <Link 
               to="/settings" 
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => setMenuOpen(false)}
             >
               <div className="mr-3 flex-shrink-0">
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 shadow-sm">
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shadow-sm">
                     <span className="text-xs font-medium">
                       {profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
                     </span>
@@ -114,14 +116,14 @@ function AppNav() {
             </Link>
             <Link 
               to="/archived" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => setMenuOpen(false)}
             >
               Archived Channels
             </Link>
             <Link 
               to="/help" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => setMenuOpen(false)}
             >
               Help
@@ -132,13 +134,13 @@ function AppNav() {
                 setMenuOpen(false)
                 openChangelog()
               }}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               Change Log
             </button>
             <Link 
               to="/privacy" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => setMenuOpen(false)}
             >
               Privacy Policy
@@ -146,20 +148,20 @@ function AppNav() {
             {isServerAdmin && (
               <Link 
                 to="/admin" 
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => setMenuOpen(false)}
               >
                 Server Admin
               </Link>
             )}
-            <div className="border-t border-gray-100 my-1"></div>
+            <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
             <button
               type="button"
               onClick={() => {
                 setMenuOpen(false)
                 signOut()
               }}
-              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+              className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               Sign Out
             </button>
@@ -176,7 +178,7 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <ChangelogProvider>
-            <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
               <AppNav />
               <main className="flex-1 flex flex-col">
                 <Routes>

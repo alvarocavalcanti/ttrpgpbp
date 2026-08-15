@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './useAuth'
+import { ThemeToggle } from '../../components/ThemeToggle'
 
 const FEATURES = [
   {
@@ -63,8 +64,8 @@ export function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
       </div>
     )
   }
@@ -82,17 +83,20 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center py-10 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-4xl">
-        <div className="max-w-md w-full mx-auto bg-white rounded-xl shadow-md p-8">
+        <div className="max-w-md w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
           <div>
             <div className="flex items-center justify-center gap-3 mt-6">
               <img src="/RoleByPost.png" alt="RoleByPost" className="w-12 h-12 rounded" />
-              <h2 className="text-3xl font-extrabold text-gray-900">
+              <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
                 RoleByPost
               </h2>
             </div>
-            <p className="mt-2 text-center text-sm text-gray-600">
+            <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
               Sign in to access your campaigns
             </p>
           </div>
@@ -101,7 +105,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={handleSignIn}
-              className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -127,23 +131,23 @@ export function LoginPage() {
         </div>
 
         <div className="mt-14">
-          <h3 className="text-center text-2xl font-bold text-gray-900">
+          <h3 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
             Why RoleByPost?
           </h3>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             The home for asynchronous tabletop roleplaying
           </p>
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((feature) => (
               <div key={feature.title} className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                     {feature.icon}
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900">{feature.title}</h4>
-                  <p className="mt-1 text-sm text-gray-600">{feature.description}</p>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{feature.title}</h4>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{feature.description}</p>
                 </div>
               </div>
             ))}

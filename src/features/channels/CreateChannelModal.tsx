@@ -83,32 +83,32 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   return (
     <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">
               Create a New Channel
             </h3>
             
             <form onSubmit={handleSubmit} className="mt-5 space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">Channel Name</label>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Channel Name</label>
                 <input
                   type="text"
                   id="name"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="e.g. Curse of Strahd"
                 />
               </div>
 
               <div>
-                <label htmlFor="characterName" className="block text-sm font-medium text-gray-700">Your GM Name</label>
+                <label htmlFor="characterName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Your GM Name</label>
                 <input
                   type="text"
                   id="characterName"
@@ -116,18 +116,18 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   maxLength={20}
                   value={characterName}
                   onChange={(e) => setCharacterName(e.target.value)}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="e.g. The DM"
                 />
               </div>
 
               <div>
-                <label htmlFor="gameSystem" className="block text-sm font-medium text-gray-700">Game System</label>
+                <label htmlFor="gameSystem" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Game System</label>
                 <select
                   id="gameSystem"
                   value={gameSystem}
                   onChange={(e) => setGameSystem(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
                 >
                   {GAME_SYSTEM_OPTIONS.map(sys => (
                     <option key={sys.id} value={sys.id}>{sys.name}</option>
@@ -136,7 +136,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Password (Optional)
                 </label>
                 <div className="relative mt-1">
@@ -145,13 +145,13 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
+                    className="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
                     placeholder="Leave blank for open access"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
@@ -169,7 +169,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
               </div>
 
               {error && (
-                <div className="text-sm text-red-600">
+                <div className="text-sm text-red-600 dark:text-red-400">
                   {error}
                 </div>
               )}
@@ -186,7 +186,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm transition-colors"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm transition-colors"
                 >
                   Cancel
                 </button>

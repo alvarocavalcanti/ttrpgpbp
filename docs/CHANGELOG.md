@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Dark mode** — a sun/moon toggle in the app header (and login page) switches the whole app between light and dark themes. The choice persists per device, defaults to the OS preference, and is applied before first paint to avoid a light flash.
+
 - **Image uploads everywhere (GM-only)** — image uploading is no longer just for channel avatars. GMs can upload an image straight into a message (inserted as a markdown image at the cursor), as the channel Map or Resources, or as an NPC portrait — all gated by the server-admin image-upload toggle. A new **auto-delete images older than (days)** server setting (0 = keep forever) powers a daily `cleanup-images` edge function that prunes old uploads to keep storage near zero cost.
 - **Character notes** — a plain-text notes field per player, shown in the member list.
 - **Channel avatar** — GMs can upload an image avatar (WhatsApp/Signal-style) from Channel Settings; it shows in the channel list and the channel header. Images are downscaled client-side to ~512 px JPEG and stored in Supabase Storage, with uploads gated by a new server-admin toggle (image uploads are off by default).

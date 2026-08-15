@@ -28,12 +28,12 @@ export function PermissionBanner() {
   }
 
   return (
-    <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4 mx-4 md:mx-0" role="region" aria-label="Notification permission">
+    <div className="bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 rounded-lg px-4 py-3 flex items-center justify-between gap-4 mx-4 md:mx-0" role="region" aria-label="Notification permission">
       <div>
-        <p className="text-sm text-indigo-900">
+        <p className="text-sm text-indigo-900 dark:text-indigo-200">
           Enable push notifications to get notified of new messages, even when the app is closed.
         </p>
-        {error && <p className="text-sm text-red-700 mt-1" role="alert">{error}</p>}
+        {error && <p className="text-sm text-red-700 dark:text-red-400 mt-1" role="alert">{error}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
@@ -47,7 +47,7 @@ export function PermissionBanner() {
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="px-3 py-1.5 text-gray-500 text-sm font-medium rounded-md hover:bg-indigo-100"
+          className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900"
           aria-label="Dismiss notification banner"
         >
           Dismiss

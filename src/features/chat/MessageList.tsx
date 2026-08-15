@@ -85,9 +85,9 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     return (
       <div className="flex-1 flex items-center justify-center">
         {error ? (
-          <p className="text-red-500 text-sm">Could not load messages.</p>
+          <p className="text-red-500 dark:text-red-400 text-sm">Could not load messages.</p>
         ) : (
-          <p className="text-gray-400 text-sm">No messages yet. Say hello!</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm">No messages yet. Say hello!</p>
         )}
       </div>
     )
@@ -101,7 +101,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             type="button"
             onClick={onLoadOlder}
             disabled={loadingOlder}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+            className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 disabled:opacity-50"
           >
             {loadingOlder ? 'Loading older messages...' : 'Load older messages'}
           </button>
@@ -121,20 +121,20 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
           <Fragment key={message.id}>
             {showDivider && (
               <div data-testid="date-divider" className="flex items-center my-6">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {currentDate}
                 </span>
-                <div className="flex-grow border-t border-gray-300"></div>
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
               </div>
             )}
             {showNewDivider && (
               <div data-testid="new-messages-divider" className="flex items-center my-6">
-                <div className="flex-grow border-t-2 border-red-400"></div>
-                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-red-500 uppercase tracking-wider">
+                <div className="flex-grow border-t-2 border-red-400 dark:border-red-500"></div>
+                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider">
                   New messages
                 </span>
-                <div className="flex-grow border-t-2 border-red-400"></div>
+                <div className="flex-grow border-t-2 border-red-400 dark:border-red-500"></div>
               </div>
             )}
             <MessageItem

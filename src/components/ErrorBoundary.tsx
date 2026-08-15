@@ -29,9 +29,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.error) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
-          <h1 className="text-xl font-medium text-gray-900 mb-2">Something went wrong</h1>
-          <p className="text-gray-500 mb-6 text-center">
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 px-4">
+          <h1 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Something went wrong</h1>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-center">
             An unexpected error occurred while rendering this page.
           </p>
           <button

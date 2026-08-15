@@ -9,6 +9,18 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>RoleByPost</title>
+    <script>
+      // Apply the saved/system theme before first paint to avoid a light flash.
+      (function () {
+        var saved = null
+        try { saved = localStorage.getItem('rolebypost-theme') } catch (e) {}
+        var dark = saved === 'dark'
+          || (saved !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var root = document.documentElement
+        root.classList.toggle('dark', dark)
+        root.style.colorScheme = dark ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

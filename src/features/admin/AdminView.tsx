@@ -66,7 +66,7 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
   const isActive = activeKey === sortKey
   return (
     <th
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700"
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300"
       onClick={() => onSort(sortKey)}
       aria-sort={isActive ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
     >
@@ -218,9 +218,9 @@ export function AdminView() {
 
   return (
     <div className="w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Server Admin</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Server Admin</h2>
 
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav className="-mb-px flex space-x-6" aria-label="Admin sections">
           {tabs.map(t => (
             <button
@@ -229,7 +229,7 @@ export function AdminView() {
               onClick={() => setTab(t.id)}
               className={`inline-flex py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.id
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-indigo-500 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -240,39 +240,39 @@ export function AdminView() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 text-sm rounded-md border border-red-200 dark:border-red-800">
           {error}
         </div>
       )}
 
       {loading || settingsLoading || imageSettingsLoading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
         </div>
       ) : (
         <>
           {tab === 'users' && (
-            <div className="bg-white shadow overflow-hidden rounded-md">
+            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-md">
               {userSort.sorted.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 text-sm">No users found.</div>
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400 text-sm">No users found.</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
                       <tr>
                         <SortHeader label="Name" sortKey="display_name" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
                         <SortHeader label="Channels" sortKey="channel_count" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
                         <SortHeader label="Joined" sortKey="created_at" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {userSort.sorted.map(user => (
                         <tr key={user.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {user.display_name || user.email || 'Unknown'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.channel_count}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.channel_count}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {new Date(user.created_at).toLocaleString()}
                           </td>
                         </tr>
@@ -285,13 +285,13 @@ export function AdminView() {
           )}
 
           {tab === 'channels' && (
-            <div className="bg-white shadow overflow-hidden rounded-md">
+            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-md">
               {channelSort.sorted.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 text-sm">No channels found.</div>
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400 text-sm">No channels found.</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
                       <tr>
                         <SortHeader label="Name" sortKey="name" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="System" sortKey="game_system" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
@@ -301,21 +301,21 @@ export function AdminView() {
                         <SortHeader label="Last Active" sortKey="last_message_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {channelSort.sorted.map(channel => (
                         <tr key={channel.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{channel.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.game_system || 'none'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{channel.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{channel.game_system || 'none'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {channel.gm_id === null ? (
                               <span className="inline-flex items-center gap-2">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400">
                                   Orphaned
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleClaimChannel(channel.id)}
-                                  className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                  className="inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                 >
                                   Claim
                                 </button>
@@ -324,11 +324,11 @@ export function AdminView() {
                               channel.gm_display_name || '—'
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{channel.member_count}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{channel.member_count}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {new Date(channel.created_at).toLocaleString()}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {channel.last_message_at ? new Date(channel.last_message_at).toLocaleString() : '—'}
                           </td>
                         </tr>
@@ -341,8 +341,8 @@ export function AdminView() {
           )}
 
           {tab === 'settings' && (
-            <div className="max-w-md bg-white shadow rounded-md p-6">
-              <label htmlFor="maxChannels" className="block text-sm font-medium text-gray-700">
+            <div className="max-w-md bg-white dark:bg-gray-800 shadow rounded-md p-6">
+              <label htmlFor="maxChannels" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Maximum Channels per user
               </label>
               <input
@@ -351,9 +351,9 @@ export function AdminView() {
                 min={10}
                 value={channelLimit}
                 onChange={(e) => setChannelLimit(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
               />
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 Cannot be less than 10. Users already over the limit keep their existing channels.
               </p>
               <div className="mt-4 flex justify-end">
@@ -367,25 +367,25 @@ export function AdminView() {
                 </button>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900">Image Uploads</h3>
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Image Uploads</h3>
                 <div className="mt-3">
                   <label htmlFor="imageUploadEnabled" className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-gray-700">Allow image uploads (channel avatars)</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Allow image uploads (channel avatars)</span>
                     <input
                       type="checkbox"
                       id="imageUploadEnabled"
                       checked={imageUploadEnabled}
                       onChange={(e) => setImageUploadEnabled(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500"
                     />
                   </label>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Off by default to keep the server at near-zero cost. Uploads are resized client-side and capped by the max size below.
                   </p>
                 </div>
                 <div className="mt-4">
-                  <label htmlFor="imageMaxSize" className="block text-sm font-medium text-gray-700">Maximum image size (MB)</label>
+                  <label htmlFor="imageMaxSize" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Maximum image size (MB)</label>
                   <input
                     type="number"
                     id="imageMaxSize"
@@ -393,12 +393,12 @@ export function AdminView() {
                     max={50}
                     value={imageMaxSize}
                     onChange={(e) => setImageMaxSize(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                   />
-                  <p className="mt-1 text-xs text-gray-500">Between 1 and 50 MB.</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Between 1 and 50 MB.</p>
                 </div>
                 <div className="mt-4">
-                  <label htmlFor="imageRetention" className="block text-sm font-medium text-gray-700">Auto-delete images older than (days)</label>
+                  <label htmlFor="imageRetention" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Auto-delete images older than (days)</label>
                   <input
                     type="number"
                     id="imageRetention"
@@ -406,9 +406,9 @@ export function AdminView() {
                     max={365}
                     value={imageRetention}
                     onChange={(e) => setImageRetention(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                   />
-                  <p className="mt-1 text-xs text-gray-500">0 keeps images forever. A daily cleanup function deletes older images.</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">0 keeps images forever. A daily cleanup function deletes older images.</p>
                 </div>
                 <div className="mt-4 flex justify-end">
                   <button
