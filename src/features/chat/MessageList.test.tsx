@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageList } from './MessageList'
 import { useAuth } from '../auth/useAuth'
 
@@ -173,5 +173,85 @@ describe('MessageList', () => {
     render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
 
     expect(screen.getAllByTestId('new-messages-divider')).toHaveLength(1)
+  })
+})
+
+describe('MessageList scroll anchoring', () => {
+  let scrollTop = 0
+  let scrollHeight = 0
+
+  beforeEach(() => {
+    scrollTop = 0
+    scrollHeight = 0
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    Object.defineProperty(window.HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    })
+    Object.defineProperty(window.HTMLElement.prototype, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (v: number) => { scrollTop = v },
+    })
+  })
+
+  afterEach(() => {
+    delete (window.HTMLElement.prototype as any).scrollHeight
+    delete (window.HTMLElement.prototype as any).scrollTop
+  })
+
+  const base = (): any[] => [
+    { id: 'm1', content: 'M1', created_at: '2023-01-01T10:00:00Z' },
+    { id: 'm2', content: 'M2', created_at: '2023-01-01T10:05:00Z' },
+  ]
+
+  it('keeps the viewport anchored when older messages are prepended', () => {
+    scrollHeight = 1000
+    scrollTop = 800
+
+    const { rerender, container } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} hasMore onLoadOlder={vi.fn()} />
+    )
+
+    // Initial load scrolls to bottom (mocked), then the ref captures the
+    // pre-prepend scroll state { height: 1000, top: 800 }.
+    scrollHeight = 1200
+    rerender(
+      <MessageList
+        messages={[{ id: 'm0', content: 'M0', created_at: '2023-01-01T09:00:00Z' }, ...base()]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        hasMore
+        onLoadOlder={vi.fn()}
+      />
+    )
+
+    // 200px were added above the viewport; scrollTop should grow by that much
+    // so the same messages stay on screen instead of jumping to the bottom.
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+  })
+
+  it('scrolls to the newest message when a new message is appended', () => {
+    scrollHeight = 1000
+    scrollTop = 800
+
+    const { rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+
+    scrollHeight = 1100
+    rerender(
+      <MessageList
+        messages={[...base(), { id: 'm3', content: 'M3', created_at: '2023-01-01T10:10:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(2)
   })
 })
