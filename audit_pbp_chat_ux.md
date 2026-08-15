@@ -1,5 +1,7 @@
 # PbP Chat and Real-Time UX Audit
 
+<!-- cspell:ignore forgeable nonintrusive TTRPG statblock statblocks blockquotes retcons linkification affordances -->
+
 Date: 2026-08-15
 Scope: asynchronous play, narrative engagement, real-time chat UX, dice, notifications, accessibility, and mobile behavior.
 
