@@ -1,9 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { resizeImageFile } from '../../lib/imageResize'
-import { useAppSetting } from '../../hooks/useAppSetting'
-
-const DEFAULT_MAX_SIZE_MB = 5
+import { useImageUpload } from '../../hooks/useImageUpload'
 
 export interface ChannelAvatarApi {
   uploadEnabled: boolean
@@ -12,46 +9,26 @@ export interface ChannelAvatarApi {
   uploadAvatar: (file: File) => Promise<string | null>
 }
 
-// Uploads a channel avatar: client-side resize, storage upload, then persist the
-// public URL on the channel row. Gated by the admin's image_uploading_enabled
-// setting (off by default) and image_max_size_mb.
+// Uploads a channel avatar into the 'images' bucket, then persists the public
+// URL on the channel row. Upload mechanics (resize, admin toggle, size cap)
+// live in useImageUpload.
 export function useChannelAvatar(channelId: string | undefined, onUpdated?: () => void): ChannelAvatarApi {
-  const { value: uploadEnabled, loading: settingsLoading } = useAppSetting<boolean>('image_uploading_enabled', false)
-  const { value: maxSizeMb } = useAppSetting<number>('image_max_size_mb', DEFAULT_MAX_SIZE_MB)
-  const [uploading, setUploading] = useState(false)
+  const { uploadEnabled, settingsLoading, uploading, uploadImage } = useImageUpload(channelId)
 
   const uploadAvatar = useCallback(async (file: File): Promise<string | null> => {
     if (!channelId) return null
-    if (!uploadEnabled) {
-      throw new Error('Image uploads are disabled by the server admin')
-    }
-    if (file.size > maxSizeMb * 1024 * 1024) {
-      throw new Error(`Image is too large (max ${maxSizeMb} MB)`)
-    }
+    const publicUrl = await uploadImage(file, 'avatar')
+    if (!publicUrl) return null
 
-    setUploading(true)
-    try {
-      const resized = await resizeImageFile(file)
-      const path = `${channelId}/avatar/${crypto.randomUUID()}.jpg`
-      const { error: uploadError } = await supabase.storage.from('images').upload(path, resized, {
-        cacheControl: '3600',
-        upsert: false,
-      })
-      if (uploadError) throw uploadError
+    const { error: updateError } = await supabase
+      .from('channels')
+      .update({ avatar_url: publicUrl })
+      .eq('id', channelId)
+    if (updateError) throw updateError
 
-      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(path)
-      const { error: updateError } = await supabase
-        .from('channels')
-        .update({ avatar_url: publicUrl })
-        .eq('id', channelId)
-      if (updateError) throw updateError
-
-      onUpdated?.()
-      return publicUrl
-    } finally {
-      setUploading(false)
-    }
-  }, [channelId, uploadEnabled, maxSizeMb, onUpdated])
+    onUpdated?.()
+    return publicUrl
+  }, [channelId, uploadImage, onUpdated])
 
   return { uploadEnabled, settingsLoading, uploading, uploadAvatar }
 }

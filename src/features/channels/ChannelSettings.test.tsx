@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
 import { supabase } from '../../lib/supabase'
 import { useChannelAvatar } from './useChannelAvatar'
+import { useImageUpload } from '../../hooks/useImageUpload'
+
+const { mockUploadImage } = vi.hoisted(() => ({ mockUploadImage: vi.fn() }))
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -13,6 +16,15 @@ vi.mock('../../lib/supabase', () => ({
 
 vi.mock('./useChannelAvatar', () => ({
   useChannelAvatar: vi.fn()
+}))
+
+vi.mock('../../hooks/useImageUpload', () => ({
+  useImageUpload: vi.fn(() => ({
+    uploadEnabled: true,
+    settingsLoading: false,
+    uploading: false,
+    uploadImage: mockUploadImage,
+  })),
 }))
 
 vi.mock('../../lib/crypto', () => ({
@@ -52,6 +64,14 @@ describe('ChannelSettings', () => {
       settingsLoading: false,
       uploading: false,
       uploadAvatar: vi.fn().mockResolvedValue('https://img/new.jpg')
+    } as any)
+    mockUploadImage.mockReset()
+    mockUploadImage.mockResolvedValue('https://supabase/images/c1/map/u.jpg')
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadImage: mockUploadImage,
     } as any)
     Object.defineProperty(window, 'location', {
       configurable: true,
@@ -483,5 +503,44 @@ describe('ChannelSettings', () => {
 
     expect(screen.getByLabelText('Channel Avatar')).toBeDisabled()
     expect(screen.getByText(/Image uploads are disabled by the server admin/)).toBeInTheDocument()
+  })
+
+  it('uploads a map image and fills the Map URL field', async () => {
+    mockUploadImage.mockResolvedValue('https://supabase/images/c1/map/u.jpg')
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Upload map image'), {
+      target: { files: [new File(['data'], 'dungeon.png', { type: 'image/png' })] }
+    })
+
+    await waitFor(() => {
+      expect(mockUploadImage).toHaveBeenCalledWith(expect.any(File), 'map')
+      expect(screen.getByLabelText('Map URL')).toHaveValue('https://supabase/images/c1/map/u.jpg')
+    })
+  })
+
+  it('uploads a resources image and fills the Resources URL field', async () => {
+    mockUploadImage.mockResolvedValue('https://supabase/images/c1/resources/u.jpg')
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Upload resources image'), {
+      target: { files: [new File(['data'], 'handout.png', { type: 'image/png' })] }
+    })
+
+    await waitFor(() => {
+      expect(mockUploadImage).toHaveBeenCalledWith(expect.any(File), 'resources')
+      expect(screen.getByLabelText('Resources URL')).toHaveValue('https://supabase/images/c1/resources/u.jpg')
+    })
+  })
+
+  it('shows the map upload error on failure', async () => {
+    mockUploadImage.mockRejectedValue(new Error('Image uploads are disabled by the server admin'))
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Upload map image'), {
+      target: { files: [new File(['data'], 'dungeon.png', { type: 'image/png' })] }
+    })
+
+    expect(await screen.findByText('Image uploads are disabled by the server admin')).toBeInTheDocument()
   })
 })

@@ -249,6 +249,7 @@ export function ChannelView() {
         
         {!channel.is_archived && (
           <MessageComposer 
+            channelId={channel.id}
             isGM={isGM} 
             members={whisperableMembers} 
             npcs={npcs}

@@ -4,6 +4,7 @@ import { DiceRoller } from '../dice/DiceRoller'
 import { linkifyMentions } from './mentions'
 import { randomNpcIconUrl } from './npcIcons'
 import { IconPicker } from './IconPicker'
+import { useImageUpload } from '../../hooks/useImageUpload'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -17,6 +18,7 @@ export interface ReplyTarget {
 }
 
 interface MessageComposerProps {
+  channelId?: string
   isGM: boolean
   members: ChannelMember[]
   npcs?: Npc[]
@@ -27,7 +29,7 @@ interface MessageComposerProps {
   onXCard?: () => void
 }
 
-export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps) {
+export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
   const [isNpc, setIsNpc] = useState(false)
@@ -39,10 +41,12 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
   const [activePlayerIds, setActivePlayerIds] = useState<string[] | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { uploadEnabled, settingsLoading, uploading, uploadImage } = useImageUpload(channelId)
 
   const matchedNpc = npcName.trim()
     ? npcs.find(n => n.name.toLowerCase() === npcName.trim().toLowerCase())
@@ -114,6 +118,47 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
       const pos = start + name.length + 2
       ta.setSelectionRange(pos, pos)
     })
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setImageError(null)
+    try {
+      // ~1200px keeps maps/handouts legible; storage cost stays tiny after the
+      // JPEG re-encode.
+      const publicUrl = await uploadImage(file, 'message', 1200)
+      if (publicUrl) {
+        const ta = textareaRef.current
+        const cursor = ta?.selectionStart ?? content.length
+        const insertion = `![](${publicUrl})\n`
+        const next = content.slice(0, cursor) + insertion + content.slice(cursor)
+        setContent(next)
+        setMentionState(null)
+        requestAnimationFrame(() => {
+          const nextTa = textareaRef.current
+          if (!nextTa) return
+          nextTa.focus()
+          nextTa.setSelectionRange(cursor + insertion.length, cursor + insertion.length)
+        })
+      }
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
+    }
+  }
+
+  const handleNpcImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setImageError(null)
+    try {
+      const publicUrl = await uploadImage(file, 'npc')
+      if (publicUrl) setNpcAvatarUrl(publicUrl)
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -287,6 +332,21 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
                     </svg>
                     <span className="hidden sm:inline">Load Images</span>
                   </label>
+
+                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 hover:text-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Upload an image">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      aria-label="Upload Image"
+                      disabled={uploading || !uploadEnabled || settingsLoading}
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="hidden sm:inline">{uploading ? 'Uploading...' : 'Upload'}</span>
+                  </label>
                 </div>
               )}
 
@@ -393,6 +453,22 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </button>
+              <label
+                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Upload portrait"
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  aria-label="Upload NPC portrait"
+                  disabled={uploading || !uploadEnabled || settingsLoading}
+                  onChange={handleNpcImageUpload}
+                  className="hidden"
+                />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </label>
             </div>
           )}
 
@@ -406,6 +482,12 @@ export function MessageComposer({ isGM, members, npcs = [], onSendMessage, onRol
           {error && (
             <div className="mb-2 p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
               {error}
+            </div>
+          )}
+
+          {imageError && (
+            <div className="mb-2 p-2 bg-red-50 text-red-700 text-sm rounded-md border border-red-200" role="alert">
+              {imageError}
             </div>
           )}
 

@@ -89,8 +89,10 @@ export function AdminView() {
   const { value: maxChannels, loading: settingsLoading } = useAppSetting<number>('max_channels_per_user', 10)
   const { value: imageUploadingEnabled, loading: imageSettingsLoading } = useAppSetting<boolean>('image_uploading_enabled', false)
   const { value: imageMaxSizeMb } = useAppSetting<number>('image_max_size_mb', 5)
+  const { value: imageRetentionDays } = useAppSetting<number>('image_retention_days', 0)
   const [imageUploadEnabled, setImageUploadEnabled] = useState(false)
   const [imageMaxSize, setImageMaxSize] = useState('5')
+  const [imageRetention, setImageRetention] = useState('0')
   const [isSavingImages, setIsSavingImages] = useState(false)
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
@@ -107,7 +109,8 @@ export function AdminView() {
     setChannelLimit(String(maxChannels))
     setImageUploadEnabled(Boolean(imageUploadingEnabled))
     setImageMaxSize(String(imageMaxSizeMb))
-  }, [isServerAdmin, adminLoading, maxChannels, imageUploadingEnabled, imageMaxSizeMb, navigate])
+    setImageRetention(String(imageRetentionDays))
+  }, [isServerAdmin, adminLoading, maxChannels, imageUploadingEnabled, imageMaxSizeMb, imageRetentionDays, navigate])
 
   useEffect(() => {
     if (!isServerAdmin) return
@@ -169,6 +172,11 @@ export function AdminView() {
       addToast('Maximum image size must be between 1 and 50 MB.', 'error')
       return
     }
+    const retention = Number(imageRetention)
+    if (!Number.isInteger(retention) || retention < 0 || retention > 365) {
+      addToast('Image retention must be between 0 and 365 days.', 'error')
+      return
+    }
     setIsSavingImages(true)
     try {
       const { error } = await supabase
@@ -176,6 +184,7 @@ export function AdminView() {
         .upsert([
           { key: 'image_uploading_enabled', value: imageUploadEnabled },
           { key: 'image_max_size_mb', value: mb },
+          { key: 'image_retention_days', value: retention },
         ], { onConflict: 'key' })
       if (error) throw error
       addToast('Image upload settings updated.', 'success')
@@ -387,6 +396,19 @@ export function AdminView() {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                   />
                   <p className="mt-1 text-xs text-gray-500">Between 1 and 50 MB.</p>
+                </div>
+                <div className="mt-4">
+                  <label htmlFor="imageRetention" className="block text-sm font-medium text-gray-700">Auto-delete images older than (days)</label>
+                  <input
+                    type="number"
+                    id="imageRetention"
+                    min={0}
+                    max={365}
+                    value={imageRetention}
+                    onChange={(e) => setImageRetention(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">0 keeps images forever. A daily cleanup function deletes older images.</p>
                 </div>
                 <div className="mt-4 flex justify-end">
                   <button

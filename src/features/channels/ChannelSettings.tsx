@@ -7,6 +7,7 @@ import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
 import { useChannelAvatar } from './useChannelAvatar'
+import { useImageUpload } from '../../hooks/useImageUpload'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 type Channel = Database['public']['Tables']['channels']['Row']
@@ -54,6 +55,10 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const [avatarUrl, setAvatarUrl] = useState(channel.avatar_url || '')
   const [avatarError, setAvatarError] = useState<string | null>(null)
 
+  const { uploading: mapUploading, uploadImage } = useImageUpload(channel.id)
+  const [mapError, setMapError] = useState<string | null>(null)
+  const [resourcesError, setResourcesError] = useState<string | null>(null)
+
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -68,6 +73,32 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       if (publicUrl) setAvatarUrl(publicUrl)
     } catch (err) {
       setAvatarError(err instanceof Error ? err.message : 'Failed to upload avatar.')
+    }
+  }
+
+  const handleMapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setMapError(null)
+    try {
+      const publicUrl = await uploadImage(file, 'map')
+      if (publicUrl) setMapUrl(publicUrl)
+    } catch (err) {
+      setMapError(err instanceof Error ? err.message : 'Failed to upload map.')
+    }
+  }
+
+  const handleResourcesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setResourcesError(null)
+    try {
+      const publicUrl = await uploadImage(file, 'resources')
+      if (publicUrl) setResourcesUrl(publicUrl)
+    } catch (err) {
+      setResourcesError(err instanceof Error ? err.message : 'Failed to upload resources.')
     }
   }
 
@@ -386,7 +417,20 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
               </div>
 
               <div>
-                <label htmlFor="mapUrl" className="block text-sm font-medium text-gray-700">Map URL</label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="mapUrl" className="block text-sm font-medium text-gray-700">Map URL</label>
+                  <label className="text-xs text-indigo-600 hover:text-indigo-800 cursor-pointer font-medium disabled:opacity-50">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      aria-label="Upload map image"
+                      disabled={mapUploading || !uploadEnabled || settingsLoading}
+                      onChange={handleMapUpload}
+                      className="hidden"
+                    />
+                    {mapUploading ? 'Uploading...' : 'Upload image'}
+                  </label>
+                </div>
                 <input
                   type="url"
                   id="mapUrl"
@@ -395,10 +439,24 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://owlbear.rodeo/..."
                 />
+                {mapError && <p className="text-xs text-red-600 mt-1">{mapError}</p>}
               </div>
 
               <div>
-                <label htmlFor="resourcesUrl" className="block text-sm font-medium text-gray-700">Resources URL</label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="resourcesUrl" className="block text-sm font-medium text-gray-700">Resources URL</label>
+                  <label className="text-xs text-indigo-600 hover:text-indigo-800 cursor-pointer font-medium disabled:opacity-50">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      aria-label="Upload resources image"
+                      disabled={mapUploading || !uploadEnabled || settingsLoading}
+                      onChange={handleResourcesUpload}
+                      className="hidden"
+                    />
+                    {mapUploading ? 'Uploading...' : 'Upload image'}
+                  </label>
+                </div>
                 <input
                   type="url"
                   id="resourcesUrl"
@@ -407,6 +465,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://drive.google.com/..."
                 />
+                {resourcesError && <p className="text-xs text-red-600 mt-1">{resourcesError}</p>}
               </div>
 
                 <div>

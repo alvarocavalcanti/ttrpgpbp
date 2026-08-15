@@ -1,11 +1,34 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
+import { useImageUpload } from '../../hooks/useImageUpload'
+
+const { mockUploadImage } = vi.hoisted(() => ({ mockUploadImage: vi.fn() }))
+
+vi.mock('../../hooks/useImageUpload', () => ({
+  useImageUpload: vi.fn(() => ({
+    uploadEnabled: true,
+    settingsLoading: false,
+    uploading: false,
+    uploadImage: mockUploadImage,
+  })),
+}))
 
 describe('MessageComposer', () => {
   const members: any[] = [
     { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } }
   ]
+
+  beforeEach(() => {
+    mockUploadImage.mockReset()
+    mockUploadImage.mockResolvedValue('https://supabase/images/c1/message/u.jpg')
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadImage: mockUploadImage,
+    })
+  })
 
   it('submits regular message', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
@@ -413,5 +436,68 @@ describe('MessageComposer', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
     expect(screen.queryByLabelText('X-Card')).not.toBeInTheDocument()
+  })
+
+  it('hides the upload button from players', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.queryByLabelText('Upload Image')).not.toBeInTheDocument()
+  })
+
+  it('uploads an image and inserts the markdown at the cursor', async () => {
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'Hi ' } })
+    fireEvent.change(screen.getByLabelText('Upload Image'), {
+      target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    await waitFor(() => {
+      expect(mockUploadImage).toHaveBeenCalledWith(expect.any(File), 'message', 1200)
+      expect(textarea).toHaveValue('Hi ![](https://supabase/images/c1/message/u.jpg)\n')
+    })
+  })
+
+  it('shows the upload error when the image upload fails', async () => {
+    mockUploadImage.mockRejectedValue(new Error('Image uploads are disabled by the server admin'))
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.change(screen.getByLabelText('Upload Image'), {
+      target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    expect(await screen.findByText('Image uploads are disabled by the server admin')).toBeInTheDocument()
+  })
+
+  it('disables the upload button while uploads are disabled by the admin', () => {
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: false,
+      settingsLoading: false,
+      uploading: false,
+      uploadImage: mockUploadImage,
+    })
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByLabelText('Upload Image')).toBeDisabled()
+  })
+
+  it('uploads an NPC portrait image and previews it', async () => {
+    mockUploadImage.mockResolvedValue('https://supabase/images/c1/npc/u.jpg')
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByLabelText('Upload NPC portrait'), {
+      target: { files: [new File(['data'], 'king.png', { type: 'image/png' })] },
+    })
+
+    await waitFor(() => {
+      expect(mockUploadImage).toHaveBeenCalledWith(expect.any(File), 'npc')
+    })
+    expect(await screen.findByAltText('NPC portrait preview')).toHaveAttribute('src', 'https://supabase/images/c1/npc/u.jpg')
   })
 })

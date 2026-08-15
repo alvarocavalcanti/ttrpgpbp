@@ -21,8 +21,14 @@ import_map = "./functions/push-notifications/deno.json"
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/push-notifications/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
+# For example, if you want to serve static HTML files in your function:
 # static_files = [ "./functions/push-notifications/*.html" ]
+
+[functions.cleanup-images]
+enabled = true
+# Scheduled-only function (see DEPLOYMENT.md); no caller to authenticate, so JWT
+# verification is off. No-op while app_settings.image_retention_days is 0.
+verify_jwt = false
 
 [auth.external.google]
 enabled = true

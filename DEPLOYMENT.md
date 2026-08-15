@@ -96,6 +96,15 @@ browser, so no user JWT is involved.
   supabase functions deploy push-notifications --project-ref <project-ref>
   ```
 
+- [ ] Deploy the image-retention cleanup function on a daily schedule. It no-ops
+  while `app_settings.image_retention_days` is 0 (the default); setting a
+  positive retention in the Server Admin settings activates it. Optional — skip
+  if you don't want auto-deletion:
+
+  ```bash
+  supabase functions deploy cleanup-images --project-ref <project-ref> --schedule "0 3 * * *"
+  ```
+
 ## 7. Deploy the frontend
 
 - [ ] Build the static bundle:
