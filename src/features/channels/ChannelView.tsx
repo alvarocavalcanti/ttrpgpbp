@@ -15,6 +15,7 @@ import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
 import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
 import { useChannelNpcs } from './useChannelNpcs'
+import { NpcManagementModal } from './NpcManagementModal'
 import { SafetyToolsModal } from './SafetyToolsModal'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
@@ -37,7 +38,7 @@ export function ChannelView() {
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
-  const { npcs } = useChannelNpcs(id)
+  const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
   const [showSettings, setShowSettings] = useState(false)
@@ -45,6 +46,7 @@ export function ChannelView() {
   const [showSearch, setShowSearch] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showSafetyTools, setShowSafetyTools] = useState(false)
+  const [showNpcs, setShowNpcs] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
@@ -63,10 +65,10 @@ export function ChannelView() {
   // Overlay modals open on top of the sidebar; close the mobile sidebar so it
   // doesn't stay open behind them.
   useEffect(() => {
-    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showHelp) {
+    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp) {
       setShowMobileSidebar(false)
     }
-  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showHelp])
+  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp])
 
   const handleJumpToMessage = useCallback((messageId: string) => {
     setHighlightMessageId(messageId)
@@ -378,6 +380,15 @@ export function ChannelView() {
           {isGM && (
             <button
               type="button"
+              onClick={() => setShowNpcs(true)}
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              NPCs
+            </button>
+          )}
+          {isGM && (
+            <button
+              type="button"
               onClick={() => setShowSettings(true)}
               className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
@@ -430,6 +441,14 @@ export function ChannelView() {
 
       {showHelp && (
         <ChannelHelpModal onClose={() => setShowHelp(false)} />
+      )}
+
+      {showNpcs && isGM && (
+        <NpcManagementModal
+          channelId={channel.id}
+          onClose={() => setShowNpcs(false)}
+          onUpdate={refetchNpcs}
+        />
       )}
     </div>
   )

@@ -20,6 +20,15 @@ Open **Settings** from the channel sidebar to configure:
 - **Kick** a user — removes them from the channel
 - **Block** a user — prevents them from returning or interacting
 
+## Managing NPCs
+
+The **NPCs** sidebar item opens the NPC roster for the channel. From there the GM can:
+
+- **Rename** an NPC — past messages keep their original name snapshot
+- **Re-picture** an NPC — pick a game-icons.net portrait, re-randomize, or upload an image
+- **Delete** an NPC — removes it from the roster; past messages keep their portrait snapshot
+- **Add** a new NPC directly, with a chosen or random portrait
+
 ## Archiving
 
 The GM can **archive** a channel, removing it from the main lobby. Archived channels are still viewable and restorable from the **Archived Channels** item in the app menu.

@@ -72,6 +72,7 @@
 - **Create on the fly** — a new name creates the NPC automatically with a random game-icons.net portrait; an existing name reuses the existing portrait
 - **Portrait picker** — search game-icons.net by name/tag and pick a specific icon (curated subset first, full search fallback)
 - **Roster persisted per channel** (`channel_npcs`) — autocompletes existing NPC names; GMs can re-randomize or pick a portrait at any time
+- **NPC management screen (GM-only)** — the channel sidebar's **NPCs** item opens the full roster: rename an NPC, change its portrait (game-icons.net picker, re-randomize, or upload an image), delete it, or add a new NPC directly. Deleting or renaming never changes past messages, which keep their own name/portrait snapshot
 - NPC messages **snapshot** their name + portrait, so past messages stay stable if the NPC is later renamed/repictured
 - NPC messages support **whispers** and appear in **search, chat export, and push notifications** attributed to the NPC
 - Icons from game-icons.net (CC BY 3.0)

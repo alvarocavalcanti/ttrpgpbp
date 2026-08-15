@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Dark mode** — a sun/moon toggle in the app header (and login page) switches the whole app between light and dark themes. The choice persists per device, defaults to the OS preference, and is applied before first paint to avoid a light flash.
+- **NPC management screen (GM-only)** — the channel sidebar's **NPCs** item opens the full NPC roster. GMs can rename an NPC, change its portrait (game-icons.net picker, re-randomize, or upload an image), delete it, or add a new NPC directly. Renames and deletes never touch past messages, which keep their original name/portrait snapshot.
 
 - **Image uploads everywhere (GM-only)** — image uploading is no longer just for channel avatars. GMs can upload an image straight into a message (inserted as a markdown image at the cursor), as the channel Map or Resources, or as an NPC portrait — all gated by the server-admin image-upload toggle. A new **auto-delete images older than (days)** server setting (0 = keep forever) powers a daily `cleanup-images` edge function that prunes old uploads to keep storage near zero cost.
 - **Character notes** — a plain-text notes field per player, shown in the member list.

@@ -24,6 +24,8 @@ GMs can search game-icons.net by name or tag to **pick a specific portrait**, or
 
 Each channel keeps a persistent **NPC roster**. Existing NPC names autocomplete when you type, and the roster is shared across the channel's GM.
 
+The GM can open the full roster from the channel sidebar (**NPCs**) to rename NPCs, change their portraits, delete them, or add new ones directly.
+
 ## NPC messages
 
 - NPC messages work with **whispers**
