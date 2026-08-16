@@ -1,6 +1,6 @@
 # Play-by-Post Chat & Real-Time UX Audit
 
-<!-- cspell:ignore TTRPG Avrae dedup forgeable seedable backgrounded statblocks linkified statblock linkification misrouted misroute undercounts retconned -->
+<!-- cspell:ignore TTRPG Avrae dedup forgeable seedable backgrounded statblocks linkified linkification statblock misrouted misroute undercounts retconned -->
 
 Date: 2026-08-15
 Scope: Asynchronous play mechanics, narrative engagement, and real-time chat UX in RoleByPost (React 19 + Vite + Supabase/Postgres + service-worker PWA).
@@ -79,29 +79,29 @@ Recommendation: enforce a sane content cap at both input (`maxLength` on the tex
 
 ### 1.6 P1 — Unread state is marked read before history renders; error state confuses "empty" with "unavailable" **[OPEN]**
 
-`last_read_at` is updated in `fetchChannelData` before messages finish loading (`useChannel.ts:62-73`). `MessageList` does show a distinct error when the list is empty (`MessageList.tsx:84-94`), but there is no message-specific retry action and the read boundary can still be committed before history recovery.
+`last_read_at` is updated in `fetchChannelData` before messages finish loading (`useChannel.ts:62-73`), and the "No messages yet" empty state is indistinguishable from a failed load with an empty array (`MessageList.tsx:84-94` — error branch only renders when `messages.length === 0`). A transient messages fetch failure therefore both marks the channel read *and* shows "No messages yet. Say hello!" to a player who just lost their unread boundary.
 
-This is an async-play correctness bug: the "New messages" divider (`MessageList.tsx:131-139`) is the player's answer to "where was I?", and it can be invalidated by the early read update. Recommendation: mark read only after the first successful messages render (or the channel mount's message fetch resolves), and add a message-specific retry action.
+This is an async-play correctness bug: the "New messages" divider (`MessageList.tsx:131-139`) is the player's answer to "where was I?", and it is destroyed by a failure race. Recommendation: mark read only after the first successful messages render (or the channel mount's message fetch resolves), and give the empty-with-error state an explicit "Could not load messages — Retry" (a Retry exists in `ChannelView.tsx:126-131` for the channel fetch; wire it for messages too).
 
 ---
 
 ## 2. TTRPG Feature Enhancements
 
-### 2.1 — Initiative/active-turn state is manual and single-track **[INTENTIONAL — NO CHANGE]**
+### 2.1 P1 — Initiative/active-turn state is manual and single-track **[INTENTIONAL — see exclusions, with one real gap]**
 
-The initiative tracker is free-form markdown in `status_text` (`ChannelStatusBar.tsx:78`) and turn is a single `is_active_player` boolean on each member (database type in `src/types/database.ts`), driven by a single-select GM control in the composer (`MessageComposer.tsx:355-374`). The GM hand-writes the order and hand-advances turns. Push for "It's your turn" is wired server-side and AFK-aware (`filter.ts:71-85`) — solid.
+The initiative tracker is free-form markdown in `status_text` (`ChannelStatusBar.tsx:78`) and turn is a single `is_active_player` boolean on each member (multiple can be active, `SCHEMA.md`), driven by a single-select GM control in the composer (`MessageComposer.tsx:355-374`). The GM hand-writes the order and hand-advances turns. Push for "It's your turn" is wired server-side and AFK-aware (`filter.ts:71-85`) — solid.
 
-The single-select composer control is accepted as product behavior. No initiative automation or multi-select change is recommended in this audit.
+The one genuine defect in this otherwise-intentional design: the composer control is **single-select** while the schema, status bar (`ChannelStatusBar.tsx:56-67`), docs, and push logic all support **multiple** active players. A GM setting an ensemble turn is forced to pick one name. Fix the control to multi-select to match the shipped data model (this is the same gap as 20260812 UX#17). **[OPEN]**
 
 ### 2.2 P1 — No hidden/GM rolls; all dice are public **[INTENTIONAL]
 
 There is no secret-roll concept anywhere: no `secret`/`gm_only` flag on dice rolls, no "roll behind the screen" path, no whisper-scoped roll. Per exclusion, hidden rolls are not in scope — but note the interaction with 1.1: without server-authoritative rolls *and* without hidden rolls, the GM also has no trusted private die — fudge-checks and secret DCs are impossible, which pushes tables to physical dice or third-party tools. If hidden rolls ever enter scope, they should land on top of the server-side roll function from 1.1 rather than be bolted onto the current client-side path.
 
-### 2.3 — OOC/IC separation is single-timeline with no structure **[INTENTIONAL — NO CHANGE]**
+### 2.3 P1 — OOC/IC separation is single-timeline with no structure **[INTENTIONAL — one adjacent gap]**
 
-Per exclusion, threads, sub-channels, and OOC/IC restructuring are out of scope. The existing escape valves are whispers (GM + one player, RLS-scoped, `init_schema.sql:147-158`) and scene messages as narrative breaks. No chat-architecture change is recommended.
+Per exclusion, threads/OOC-channels are out of scope. The existing escape valves are whispers (GM + one player, RLS-scoped, `init_schema.sql:147-158`) and scene messages as narrative breaks. The adjacent gap worth closing without adding threading: **no lightweight OOC marker**. A player's "okay, back in ten" reads identically to an in-character post. A single character/slash prefix (e.g. `//` or `(OOC)`) rendered as a visually distinct, push-suppressed-on-demand "OOC" bubble would give tables the IC/OOC distinction they already run by convention, with one field on the message. If that's also unwanted, skip — this is the cheapest possible answer, not a recommendation to build threading.
 
-### 2.4 — Markdown covers most formatting; spoilers and statblocks excluded **[INTENTIONAL — NO CHANGE]**
+### 2.4 P2 — Markdown covers most formatting; spoilers and statblocks excluded **[INTENTIONAL]**
 
 `react-markdown` + `remark-gfm` powers messages, scenes, NPC, and status text (`MessageItem.tsx:303,463`, `ChannelStatusBar.tsx:109`); dice notation and ability checks are linkified into roll buttons (`parser.ts:31-44`), replies quote the source (`MessageItem.tsx:224-238`), and reactions render with live counts. No spoiler syntax, no statblock component — both confirmed intentional. Nothing to do here; recorded for completeness since the rich-text surface is the strongest part of the narrative UX.
 
@@ -133,7 +133,7 @@ Composer content lives in local `useState` (`MessageComposer.tsx:33`) and is cle
 
 ### 3.2 P1 — No typing/presence indicators (and no offline indicator) **[NEW]**
 
-No presence infrastructure exists at all — no "typing…", no online/away state beyond the manually-set AFK (`src/types/database.ts` `channel_members`). Typing indicators are low-value in pure async play (players post when they post), so skip them; but the *absence of any connection state* (1.2) means players cannot tell "nobody has posted" from "I'm disconnected." A minimal `SUBSCRIBED`/reconnecting indicator (and the banner from 1.2) fixes the perceived-staleness problem without presence.
+No presence infrastructure exists at all — no "typing…", no online/away state beyond the manually-set AFK (`SCHEMA.md` `channel_members`). Typing indicators are low-value in pure async play (players post when they post), so skip them; but the *absence of any connection state* (1.2) means players cannot tell "nobody has posted" from "I'm disconnected." A minimal `SUBSCRIBED`/reconnecting indicator (and the banner from 1.2) fixes the perceived-staleness problem without presence.
 
 ### 3.3 P1 — No edit history; only an `is_edited` flag **[NEW]**
 
@@ -153,7 +153,7 @@ Image uploads are well-bounded (client resize → JPEG, admin size cap, retentio
 
 ### 3.7 P2 — Email preference exists with no delivery path **[FUTURE]**
 
-`notification_preferences.email_enabled` ships and is exposed in Profile Settings (`usePushNotifications.ts`, `src/types/database.ts`) but no email delivery exists anywhere. Confirmed future feature — recorded so the flag and its UI are understood as forward-looking, and so any future email work reuses the trigger → `pg_net` architecture rather than the browser path.
+`notification_preferences.email_enabled` ships and is exposed in Profile Settings (`usePushNotifications.ts`, `SCHEMA.md`) but no email delivery exists anywhere. Confirmed future feature — recorded so the flag and its UI are understood as forward-looking, and so any future email work reuses the trigger → `pg_net` architecture rather than the browser path.
 
 ---
 
@@ -161,7 +161,7 @@ Image uploads are well-bounded (client resize → JPEG, admin size cap, retentio
 
 The following are deliberate design decisions, not defects — recorded so future reviewers don't re-raise them:
 
-1. **Initiative tracker is free-form** (`status_text` markdown + manual active-player selection), not a structured order with automatic turn advancement. This is intentional and requires no change.
+1. **Initiative tracker is free-form** (`status_text` markdown + manual active-player selection), not a structured order with automatic turn advancement. *(Only the single-select vs. multi-select mismatch at `MessageComposer.tsx:355-374` is a genuine defect — 2.1.)*
 2. **Character sheets are external links + per-system attribute modifiers** — no integrated sheet, no HP/AC tracking, no auto-sync.
 3. **No threads / sub-channels / OOC-IC structure** — one timeline per channel; whispers are the only private channel.
 4. **No spoiler syntax or statblock rendering** — Markdown + GFM only.
@@ -176,7 +176,7 @@ The following are deliberate design decisions, not defects — recorded so futur
 3. **Unread correctness** (1.6) and **type enforcement** (1.4, 1.5) — cheap DB/UI guards that protect narrative integrity.
 4. **Screen-reader access to the log** (3.4) and **mention disambiguation** (2.5) — inclusion + correct notification routing.
 5. **In-app notification center + badge catch-up** (2.6) — the biggest async-engagement surface after the resilience work.
-6. **Edit history and roll-history filters** (3.3, 2.7) — polish that compounds tabletop trust.
+6. **Edit history, roll-history filters, multi-select active players** (3.3, 2.7, 2.1) — polish that compounds tabletop trust.
 
 ## Definition of Async-Chat Readiness
 
