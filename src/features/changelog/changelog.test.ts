@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseChangelog, fnv1a, getRecentItems, getChangelogHash, getChangelogMarkdown } from './changelog'
+import { parseChangelog, fnv1a, getRecentItems, getChangelogHash, getChangelogMarkdown, CHANGELOG_RAW } from './changelog'
 
 const sample = `# Changelog
 
@@ -74,5 +74,20 @@ describe('changelog module', () => {
 
   it('getChangelogMarkdown returns the raw markdown', () => {
     expect(getChangelogMarkdown()).toContain('# Changelog')
+  })
+
+  it('keeps the changelog free of developer jargon (the What\'s New modal is player-facing)', () => {
+    const items = parseChangelog(CHANGELOG_RAW)
+    const jargon = [
+      /\bRLS\b/i, /PostgREST/i, /PGRST/, /SECURITY DEFINER/i, /app_settings/,
+      /edge function/i, /\bRPC\b/i, /is_public/, /safety_card_events/i,
+      /push_delivery_log/i, /push_invocation_log/i, /retry_failed_push_invocations/,
+      /supabase storage/i, /CHECK constraint/i, /manifest\.json/i, /VAPID/i,
+    ]
+    for (const item of items) {
+      for (const term of jargon) {
+        expect(`${item.title} ${item.body}`).not.toMatch(term)
+      }
+    }
   })
 })
