@@ -156,7 +156,8 @@ describe('usePushNotifications', () => {
     
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
-      delete: mockDelete
+      delete: mockDelete,
+      upsert: vi.fn().mockResolvedValue({ error: null })
     } as any)
 
     const { result } = renderHook(() => usePushNotifications())
@@ -361,5 +362,101 @@ describe('usePushNotifications', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await expect(result.current.updatePreferences({ push_enabled: false })).rejects.toThrow('DB error')
+  })
+
+  it('reconciles the current subscription on startup', async () => {
+    mockPushManager.getSubscription.mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/xyz', keys: { p256dh: 'p256dh-key', auth: 'auth-key' } })
+    })
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.isSubscribed).toBe(true)
+    expect(mockUpsert).toHaveBeenCalledWith(
+      { user_id: 'u1', endpoint: 'https://push.example.com/xyz', p256dh: 'p256dh-key', auth: 'auth-key' },
+      { onConflict: 'user_id,endpoint' }
+    )
+    expect(result.current.error).toBeNull()
+  })
+
+  it('surfaces subscription persistence failures on startup', async () => {
+    mockPushManager.getSubscription.mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/xyz', keys: { p256dh: 'p256dh-key', auth: 'auth-key' } })
+    })
+    const mockUpsert = vi.fn().mockResolvedValue({ error: new Error('DB error') })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error))
+    expect(result.current.error?.message).toBe('DB error')
+  })
+
+  it('persists a rotated subscription relayed by the service worker', async () => {
+    let messageHandler: ((event: any) => void) | undefined
+    vi.stubGlobal('navigator', {
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager }),
+        addEventListener: (type: string, cb: any) => { if (type === 'message') messageHandler = cb },
+        removeEventListener: () => {}
+      }
+    })
+
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      messageHandler?.({ data: { type: 'PUSH_SUBSCRIPTION_CHANGED', subscription: { endpoint: 'https://push.example.com/rotated', keys: { p256dh: 'np', auth: 'na' } } } })
+    })
+
+    expect(mockUpsert).toHaveBeenCalledWith(
+      { user_id: 'u1', endpoint: 'https://push.example.com/rotated', p256dh: 'np', auth: 'na' },
+      { onConflict: 'user_id,endpoint' }
+    )
+  })
+
+  it('reconciles again when the app returns to the foreground', async () => {
+    mockPushManager.getSubscription.mockResolvedValue(null)
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      upsert: mockUpsert
+    } as any)
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(mockUpsert).not.toHaveBeenCalled()
+
+    mockPushManager.getSubscription.mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/foreground', keys: { p256dh: 'fp', auth: 'fa' } })
+    })
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledWith(
+        { user_id: 'u1', endpoint: 'https://push.example.com/foreground', p256dh: 'fp', auth: 'fa' },
+        { onConflict: 'user_id,endpoint' }
+      )
+    })
+    expect(result.current.error).toBeNull()
   })
 })

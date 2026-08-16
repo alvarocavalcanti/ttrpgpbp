@@ -82,6 +82,17 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 
   Until this is done the trigger skips (no push), but message sending is unaffected.
 
+- [ ] (Optional) Push delivery is observable out of the box. Every send outcome
+  lands in `public.push_delivery_log` (status `sent` / `transient` / `invalid` /
+  `failed`, plus one `invocation` row per notification, keyed by `event_id`).
+  Query it from the SQL editor to see delivery health. Trigger dispatches are
+  recorded in `public.push_invocation_log`; re-queue Edge Function invocations
+  that failed at the HTTP layer with:
+
+  ```sql
+  select public.retry_failed_push_invocations();
+  ```
+
 ## 6. Deploy the edge function
 
 The push-notifications function is invoked server-side by a Postgres trigger and

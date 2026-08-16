@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from './useAuth'
+import {
+  getActiveSubscription,
+  persistPushSubscription,
+  reconcilePushSubscription,
+  subscriptionJsonToRow,
+  subscriptionToRow
+} from '../../lib/pushSubscription'
 import type { Database } from '../../types/database'
 
 type NotificationPrefs = Database['public']['Tables']['notification_preferences']['Row']
@@ -19,13 +26,15 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
+const PERSIST_ERROR = 'Failed to persist push subscription'
+
 export function usePushNotifications() {
   const { user } = useAuth()
   const [isSupported, setIsSupported] = useState(false)
   const [needsInstall, setNeedsInstall] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isSubscribed, setIsSubscribed] = useState(false)
-  
+
   const [preferences, setPreferences] = useState<NotificationPrefs | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -46,6 +55,31 @@ export function usePushNotifications() {
   useEffect(() => {
     let mounted = true
     if (!user?.id) return
+
+    // Reconciles the server with the browser's current subscription, surfacing
+    // failures instead of silently diverging (#191). Safe to call repeatedly:
+    // a fresh run is also how endpoint rotation gets repaired.
+    async function reconcile() {
+      if (!user?.id) return
+      const result = await reconcilePushSubscription(user.id)
+      if (!result.ok && mounted) {
+        setError(result.error ?? new Error(PERSIST_ERROR))
+      }
+    }
+
+    // The service worker relays browser-initiated subscription rotation via
+    // PUSH_SUBSCRIPTION_CHANGED. Persist the fresh credentials while we're
+    // authenticated; if no tab is open, the next startup/foreground reconcile
+    // repairs it.
+    function handleMessage(event: MessageEvent) {
+      const data = event.data as { type?: string; subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } } | null }
+      if (data?.type !== 'PUSH_SUBSCRIPTION_CHANGED' || !data.subscription) return
+      if (!user?.id) return
+
+      persistPushSubscription(user.id, subscriptionJsonToRow(data.subscription)).then(result => {
+        if (!result.ok) setError(result.error ?? new Error(PERSIST_ERROR))
+      })
+    }
 
     async function fetchPrefsAndSub() {
       try {
@@ -72,11 +106,11 @@ export function usePushNotifications() {
           })
         }
 
-        // Check if subscribed in SW
+        // Check if subscribed in SW, then repair the stored subscription.
         if ('serviceWorker' in navigator) {
-          const registration = await navigator.serviceWorker.ready
-          const subscription = await registration.pushManager.getSubscription()
+          const subscription = await getActiveSubscription()
           if (mounted) setIsSubscribed(!!subscription)
+          await reconcile()
         }
       } catch (err) {
         console.error('Error in fetchPrefsAndSub', err)
@@ -88,12 +122,27 @@ export function usePushNotifications() {
 
     fetchPrefsAndSub()
 
-    return () => { mounted = false }
+    // Reconcile again when the app returns to the foreground: permissions may
+    // have been granted/revoked and the browser may have rotated the
+    // subscription while the app was in the background.
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') reconcile()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleVisibility)
+    navigator.serviceWorker?.addEventListener?.('message', handleMessage)
+
+    return () => {
+      mounted = false
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleVisibility)
+      navigator.serviceWorker?.removeEventListener?.('message', handleMessage)
+    }
   }, [user?.id])
 
   const subscribeToPush = async () => {
     if (!isSupported || !user) throw new Error('Push not supported or not logged in')
-    
+
     const permissionResult = await Notification.requestPermission()
     setPermission(permissionResult)
 
@@ -102,7 +151,7 @@ export function usePushNotifications() {
     }
 
     const registration = await navigator.serviceWorker.ready
-    
+
     // Subscribe
     const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
     if (!vapidKey) throw new Error('Missing VAPID public key')
@@ -113,20 +162,11 @@ export function usePushNotifications() {
       applicationServerKey: convertedVapidKey
     })
 
-    const subJson = subscription.toJSON()
+    // Save to Supabase. Surfaced instead of swallowed so the browser is never
+    // left subscribed while the server row is missing.
+    const result = await persistPushSubscription(user.id, subscriptionToRow(subscription))
+    if (!result.ok) throw result.error
 
-    // Save to Supabase
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        user_id: user.id,
-        endpoint: subJson.endpoint || '',
-        p256dh: subJson.keys?.p256dh || '',
-        auth: subJson.keys?.auth || ''
-      }, { onConflict: 'user_id,endpoint' })
-
-    if (error) throw error
-    
     setIsSubscribed(true)
   }
 
@@ -135,23 +175,23 @@ export function usePushNotifications() {
 
     const registration = await navigator.serviceWorker.ready
     const subscription = await registration.pushManager.getSubscription()
-    
+
     if (subscription) {
       await subscription.unsubscribe()
       const subJson = subscription.toJSON()
-      
+
       await supabase
         .from('push_subscriptions')
         .delete()
         .match({ user_id: user.id, endpoint: subJson.endpoint! })
-        
+
       setIsSubscribed(false)
     }
   }
 
   const updatePreferences = async (updates: Partial<NotificationPrefs>) => {
     if (!user) return
-    
+
     const payload = {
       ...preferences,
       ...updates,
