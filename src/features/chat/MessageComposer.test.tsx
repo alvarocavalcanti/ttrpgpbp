@@ -505,10 +505,25 @@ describe('MessageComposer', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
 
-    expect(screen.getByPlaceholderText(/Type a message/i)).toHaveClass('dark:bg-gray-800')
+    const messageInput = screen.getByPlaceholderText(/Type a message/i)
+    expect(messageInput).toHaveClass('dark:bg-gray-800')
+    expect(messageInput).toHaveClass('text-gray-900')
+    expect(messageInput).toHaveClass('dark:text-gray-100')
     expect(screen.getByLabelText('Whisper:')).toHaveClass('dark:bg-gray-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     expect(screen.getByPlaceholderText(/Speak as an NPC/i)).toHaveClass('dark:bg-[#2a2620]')
+  })
+
+  it('keeps the typed message text visible on dark backgrounds', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.click(screen.getByLabelText('NPC Name'))
+    fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Goblin King' } })
+
+    expect(screen.getByPlaceholderText(/Speak as Goblin King/i)).toHaveClass('dark:text-gray-100')
+    expect(screen.getByLabelText('NPC Name')).toHaveClass('text-gray-900')
+    expect(screen.getByLabelText('NPC Name')).toHaveClass('dark:text-gray-100')
   })
 })
