@@ -1,5 +1,7 @@
 # Play-by-Post Chat & Real-Time UX Audit
 
+<!-- cspell:ignore TTRPG Avrae dedup forgeable seedable backgrounded statblocks linkified linkification statblock misrouted misroute undercounts retconned -->
+
 Date: 2026-08-15
 Scope: Asynchronous play mechanics, narrative engagement, and real-time chat UX in RoleByPost (React 19 + Vite + Supabase/Postgres + service-worker PWA).
 
