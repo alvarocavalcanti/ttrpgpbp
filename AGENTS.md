@@ -123,6 +123,7 @@ Every UI change must follow these conventions:
 - Keep [FEATURES.md](docs/FEATURES.md) up to date on new, updated and removed features
 - Keep the in-app help content in [docs/help/](docs/help/) up to date on new, updated and removed features
 - After any UI change, check whether the help screenshots in `public/help/` need updating; regenerate and commit them when they do
+- **User-facing copy must be player-friendly** — any text shown to app users (What's New modal, `/changelog` page, help docs, error messages) is written for RPG players, not developers. No schema/table names, RLS/SQL/API internals, function/column names, storage details, or error codes — say what the player gains, in plain words. [docs/CHANGELOG.md](docs/CHANGELOG.md) feeds the What's New UI directly, so keep its entries human-readable even when they summarize technical work.
 
 ## Release Management
 
