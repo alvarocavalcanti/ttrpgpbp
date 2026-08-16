@@ -35,7 +35,7 @@ All notable changes to this project are documented in this file.
 - **X-Card alert never reached the GM** — the GM's alert when a player uses an X-Card sometimes never arrived. It now always shows, as a single dismissible banner that reads "Handle the scene outside the chat."
 - **Mobile sidebar stayed open behind overlay modals** — opening Settings, Search, Rolls, or notification settings from the sidebar on mobile no longer leaves the slide-in sidebar open on top of the dialog.
 - **Emoji reaction picker rendered as a single stacked column** — the emoji picker popup's grid no longer collapses into one narrow column; emojis now line up in a proper grid.
-- **Soft-deleting a message failed with an RLS error** — deleting a message could be rejected by the server. It now works reliably.
+- **Soft-deleting a message failed with an error** — deleting a message could be rejected by the server. It now works reliably.
 - **Scene messages couldn't be edited or deleted** — scene messages (GM-authored) couldn't be edited or deleted. The GM can now edit, delete, and reply to them like any other message.
 - **Advantage/disadvantage shorthand rolls failed** — shorthand dice like `2d20kh+4` and `2d20kh` were rejected. Keep/drop counts are now optional and default to 1, so those rolls work and render as clickable dice.
 - **Unread message badge counted own + deleted messages** — the Lobby unread count no longer includes your own messages or deleted ones.

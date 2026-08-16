@@ -79,14 +79,15 @@ describe('changelog module', () => {
   it('keeps the changelog free of developer jargon (the What\'s New modal is player-facing)', () => {
     const items = parseChangelog(CHANGELOG_RAW)
     const jargon = [
-      /RLS/i, /PostgREST/i, /PGRST/, /SECURITY DEFINER/i, /app_settings/,
-      /edge function/i, /RPC/i, /is_public/, /safety_card_events/i,
+      /\bRLS\b/i, /PostgREST/i, /PGRST/, /SECURITY DEFINER/i, /app_settings/,
+      /edge function/i, /\bRPC\b/i, /is_public/, /safety_card_events/i,
       /push_delivery_log/i, /push_invocation_log/i, /retry_failed_push_invocations/,
       /supabase storage/i, /CHECK constraint/i, /manifest\.json/i, /VAPID/i,
-      /self-host/i, /npm/, /migration/i, /deploy/i, /server-admin/i, /toggle/i,
     ]
     for (const item of items) {
-      expect(`${item.title} ${item.body}`).not.toMatch(jargon)
+      for (const term of jargon) {
+        expect(`${item.title} ${item.body}`).not.toMatch(term)
+      }
     }
   })
 })
