@@ -520,9 +520,9 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     fireEvent.click(screen.getByLabelText('NPC Name'))
-    fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Grom' } })
+    fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Goblin King' } })
 
-    expect(screen.getByPlaceholderText(/Speak as Grom/i)).toHaveClass('dark:text-gray-100')
+    expect(screen.getByPlaceholderText(/Speak as Goblin King/i)).toHaveClass('dark:text-gray-100')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('text-gray-900')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('dark:text-gray-100')
   })
