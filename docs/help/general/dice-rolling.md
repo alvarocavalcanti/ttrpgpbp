@@ -14,11 +14,11 @@ Write dice notation directly in a message and it becomes **clickable** — anyon
 - `4d6dl` — drop lowest
 - `kh`, `kl`, `dh`, `dl` work with or without an explicit count, e.g. `2d20kh+4`
 
-Roll results show the full breakdown, for example `2d20kh1: **18**: [18, 7]`.
+Advantage / disadvantage rolls show the roll details, for example `Rolled 2d20 with DIS [2, 15]: **2**`.
 
 ## Ability checks
 
-From a message you can trigger an **ability check** (`STR Check`, `DEX Check`, etc.). It prompts for a modifier and rolls a d20. Rolls made from a message quote the original, so it's clear which request each roll answers.
+From a message you can trigger an **ability check** (`STR Check`, `DEX Check`, etc.). It prompts for a modifier and rolls a d20. Appending **`with advantage`** or **`with disadvantage`** rolls a second d20 and keeps the best / worst. Rolls made from a message quote the original, so it's clear which request each roll answers.
 
 ## DC checks
 

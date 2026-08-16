@@ -592,6 +592,67 @@ describe('useMessages', () => {
     vi.restoreAllMocks()
   })
 
+  it('formats advantage/disadvantage rolls with the roll details', async () => {
+    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg4' }, error: null })
+    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
+    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
+
+    const mockInsert = vi.fn().mockImplementation((payload) => {
+      if (payload.type === 'dice_roll') {
+        return { select: mockSelectMessage }
+      }
+      return Promise.resolve({ error: null })
+    })
+
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    // 2d20kl1 with Math.random sequence -> rolls [3, 19], keeps lowest 3
+    let calls = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      const seq = [0.1, 0.9]
+      const v = seq[calls % seq.length]
+      calls++
+      return v
+    })
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendDiceRoll('2d20kl1', 'parent1')
+    })
+
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      channel_id: 'c1',
+      sender_id: 'u1',
+      content: 'Rolled 2d20 with DIS [3, 19]: **3**',
+      type: 'dice_roll',
+      reply_to: 'parent1'
+    }))
+
+    expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({
+      notation: '2d20kl1',
+      result: 3,
+      breakdown: {
+        rolls: [3, 19],
+        dropped: [19],
+        modifier: 0
+      }
+    }))
+
+    vi.restoreAllMocks()
+  })
+
   it('exposes hasMore when the initial page is full', async () => {
     const full = Array.from({ length: 50 }, (_, i) => ({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
     const mockLimit = vi.fn().mockResolvedValue({ data: full, error: null })

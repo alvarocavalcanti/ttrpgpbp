@@ -19,12 +19,13 @@ function escapeRegex(s: string): string {
 }
 
 // Builds the ability-check matcher from the game system's attribute list.
-// Recognizes `DEX Check` and `DC 12 DEX Check`; the DC is captured for
-// success/failure evaluation at roll time.
+// Recognizes `DEX Check`, `DC 12 DEX Check`, and an optional trailing
+// `with advantage|disadvantage`; the DC and adv/dis are captured for roll
+// evaluation at click time.
 function checkRegex(attributes: string[]): RegExp {
   const attrs = attributes.length > 0 ? attributes : GENERIC_CHECK_ATTRIBUTES
   const alt = attrs.map(escapeRegex).join('|')
-  return new RegExp(`\\b(?:DC\\s+(\\d+)\\s+)?(${alt})\\s+Check\\b`, 'gi')
+  return new RegExp(`\\b(?:DC\\s+(\\d+)\\s+)?(${alt})\\s+Check(?:\\s+with\\s+(advantage|disadvantage))?\\b`, 'gi')
 }
 
 // Preprocesses text to turn dice notations into markdown links, skipping code blocks
@@ -35,8 +36,10 @@ export function linkifyDice(text: string, attributes?: string[]): string {
     if (i % 2 === 0) { // outside code blocks
       parts[i] = parts[i]
         .replace(DICE_REGEX, '[$1](dice:$1)')
-        .replace(checkRegex(attributes || []), (_match, dc, ability) => {
-          return `[${ability} Check${dc ? ` (DC ${dc})` : ''}](check:${ability}${dc ? `:${dc}` : ''})`
+        .replace(checkRegex(attributes || []), (_match, dc, ability, advDis) => {
+          const advLabel = advDis ? ` with ${advDis}` : ''
+          const advCode = advDis ? `:${advDis.toLowerCase() === 'advantage' ? 'adv' : 'dis'}` : ''
+          return `[${ability} Check${dc ? ` (DC ${dc})` : ''}${advLabel}](check:${ability}${dc ? `:${dc}` : ''}${advCode})`
         })
     }
   }
@@ -141,4 +144,18 @@ export function parseAndRoll(notation: string): DiceRollResult {
     dropped,
     modifier
   }
+}
+
+// Human-readable message content for a roll result. Advantage/disadvantage
+// (kh/kl) rolls show the roll details, e.g. `Rolled 2d20 with DIS [2, 15]: **2**`.
+export function formatDiceRoll(result: DiceRollResult): string {
+  const m = result.notation.match(/^(\d+)d(\d+)(kh|kl)\d*(?:([+-])(\d+))?$/i)
+  if (m) {
+    const [, count, sides, type, sign, modStr] = m
+    const label = type.toLowerCase() === 'kh' ? 'ADV' : 'DIS'
+    const mod = sign ? `${sign}${modStr}` : ''
+    const details = result.rolls.length > 0 ? ` [${result.rolls.join(', ')}]` : ''
+    return `Rolled ${count}d${sides} with ${label}${details}${mod}: **${result.total}**`
+  }
+  return `Rolled ${result.notation}: **${result.total}**`
 }
