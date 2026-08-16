@@ -472,6 +472,26 @@ describe('MessageItem', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+2', 'm1', undefined, 12)
   })
 
+  it('rolls 2d20kh1 when a check carries advantage', async () => {
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('1'))
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: 'Make an INT Check with advantage', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} />)
+    expect(screen.getByText('INT Check with advantage')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'INT Check with advantage' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d20kh1+1', 'm1', expect.stringContaining('Missing INT modifier'), undefined)
+  })
+
+  it('rolls 2d20kl1 and forwards the DC when a DC check carries disadvantage', async () => {
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('0'))
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: 'Make a DC 12 DEX Check with disadvantage', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { DEX: 2 }}]} />)
+    expect(screen.getByText('DEX Check (DC 12) with disadvantage')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'DEX Check (DC 12) with disadvantage' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d20kl1+2', 'm1', undefined, 12)
+  })
+
   it('renders a successful check result in green with a Success badge', () => {
     const msg: any = {
       type: 'dice_roll',
@@ -486,6 +506,9 @@ describe('MessageItem', () => {
     const badge = container.querySelector('span.bg-green-100')
     expect(badge).not.toBeNull()
     expect(badge?.textContent).toBe('Success')
+    const dcBadge = container.querySelector('span.bg-amber-100')
+    expect(dcBadge).not.toBeNull()
+    expect(dcBadge?.textContent).toBe('DC 12')
   })
 
   it('renders a failed check result in red with a Failure badge', () => {

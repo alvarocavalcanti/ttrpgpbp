@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import { parseAndRoll } from '../dice/parser'
+import { parseAndRoll, formatDiceRoll } from '../dice/parser'
 import type { ChatMessage } from './types'
 
 export interface ReactionSummary {
@@ -316,7 +316,7 @@ export function useMessages(channelId: string | undefined) {
       .insert({
         channel_id: channelId,
         sender_id: user.id,
-        content: `Rolled ${notation}: **${rollResult.total}**${dcNote}${warning ? `\n\n${warning}` : ''}`,
+        content: `${formatDiceRoll(rollResult)}${dcNote}${warning ? `\n\n${warning}` : ''}`,
         type: 'dice_roll',
         reply_to: replyToId ?? null,
         roll_dc: dc ?? null,

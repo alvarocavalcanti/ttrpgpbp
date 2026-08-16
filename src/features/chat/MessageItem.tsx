@@ -149,8 +149,11 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
         )
       }
       if (href?.startsWith('check:')) {
-        const [ability, dcStr] = href.slice(6).split(':')
-        const dc = dcStr ? parseInt(dcStr, 10) : null
+        const [ability, ...rest]: string[] = href.slice(6).split(':')
+        const dcSegment = rest.find(s => /^\d+$/.test(s))
+        const advSegment = rest.find(s => s === 'adv' || s === 'dis')
+        const dc = dcSegment ? parseInt(dcSegment, 10) : null
+        const advDis = advSegment || null
         return (
           <button
             type="button"
@@ -182,16 +185,19 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               if (finalModifier !== null) {
                 finalModifier = clampModifier(gameSystem, finalModifier)
                 const sign = finalModifier >= 0 ? '+' : ''
+                // Advantage/disadvantage rolls a second d20 and keeps the best
+                // (kh1) or worst (kl1).
+                const dice = advDis ? `2d20${advDis === 'adv' ? 'kh1' : 'kl1'}` : '1d20'
                 // Keep the explanatory warning out of the notation: parseAndRoll
                 // would reject it (UX#13). It is passed separately and appended
                 // to the message content by sendDiceRoll.
-                const notation = `1d20${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
+                const notation = `${dice}${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
                 const warning = isMissingMod ? `*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
                 onRollDice?.(notation, message.id, warning || undefined, dc ?? undefined)
               }
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800 shadow-sm"
-            title={`Roll ${ability} Check${dc ? ` (DC ${dc})` : ''}`}
+            title={`Roll ${ability} Check${dc ? ` (DC ${dc})` : ''}${advDis ? ` with ${advDis === 'adv' ? 'Advantage' : 'Disadvantage'}` : ''}`}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
             {children}
@@ -375,6 +381,11 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             <span className={`text-xs font-semibold ${tone.label} tracking-wide uppercase`}>
               {senderName} rolled dice
             </span>
+            {message.roll_dc != null && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
+                DC {message.roll_dc}
+              </span>
+            )}
             {typeof message.roll_success === 'boolean' && (
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isSuccess ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
                 {isSuccess ? 'Success' : 'Failure'}

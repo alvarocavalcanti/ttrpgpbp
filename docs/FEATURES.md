@@ -91,9 +91,9 @@
   - `2d20kh` / `2d20kl` (advantage/disadvantage, keep/drop count optional — defaults to 1, e.g. `2d20kh+4`)
   - `4d6dl` (drop lowest)
   - `kh`/`kl`/`dh`/`dl` with or without an explicit count
-- Roll result shows full breakdown: `2d20kh1: **18**: [18, 7]`
-- **Ability checks** (`STR Check`, `DEX Check`, etc.) — prompts for modifier, rolls d20
-- **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats)
+- Roll result shows full breakdown for keep/drop rolls: `Rolled 2d20 with DIS [2, 15]: **2**`
+- **Ability checks** (`STR Check`, `DEX Check`, etc.) — prompts for modifier, rolls d20; appending `with advantage` / `with disadvantage` rolls 2d20 keep-high (kh) / keep-low (kl) instead
+- **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats); also supports `with advantage` / `with disadvantage`
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
   - UI available to both GM and players

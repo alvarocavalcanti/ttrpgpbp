@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { parseAndRoll, linkifyDice } from './parser'
+import { parseAndRoll, linkifyDice, formatDiceRoll } from './parser'
 
 describe('linkifyDice', () => {
   it('turns dice notation into markdown links', () => {
@@ -56,6 +56,44 @@ describe('linkifyDice', () => {
   it('handles a DC check on a generic (no system) attribute', () => {
     const text = 'Make a DC 10 Charisma Check.'
     expect(linkifyDice(text)).toBe('Make a [Charisma Check (DC 10)](check:Charisma:10).')
+  })
+
+  it('captures a trailing advantage in a check link', () => {
+    const text = 'Make an INT Check with advantage.'
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make an [INT Check with advantage](check:INT:adv).')
+  })
+
+  it('captures a trailing disadvantage in a check link', () => {
+    const text = 'Make a DEX Check with disadvantage.'
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a [DEX Check with disadvantage](check:DEX:dis).')
+  })
+
+  it('captures a DC check with disadvantage', () => {
+    const text = 'Make a DC 12 Int check with disadvantage.'
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make a [Int Check (DC 12) with disadvantage](check:Int:12:dis).')
+  })
+
+  it('does not capture adv/dis when no check word follows', () => {
+    const text = 'Make an INT Check with advantage to see the door.'
+    expect(linkifyDice(text, ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'])).toBe('Make an [INT Check with advantage](check:INT:adv) to see the door.')
+  })
+})
+
+describe('formatDiceRoll', () => {
+  it('shows roll details for advantage rolls', () => {
+    expect(formatDiceRoll({ notation: '2d20kh1', total: 19, rolls: [3, 19], dropped: [3], modifier: 0 })).toBe('Rolled 2d20 with ADV [3, 19]: **19**')
+  })
+
+  it('shows roll details for disadvantage rolls', () => {
+    expect(formatDiceRoll({ notation: '2d20kl1', total: 2, rolls: [2, 15], dropped: [15], modifier: 0 })).toBe('Rolled 2d20 with DIS [2, 15]: **2**')
+  })
+
+  it('includes the modifier after the details', () => {
+    expect(formatDiceRoll({ notation: '2d20kl1-2', total: 0, rolls: [2, 15], dropped: [15], modifier: -2 })).toBe('Rolled 2d20 with DIS [2, 15]-2: **0**')
+  })
+
+  it('keeps plain notation for non keep/drop rolls', () => {
+    expect(formatDiceRoll({ notation: '1d20+5', total: 16, rolls: [11], dropped: [], modifier: 5 })).toBe('Rolled 1d20+5: **16**')
   })
 })
 
