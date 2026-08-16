@@ -283,7 +283,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="bg-white dark:bg-gray-800 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                 rows={3}
               />
               <div className="mt-2 flex space-x-2">
@@ -448,7 +448,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="bg-white dark:bg-gray-800 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                 rows={3}
               />
               <div className="mt-2 flex space-x-2">
