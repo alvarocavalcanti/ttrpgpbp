@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
 import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets } from "./filter.ts"
+import { sendWithRetry } from "./deliver.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
 
 // Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma
@@ -39,6 +40,25 @@ function json(body: unknown, status: number, req: Request): Response {
     status,
     headers: { ...corsHeaders(req), "Content-Type": "application/json" },
   })
+}
+
+// Writes one delivery-outcome row per push so failures are queryable (#191).
+// No message content, endpoints, or push keys — only ids and a status.
+async function logDelivery(
+  client: ReturnType<typeof createClient>,
+  row: {
+    event_id: string
+    event_kind: string
+    status: string
+    user_id?: string
+    subscription_id?: string
+    error_category?: string
+  }
+): Promise<void> {
+  const { error } = await client.from("push_delivery_log").insert(row)
+  if (error) {
+    console.error(`push delivery log write failed (event=${row.event_id} status=${row.status}):`, error.message)
+  }
 }
 
 class HttpError extends Error {
@@ -208,6 +228,11 @@ serve(async (req) => {
       return json({ error: "Unknown table" }, 400, req)
     }
 
+    // Correlation id for this notification, shared across every delivery-log
+    // row written below so a single push is traceable from trigger to device.
+    const eventId = crypto.randomUUID()
+    await logDelivery(serviceClient, { event_id: eventId, event_kind: event.kind, status: "invocation" })
+
     const { targetUserIds, title, body, url } = resolvePushTargets(event, members)
 
     if (targetUserIds.length === 0) {
@@ -273,32 +298,61 @@ serve(async (req) => {
         badgeEnabledById.get(sub.user_id) ?? true
       ))
 
-      try {
-        await webPush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
-            }
-          },
-          pushPayload
-        )
-      } catch (err: any) {
-        console.error(`Error sending to ${sub.endpoint}:`, err)
-        // If subscription is gone, delete it
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await serviceClient
-            .from("push_subscriptions")
-            .delete()
-            .eq("id", sub.id)
-        }
+      const outcome = await sendWithRetry(
+        (subscription, payload) =>
+          webPush.sendNotification(
+            subscription as { endpoint: string; keys: { p256dh: string; auth: string } },
+            payload as string
+          ),
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        pushPayload
+      )
+
+      if (outcome.status === "sent") {
+        await logDelivery(serviceClient, {
+          event_id: eventId,
+          event_kind: event.kind,
+          status: "sent",
+          user_id: sub.user_id,
+          subscription_id: sub.id,
+        })
+        return outcome.status
       }
+
+      if (outcome.status === "invalid") {
+        // Subscription confirmed gone (HTTP 404/410): remove it so this device
+        // stops being a failed recipient. Other devices are unaffected.
+        await serviceClient
+          .from("push_subscriptions")
+          .delete()
+          .eq("id", sub.id)
+        await logDelivery(serviceClient, {
+          event_id: eventId,
+          event_kind: event.kind,
+          status: "invalid",
+          error_category: "invalid",
+          user_id: sub.user_id,
+          subscription_id: sub.id,
+        })
+        return outcome.status
+      }
+
+      // transient: retries exhausted. failed: permanent non-404/410 error.
+      await logDelivery(serviceClient, {
+        event_id: eventId,
+        event_kind: event.kind,
+        status: outcome.status,
+        error_category: outcome.status,
+        user_id: sub.user_id,
+        subscription_id: sub.id,
+      })
+      return outcome.status
     })
 
-    await Promise.all(pushPromises)
+    const results = await Promise.all(pushPromises)
 
-    return json({ success: true, notified: subs.length }, 200, req)
+    // Report recipients actually notified, not everyone attempted.
+    return json({ success: true, notified: results.filter(s => s === "sent").length }, 200, req)
 
   } catch (err) {
     if (err instanceof HttpError) {
