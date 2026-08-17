@@ -117,6 +117,8 @@ Every UI change must follow these conventions:
 - Don't leave untracked and uncommitted files, confirm with me before creating commit
 - If changes should not be committed, check with the user what to do. Add to .gitignore? Delete?
 - Clean up scratch files (`patch*.mjs`, temp scripts, etc.) before committing. Never commit them — they are tooling artifacts, not source
+- **Proactive issue handling** — when you spot a bug, misconfiguration, or awkwardness during any task, act on it rather than ignoring it. If it fits the current body of work, fix it in that branch. If it doesn't, file it as a separate PR (NOT auto-merged) and tag the user for review. Never silently leave a found issue unfixed.
+- **Never `--no-verify` a commit or push** — husky hooks are the last line of defense (lint, build, tests). If a hook fails, fix the real cause. The only escape hatch is CI, which runs the same checks — but a green PR does not excuse skipping hooks locally. If hooks crash on startup, the usual cause is a dangling `NODE_OPTIONS=--import=...` (e.g. a stale headroom hook-shim); the `.husky/_sanitize-node-options.sh` helper strips it — upgrade/repair the tool instead of bypassing the hook.
 
 ## Documentation Maintenance
 
