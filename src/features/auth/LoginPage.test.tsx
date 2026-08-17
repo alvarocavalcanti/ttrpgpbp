@@ -149,6 +149,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: 'Text-first, no bloat' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Not a VTT' })).toBeInTheDocument()
     expect(screen.getByText(/chat-first app for asynchronous tabletop RPGs/)).toBeInTheDocument()
+    expect(screen.getByText(/generic play is built in, with optional Shadowdark character stats/)).toBeInTheDocument()
     expect(screen.getByText(/battle maps, tactical combat automation, animated dice/)).toBeInTheDocument()
   })
 
