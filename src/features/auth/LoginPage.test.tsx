@@ -129,6 +129,29 @@ describe('LoginPage', () => {
     expect(screen.getByText('Mobile First')).toBeInTheDocument()
   })
 
+  it('renders the product positioning copy', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('heading', { name: 'Text-first, no bloat' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Not a VTT' })).toBeInTheDocument()
+    expect(screen.getByText(/chat-first app for asynchronous tabletop RPGs/)).toBeInTheDocument()
+    expect(screen.getByText(/battle maps, tactical combat automation, animated dice/)).toBeInTheDocument()
+  })
+
   it('renders the feature grid with responsive layout', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
