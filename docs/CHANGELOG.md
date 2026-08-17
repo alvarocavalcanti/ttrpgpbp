@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Trustworthy dice rolls** — every roll is now generated and recorded on the server: the result, the individual dice, dropped dice, and any modifier are saved together with the roll message in one atomic step. Everyone at the table sees the same outcome, nothing can be tampered with, and modifier limits from the game system always apply. Roll history also drops rolls that came from deleted messages.
 - **Push delivery hardening** — play-by-post games feel much smoother: push notifications now arrive reliably, even after a refresh or after the app sat in the background. Outdated subscriptions are cleaned up automatically, and a hiccup on one device never blocks notifications to the rest.
 - **Dark mode** — a sun/moon toggle in the app header (and on the login page) switches the whole app between light and dark themes. Your choice is saved per device and follows your system theme by default.
 - **NPC management screen (GM-only)** — the channel sidebar's **NPCs** item opens the full NPC roster. GMs can add an NPC, rename it, change its portrait, or delete it. Past messages keep the name and portrait they were posted with.

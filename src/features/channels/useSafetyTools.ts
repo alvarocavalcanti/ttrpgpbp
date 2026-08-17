@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 
@@ -36,18 +36,5 @@ export function useSafetyTools(channelId: string | undefined, enabled = true) {
     return () => { mounted = false }
   }, [channelId, enabled])
 
-  const saveSafetyTools = useCallback(async (lines: string, veils: string): Promise<boolean> => {
-    if (!channelId) return false
-    const { error } = await supabase
-      .from('channel_safety_tools')
-      .upsert({ channel_id: channelId, lines, veils, updated_at: new Date().toISOString() })
-    if (error) {
-      console.error('Failed to save safety tools:', error)
-      return false
-    }
-    setSafetyTools({ channel_id: channelId, lines, veils, updated_at: new Date().toISOString() })
-    return true
-  }, [channelId])
-
-  return { safetyTools, loading, saveSafetyTools }
+  return { safetyTools, loading }
 }

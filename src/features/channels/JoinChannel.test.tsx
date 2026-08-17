@@ -93,6 +93,7 @@ describe('JoinChannel', () => {
         p_channel_id: '123',
         p_character_name: 'TestUser',
         p_password_hash: undefined,
+        p_character_attributes: {},
         p_invite_code: undefined
       })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
@@ -126,6 +127,7 @@ describe('JoinChannel', () => {
         p_channel_id: '123',
         p_character_name: 'TestUser',
         p_password_hash: 'hashed_password',
+        p_character_attributes: {},
         p_invite_code: undefined
       })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
@@ -162,6 +164,7 @@ describe('JoinChannel', () => {
         p_channel_id: '123',
         p_character_name: 'TestUser',
         p_password_hash: 'derived_hash',
+        p_character_attributes: {},
         p_invite_code: undefined
       })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
@@ -198,6 +201,7 @@ describe('JoinChannel', () => {
         p_channel_id: '123',
         p_character_name: 'TestUser',
         p_password_hash: 'legacy_hash',
+        p_character_attributes: {},
         p_invite_code: undefined
       })
     })
@@ -281,6 +285,7 @@ describe('JoinChannel', () => {
         p_channel_id: '123',
         p_character_name: 'TestUser',
         p_password_hash: undefined,
+        p_character_attributes: {},
         p_invite_code: 'abc123'
       })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
@@ -317,16 +322,10 @@ describe('JoinChannel', () => {
   })
 
   it('accepts only integer stat input and joins with clamped modifiers', async () => {
-    const mockEqUser = vi.fn().mockResolvedValue({ error: null })
-    const mockEqChannel = vi.fn().mockReturnValue({ eq: mockEqUser })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqChannel })
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channel_members') return { update: mockUpdate } as any
-      return {} as any
-    })
+    const mockJoin = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview({ game_system: 'shadowdark' }) as any)
-      .mockResolvedValueOnce({ error: null } as any)
+      .mockImplementationOnce(mockJoin)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -351,10 +350,13 @@ describe('JoinChannel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
 
     await waitFor(() => {
-      // Shadowdark clamps modifiers to [-4, 4].
-      expect(mockUpdate).toHaveBeenCalledWith({ attributes: { STR: 4 } })
-      expect(mockEqChannel).toHaveBeenCalledWith('channel_id', '123')
-      expect(mockEqUser).toHaveBeenCalledWith('user_id', 'u1')
+      // Shadowdark clamps modifiers to [-4, 4] client-side; the join RPC re-clamps.
+      expect(mockJoin).toHaveBeenCalledWith('join_channel', {
+        p_channel_id: '123',
+        p_character_name: 'TestUser',
+        p_character_attributes: { STR: 4 },
+        p_invite_code: undefined
+      })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
     })
   })

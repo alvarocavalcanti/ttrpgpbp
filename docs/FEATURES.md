@@ -33,7 +33,8 @@
 - Channels are **private** and joined via invite link
 - Optional **password** to join (joining is instant)
 - GM can **kick** (remove) or **block** a user (immediately revokes channel access, prevents re-entry, and can be undone via **Unblock**)
-- **System messages** announce member joins, leaves, kicks, blocks, and unblocks in the channel
+- **System messages** announce member joins, leaves, kicks, blocks, and unblocks in the channel — each is written together with the member change in a single atomic step, so the announcement and the action can never fall out of sync
+- **Archived channels** reject new messages, reactions, and joins server-side, not just in the UI
 - **AFK / Away status** — any player can mark themselves away (with an optional away message like "Away until Monday"). Away members show an **AFK badge**, faded/grayscale avatar, and their away message in the member list; their name is struck through with an **(AFK)** tag in the active-player status bar. While away, **"It's your turn" push notifications are suppressed**.
 - Optional **map URL** (external link)
 - **Resources URL** (single URL — GDrive folder, PDF, etc.)
@@ -54,14 +55,14 @@
 - Markdown and emoji support
 - **Three message types**:
   - **Regular** — normal conversation
-  - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only**.
-  - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (RLS-enforced). Parchment bubble style, distinct from both regular and scene messages.
+  - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced).
+  - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (server-enforced). The NPC's identity is validated against the channel's roster, so messages always carry a real roster portrait/name. Parchment bubble style, distinct from both regular and scene messages.
 - **Daily Dividers** — chat history is grouped by date visually
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete)
 - URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
-- **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification. GMs can also use **`@all`** to mention every player at once. On desktop, arrow keys move the highlight through suggestions and Enter/Tab selects
+- **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification. Mention targets are verified server-side against the channel's members, so a mention can never be routed to an outsider. GMs can also use **`@all`** to mention every player at once (authorized server-side, GM-only). On desktop, arrow keys move the highlight through suggestions and Enter/Tab selects
 - **Emoji reactions** — react to any message from a quick-emoji picker; counts update live and toggle per user
 - **Unread badges** — Lobby shows a "N new" badge per channel counting messages since the member's `last_read_at`; excludes the user's own and deleted messages
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read
@@ -91,7 +92,8 @@
   - `2d20kh` / `2d20kl` (advantage/disadvantage, keep/drop count optional — defaults to 1, e.g. `2d20kh+4`)
   - `4d6dl` (drop lowest)
   - `kh`/`kl`/`dh`/`dl` with or without an explicit count
-- Roll result shows full breakdown for keep/drop rolls: `Rolled 2d20 with DIS [2, 15]: **2**`
+- **Roll result shows full breakdown for keep/drop rolls**: `Rolled 2d20 with DIS [2, 15]: **2**`
+- **Server-authoritative rolls** — every roll is evaluated and recorded server-side (result, individual dice, dropped dice, modifier) in a single atomic step together with the roll message. Modifiers are clamped to the game system's bounds, DC success/failure is computed server-side (meets beats), and no client can fabricate or edit a result. Rolls from soft-deleted messages are excluded from the roll history.
 - **Ability checks** (`STR Check`, `DEX Check`, etc.) — prompts for modifier, rolls d20; appending `with advantage` / `with disadvantage` rolls 2d20 keep-high (kh) / keep-low (kl) instead
 - **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats); also supports `with advantage` / `with disadvantage`
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers

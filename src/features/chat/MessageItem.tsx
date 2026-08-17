@@ -188,9 +188,9 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
                 // Advantage/disadvantage rolls a second d20 and keeps the best
                 // (kh1) or worst (kl1).
                 const dice = advDis ? `2d20${advDis === 'adv' ? 'kh1' : 'kl1'}` : '1d20'
-                // Keep the explanatory warning out of the notation: parseAndRoll
-                // would reject it (UX#13). It is passed separately and appended
-                // to the message content by sendDiceRoll.
+                // Keep the explanatory warning out of the notation; the roll
+                // command would reject it. It is passed separately and appended
+                // to the message content by the server.
                 const notation = `${dice}${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
                 const warning = isMissingMod ? `*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
                 onRollDice?.(notation, message.id, warning || undefined, dc ?? undefined)

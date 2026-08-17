@@ -287,6 +287,8 @@ export interface Database {
           npc_avatar_url: string | null
           roll_dc: number | null
           roll_success: boolean | null
+          mention_user_ids: string[] | null
+          client_request_id: string | null
           is_edited: boolean
           is_deleted: boolean
           search_vector: unknown | null
@@ -305,6 +307,8 @@ export interface Database {
           npc_avatar_url?: string | null
           roll_dc?: number | null
           roll_success?: boolean | null
+          mention_user_ids?: string[] | null
+          client_request_id?: string | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null
@@ -323,6 +327,8 @@ export interface Database {
           npc_avatar_url?: string | null
           roll_dc?: number | null
           roll_success?: boolean | null
+          mention_user_ids?: string[] | null
+          client_request_id?: string | null
           is_edited?: boolean
           is_deleted?: boolean
           search_vector?: unknown | null
@@ -583,8 +589,78 @@ export interface Database {
           p_character_sheet_url?: string
           p_password_hash?: string
           p_invite_code?: string
+          p_character_attributes?: Record<string, number>
         }
         Returns: undefined
+      }
+      roll_dice: {
+        Args: {
+          p_channel_id: string
+          p_notation: string
+          p_reply_to?: string | null
+          p_warning?: string | null
+          p_dc?: number | null
+          p_client_request_id?: string | null
+        }
+        Returns: {
+          message_id: string
+          dice_roll_id: string
+        }[]
+      }
+      send_message: {
+        Args: {
+          p_channel_id: string
+          p_content: string
+          p_type: 'regular' | 'scene' | 'npc'
+          p_reply_to?: string | null
+          p_whisper_to?: string | null
+          p_active_player_ids?: string[] | null
+          p_npc_name?: string | null
+          p_npc_avatar_url?: string | null
+          p_client_request_id?: string | null
+        }
+        Returns: {
+          message_id: string
+        }[]
+      }
+      moderate_member: {
+        Args: {
+          p_channel_id: string
+          p_member_id: string
+          p_action: 'block' | 'unblock' | 'kick' | 'leave'
+        }
+        Returns: undefined
+      }
+      update_channel_settings: {
+        Args: {
+          p_channel_id: string
+          p_name?: string | null
+          p_game_system?: string | null
+          p_map_url?: string | null
+          p_resources_url?: string | null
+          p_safety_tools_url?: string | null
+          p_gm_only_resources_url?: string | null
+          p_password_hash?: string | null
+          p_password_salt?: string | null
+          p_clear_password?: boolean | null
+          p_safety_lines?: string | null
+          p_safety_veils?: string | null
+        }
+        Returns: undefined
+      }
+      get_channel_roll_history: {
+        Args: {
+          p_channel_id: string
+        }
+        Returns: {
+          id: string
+          notation: string
+          result: number
+          breakdown: Json
+          created_at: string
+          roller_id: string
+          roller_display_name: string | null
+        }[]
       }
       create_channel: {
         Args: {
