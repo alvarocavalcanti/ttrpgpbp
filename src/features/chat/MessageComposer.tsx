@@ -22,7 +22,7 @@ interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
   npcs?: Npc[]
-  onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => Promise<void>
+  onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => Promise<void>
   onRollDice?: (notation: string, replyToId?: string) => void
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
@@ -171,7 +171,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
     setIsSubmitting(true)
     setError(null)
     try {
-      const { content: mentionContent, mentioned_user_ids } = linkifyMentions(content, members, { allMentionEnabled: isGM })
+      const { content: mentionContent } = linkifyMentions(content, members, { allMentionEnabled: isGM })
 
       const payload: any = {
         content: mentionContent,
@@ -184,7 +184,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
         payload.npc_avatar_url = resolvedNpcAvatar
       }
       if (replyTo) payload.reply_to = replyTo.id
-      if (mentioned_user_ids.length > 0) payload.mention_user_ids = mentioned_user_ids
 
       await onSendMessage(payload)
       setContent('')

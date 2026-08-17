@@ -5,10 +5,15 @@ import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
+    rpc: vi.fn(),
     from: vi.fn(),
     channel: vi.fn()
   }
 }))
+
+function mockChannel() {
+  vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+}
 
 describe('RollHistoryModal', () => {
   beforeEach(() => {
@@ -17,39 +22,28 @@ describe('RollHistoryModal', () => {
 
   it('renders loading state initially', () => {
     // Mock to never resolve so loading state is visible
-    const mockLimit = vi.fn().mockReturnValue(new Promise(() => {}))
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+    vi.mocked(supabase.rpc).mockReturnValue(new Promise(() => {}) as any)
+    mockChannel()
 
     const { container } = render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
     expect(container.querySelector('.animate-spin')).toBeTruthy()
   })
 
   it('renders empty state when no rolls', async () => {
-    const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockChannel()
 
     render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
 
     await waitFor(() => {
       expect(screen.getByText('No dice rolls yet.')).toBeInTheDocument()
     })
+    expect(supabase.rpc).toHaveBeenCalledWith('get_channel_roll_history', { p_channel_id: 'c1' })
   })
 
   it('renders an error when fetching rolls fails', async () => {
-    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('DB error') })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('DB error') } as any)
+    mockChannel()
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
@@ -68,16 +62,12 @@ describe('RollHistoryModal', () => {
         result: 23,
         breakdown: { rolls: [18], dropped: [], modifier: 5 },
         created_at: new Date().toISOString(),
-        roller: [{ display_name: 'Hero' }]
+        roller_display_name: 'Hero'
       }
     ]
-    
-    const mockLimit = vi.fn().mockResolvedValue({ data: mockData, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
-    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
+
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: mockData, error: null } as any)
+    mockChannel()
 
     render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
 

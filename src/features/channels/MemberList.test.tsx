@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
+    from: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -87,11 +88,9 @@ describe('MemberList', () => {
     })
   })
 
-  it('allows GM to block player and posts a system message', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    const mockInsert = successInsert()
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: mockInsert } as any)
+  it('allows GM to block player', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
     render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -102,23 +101,18 @@ describe('MemberList', () => {
     expect(window.confirm).toHaveBeenCalled()
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ is_blocked: true })
-      expect(mockEq).toHaveBeenCalledWith('id', 'm2')
-      expect(mockInsert).toHaveBeenCalledWith({
-        channel_id: 'c1',
-        sender_id: 'u1',
-        type: 'system',
-        content: 'Sidekick was blocked by the GM'
+      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
+        p_channel_id: 'c1',
+        p_member_id: 'm2',
+        p_action: 'block'
       })
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
-  it('allows GM to unblock a player and posts a system message', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    const mockInsert = successInsert()
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: mockInsert } as any)
+  it('allows GM to unblock a player', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
     render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -126,22 +120,18 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ is_blocked: false })
-      expect(mockEq).toHaveBeenCalledWith('id', 'm3')
-      expect(mockInsert).toHaveBeenCalledWith({
-        channel_id: 'c1',
-        sender_id: 'u1',
-        type: 'system',
-        content: 'Villain was unblocked by the GM'
+      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
+        p_channel_id: 'c1',
+        p_member_id: 'm3',
+        p_action: 'unblock'
       })
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
   it('handles unblock member error', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: successInsert() } as any)
+    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -180,9 +170,8 @@ describe('MemberList', () => {
   })
 
   it('handles block member error', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: successInsert() } as any)
+    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -198,11 +187,10 @@ describe('MemberList', () => {
     })
   })
 
-  it('allows GM to kick player and posts a system message', async () => {
+  it('allows GM to kick player', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
-    const mockInsert = successInsert()
-    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn(), insert: mockInsert } as any)
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
     render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -211,46 +199,38 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('Kick Player'))
     
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalled()
-      expect(mockInsert).toHaveBeenCalledWith({
-        channel_id: 'c1',
-        sender_id: 'u1',
-        type: 'system',
-        content: 'Sidekick was kicked from the channel'
+      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
+        p_channel_id: 'c1',
+        p_member_id: 'm2',
+        p_action: 'kick'
       })
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
-  it('allows player to leave channel and posts a system message', async () => {
+  it('allows player to leave channel', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
-    const mockInsert = successInsert()
-    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn(), insert: mockInsert } as any)
-    const mockOnUpdate = vi.fn()
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Leave Channel'))
     
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalled()
-      expect(mockInsert).toHaveBeenCalledWith({
-        channel_id: 'c1',
-        sender_id: 'u2',
-        type: 'system',
-        content: 'Sidekick left the channel'
+      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
+        p_channel_id: 'c1',
+        p_member_id: 'm2',
+        p_action: 'leave'
       })
     })
   })
 
-
-  it('surfaces system message insert failure on kick', async () => {
+  it('handles kick member error', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
-    const mockInsert = vi.fn().mockResolvedValue({ error: new Error('RLS block') })
-    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn(), insert: mockInsert } as any)
+    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('err') })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -260,33 +240,16 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('Kick Player'))
     
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalled()
-      expect(mockOnUpdate).toHaveBeenCalled()
-      expect(screen.getByText('Player kicked, but failed to post the system message.')).toBeInTheDocument()
-    })
-  })
-
-  it('handles kick member error', async () => {
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: new Error('err') }) })
-    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn(), insert: successInsert() } as any)
-    const mockOnUpdate = vi.fn()
-
-    render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
-    
-    fireEvent.click(screen.getByTestId('menu-btn-m2'))
-    fireEvent.click(screen.getByText('Kick Player'))
-    
-    await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalled()
       expect(screen.getByText('Failed to kick member.')).toBeInTheDocument()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
 
   it('handles leave channel error', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: new Error('err') }) })
-    vi.mocked(supabase.from).mockReturnValue({ delete: mockDelete, update: vi.fn(), insert: successInsert() } as any)
+    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('err') })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
     render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -295,8 +258,8 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('Leave Channel'))
     
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalled()
       expect(screen.getByText('Failed to leave channel.')).toBeInTheDocument()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
 

@@ -67,30 +67,26 @@ export function JoinChannel() {
     
     try {
       const passwordHash = password ? await derivePasswordHash(password, id) : undefined
-      
+
+      // Character attributes ride in the join itself: the member row,
+      // attributes (clamped to the game system's bounds), and the join system
+      // message all commit atomically.
+      const numericAttributes: Record<string, number> = {}
+      for (const [attr, raw] of Object.entries(attributes as Record<string, string>)) {
+        const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0
+        numericAttributes[attr] = clampModifier(channel?.game_system, num)
+      }
+
       const { error: rpcError } = await supabase.rpc('join_channel', {
         p_channel_id: id,
         p_character_name: characterName,
         p_password_hash: passwordHash,
-        p_invite_code: inviteCode || undefined
+        p_invite_code: inviteCode || undefined,
+        p_character_attributes: numericAttributes
       })
-      
+
       if (rpcError) throw rpcError
 
-      if (Object.keys(attributes).length > 0) {
-        // Inputs hold sanitized integer strings; persist clamped numbers.
-        const numericAttributes: Record<string, number> = {}
-        for (const [attr, raw] of Object.entries(attributes as Record<string, string>)) {
-          const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0
-          numericAttributes[attr] = clampModifier(channel?.game_system, num)
-        }
-        await supabase
-          .from('channel_members')
-          .update({ attributes: numericAttributes })
-          .eq('channel_id', id)
-          .eq('user_id', user.id)
-      }
-      
       navigate(`/channel/${id}`)
     } catch (err: any) {
       console.error('Error joining channel:', err)

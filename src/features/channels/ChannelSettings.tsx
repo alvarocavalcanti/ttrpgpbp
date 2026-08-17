@@ -30,7 +30,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(gmOnlyResourcesUrlProp || '')
   const [safetyToolsUrl, setSafetyToolsUrl] = useState(channel.safety_tools_url || '')
   const [showSafetyTools, setShowSafetyTools] = useState(false)
-  const { safetyTools, saveSafetyTools } = useSafetyTools(channel.id, showSafetyTools)
+  const { safetyTools } = useSafetyTools(channel.id, showSafetyTools)
   const [safetyLines, setSafetyLines] = useState('')
   const [safetyVeils, setSafetyVeils] = useState('')
 
@@ -139,66 +139,31 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     setIsSubmitting(true)
 
     try {
-        const updates: any = {
-          name,
-          game_system: gameSystem,
-          map_url: mapUrl || null,
-          resources_url: resourcesUrl || null,
-          safety_tools_url: safetyToolsUrl || null
-        }
+      const hashedPassword = newPassword ? await hashPassword(newPassword) : null
 
-        const { error: updateError } = await supabase
-          .from('channels')
-          .update(updates)
-          .eq('id', channel.id)
+      // update_channel_settings persists channels + channel_secrets + safety
+      // tools in one transaction, so a partial failure can never leave a
+      // half-saved channel.
+      const { error: updateError } = await supabase
+        .rpc('update_channel_settings', {
+          p_channel_id: channel.id,
+          p_name: name,
+          p_game_system: gameSystem,
+          p_map_url: mapUrl || null,
+          p_resources_url: resourcesUrl || null,
+          p_safety_tools_url: safetyToolsUrl || null,
+          p_gm_only_resources_url: gmOnlyResourcesUrl || null,
+          // Password only sent when the GM toggled "Change Password"; a blank
+          // new password clears the existing one.
+          p_password_hash: changePassword ? (hashedPassword?.hash ?? null) : null,
+          p_password_salt: changePassword ? (hashedPassword?.salt ?? null) : null,
+          p_clear_password: changePassword && !newPassword,
+          p_safety_lines: showSafetyTools ? safetyLines : null,
+          p_safety_veils: showSafetyTools ? safetyVeils : null,
+        })
 
-        if (updateError) throw updateError
+      if (updateError) throw updateError
 
-        // GM-only resources URL lives in channel_secrets (GM-only RLS), not on
-        // the member-visible channel row. Upsert the row in case the channel
-        // has no secret yet (no password set).
-        const { data: secretRow, error: gmUrlUpdateError } = await supabase
-          .from('channel_secrets')
-          .update({ gm_only_resources_url: gmOnlyResourcesUrl || null })
-          .eq('channel_id', channel.id)
-          .select()
-
-        if (gmUrlUpdateError) throw gmUrlUpdateError
-        if (!secretRow || secretRow.length === 0) {
-          const { error: gmUrlInsertError } = await supabase
-            .from('channel_secrets')
-            .insert({ channel_id: channel.id, gm_only_resources_url: gmOnlyResourcesUrl || null })
-          if (gmUrlInsertError) throw gmUrlInsertError
-        }
-
-        if (showSafetyTools) {
-          const saved = await saveSafetyTools(safetyLines, safetyVeils)
-          if (!saved) throw new Error('Failed to save safety tools')
-        }
-
-
-      if (changePassword) {
-        const hashedPassword = newPassword ? await hashPassword(newPassword) : null
-        
-        // Try to update first
-        const { data: updateData, error: secretUpdateError } = await supabase
-          .from('channel_secrets')
-          .update({ password_hash: hashedPassword?.hash ?? null, password_salt: hashedPassword?.salt ?? null })
-          .eq('channel_id', channel.id)
-          .select()
-
-        // If no row existed, we need to insert it
-        if (!updateData || updateData.length === 0) {
-          const { error: insertError } = await supabase
-            .from('channel_secrets')
-            .insert({ channel_id: channel.id, password_hash: hashedPassword?.hash ?? null, password_salt: hashedPassword?.salt ?? null })
-            
-          if (insertError) throw insertError
-        } else if (secretUpdateError) {
-           throw secretUpdateError
-        }
-      }
-      
       addToast('Channel settings saved successfully', 'success')
       onUpdate()
       onClose()

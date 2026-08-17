@@ -180,7 +180,7 @@ describe('MessageComposer', () => {
     expect(mockOnCancelReply).toHaveBeenCalled()
   })
 
-  it('linkifies mentions and passes mention_user_ids', async () => {
+  it('linkifies mentions into chips', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
@@ -191,8 +191,7 @@ describe('MessageComposer', () => {
       expect(mockOnSend).toHaveBeenCalledWith({
         content: 'Hi [@Hero](user:u1)!',
         type: 'regular',
-        whisper_to: undefined,
-        mention_user_ids: ['u1']
+        whisper_to: undefined
       })
     })
   })
@@ -306,8 +305,7 @@ describe('MessageComposer', () => {
         content: 'Everyone [@all](user:all)!',
         type: 'regular',
         whisper_to: undefined,
-        active_player_ids: undefined,
-        mention_user_ids: ['u1']
+        active_player_ids: undefined
       })
     })
   })

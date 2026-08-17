@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Database } from '../../types/database'
+import type { Json } from '../../types/database'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
-type DiceRoll = Database['public']['Tables']['dice_rolls']['Row'] & {
+type DiceRoll = {
+  id: string
+  notation: string
+  result: number
+  breakdown: Json
+  created_at: string
+  roller_id: string
+  roller_display_name: string | null
   roller?: { display_name: string | null } | null
 }
 
@@ -21,15 +28,12 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
   useEffect(() => {
     async function fetchRolls() {
       try {
-        const { data, error } = await supabase
-          .from('dice_rolls')
-          .select('*, roller:profiles!dice_rolls_roller_id_fkey(display_name)')
-          .eq('channel_id', channelId)
-          .order('created_at', { ascending: false })
-          .limit(50)
-
+        // get_channel_roll_history runs server-side and excludes rolls whose
+        // message has been soft-deleted, so the history can't be polluted by
+        // deleted messages.
+        const { data, error } = await supabase.rpc('get_channel_roll_history', { p_channel_id: channelId })
         if (error) throw error
-        setRolls(data.map(d => ({ ...d, roller: Array.isArray(d.roller) ? d.roller[0] : d.roller })) as DiceRoll[])
+        setRolls((data || []).map(r => ({ ...r, roller: { display_name: r.roller_display_name } })))
       } catch (err) {
         console.error('Failed to fetch roll history', err)
         setError('Failed to load roll history.')
@@ -37,7 +41,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
         setLoading(false)
       }
     }
-    
+
     fetchRolls()
 
     const subscription = supabase
@@ -55,7 +59,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
           .select('display_name')
           .eq('id', newRoll.roller_id)
           .single()
-        
+
         newRoll.roller = data
         setRolls(prev => [newRoll, ...prev].slice(0, 50))
       })

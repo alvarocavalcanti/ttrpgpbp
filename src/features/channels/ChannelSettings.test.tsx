@@ -10,7 +10,8 @@ const { mockUploadImage } = vi.hoisted(() => ({ mockUploadImage: vi.fn() }))
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
+    from: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -47,13 +48,6 @@ describe('ChannelSettings', () => {
     resources_url: 'http://resources',
     has_password: false,
     invite_code: '123'
-  }
-
-  const mockSecretRow = (data: any[] = [{ channel_id: 'c1' }]) => {
-    const mockSecretSelect = vi.fn().mockResolvedValue({ data, error: null })
-    const mockSecretEq = vi.fn().mockReturnValue({ select: mockSecretSelect })
-    const mockSecretUpdate = vi.fn().mockReturnValue({ eq: mockSecretEq })
-    return { select: mockSecretSelect, eq: mockSecretEq, update: mockSecretUpdate }
   }
 
   beforeEach(() => {
@@ -115,15 +109,9 @@ describe('ChannelSettings', () => {
     })
   })
 
-  it('saves changes without password update', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    const { update: mockSecretUpdate } = mockSecretRow()
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channels') return { update: mockUpdate } as any
-      if (table === 'channel_secrets') return { update: mockSecretUpdate } as any
-      return {} as any
-    })
+  it('saves changes through update_channel_settings', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
     const mockOnClose = vi.fn()
 
@@ -133,35 +121,27 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({
-        name: 'New Name',
-        game_system: 'none',
-        map_url: 'http://map',
-        resources_url: 'http://resources',
-        safety_tools_url: null
-      })
-      expect(mockUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ gm_only_resources_url: expect.anything() }))
-      expect(mockSecretUpdate).toHaveBeenCalledWith({ gm_only_resources_url: 'http://gmresources' })
-      expect(mockEq).toHaveBeenCalledWith('id', 'c1')
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_channel_id: 'c1',
+        p_name: 'New Name',
+        p_game_system: 'none',
+        p_map_url: 'http://map',
+        p_resources_url: 'http://resources',
+        p_safety_tools_url: null,
+        p_gm_only_resources_url: 'http://gmresources',
+        p_clear_password: false,
+        p_safety_lines: null,
+        p_safety_veils: null
+      }))
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
       expect(mockOnUpdate).toHaveBeenCalled()
       expect(mockOnClose).toHaveBeenCalled()
     })
   })
 
-  it('saves changes with password update when secret row exists', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    
-    const mockSecretSelect = vi.fn().mockResolvedValue({ data: [{ channel_id: 'c1' }], error: null })
-    const mockSecretEq = vi.fn().mockReturnValue({ select: mockSecretSelect })
-    const mockSecretUpdate = vi.fn().mockReturnValue({ eq: mockSecretEq })
-    
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channels') return { update: mockUpdate } as any
-      if (table === 'channel_secrets') return { update: mockSecretUpdate } as any
-      return {} as any
-    })
+  it('saves changes with password update', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
 
     const mockOnUpdate = vi.fn()
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -174,26 +154,21 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => {
-      expect(mockSecretUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        password_hash: 'hashed_password',
-        password_salt: 'salt_value'
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_password_hash: 'hashed_password',
+        p_password_salt: 'salt_value',
+        p_clear_password: false
       }))
     })
   })
 
   it('saves safety tools lines, veils, and URL', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    const mockSafetyUpsert = vi.fn().mockResolvedValue({ error: null })
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockSafetySelect = vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })
     })
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channels') return { update: mockUpdate } as any
-      if (table === 'channel_safety_tools') return { select: mockSafetySelect, upsert: mockSafetyUpsert } as any
-      if (table === 'channel_secrets') return { update: mockSecretRow().update } as any
-      return {} as any
-    })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSafetySelect } as any)
     const mockOnUpdate = vi.fn()
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -205,87 +180,54 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        safety_tools_url: 'https://docs.google.com/doc'
-      }))
-      expect(mockSafetyUpsert).toHaveBeenCalledWith(expect.objectContaining({
-        channel_id: 'c1',
-        lines: 'no gore',
-        veils: 'romance'
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_safety_tools_url: 'https://docs.google.com/doc',
+        p_safety_lines: 'no gore',
+        p_safety_veils: 'romance'
       }))
     })
   })
 
   it('does not save safety tools unless the section was opened', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    const mockSafetyUpsert = vi.fn()
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channels') return { update: mockUpdate } as any
-      if (table === 'channel_safety_tools') return { upsert: mockSafetyUpsert } as any
-      if (table === 'channel_secrets') return { update: mockSecretRow().update } as any
-      return {} as any
-    })
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalled()
-      expect(mockSafetyUpsert).not.toHaveBeenCalled()
-    })
-  })
-
-  it('saves changes with password update when secret row does not exist', async () => {    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    
-    const mockSecretSelect = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockSecretEq = vi.fn().mockReturnValue({ select: mockSecretSelect })
-    const mockSecretUpdate = vi.fn().mockReturnValue({ eq: mockSecretEq })
-    const mockSecretInsert = vi.fn().mockResolvedValue({ error: null })
-    
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channels') return { update: mockUpdate } as any
-      if (table === 'channel_secrets') return { update: mockSecretUpdate, insert: mockSecretInsert } as any
-      return {} as any
-    })
-
-    const mockOnUpdate = vi.fn()
-    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
-
-    fireEvent.click(screen.getByText('Change Password'))
-    
-    const pwInput = screen.getByPlaceholderText('Leave blank to remove password')
-    fireEvent.change(pwInput, { target: { value: 'new_secret' } })
-    
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    await waitFor(() => {
-      expect(mockSecretInsert).toHaveBeenCalledWith(expect.objectContaining({
-        password_hash: 'hashed_password',
-        password_salt: 'salt_value'
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_safety_lines: null,
+        p_safety_veils: null
       }))
     })
   })
 
-  it('handles error when secret update fails', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    
-    const mockSecretSelect = vi.fn().mockResolvedValue({ data: null, error: new Error('Update failed') })
-    const mockSecretEq = vi.fn().mockReturnValue({ select: mockSecretSelect })
-    const mockSecretUpdate = vi.fn().mockReturnValue({ eq: mockSecretEq })
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channels') return { update: mockUpdate } as any
-      if (table === 'channel_secrets') return { update: mockSecretUpdate } as any
-      return {} as any
-    })
+  it('clears the password when Change Password is on and the field is blank', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByText('Change Password'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_clear_password: true,
+        p_password_hash: null,
+        p_password_salt: null
+      }))
+    })
+  })
+
+  it('shows an error toast when saving fails', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('Update failed') })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => {

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import { parseAndRoll, formatDiceRoll } from '../dice/parser'
 import type { ChatMessage } from './types'
 
 export interface ReactionSummary {
@@ -142,6 +141,7 @@ export function useMessages(channelId: string | undefined) {
     fetchMessages()
     fetchReactions()
 
+    let firstSubscribe = true
     const subscription = supabase
       .channel(`chat:${channelId}`)
       .on('postgres_changes', {
@@ -201,7 +201,19 @@ export function useMessages(channelId: string | undefined) {
           setReactions(prev => dropReaction(prev, row, user?.id))
         }
       })
-      .subscribe()
+      .subscribe((status) => {
+        // The first SUBSCRIBED follows the initial fetch already running;
+        // a later SUBSCRIBED means we reconnected after a drop, so reconcile by
+        // refetching the newest page. Idempotent application (messages are
+        // keyed by id) makes any overlap with live events harmless.
+        if (mounted && status === 'SUBSCRIBED') {
+          if (firstSubscribe) {
+            firstSubscribe = false
+          } else {
+            void fetchMessages()
+          }
+        }
+      })
 
     return () => {
       mounted = false
@@ -241,108 +253,41 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, loadingOlder, hasMore, messages])
 
-  const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, mention_user_ids?: string[], npc_name?: string, npc_avatar_url?: string }) => {
+  const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => {
     if (!channelId || !user) return
 
-    // Persist the NPC roster row so future autocomplete/pickers see it.
-    // ignoreDuplicates keeps a concurrently-created same-name NPC's row intact.
-    if (payload.type === 'npc' && payload.npc_name && payload.npc_avatar_url) {
-      const { error: npcError } = await supabase
-        .from('channel_npcs')
-        .upsert(
-          { channel_id: channelId, name: payload.npc_name, avatar_url: payload.npc_avatar_url },
-          { onConflict: 'channel_id,name', ignoreDuplicates: true }
-        )
-      if (npcError) throw npcError
-    }
-
-    const { error } = await supabase
-      .from('messages')
-      .insert({
-        channel_id: channelId,
-        sender_id: user.id,
-        content: payload.content,
-        type: payload.type,
-        whisper_to: payload.whisper_to || null,
-        reply_to: payload.reply_to ?? null,
-        npc_name: payload.npc_name || null,
-        npc_avatar_url: payload.npc_avatar_url || null,
-      })
-      .select('id')
-      .single()
+    // The send_message command owns message semantics server-side: membership
+    // and archived checks, mention resolution + @all authorization, reply and
+    // whisper target validation, NPC roster snapshot, and the optional
+    // active-player flip — all in one transaction. The client keeps composer
+    // state, autocomplete, and local preview only.
+    const { error } = await supabase.rpc('send_message', {
+      p_channel_id: channelId,
+      p_content: payload.content,
+      p_type: payload.type,
+      p_reply_to: payload.reply_to ?? null,
+      p_whisper_to: payload.whisper_to ?? null,
+      p_active_player_ids: payload.active_player_ids ?? null,
+      p_npc_name: payload.npc_name ?? null,
+      p_npc_avatar_url: payload.npc_avatar_url ?? null,
+    })
     if (error) throw error
-
-    // Push notifications are fired server-side by a DB trigger on the messages
-    // insert (see 20260814120000_server_side_push_trigger.sql), so delivery no
-    // longer depends on this client.
-
-    // If active_player_ids is provided, update the channel_members table
-    if (payload.active_player_ids) {
-      // 1. Reset everyone to false
-      const { error: resetError } = await supabase
-        .from('channel_members')
-        .update({ is_active_player: false })
-        .eq('channel_id', channelId)
-      if (resetError) console.error('Failed to reset active players', resetError)
-
-      // 2. Set selected to true. The DB trigger fires the turn push for any
-      // member whose is_active_player flips false -> true.
-      if (payload.active_player_ids.length > 0) {
-        const { error: setActiveError } = await supabase
-          .from('channel_members')
-          .update({ is_active_player: true })
-          .eq('channel_id', channelId)
-          .in('user_id', payload.active_player_ids)
-
-        if (setActiveError) console.error('Failed to set active players', setActiveError)
-      }
-    }
   }, [channelId, user?.id])
 
   const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
     if (!channelId || !user) return
 
-    // Perform the roll calculation
-    const rollResult = parseAndRoll(notation)
-
-    // A check with a called-out DC resolves to success/failure (meets beats).
-    const success = dc != null ? rollResult.total >= dc : null
-    const dcNote = dc != null ? `\n\n**${success ? 'Success' : 'Failure'}** (DC ${dc})` : ''
-
-    // Insert message first; an optional warning (e.g. a missing modifier notice
-    // from a check roll) is kept out of the notation but shown in the content.
-    const { data: message, error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        channel_id: channelId,
-        sender_id: user.id,
-        content: `${formatDiceRoll(rollResult)}${dcNote}${warning ? `\n\n${warning}` : ''}`,
-        type: 'dice_roll',
-        reply_to: replyToId ?? null,
-        roll_dc: dc ?? null,
-        roll_success: success
-      })
-      .select()
-      .single()
-
-    if (messageError) throw messageError
-
-    // Insert dice roll log
-    const { error: rollError } = await supabase
-      .from('dice_rolls')
-      .insert({
-        message_id: message.id,
-        channel_id: channelId,
-        roller_id: user.id,
-        notation: notation,
-        result: rollResult.total,
-        breakdown: {
-          rolls: rollResult.rolls,
-          dropped: rollResult.dropped,
-          modifier: rollResult.modifier
-        }
-      })
-
+    // roll_dice is authoritative: the server validates the notation, rolls
+    // server-side, clamps the modifier to the game system's bounds, computes
+    // DC success (meets beats), and inserts the message + dice_rolls row
+    // atomically. The message and roll arrive via realtime.
+    const { error: rollError } = await supabase.rpc('roll_dice', {
+      p_channel_id: channelId,
+      p_notation: notation,
+      p_reply_to: replyToId ?? null,
+      p_warning: warning ?? null,
+      p_dc: dc ?? null,
+    })
     if (rollError) throw rollError
   }, [channelId, user?.id])
 

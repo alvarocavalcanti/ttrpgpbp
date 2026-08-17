@@ -11,7 +11,8 @@ vi.mock('../auth/useAuth', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
-    channel: vi.fn()
+    channel: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -33,26 +34,19 @@ function mockFrom({
   })
 }
 
-// Message insert returns the new row's id (`.select('id').single()`). Push is
-// fired by a DB trigger server-side, so the id is not consumed by the hook.
-function mockInsertMessage(id = 'msg1') {
-  return vi.fn().mockReturnValue({
-    select: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id }, error: null }) })
-  })
-}
-
 // Captures the realtime callbacks keyed by table name (messages and
 // message_reactions now share one channel).
 function mockChannels() {
   const callbacks: Record<string, any> = {}
+  let statusCb: ((status: string) => void) | undefined
   vi.mocked(supabase.channel).mockImplementation(() => {
     const on = vi.fn().mockImplementation((_event: any, filter: any, callback: any) => {
       callbacks[filter.table] = callback
-      return { on, subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
+      return { on, subscribe: vi.fn().mockImplementation(cb => { statusCb = cb; cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } }) }
     })
     return { on } as any
   })
-  return callbacks
+  return { callbacks, emitStatus: (status: string) => statusCb?.(status) }
 }
 
 describe('useMessages', () => {
@@ -70,7 +64,7 @@ describe('useMessages', () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [{ id: 'm1', sender: [{ display_name: 'Hero' }] }], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
-    const callbacks = mockChannels()
+    const { callbacks } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -82,6 +76,34 @@ describe('useMessages', () => {
 
     expect(callbacks['messages']).toBeDefined()
     expect(callbacks['message_reactions']).toBeDefined()
+  })
+
+  it('reconciles by refetching after a realtime reconnect', async () => {
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: [{ id: 'm1' }], error: null })
+      .mockResolvedValueOnce({ data: [{ id: 'm1' }, { id: 'm2' }], error: null })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(1)
+    })
+
+    // Simulate the socket dropping and re-establishing: the missed 'm2' insert
+    // is recovered by the refetch triggered on the second SUBSCRIBED.
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2)
+    })
+    expect(result.current.messages[0].id).toBe('m2')
+    expect(mockLimit).toHaveBeenCalledTimes(2)
   })
 
   it('handles fetch error gracefully', async () => {
@@ -130,7 +152,7 @@ describe('useMessages', () => {
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
     })
-    const callbacks = mockChannels()
+    const { callbacks } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -152,7 +174,7 @@ describe('useMessages', () => {
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
     })
-    const callbacks = mockChannels()
+    const { callbacks } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -169,7 +191,7 @@ describe('useMessages', () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
-    const callbacks = mockChannels()
+    const { callbacks } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -187,7 +209,7 @@ describe('useMessages', () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [{ id: 'm1', content: 'hello' }], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
-    const callbacks = mockChannels()
+    const { callbacks } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -207,7 +229,7 @@ describe('useMessages', () => {
   })
 
   it('allows sending, editing, deleting', async () => {
-    const mockInsert = mockInsertMessage()
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
@@ -216,11 +238,12 @@ describe('useMessages', () => {
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -230,7 +253,7 @@ describe('useMessages', () => {
     await act(async () => {
       await result.current.sendMessage({ content: 'test', type: 'regular' })
     })
-    expect(mockInsert).toHaveBeenCalled()
+    expect(mockRpc).toHaveBeenCalledWith('send_message', expect.objectContaining({ p_content: 'test', p_type: 'regular' }))
 
     await act(async () => {
       await result.current.editMessage('m1', 'new test')
@@ -244,15 +267,16 @@ describe('useMessages', () => {
   })
 
   it('sends reply_to when replying', async () => {
-    const mockInsert = mockInsertMessage()
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -260,24 +284,23 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await result.current.sendMessage({ content: 'reply', type: 'regular', reply_to: 'm1', mention_user_ids: ['u2'] })
+      await result.current.sendMessage({ content: 'reply', type: 'regular', reply_to: 'm1' })
     })
 
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ reply_to: 'm1' }))
+    expect(mockRpc).toHaveBeenCalledWith('send_message', expect.objectContaining({ p_reply_to: 'm1' }))
   })
 
-  it('upserts the NPC roster and inserts an NPC message with snapshot columns', async () => {
-    const mockInsert = mockInsertMessage()
-    const mockNpcUpsert = vi.fn().mockResolvedValue({ error: null })
+  it('sends NPC messages through the send_message command', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'channel_npcs') return { upsert: mockNpcUpsert }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -288,17 +311,12 @@ describe('useMessages', () => {
       await result.current.sendMessage({ content: 'Trespassers!', type: 'npc', npc_name: 'Goblin King', npc_avatar_url: 'https://example.com/king.png' })
     })
 
-    expect(mockNpcUpsert).toHaveBeenCalledWith(
-      { channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png' },
-      { onConflict: 'channel_id,name', ignoreDuplicates: true }
-    )
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      channel_id: 'c1',
-      sender_id: 'u1',
-      content: 'Trespassers!',
-      type: 'npc',
-      npc_name: 'Goblin King',
-      npc_avatar_url: 'https://example.com/king.png'
+    expect(mockRpc).toHaveBeenCalledWith('send_message', expect.objectContaining({
+      p_channel_id: 'c1',
+      p_content: 'Trespassers!',
+      p_type: 'npc',
+      p_npc_name: 'Goblin King',
+      p_npc_avatar_url: 'https://example.com/king.png'
     }))
   })
 
@@ -347,7 +365,7 @@ describe('useMessages', () => {
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
     })
-    const callbacks = mockChannels()
+    const { callbacks } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -394,26 +412,16 @@ describe('useMessages', () => {
   })
 
   it('updates active_player_ids when sending a message', async () => {
-    const mockInsert = mockInsertMessage()
-    const mockEqReset = vi.fn().mockResolvedValue({ error: null })
-    const mockInSet = vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ data: [{ id: 'm1' }], error: null }) })
-    const mockEqSet = vi.fn().mockReturnValue({ in: mockInSet })
-    const mockUpdate = vi.fn().mockImplementation((payload) => {
-      if (payload.is_active_player === false) {
-        return { eq: mockEqReset }
-      }
-      return { eq: mockEqSet }
-    })
-
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'channel_members') return { update: mockUpdate }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -424,34 +432,21 @@ describe('useMessages', () => {
       await result.current.sendMessage({ content: 'test', type: 'regular', active_player_ids: ['u2'] })
     })
 
-    expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: false })
-    expect(mockUpdate).toHaveBeenCalledWith({ is_active_player: true })
+    expect(mockRpc).toHaveBeenCalledWith('send_message', expect.objectContaining({ p_active_player_ids: ['u2'] }))
   })
 
-  it('sends a dice roll message and creates a dice_roll log', async () => {
-    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg1' }, error: null })
-    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
-    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
-
-    const mockInsert = vi.fn().mockImplementation((payload) => {
-      if (payload.type === 'dice_roll') {
-        return { select: mockSelectMessage }
-      }
-      return Promise.resolve({ error: null })
-    })
-
+  it('sends a dice roll through the roll_dice command', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
-
-    vi.spyOn(Math, 'random').mockReturnValue(0.5)
 
     const { result } = renderHook(() => useMessages('c1'))
 
@@ -461,196 +456,90 @@ describe('useMessages', () => {
       await result.current.sendDiceRoll('1d20+5', 'parent1')
     })
 
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      channel_id: 'c1',
-      sender_id: 'u1',
-      content: 'Rolled 1d20+5: **16**',
-      type: 'dice_roll',
-      reply_to: 'parent1'
+    expect(mockRpc).toHaveBeenCalledWith('roll_dice', expect.objectContaining({
+      p_channel_id: 'c1',
+      p_notation: '1d20+5',
+      p_reply_to: 'parent1'
     }))
-
-    expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({
-      message_id: 'msg1',
-      channel_id: 'c1',
-      roller_id: 'u1',
-      notation: '1d20+5',
-      result: 16,
-      breakdown: {
-        rolls: [11],
-        dropped: [],
-        modifier: 5
-      }
-    }))
-
-    vi.restoreAllMocks()
   })
 
-  it('stores the DC and success flag when a check rolls at or above the DC', async () => {
-    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg2' }, error: null })
-    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
-    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
-
-    const mockInsert = vi.fn().mockImplementation((payload) => {
-      if (payload.type === 'dice_roll') {
-        return { select: mockSelectMessage }
-      }
-      return Promise.resolve({ error: null })
-    })
-
+  it('passes the DC and reply target for check rolls', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
-
-    vi.spyOn(Math, 'random').mockReturnValue(0.5)
 
     const { result } = renderHook(() => useMessages('c1'))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await result.current.sendDiceRoll('1d20+2', 'parent1', undefined, 12)
+      await result.current.sendDiceRoll('1d20+2', 'parent1', 'Missing modifier warning', 12)
     })
 
-    // Math.random 0.5 -> d20 roll of 11, +2 = 13, meets DC 12
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      channel_id: 'c1',
-      sender_id: 'u1',
-      content: 'Rolled 1d20+2: **13**\n\n**Success** (DC 12)',
-      type: 'dice_roll',
-      reply_to: 'parent1',
-      roll_dc: 12,
-      roll_success: true
+    expect(mockRpc).toHaveBeenCalledWith('roll_dice', expect.objectContaining({
+      p_notation: '1d20+2',
+      p_reply_to: 'parent1',
+      p_warning: 'Missing modifier warning',
+      p_dc: 12
     }))
-
-    expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({
-      message_id: 'msg2',
-      channel_id: 'c1',
-      roller_id: 'u1',
-      notation: '1d20+2',
-      result: 13,
-      breakdown: {
-        rolls: [11],
-        dropped: [],
-        modifier: 2
-      }
-    }))
-
-    vi.restoreAllMocks()
   })
 
-  it('marks a check as failure when the total is below the DC', async () => {
-    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg3' }, error: null })
-    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
-    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
-
-    const mockInsert = vi.fn().mockImplementation((payload) => {
-      if (payload.type === 'dice_roll') {
-        return { select: mockSelectMessage }
-      }
-      return Promise.resolve({ error: null })
-    })
-
+  it('rolls without a reply target or DC when omitted', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
-
-    vi.spyOn(Math, 'random').mockReturnValue(0.5)
 
     const { result } = renderHook(() => useMessages('c1'))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await result.current.sendDiceRoll('1d20-2', undefined, undefined, 15)
+      await result.current.sendDiceRoll('2d20kl1')
     })
 
-    // Math.random 0.5 -> d20 roll of 11, -2 = 9, below DC 15
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      channel_id: 'c1',
-      sender_id: 'u1',
-      content: 'Rolled 1d20-2: **9**\n\n**Failure** (DC 15)',
-      type: 'dice_roll',
-      reply_to: null,
-      roll_dc: 15,
-      roll_success: false
+    expect(mockRpc).toHaveBeenCalledWith('roll_dice', expect.objectContaining({
+      p_notation: '2d20kl1',
+      p_reply_to: null,
+      p_warning: null,
+      p_dc: null
     }))
-
-    vi.restoreAllMocks()
   })
 
-  it('formats advantage/disadvantage rolls with the roll details', async () => {
-    const mockSingleMessage = vi.fn().mockResolvedValue({ data: { id: 'msg4' }, error: null })
-    const mockSelectMessage = vi.fn().mockReturnValue({ single: mockSingleMessage })
-    const mockInsertDice = vi.fn().mockResolvedValue({ error: null })
-
-    const mockInsert = vi.fn().mockImplementation((payload) => {
-      if (payload.type === 'dice_roll') {
-        return { select: mockSelectMessage }
-      }
-      return Promise.resolve({ error: null })
-    })
-
+  it('surfaces roll_dice errors', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: new Error('Too many dice') })
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { insert: mockInsert, select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
-        if (table === 'dice_rolls') return { insert: mockInsertDice }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
-
-    // 2d20kl1 with Math.random sequence -> rolls [3, 19], keeps lowest 3
-    let calls = 0
-    vi.spyOn(Math, 'random').mockImplementation(() => {
-      const seq = [0.1, 0.9]
-      const v = seq[calls % seq.length]
-      calls++
-      return v
-    })
 
     const { result } = renderHook(() => useMessages('c1'))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    await act(async () => {
-      await result.current.sendDiceRoll('2d20kl1', 'parent1')
-    })
-
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      channel_id: 'c1',
-      sender_id: 'u1',
-      content: 'Rolled 2d20 with DIS [3, 19]: **3**',
-      type: 'dice_roll',
-      reply_to: 'parent1'
-    }))
-
-    expect(mockInsertDice).toHaveBeenCalledWith(expect.objectContaining({
-      notation: '2d20kl1',
-      result: 3,
-      breakdown: {
-        rolls: [3, 19],
-        dropped: [19],
-        modifier: 0
-      }
-    }))
-
-    vi.restoreAllMocks()
+    await expect(result.current.sendDiceRoll('101d20')).rejects.toThrow('Too many dice')
+    expect(mockRpc).toHaveBeenCalledWith('roll_dice', expect.objectContaining({ p_notation: '101d20' }))
   })
 
   it('exposes hasMore when the initial page is full', async () => {

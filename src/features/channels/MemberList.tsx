@@ -32,17 +32,15 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     return () => document.removeEventListener('click', handleClick)
   }, [])
   
-  const insertSystemMessage = async (content: string): Promise<boolean> => {
-    const { error } = await supabase
-      .from('messages')
-      .insert({ channel_id: channelId, sender_id: myUserId, type: 'system', content })
-    if (error) {
-      console.error('Failed to insert system message:', error)
-      return false
-    }
-    return true
+  const moderateMember = async (memberId: string, action: 'block' | 'unblock' | 'kick' | 'leave') => {
+    const { error } = await supabase.rpc('moderate_member', {
+      p_channel_id: channelId,
+      p_member_id: memberId,
+      p_action: action
+    })
+    return error
   }
-  
+
   const startEditing = (member: ChannelMember) => {
     setEditingMemberId(member.id)
   }
@@ -57,14 +55,8 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     if (!confirm('Are you sure you want to block this player?')) return
     
     try {
-      const { error } = await supabase
-        .from('channel_members')
-        .update({ is_blocked: true })
-        .eq('id', memberId)
-
+      const error = await moderateMember(memberId, 'block')
       if (error) throw error
-      const posted = await insertSystemMessage(`${targetMember?.character_name} was blocked by the GM`)
-      if (!posted) setError('Player blocked, but failed to post the system message.')
       onUpdate()
     } catch (err) {
       console.error('Error blocking member:', err)
@@ -82,16 +74,8 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     if (!confirm('Are you sure you want to kick this player?')) return
     
     try {
-      // Post the system message before the delete: after the delete, the kicked
-      // player is gone, and the messages RLS policy can block the insert.
-      const posted = await insertSystemMessage(`${targetMember?.character_name} was kicked from the channel`)
-      const { error } = await supabase
-        .from('channel_members')
-        .delete()
-        .eq('id', memberId)
-
+      const error = await moderateMember(memberId, 'kick')
       if (error) throw error
-      if (!posted) setError('Player kicked, but failed to post the system message.')
       onUpdate()
     } catch (err) {
       console.error('Error kicking member:', err)
@@ -101,20 +85,11 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
 
   const handleLeaveChannel = async (memberId: string) => {
     setError(null)
-    const targetMember = members.find(m => m.id === memberId)
     if (!confirm('Are you sure you want to leave this channel?')) return
     
     try {
-      // Post the system message before the delete: after leaving, the user is no
-      // longer a channel member, so the messages RLS policy would reject the insert.
-      const posted = await insertSystemMessage(`${targetMember?.character_name} left the channel`)
-      const { error } = await supabase
-        .from('channel_members')
-        .delete()
-        .eq('id', memberId)
-
+      const error = await moderateMember(memberId, 'leave')
       if (error) throw error
-      if (!posted) setError('Left the channel, but failed to post the system message.')
       navigate('/')
     } catch (err) {
       console.error('Error leaving channel:', err)
@@ -148,16 +123,9 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
 
   const handleUnblockMember = async (memberId: string) => {
     setError(null)
-    const targetMember = members.find(m => m.id === memberId)
     try {
-      const { error } = await supabase
-        .from('channel_members')
-        .update({ is_blocked: false })
-        .eq('id', memberId)
-
+      const error = await moderateMember(memberId, 'unblock')
       if (error) throw error
-      const posted = await insertSystemMessage(`${targetMember?.character_name} was unblocked by the GM`)
-      if (!posted) setError('Player unblocked, but failed to post the system message.')
       onUpdate()
     } catch (err) {
       console.error('Error unblocking member:', err)
