@@ -76,7 +76,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 placeholder="Write status, initiative order, or timers here... (Markdown supported)"
-                className="w-full border-amber-300 dark:border-amber-700 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white dark:bg-gray-800 p-2"
+                className="w-full text-gray-900 dark:text-gray-100 border-amber-300 dark:border-amber-700 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white dark:bg-gray-800 p-2"
                 rows={4}
               />
               {error && <div className="text-red-600 dark:text-red-400 text-xs mt-1">{error}</div>}
@@ -104,7 +104,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             </div>
           ) : (
             <div className="relative">
-              <div className={`prose prose-sm max-w-none text-amber-900 dark:text-amber-200 prose-p:text-amber-900 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-200 prose-headings:text-amber-900 dark:prose-headings:text-amber-200 prose-em:text-amber-900 dark:prose-em:text-amber-200 prose-a:text-amber-700 dark:prose-a:text-amber-300 prose-blockquote:text-amber-900 dark:prose-blockquote:text-amber-200 prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700 prose-ul:text-amber-900 dark:prose-ul:text-amber-200 prose-ol:text-amber-900 dark:prose-ol:text-amber-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
+              <div className={`prose prose-sm max-w-none dark:prose-invert text-amber-900 dark:text-amber-200 prose-p:text-amber-900 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-200 prose-headings:text-amber-900 dark:prose-headings:text-amber-200 prose-em:text-amber-900 dark:prose-em:text-amber-200 prose-a:text-amber-700 dark:prose-a:text-amber-300 prose-blockquote:text-amber-900 dark:prose-blockquote:text-amber-200 prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700 prose-ul:text-amber-900 dark:prose-ul:text-amber-200 prose-ol:text-amber-900 dark:prose-ol:text-amber-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
                 {statusText ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{statusText}</ReactMarkdown>
                 ) : (

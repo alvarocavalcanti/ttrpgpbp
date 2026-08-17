@@ -230,7 +230,7 @@ export function AdminView() {
               className={`inline-flex py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.id
                   ? 'border-indigo-500 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600'
               }`}
             >
               {t.label}
@@ -309,7 +309,7 @@ export function AdminView() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {channel.gm_id === null ? (
                               <span className="inline-flex items-center gap-2">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300">
                                   Orphaned
                                 </span>
                                 <button

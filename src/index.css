@@ -4,6 +4,24 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+  }
+
+  /* Form controls inherit the body text color. In dark mode the browser
+     default (light text) already matches, but the native placeholder is too
+     faint on gray-800, and some controls re-style the background without a
+     matching text color. Pin both so every input/select/textarea stays
+     readable in both themes. */
+  input,
+  select,
+  textarea {
+    @apply text-gray-900 placeholder-gray-400 dark:text-gray-100 dark:placeholder-gray-500;
+  }
+
+  /* Tailwind's ring-offset color defaults to white. On the dark surfaces the
+     app uses (gray-800 cards, gray-900 pages) that white halo under the focus
+     ring is jarring, so recolor it to the closest surface tone. */
+  :is(.dark *) *:focus-visible {
+    --tw-ring-offset-color: #1f2937;
   }
 }

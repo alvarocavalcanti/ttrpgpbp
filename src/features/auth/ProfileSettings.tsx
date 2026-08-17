@@ -248,8 +248,8 @@ export function ProfileSettings() {
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label htmlFor="push_enabled" className={`font-medium ${pushUnavailable ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>Send me Push Notifications</label>
-                    <p className={`${pushUnavailable ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>Global toggle for push notifications across all devices.</p>
+                    <label htmlFor="push_enabled" className={`font-medium ${pushUnavailable ? 'text-gray-400 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>Send me Push Notifications</label>
+                    <p className={`${pushUnavailable ? 'text-gray-400 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>Global toggle for push notifications across all devices.</p>
                   </div>
                 </div>
 

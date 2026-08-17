@@ -277,7 +277,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   if (isScene) {
     return (
       <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] dark:bg-[#2a2620] border-y-2 border-[#e6d0a4] dark:border-[#4a4238] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
-        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose prose-sm sm:prose-base prose-p:text-[#5c4a3d] dark:prose-p:text-[#d8cfc0] prose-headings:text-[#4a3b31] dark:prose-headings:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6] prose-em:text-[#5c4a3d] dark:prose-em:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-blockquote:text-[#5c4a3d] dark:prose-blockquote:text-[#d8cfc0] prose-blockquote:border-[#e6d0a4] dark:prose-blockquote:border-[#4a4238] prose-ul:text-[#5c4a3d] dark:prose-ul:text-[#d8cfc0] prose-ol:text-[#5c4a3d] dark:prose-ol:text-[#d8cfc0] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] dark:[&>p:last-child]:bg-[#3a342a] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31] dark:[&>p:last-child]:text-[#ece4d6]">
+        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose prose-sm sm:prose-base dark:prose-invert prose-p:text-[#5c4a3d] dark:prose-p:text-[#d8cfc0] prose-headings:text-[#4a3b31] dark:prose-headings:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6] prose-em:text-[#5c4a3d] dark:prose-em:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-blockquote:text-[#5c4a3d] dark:prose-blockquote:text-[#d8cfc0] prose-blockquote:border-[#e6d0a4] dark:prose-blockquote:border-[#4a4238] prose-ul:text-[#5c4a3d] dark:prose-ul:text-[#d8cfc0] prose-ol:text-[#5c4a3d] dark:prose-ol:text-[#d8cfc0] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] dark:[&>p:last-child]:bg-[#3a342a] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31] dark:[&>p:last-child]:text-[#ece4d6]">
           {isEditing ? (
             <div className="mt-2 text-left">
               <textarea
@@ -440,7 +440,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo max-w-none break-words ${isNpc ? 'font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6]' : ''}`}>
+        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6]' : ''}`}>
           {message.is_deleted ? (
             <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
           ) : isEditing ? (

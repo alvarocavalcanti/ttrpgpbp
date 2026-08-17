@@ -11,6 +11,9 @@ function getInitialTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+const LIGHT_THEME_COLOR = '#f9fafb'
+const DARK_THEME_COLOR = '#111827'
+
 // Applies a `dark` class to <html>, which Tailwind's darkMode: 'class'
 // variants key off. Persists the choice; defaults to the OS preference.
 export function useTheme() {
@@ -21,6 +24,11 @@ export function useTheme() {
     root.classList.toggle('dark', theme === 'dark')
     root.style.colorScheme = theme
     window.localStorage.setItem(STORAGE_KEY, theme)
+    // Keep the browser/PWA chrome (address bar, standalone app shell) in sync
+    // with the active theme so it never flashes a light header over dark UI.
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? DARK_THEME_COLOR : LIGHT_THEME_COLOR)
   }, [theme])
 
   const toggleTheme = useCallback(() => {

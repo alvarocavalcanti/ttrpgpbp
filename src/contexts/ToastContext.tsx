@@ -84,7 +84,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => removeToast(toast.id)}
-              className="ml-4 text-white hover:text-gray-200 dark:hover:text-gray-300 focus:outline-none"
+              className="ml-4 text-white hover:text-gray-200 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               aria-label="Close"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -57,4 +57,12 @@ describe('ChannelHelpModal', () => {
     fireEvent.keyDown(window, { key: 'Enter' })
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('applies dark-mode classes to content and inactive topic buttons', () => {
+    const { container } = render(<ChannelHelpModal onClose={vi.fn()} />)
+    expect(container.querySelector('.prose')).toHaveClass('dark:prose-invert')
+    const inactive = screen.getByText('Export Chat')
+    expect(inactive).toHaveClass('dark:text-gray-300')
+    expect(inactive).toHaveClass('dark:hover:bg-gray-700')
+  })
 })

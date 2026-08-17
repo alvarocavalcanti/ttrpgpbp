@@ -277,7 +277,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 <button
                   type="button"
                   onClick={onXCard}
-                  className="flex items-center space-x-1.5 shrink-0 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 px-2 py-1 rounded-lg transition-colors focus:outline-none"
+                  className="flex items-center space-x-1.5 shrink-0 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 px-2 py-1 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   aria-label="X-Card"
                   title="X-Card: privately flag the current scene to the GM"
                 >
@@ -495,7 +495,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="mb-1 p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none flex-shrink-0"
+              className="mb-1 p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
               aria-label="Toggle options"
             >
               <svg className={`w-6 h-6 transform transition-transform ${isExpanded ? 'rotate-45 text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
