@@ -148,7 +148,7 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Text-first, no bloat' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Not a VTT' })).toBeInTheDocument()
-    expect(screen.getByText(/chat-first app for asynchronous TTRPGs/)).toBeInTheDocument()
+    expect(screen.getByText(/chat-first app for asynchronous tabletop RPGs/)).toBeInTheDocument()
     expect(screen.getByText(/battle maps, tactical combat automation, animated dice/)).toBeInTheDocument()
   })
 

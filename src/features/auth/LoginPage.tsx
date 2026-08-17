@@ -135,7 +135,7 @@ export function LoginPage() {
             Text-first, no bloat
           </h3>
           <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            RoleByPost is a chat-first app for asynchronous TTRPGs, with a few quality-of-life tools to keep play moving.
+            RoleByPost is a chat-first app for asynchronous tabletop RPGs, with a few quality-of-life tools to keep play moving.
           </p>
 
           <div className="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left shadow-sm">
