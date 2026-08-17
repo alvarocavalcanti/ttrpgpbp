@@ -130,6 +130,24 @@ export function LoginPage() {
           </div>
         </div>
 
+        <section className="mt-12 max-w-2xl mx-auto text-center">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Text-first, no bloat
+          </h3>
+          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            RoleByPost is a chat-first app for asynchronous TTRPGs, with a few quality-of-life tools to keep play moving.
+          </p>
+
+          <div className="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left shadow-sm">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Not a VTT
+            </h4>
+            <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              You won&apos;t find battle maps, tactical combat automation, animated dice, or AI-generated content here. RoleByPost keeps the conversation flowing while reducing app and tab switching.
+            </p>
+          </div>
+        </section>
+
         <div className="mt-14">
           <h3 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
             Why RoleByPost?
