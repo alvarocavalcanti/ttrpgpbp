@@ -127,25 +127,28 @@ describe('MessageComposer', () => {
     expect(mockOnSend).not.toHaveBeenCalled()
   })
 
-  it('transforms image urls to markdown if loadImages is true and user is GM', async () => {
+  it('does not transform raw image URLs to markdown', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
-    
-    fireEvent.click(screen.getByLabelText('Toggle options'))
-    fireEvent.click(screen.getByLabelText('Load Image URLs'))
-    
+
     const textarea = screen.getByPlaceholderText(/Type a message/i)
     fireEvent.change(textarea, { target: { value: 'Check this: https://example.com/image.png' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    
+
     await waitFor(() => {
       expect(mockOnSend).toHaveBeenCalledWith({
-        content: 'Check this: ![](https://example.com/image.png)',
+        content: 'Check this: https://example.com/image.png',
         type: 'regular',
         whisper_to: undefined,
         active_player_ids: undefined
       })
     })
+  })
+
+  it('hides the load image urls toggle from the GM options', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.queryByLabelText('Load Image URLs')).not.toBeInTheDocument()
   })
 
   it('sends reply_to and clears reply on cancel', async () => {
