@@ -109,7 +109,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                         {new Date(message.created_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 prose prose-sm max-w-none prose-p:my-0">
+                    <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 prose prose-sm max-w-none prose-p:my-0 dark:prose-invert">
                       <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
                   </li>

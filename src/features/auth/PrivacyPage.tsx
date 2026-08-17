@@ -57,7 +57,7 @@ export function PrivacyPage() {
           </ul>
         </section>
 
-        <p className="text-xs text-gray-400 dark:text-gray-500">
+        <p className="text-xs text-gray-400 dark:text-gray-400">
           This policy describes data handling for the RoleByPost application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access.
         </p>

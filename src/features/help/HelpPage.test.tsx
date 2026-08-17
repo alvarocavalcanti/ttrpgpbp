@@ -64,4 +64,12 @@ describe('HelpPage', () => {
     renderPage()
     expect(screen.getByText(/No help topics available yet/)).toBeInTheDocument()
   })
+
+  it('applies dark-mode classes to content and inactive topic links', () => {
+    const { container } = renderPage()
+    expect(container.querySelector('.prose')).toHaveClass('dark:prose-invert')
+    const inactive = screen.getByText('Search')
+    expect(inactive).toHaveClass('dark:text-gray-300')
+    expect(inactive).toHaveClass('dark:hover:bg-gray-700')
+  })
 })

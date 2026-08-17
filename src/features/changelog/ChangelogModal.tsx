@@ -37,7 +37,7 @@ export function ChangelogModal({ items, onDismiss, onDismissForever, onClose }: 
         ) : (
           <ul className="space-y-4 mb-4">
             {items.map((item, index) => (
-              <li key={`${item.version}-${item.title}-${index}`} className="border-b border-gray-100 dark:border-gray-800 pb-3 last:border-b-0 last:pb-0">
+              <li key={`${item.version}-${item.title}-${index}`} className="border-b border-gray-100 dark:border-gray-700 pb-3 last:border-b-0 last:pb-0">
                 <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">{item.title}</h4>
                 {item.body && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.body}</p>}
               </li>

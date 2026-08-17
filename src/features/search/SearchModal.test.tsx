@@ -115,6 +115,28 @@ describe('SearchModal', () => {
     expect(mockOnClose).toHaveBeenCalled()
   })
 
+  it('applies dark-mode classes to the result snippet prose', () => {
+    vi.mocked(useSearch).mockReturnValue({
+      searchTerm: 'hello',
+      setSearchTerm: vi.fn(),
+      results: [
+        {
+          id: 'msg-1',
+          content: 'Hello world',
+          created_at: '2023-01-01T12:00:00Z',
+          sender: { display_name: 'Hero' }
+        } as any
+      ],
+      loading: false,
+      error: null
+    })
+
+    const { container } = render(<SearchModal channelId="c1" onClose={mockOnClose} />)
+    const prose = container.querySelector('.prose')!
+    expect(prose).toHaveClass('dark:prose-invert')
+    expect(prose).toHaveClass('text-gray-700', 'dark:text-gray-300')
+  })
+
   it('calls setSearchTerm on input change', () => {
     const mockSetSearchTerm = vi.fn()
     vi.mocked(useSearch).mockReturnValue({

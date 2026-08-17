@@ -77,6 +77,14 @@ describe('ChannelStatusBar', () => {
     })
   })
 
+  it('keeps the status editor text visible on dark backgrounds', () => {
+    render(<ChannelStatusBar channelId="c1" statusText="Old status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getByText('Edit'))
+    const textarea = screen.getByDisplayValue('Old status')
+    expect(textarea).toHaveClass('bg-white', 'dark:bg-gray-800')
+    expect(textarea).toHaveClass('text-gray-900', 'dark:text-gray-100')
+  })
+
   it('cancels edit', () => {
     render(<ChannelStatusBar channelId="c1" statusText="Old status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
 

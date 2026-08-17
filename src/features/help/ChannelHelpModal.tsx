@@ -48,7 +48,7 @@ export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
                     className={`block w-full text-left px-4 py-2.5 text-sm rounded-md transition-colors ${
                       entry.slug === active.slug
                         ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
                     }`}
                   >
                     {entry.title}
@@ -58,7 +58,7 @@ export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
             </ul>
 
             {active && (
-              <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
                 <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">{active.title}</h4>
                 {active.screenshot && (
                   <img
@@ -67,7 +67,7 @@ export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
                     className="w-full max-w-lg mb-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
                   />
                 )}
-                <div className="prose prose-sm max-w-none">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{active.content}</ReactMarkdown>
                 </div>
               </div>

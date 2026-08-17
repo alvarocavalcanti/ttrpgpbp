@@ -216,7 +216,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
               </ul>
             )}
 
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
               <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2">Add NPC</h4>
               <div className="flex items-center gap-2">
                 <input

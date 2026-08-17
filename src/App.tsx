@@ -86,7 +86,7 @@ function AppNav() {
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none"
+          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
           aria-label="Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +154,7 @@ function AppNav() {
                 Server Admin
               </Link>
             )}
-            <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
+            <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <button
               type="button"
               onClick={() => {

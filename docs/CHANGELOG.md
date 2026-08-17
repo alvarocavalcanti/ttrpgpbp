@@ -31,6 +31,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Dark mode polish** — every screen now reads correctly in dark mode: text you type in editors and input fields stays visible, help pages and search results render cleanly, and the browser toolbar matches your theme.
 - **Push notifications arriving late or not at all** — notifications can now show up reliably after the app refreshes or sits in the background. A failed badge update (e.g. on iOS) no longer blocks the notification itself.
 - **X-Card alert never reached the GM** — the GM's alert when a player uses an X-Card sometimes never arrived. It now always shows, as a single dismissible banner that reads "Handle the scene outside the chat."
 - **Mobile sidebar stayed open behind overlay modals** — opening Settings, Search, Rolls, or notification settings from the sidebar on mobile no longer leaves the slide-in sidebar open on top of the dialog.

@@ -68,4 +68,28 @@ describe('useTheme', () => {
     expect(result.current.isDark).toBe(true)
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
+
+  it('keeps the browser theme-color meta in sync with the theme', () => {
+    const meta = document.createElement('meta')
+    meta.name = 'theme-color'
+    meta.content = '#f9fafb'
+    document.head.appendChild(meta)
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      media: '',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as any
+
+    const { result } = renderHook(() => useTheme())
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#f9fafb')
+
+    act(() => result.current.toggleTheme())
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#111827')
+
+    act(() => result.current.toggleTheme())
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#f9fafb')
+
+    meta.remove()
+  })
 })

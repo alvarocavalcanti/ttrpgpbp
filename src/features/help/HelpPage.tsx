@@ -25,7 +25,7 @@ export function HelpPage() {
     <div className="flex-1 flex flex-col lg:flex-row bg-gray-50 dark:bg-gray-900">
       {/* Topic list */}
       <nav className="lg:w-64 lg:shrink-0 bg-white dark:bg-gray-800 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 overflow-x-auto lg:overflow-y-auto">
-        <h2 className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-800">
+        <h2 className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700">
           Help Topics
         </h2>
         <ul className="flex lg:flex-col gap-1 p-2 lg:p-2">
@@ -36,7 +36,7 @@ export function HelpPage() {
                 className={`block px-3 py-2 text-sm rounded-md transition-colors ${
                   entry.slug === active.slug
                     ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
                 }`}
               >
                 {entry.title}
@@ -57,7 +57,7 @@ export function HelpPage() {
               className="w-full max-w-xl mb-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
             />
           )}
-          <div className="prose prose-sm sm:prose-base max-w-none">
+          <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{active.content}</ReactMarkdown>
           </div>
         </article>
