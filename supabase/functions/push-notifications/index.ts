@@ -1,26 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
 
-// Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma
-// separated) for self-hosting.
-const DEFAULT_ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "https://ttrpgpbp.pages.dev",
-]
-
-function isAllowedOrigin(origin: string): boolean {
+// Origin allowlist for CORS. Reads the ALLOWED_ORIGINS secret (comma separated)
+// if set; otherwise falls back to the shared defaults in filter.ts.
+function checkAllowedOrigin(origin: string): boolean {
   const env = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
     .split(",")
     .map(o => o.trim())
     .filter(Boolean)
-  const allowed = env.length > 0 ? env : DEFAULT_ALLOWED_ORIGINS
-  if (allowed.includes(origin)) return true
-  // Cloudflare Pages preview deployments are <hash>.ttrpgpbp.pages.dev
-  return origin.endsWith(".ttrpgpbp.pages.dev")
+  return isAllowedOrigin(origin, env.length > 0 ? env : undefined)
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -29,7 +21,7 @@ function corsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   }
   const origin = req.headers.get("origin")
-  if (origin && isAllowedOrigin(origin)) {
+  if (origin && checkAllowedOrigin(origin)) {
     headers["Access-Control-Allow-Origin"] = origin
   }
   return headers

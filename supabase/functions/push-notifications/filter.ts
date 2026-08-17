@@ -172,3 +172,21 @@ export function resolveMentionTargets(
     : mentionIds
   return [...new Set(ids)].filter(uid => uid !== senderId)
 }
+
+// Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma
+// separated) for self-hosting.
+export const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'https://ttrpgpbp.pages.dev',
+  'https://rolebypost.com',
+]
+
+// Origin allowlist used for CORS on the edge functions. Explicit origins are
+// allowed verbatim; Cloudflare Pages preview deployments (<hash>.ttrpgpbp.pages.dev)
+// are always allowed. If envList is provided and non-empty it replaces the
+// default list (previews still pass). Pure: no IO, so it runs in vitest.
+export function isAllowedOrigin(origin: string, envList?: string[]): boolean {
+  const allowed = envList && envList.length > 0 ? envList : DEFAULT_ALLOWED_ORIGINS
+  if (allowed.includes(origin)) return true
+  return origin.endsWith('.ttrpgpbp.pages.dev')
+}

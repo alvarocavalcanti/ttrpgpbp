@@ -30,6 +30,15 @@ enabled = true
 # verification is off. No-op while app_settings.image_retention_days is 0.
 verify_jwt = false
 
+# The app signs in with redirectTo = window.location.origin, so every origin the
+# app is served from must be allowed here. Applied to the hosted project via
+# `supabase config push` (or the dashboard's Auth → URL Configuration).
+[auth]
+additional_redirect_urls = [
+  "https://ttrpgpbp.pages.dev",
+  "https://rolebypost.com",
+]
+
 [auth.external.google]
 enabled = true
 client_id = "874851725148-ti03e8gh6mjmc5j3ddt57tku9upcm6oj.apps.googleusercontent.com"
