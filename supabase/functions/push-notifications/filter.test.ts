@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets } from './filter.ts'
+import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin} from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -344,5 +344,32 @@ describe('resolveMentionTargets', () => {
 
   it('dedupes repeated ids', () => {
     expect(resolveMentionTargets(['u2', 'u2', 'u3'], MEMBERS, 'u1')).toEqual(['u2', 'u3'])
+  })
+})
+
+describe('isAllowedOrigin', () => {
+
+  it('allows the default app origins incl. the custom domain', () => {
+    expect(isAllowedOrigin('http://localhost:5173')).toBe(true)
+    expect(isAllowedOrigin('https://ttrpgpbp.pages.dev')).toBe(true)
+    expect(isAllowedOrigin('https://rolebypost.com')).toBe(true)
+  })
+
+  it('allows Cloudflare Pages preview subdomains', () => {
+    expect(isAllowedOrigin('https://abc123.ttrpgpbp.pages.dev')).toBe(true)
+  })
+
+  it('rejects unknown origins', () => {
+    expect(isAllowedOrigin('https://evil.example.com')).toBe(false)
+  })
+
+  it('a non-empty env list replaces the defaults but previews still pass', () => {
+    expect(isAllowedOrigin('https://pages.dev', ['https://other.example.com'])).toBe(false)
+    expect(isAllowedOrigin('https://other.example.com', ['https://other.example.com'])).toBe(true)
+    expect(isAllowedOrigin('https://abc123.ttrpgpbp.pages.dev', ['https://other.example.com'])).toBe(true)
+  })
+
+  it('an empty env list falls back to the defaults', () => {
+    expect(isAllowedOrigin('https://rolebypost.com', [])).toBe(true)
   })
 })
