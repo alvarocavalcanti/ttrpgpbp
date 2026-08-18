@@ -102,6 +102,8 @@ Every UI change must follow these conventions:
 
 ## Local Testing
 
+> **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
+
 1. **Start Local DB:** `npx supabase start`
 2. **Apply Migrations:** `npx supabase migration up` (or `npx supabase db reset` to re-apply all migrations from scratch)
 3. **Start Dev Server:** `npm run dev`
