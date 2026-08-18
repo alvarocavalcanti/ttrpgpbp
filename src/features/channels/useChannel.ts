@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -16,6 +16,12 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
+  // Stable read boundary for the "New messages" divider. Captured once from the
+  // first member fetch; the last_read_at write below (and its realtime echo)
+  // would otherwise move the boundary to "now" before the history renders,
+  // hiding the divider for messages that were unread when the channel opened.
+  const [lastReadAt, setLastReadAt] = useState<string | null>(null)
+  const boundaryCapturedRef = useRef(false)
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
@@ -46,6 +52,10 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         // channel_secrets is GM-only (RLS); non-GMs get no row.
         setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
         setMembers(formattedMembers)
+        if (!boundaryCapturedRef.current) {
+          boundaryCapturedRef.current = true
+          setLastReadAt(formattedMembers.find(m => m.user_id === user?.id)?.last_read_at ?? null)
+        }
       }
       return formattedMembers
     }
@@ -124,5 +134,5 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
 
-  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, refetch }
+  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, refetch }
 }
