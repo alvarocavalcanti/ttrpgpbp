@@ -19,6 +19,22 @@ Auto-Clarity: drop caveman for security warnings, irreversible actions, user con
 Boundaries: code/commits/PRs written normal.
 <!-- caveman-end -->
 
+## Tool Output Rules
+
+- **Terminal Commands:** Prefix terminal calls with `rtk` (e.g., `rtk git status`, `rtk npm test`, `rtk pytest`) or ensure RTK hooks process shell outputs to minimize stdout token bloat.
+
+## Context Efficiency Protocols
+
+1. **Symbol & Workspace Discovery:**
+   - BEFORE using file search or listing full directories, execute `/map` or run `ctags -R -f - src/` via bash to find function signatures and file paths.
+
+2. **Targeted Code Locating:**
+   - Prefer AST searches over regex/grep when finding method calls or interfaces.
+   - Use `sg run --pattern '<pattern>'` via bash or `/ast <pattern>` to retrieve only target nodes instead of reading entire files into context.
+
+3. **File Reading Strategy:**
+   - Once a target file is located via `ctags` or `ast-grep`, read ONLY the specific line ranges needed rather than fetching whole modules.
+
 ## Project Rules
 
 - **Branching & PRs — git worktrees**: ALL work happens in a dedicated `git worktree`. Never start working on `main`, never work in the main repo directory — every session gets its own worktree to prevent branch collisions and uncommitted-change bleed. Never push directly to `main` (protected against rewrites).
@@ -85,6 +101,8 @@ Every UI change must follow these conventions:
 - **Tests for all of the above** — validation rejection, empty/loading/error states, scroll anchoring, and sanitization paths get explicit tests.
 
 ## Local Testing
+
+> **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
 
 1. **Start Local DB:** `npx supabase start`
 2. **Apply Migrations:** `npx supabase migration up` (or `npx supabase db reset` to re-apply all migrations from scratch)

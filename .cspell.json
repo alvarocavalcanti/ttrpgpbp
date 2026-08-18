@@ -46,6 +46,8 @@
     "worktrees",
     "rolebypost",
     "DELET",
-    "Cavalcanti"
+    "Cavalcanti",
+    "pytest",
+    "webstorage"
   ]
 }
