@@ -26,8 +26,8 @@ entrypoint = "./functions/push-notifications/index.ts"
 
 [functions.cleanup-images]
 enabled = true
-# Scheduled-only function (see DEPLOYMENT.md); no caller to authenticate, so JWT
-# verification is off. No-op while app_settings.image_retention_days is 0.
+# Scheduled-only function (see DEPLOYMENT.md). Scheduler authenticates with the
+# CLEANUP_IMAGES_SECRET header; no-op while app_settings.image_retention_days is 0.
 verify_jwt = false
 
 # The app signs in with redirectTo = window.location.origin, so every origin the

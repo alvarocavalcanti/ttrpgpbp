@@ -107,14 +107,21 @@ browser, so no user JWT is involved.
   supabase functions deploy push-notifications --project-ref <project-ref>
   ```
 
-- [ ] Deploy the image-retention cleanup function on a daily schedule. It no-ops
-  while `app_settings.image_retention_days` is 0 (the default); setting a
-  positive retention in the Server Admin settings activates it. Optional — skip
-  if you don't want auto-deletion:
+- [ ] Deploy the image-retention cleanup function. It requires a server-to-server
+  secret and no-ops while `app_settings.image_retention_days` is 0 (the default).
+  Store secret in Supabase Edge Function secrets, never in frontend code:
 
   ```bash
-  supabase functions deploy cleanup-images --project-ref <project-ref> --schedule "0 3 * * *"
+  supabase secrets set CLEANUP_IMAGES_SECRET=<generated-secret>
+  supabase functions deploy cleanup-images --project-ref <project-ref>
   ```
+
+  Schedule a daily `POST` from a trusted server scheduler. It must send
+  `x-cleanup-secret: <generated-secret>`; unauthorized requests are rejected.
+  For Supabase `pg_cron`/`pg_net`, keep the secret in Vault and pass it as a
+  request header. Do not use the browser or expose the secret to users.
+  Each deletion batch is recorded in `image_cleanup_audit` before removal and
+  marked `deleted` or `failed` afterward.
 
 ## 7. Deploy the frontend
 
