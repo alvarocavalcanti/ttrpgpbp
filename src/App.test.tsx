@@ -251,6 +251,47 @@ describe('App', () => {
     window.history.replaceState({}, '', '/')
   })
 
+  it('shows the About menu item and navigates to the About page', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+
+    await screen.findByText('RoleByPost')
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByText('About'))
+    expect(await screen.findByRole('heading', { name: 'About RoleByPost' })).toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
+  })
+
   it('navigates to the admin page from the menu for server admins', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },
@@ -337,4 +378,3 @@ describe('App', () => {
     window.history.replaceState({}, '', '/')
   })
 })
-

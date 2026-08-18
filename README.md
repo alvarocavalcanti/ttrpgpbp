@@ -1,5 +1,9 @@
 # RoleByPost
 
+<p align="center">
+  <img src="public/RoleByPost.png" alt="RoleByPost logo" width="160" />
+</p>
+
 A modern, mobile-friendly Play-by-Post application built for asynchronous tabletop roleplaying games. Combines chat-like responsiveness with structured RPG tools like dice rolling, scene prompts, character tracking, and active-player status.
 
 ## Tech Stack
@@ -17,6 +21,13 @@ A modern, mobile-friendly Play-by-Post application built for asynchronous tablet
 - **Campaign Management:** Public lobby, private invite links, persistent status bars for initiative/tracking.
 - **Push Notifications:** Web Push integration with in-app badging for new messages and active turns.
 - **Mobile First:** Designed to feel like a native chat application (WhatsApp/Telegram style) on mobile viewports.
+
+## Support
+
+Support RoleByPost development:
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/alvarocavalcanti)
+[![Buy Me a Coffee at ko-fi.com](https://storage.ko-fi.com/cdn/kofi6.png?v=6)](https://ko-fi.com/O4O1WSP5B)
 
 For a comprehensive feature breakdown, see [FEATURES.md](docs/FEATURES.md).
 

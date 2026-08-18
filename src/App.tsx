@@ -8,6 +8,7 @@ import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ProfileSettings } from './features/auth/ProfileSettings'
 import { PrivacyPage } from './features/auth/PrivacyPage'
+import { AboutPage } from './features/auth/AboutPage'
 import { Lobby } from './features/channels/Lobby'
 import { JoinChannel } from './features/channels/JoinChannel'
 import { ChannelView } from './features/channels/ChannelView'
@@ -128,6 +129,13 @@ function AppNav() {
             >
               Help
             </Link>
+            <Link
+              to="/about"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => setMenuOpen(false)}
+            >
+              About
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -195,6 +203,7 @@ function App() {
                     <Route path="/help/:topic" element={<HelpPage />} />
                     <Route path="/changelog" element={<ChangelogPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/about" element={<AboutPage />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
@@ -208,4 +217,3 @@ function App() {
 }
 
 export default App
-

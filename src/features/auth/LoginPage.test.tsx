@@ -153,6 +153,29 @@ describe('LoginPage', () => {
     expect(screen.getByText(/battle maps, tactical combat automation, animated dice/)).toBeInTheDocument()
   })
 
+  it('renders the creator attribution link', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('link', { name: 'Alvaro Cavalcanti' })).toHaveAttribute(
+      'href',
+      'https://memorablenaton.es'
+    )
+  })
+
   it('renders the feature grid with responsive layout', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
