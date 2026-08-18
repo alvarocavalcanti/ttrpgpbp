@@ -19,6 +19,7 @@ import { ChangelogPage } from './features/changelog/ChangelogPage'
 import { ChangelogProvider, useChangelog } from './features/changelog/useChangelog'
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
+import { RealtimeBanner } from './components/RealtimeBanner'
 
 export function NotFound() {
   return (
@@ -188,6 +189,7 @@ function App() {
           <ChangelogProvider>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
               <AppNav />
+              <RealtimeBanner />
               <main className="flex-1 flex flex-col">
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />

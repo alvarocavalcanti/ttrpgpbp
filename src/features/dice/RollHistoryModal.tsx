@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Json } from '../../types/database'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { subscribeWithRetry } from '../../lib/realtime'
 
 type DiceRoll = {
   id: string
@@ -33,7 +34,14 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
         // deleted messages.
         const { data, error } = await supabase.rpc('get_channel_roll_history', { p_channel_id: channelId })
         if (error) throw error
-        setRolls((data || []).map(r => ({ ...r, roller: { display_name: r.roller_display_name } })))
+        const fetched = (data || []).map(r => ({ ...r, roller: { display_name: r.roller_display_name } }))
+        setRolls(prev => {
+          const fetchedIds = new Set(fetched.map(roll => roll.id))
+          return [...prev.filter(roll => !fetchedIds.has(roll.id)), ...fetched]
+            .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))
+            .slice(0, 50)
+        })
+        setError(null)
       } catch (err) {
         console.error('Failed to fetch roll history', err)
         setError('Failed to load roll history.')
@@ -44,7 +52,8 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
 
     fetchRolls()
 
-    const subscription = supabase
+    let firstSubscribe = true
+    const realtimeChannel = supabase
       .channel(`dice_rolls:${channelId}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -61,12 +70,27 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
           .single()
 
         newRoll.roller = data
-        setRolls(prev => [newRoll, ...prev].slice(0, 50))
+        setRolls(prev => prev.some(roll => roll.id === newRoll.id)
+          ? prev
+          : [newRoll, ...prev].slice(0, 50))
       })
-      .subscribe()
+    const stopRealtime = subscribeWithRetry(realtimeChannel, `dice_rolls:${channelId}`, (status) => {
+      if (status !== 'SUBSCRIBED') return
+      if (firstSubscribe) {
+        firstSubscribe = false
+      } else {
+        void fetchRolls()
+      }
+    })
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void fetchRolls()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      stopRealtime()
     }
   }, [channelId])
 

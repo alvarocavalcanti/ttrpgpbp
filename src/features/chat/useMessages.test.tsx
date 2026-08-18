@@ -199,6 +199,7 @@ describe('useMessages', () => {
 
     await act(async () => {
       await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
     })
 
     expect(result.current.messages).toHaveLength(1)

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
+import { subscribeWithRetry } from '../../lib/realtime'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -91,7 +92,8 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
 
     fetchChannelData()
 
-    const channelSubscription = supabase
+    let firstSubscribe = true
+    const realtimeChannel = supabase
       .channel(`channel:${channelId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -123,11 +125,25 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
           setMembers(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m))
         }
       })
-      .subscribe()
+    const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}`, (status) => {
+      if (mounted && status === 'SUBSCRIBED') {
+        if (firstSubscribe) {
+          firstSubscribe = false
+        } else {
+          void fetchChannelData()
+        }
+      }
+    })
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void fetchChannelData()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       mounted = false
-      channelSubscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      stopRealtime()
     }
   }, [channelId, user?.id, refetchTrigger])
 

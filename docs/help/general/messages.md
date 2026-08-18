@@ -34,3 +34,7 @@ React to any message with an **emoji**. The quick-emoji picker covers common rea
 ## Whispers
 
 The GM can send a **whisper** visible only to themselves and one specific player. Whispers appear in the same timeline but are hidden from everyone else.
+
+## Connection status
+
+If your connection drops, a banner lets you know while keeping loaded chat available. RoleByPost catches up on new messages and channel changes when your connection returns or when you bring the app back to the foreground.
