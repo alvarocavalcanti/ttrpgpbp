@@ -149,3 +149,7 @@ Every UI change must follow these conventions:
 
 - When instructed to generate a new version, update the version in all relevant files
 - Add a new section to [CHANGELOG.md](docs/CHANGELOG.md)
+
+## Dependencies Hygiene
+
+Whenever dependencies are updated/added, make sure that those changes are also applied to the CI. Like Node version, for instance.
