@@ -10,10 +10,10 @@ jobs:
   migrate-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           # ponytail: pin v2.111.0 — v2.112.0+ breaks `supabase link` (api-keys inserted_at schema bug, supabase/cli#6115). Re-pin once fixed.
           version: v2.111.0
@@ -28,10 +28,10 @@ jobs:
     needs: migrate-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'

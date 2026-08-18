@@ -12,16 +12,16 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           # ponytail: pin v2.111.0 — v2.112.0+ breaks `supabase link` (api-keys inserted_at schema bug, supabase/cli#6115). Re-pin once fixed.
           version: v2.111.0
           
       - name: Link Supabase project
-        run: supabase link --project-ref $SUPABASE_PROJECT_ID -p $SUPABASE_DB_PASSWORD
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" -p "$SUPABASE_DB_PASSWORD"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -36,8 +36,8 @@ jobs:
 
       - name: Deploy edge functions
         run: |
-          supabase functions deploy push-notifications --project-ref $SUPABASE_PROJECT_ID
-          supabase functions deploy delete-account --project-ref $SUPABASE_PROJECT_ID
+          supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy delete-account --project-ref "$SUPABASE_PROJECT_ID"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
