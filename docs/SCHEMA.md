@@ -136,7 +136,25 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 
 - **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.
 - **`delete-account` edge function**: verifies the caller's JWT, rejects the sole server admin (would leave the app headless), then calls `auth.admin.deleteUser`. Cascades erase the user's profiles, memberships, dice rolls, reactions, preferences, and push subscriptions; their sent messages are anonymized (`sender_id SET NULL`) and whispers addressed to them are deleted (`whisper_to CASCADE`).
-- **`cleanup-images` edge function**: scheduled daily; deletes `images` bucket objects older than `app_settings.image_retention_days` (no-op while 0). Storage-level retention, so there is no per-message tracking table.
+- **`cleanup-images` edge function**: scheduled daily through a trusted server
+  caller carrying `CLEANUP_IMAGES_SECRET`; deletes `images` bucket objects older
+  than `app_settings.image_retention_days` (no-op while 0). Each deletion batch
+  is recorded in `image_cleanup_audit`.
+
+### `image_cleanup_audit`
+
+Internal service-role audit table. Browser clients have no access.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint, identity | Batch audit ID |
+| `run_id` | UUID | Groups batches from one cleanup run |
+| `retention_days` | integer | Retention configuration used |
+| `cutoff_at` | timestamptz | Deletion cutoff |
+| `object_paths` | text[] | Objects in batch, maximum 500 |
+| `status` | text | `pending`, `deleted`, or `failed` |
+| `error_message` | text, nullable | Failure detail when status is `failed` |
+| `created_at` / `completed_at` | timestamptz | Batch lifecycle timestamps |
 
 ### Command RPCs (backend-authoritative mutations)
 
