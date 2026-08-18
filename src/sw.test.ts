@@ -25,6 +25,7 @@ function dispatchMessage(payload: unknown) {
 describe('sw push handler badge', () => {
   let showNotification: ReturnType<typeof vi.fn>
   let setAppBadge: ReturnType<typeof vi.fn>
+  let postMessage: ReturnType<typeof vi.fn>
 
   beforeAll(async () => {
     const origAdd = self.addEventListener.bind(self)
@@ -42,6 +43,7 @@ describe('sw push handler badge', () => {
     vi.clearAllMocks()
     showNotification = vi.fn().mockResolvedValue(undefined)
     setAppBadge = vi.fn().mockResolvedValue(undefined)
+    postMessage = vi.fn()
     Object.defineProperty(self, 'registration', {
       value: { showNotification },
       configurable: true,
@@ -49,6 +51,10 @@ describe('sw push handler badge', () => {
     })
     Object.defineProperty(self.navigator, 'setAppBadge', {
       value: setAppBadge,
+      configurable: true,
+    })
+    Object.defineProperty(self, 'clients', {
+      value: { matchAll: vi.fn().mockResolvedValue([{ postMessage }]) },
       configurable: true,
     })
   })
@@ -59,6 +65,14 @@ describe('sw push handler badge', () => {
       'Hi',
       expect.objectContaining({ body: 'there', badge: '/favicon.svg' })
     )
+  })
+
+  it('notifies open tabs after handling a push', async () => {
+    const waitUntil = dispatchPush({ title: 'Hi' })
+
+    await waitUntil.mock.calls[0][0]
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'PUSH_RECEIVED' })
   })
 
   it('sets the app badge when unreadCount present and badge enabled', () => {

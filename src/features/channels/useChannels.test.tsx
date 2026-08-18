@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useChannels } from './useChannels'
 import { useAuth } from '../auth/useAuth'
@@ -29,6 +29,7 @@ const createChain = (resolveVal: any) => {
 describe('useChannels', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true })
   })
 
   it('returns empty lists and loading false if no user', async () => {
@@ -96,6 +97,44 @@ describe('useChannels', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.myChannels[0].unread_count).toBe(5)
     expect(supabase.rpc).toHaveBeenCalledWith('get_user_channels_unread', { p_user_id: 'user-1' })
+  })
+
+  it('refreshes unread counts when service worker receives a push', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
+    const mockMyChannelsRaw = [{
+      id: 'member-1', channel_id: 'channel-2', user_id: 'user-1', character_name: 'Thor',
+      last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'channel-2', name: 'My Channel' }
+    }]
+    let messageHandler: ((event: MessageEvent) => void) | undefined
+    const addEventListener = vi.fn((_type: string, handler: (event: MessageEvent) => void) => {
+      messageHandler = handler
+    })
+    const removeEventListener = vi.fn()
+
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { addEventListener, removeEventListener },
+      configurable: true,
+    })
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any
+      return {} as any
+    })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: [{ channel_id: 'channel-2', unread_count: 1 }], error: null } as any)
+      .mockResolvedValueOnce({ data: [{ channel_id: 'channel-2', unread_count: 2 }], error: null } as any)
+
+    const { result, unmount } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(1))
+
+    await act(async () => {
+      messageHandler?.({ data: { type: 'PUSH_RECEIVED' } } as MessageEvent)
+    })
+
+    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(2))
+    expect(addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+
+    unmount()
+    expect(removeEventListener).toHaveBeenCalledWith('message', expect.any(Function))
   })
 
   it('uses the unread RPC count (own/deleted filtering is server-side)', async () => {

@@ -84,8 +84,15 @@ export function useChannels() {
 
     fetchChannels()
 
+    function handleServiceWorkerMessage(event: MessageEvent) {
+      if (event.data?.type === 'PUSH_RECEIVED') fetchChannels()
+    }
+
+    navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage)
+
     return () => {
       mounted = false
+      navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
     }
   }, [user?.id])
 

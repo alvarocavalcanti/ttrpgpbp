@@ -26,6 +26,12 @@ self.addEventListener('push', (event) => {
       { registration: self.registration, navigator: self.navigator, logger: console },
       data
     )
+      .then(async () => {
+        if (!self.clients?.matchAll) return
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        for (const client of clients) client.postMessage({ type: 'PUSH_RECEIVED' })
+      })
+      .catch((err) => console.error('Error notifying open tabs about push', err))
   )
 })
 
