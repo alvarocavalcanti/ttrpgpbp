@@ -33,6 +33,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Realtime updates after reconnecting** — when your connection drops or the app returns from the background, RoleByPost now shows what is happening and catches up on messages, channel changes, rolls, and unread counts without losing loaded chat.
 - **Dark mode polish** — every screen now reads correctly in dark mode: text you type in editors and input fields stays visible, help pages and search results render cleanly, and the browser toolbar matches your theme.
 - **Push notifications arriving late or not at all** — notifications can now show up reliably after the app refreshes or sits in the background. A failed badge update (e.g. on iOS) no longer blocks the notification itself.
 - **X-Card alert never reached the GM** — the GM's alert when a player uses an X-Card sometimes never arrived. It now always shows, as a single dismissible banner that reads "Handle the scene outside the chat."

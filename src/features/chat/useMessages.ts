@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import type { ChatMessage } from './types'
+import { subscribeWithRetry } from '../../lib/realtime'
 
 export interface ReactionSummary {
   emoji: string
@@ -110,8 +111,17 @@ export function useMessages(channelId: string | undefined) {
         if (fetchError) throw fetchError
 
         if (mounted) {
-          // Newest-first fetch; reverse for ascending display.
-          setMessages((data || []).map(formatMessage).reverse())
+          // Newest-first fetch; reverse for ascending display. Keep live rows
+          // received while this request was in flight and dedupe by id.
+          const fetched = (data || []).map(formatMessage).reverse()
+          setMessages(prev => {
+            const fetchedIds = new Set(fetched.map(message => message.id))
+            const merged = [...prev.filter(message => !fetchedIds.has(message.id)), ...fetched]
+            if (merged.every(message => message.created_at)) {
+              merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+            }
+            return merged
+          })
           setHasMore((data || []).length === PAGE_SIZE)
         }
       } catch (err: any) {
@@ -142,7 +152,7 @@ export function useMessages(channelId: string | undefined) {
     fetchReactions()
 
     let firstSubscribe = true
-    const subscription = supabase
+    const realtimeChannel = supabase
       .channel(`chat:${channelId}`)
       .on('postgres_changes', {
         event: '*',
@@ -201,7 +211,7 @@ export function useMessages(channelId: string | undefined) {
           setReactions(prev => dropReaction(prev, row, user?.id))
         }
       })
-      .subscribe((status) => {
+    const stopRealtime = subscribeWithRetry(realtimeChannel, `chat:${channelId}`, (status) => {
         // The first SUBSCRIBED follows the initial fetch already running;
         // a later SUBSCRIBED means we reconnected after a drop, so reconcile by
         // refetching the newest page. Idempotent application (messages are
@@ -210,14 +220,22 @@ export function useMessages(channelId: string | undefined) {
           if (firstSubscribe) {
             firstSubscribe = false
           } else {
-            void fetchMessages()
+            void Promise.all([fetchMessages(), fetchReactions()])
           }
         }
       })
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void Promise.all([fetchMessages(), fetchReactions()])
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      stopRealtime()
     }
   }, [channelId, user?.id])
 

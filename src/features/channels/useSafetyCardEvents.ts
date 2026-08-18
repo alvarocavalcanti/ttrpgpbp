@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
+import { subscribeWithRetry } from '../../lib/realtime'
 
 // Anonymous X-Card safety tool. The presser's identity is never stored (no
 // user_id on the row); the GM alone sees the realtime alert.
@@ -15,7 +16,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     // insert events).
     if (!channelId || !isGM) return
 
-    const sub = supabase
+    const realtimeChannel = supabase
       .channel(`safety-card:${channelId}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -26,9 +27,12 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         setAlertActive(true)
         setAlertCount(c => c + 1)
       })
-      .subscribe()
+    const stopRealtime = subscribeWithRetry(realtimeChannel, `safety-card:${channelId}`)
 
-    return () => { supabase.removeChannel(sub) }
+    return () => {
+      stopRealtime()
+      void supabase.removeChannel(realtimeChannel)
+    }
   }, [channelId, isGM])
 
   const triggerXCard = useCallback(async (messageId?: string): Promise<boolean> => {

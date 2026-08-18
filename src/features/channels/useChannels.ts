@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
+import { subscribeRealtimeStatus } from '../../lib/realtime'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
@@ -88,11 +89,20 @@ export function useChannels() {
       if (event.data?.type === 'PUSH_RECEIVED') fetchChannels()
     }
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchChannels()
+    }
+
+    const stopRealtimeStatus = subscribeRealtimeStatus(fetchChannels)
+
     navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       mounted = false
+      stopRealtimeStatus()
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [user?.id])
 
