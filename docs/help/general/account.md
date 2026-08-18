@@ -33,3 +33,7 @@ From **Settings → Account & Data → Delete Account** you can permanently eras
 ## Privacy policy
 
 The **Privacy Policy** (linked from Settings and the app menu) explains what data we collect, where it is stored, and your access and erasure rights.
+
+## About RoleByPost
+
+The **About** item in the app menu links to the creator, donation pages, and RoleByPost's GitHub project.
