@@ -99,17 +99,6 @@ export function LoginPage() {
             <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
               Sign in to access your campaigns
             </p>
-            <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
-              by{' '}
-              <a
-                href="https://memorablenaton.es"
-                target="_blank"
-                rel="noreferrer"
-                className="text-indigo-600 dark:text-indigo-400 hover:underline"
-              >
-                Alvaro Cavalcanti
-              </a>
-            </p>
           </div>
 
           <div className="mt-8">
@@ -183,6 +172,17 @@ export function LoginPage() {
           </div>
         </div>
       </div>
+      <p className="mt-14 text-center text-sm text-gray-600 dark:text-gray-400">
+        by{' '}
+        <a
+          href="https://memorablenaton.es"
+          target="_blank"
+          rel="noreferrer"
+          className="text-indigo-600 dark:text-indigo-400 hover:underline"
+        >
+          Alvaro Cavalcanti
+        </a>
+      </p>
     </div>
   )
 }

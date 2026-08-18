@@ -170,10 +170,13 @@ describe('LoginPage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByRole('link', { name: 'Alvaro Cavalcanti' })).toHaveAttribute(
+    const attribution = screen.getByRole('link', { name: 'Alvaro Cavalcanti' })
+    expect(attribution).toHaveAttribute(
       'href',
       'https://memorablenaton.es'
     )
+    const featureHeading = screen.getByRole('heading', { name: 'Why RoleByPost?' })
+    expect(featureHeading.compareDocumentPosition(attribution) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('renders the feature grid with responsive layout', () => {
