@@ -328,6 +328,134 @@ describe('useChannel', () => {
     expect(result.current.members[1].profile?.display_name).toBe('Newbie')
   })
 
+  it('keeps the read boundary frozen when a last_read_at echo arrives', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
+    let membersCallback: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'channel_members') membersCallback = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+
+    // Our own last_read_at write echoes back as a realtime UPDATE. The divider
+    // boundary must not follow it to "now", or the new-messages divider is hidden.
+    await act(async () => {
+      membersCallback({ eventType: 'UPDATE', new: { id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T18:00:00Z' }, old: null })
+    })
+
+    expect(result.current.myMemberInfo?.last_read_at).toBe('2023-01-01T18:00:00Z')
+    expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+  })
+
+  it('keeps the read boundary frozen when a members refetch picks up the echoed last_read_at', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const initialMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+    const afterJoin = [
+      { id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T18:00:00Z', profile: { display_name: 'Hero' } },
+      { id: 'm2', user_id: 'u2', profile: { display_name: 'Newbie' } }
+    ]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn()
+      .mockResolvedValueOnce({ data: initialMembers, error: null })
+      .mockResolvedValueOnce({ data: afterJoin, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() })
+    let membersCallback: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'channel_members') membersCallback = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+
+    await act(async () => {
+      membersCallback({ eventType: 'INSERT', new: { id: 'm2', user_id: 'u2' }, old: null })
+    })
+
+    await waitFor(() => {
+      expect(result.current.members).toHaveLength(2)
+    })
+    expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+  })
+
+  it('uses an echoed last_read_at when no boundary was captured (not a member)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u2', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(result.current.lastReadAt).toBeNull()
+    expect(result.current.myMemberInfo).toBeUndefined()
+  })
+
   it('removes a member on realtime DELETE', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
 
