@@ -8,7 +8,7 @@ INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, e
 VALUES
   ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test209@example.com', '', now(), '{}', '{}', now(), now());
 
-INSERT INTO profiles (id, display_name, is_suspended) VALUES ('00000000-0000-0000-0000-000000000209', 'Suspended', true);
+UPDATE profiles SET display_name = 'Suspended', is_suspended = true WHERE id = '00000000-0000-0000-0000-000000000209';
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000209', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000209","role":"authenticated"}', true);
