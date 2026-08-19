@@ -305,7 +305,7 @@ export function useMessages(channelId: string | undefined) {
       client_request_id: clientRequestId,
       pending: true,
       pending_payload: payload,
-      sender: user as any, mention_user_ids: null, search_vector: null as any, // sufficient for local display
+      sender: user as any, // sufficient for local display
     }
 
     setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
@@ -354,7 +354,7 @@ export function useMessages(channelId: string | undefined) {
       client_request_id: clientRequestId,
       pending: true,
       pending_payload: { notation, replyToId, warning, dc },
-      sender: user as any, mention_user_ids: null, search_vector: null as any,
+      sender: user as any,
     }
 
     setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))

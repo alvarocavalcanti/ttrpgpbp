@@ -33,6 +33,26 @@ interface MessageComposerProps {
 export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
+
+  const draftKey = channelId ? `ttrpg_draft_${channelId}` : null
+
+  useEffect(() => {
+    if (draftKey) {
+      const saved = localStorage.getItem(draftKey)
+      if (saved) setContent(saved)
+      else setContent('')
+    } else {
+      setContent('')
+    }
+  }, [draftKey])
+
+  useEffect(() => {
+    if (draftKey) {
+      if (content) localStorage.setItem(draftKey, content)
+      else localStorage.removeItem(draftKey)
+    }
+  }, [content, draftKey])
+
   const [isNpc, setIsNpc] = useState(false)
   const [npcName, setNpcName] = useState('')
   const [npcAvatarUrl, setNpcAvatarUrl] = useState<string | null>(null)
@@ -188,6 +208,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
       await onSendMessage(payload)
       setContent('')
+      if (draftKey) localStorage.removeItem(draftKey)
       setIsScene(false)
       setIsNpc(false)
       setNpcName('')

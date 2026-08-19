@@ -25,6 +25,8 @@ interface MessageItemProps {
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
   onXCard?: (messageId: string) => void
+  onRetry?: (messageId: string) => void
+  onRemovePending?: (messageId: string) => void
 }
 
 function snippet(text: string): string {
@@ -58,7 +60,7 @@ function urlTransform(url: string): string {
   return ''
 }
 
-export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard, onRetry, onRemovePending }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -261,23 +263,42 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     </div>
   ) : null
 
-  const reactionPicker = onToggleReaction ? (
+  const reactionPicker = onToggleReaction && !message.pending ? (
     <EmojiPicker onPick={handleToggleReaction} />
+  ) : null
+
+  const pendingOverlay = message.pending && !message.error ? (
+    <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/50 flex items-center justify-center rounded-lg z-10 pointer-events-none">
+      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  ) : null
+
+  const errorOverlay = message.error ? (
+    <div className="mt-2 text-sm">
+      <div className="text-red-600 dark:text-red-400 font-medium mb-1">Failed to send: {message.error}</div>
+      <div className="flex space-x-3">
+        <button type="button" onClick={() => onRetry?.(message.id)} className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold">Retry</button>
+        <button type="button" onClick={() => onRemovePending?.(message.id)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">Remove</button>
+      </div>
+    </div>
   ) : null
 
   if (isSystem) {
     return (
-      <div ref={itemRef} className={`flex justify-center my-4 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900 rounded-lg p-2' : ''}`}>
+      <div ref={itemRef} className={`relative flex justify-center my-4 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900 rounded-lg p-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+        {pendingOverlay}
         <div className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-3 py-1 rounded-full">
           {message.content}
         </div>
+        {errorOverlay}
       </div>
     )
   }
 
   if (isScene) {
     return (
-      <div ref={itemRef} className={`my-6 px-4 py-6 bg-[#fdf6e3] dark:bg-[#2a2620] border-y-2 border-[#e6d0a4] dark:border-[#4a4238] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}>
+      <div ref={itemRef} className={`relative my-6 px-4 py-6 bg-[#fdf6e3] dark:bg-[#2a2620] border-y-2 border-[#e6d0a4] dark:border-[#4a4238] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+        {pendingOverlay}
         <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose prose-sm sm:prose-base dark:prose-invert prose-p:text-[#5c4a3d] dark:prose-p:text-[#d8cfc0] prose-headings:text-[#4a3b31] dark:prose-headings:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6] prose-em:text-[#5c4a3d] dark:prose-em:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-blockquote:text-[#5c4a3d] dark:prose-blockquote:text-[#d8cfc0] prose-blockquote:border-[#e6d0a4] dark:prose-blockquote:border-[#4a4238] prose-ul:text-[#5c4a3d] dark:prose-ul:text-[#d8cfc0] prose-ol:text-[#5c4a3d] dark:prose-ol:text-[#d8cfc0] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] dark:[&>p:last-child]:bg-[#3a342a] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31] dark:[&>p:last-child]:text-[#ece4d6]">
           {isEditing ? (
             <div className="mt-2 text-left">
@@ -311,8 +332,9 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
+          {errorOverlay}
         </div>
-        {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
+        {!message.is_deleted && !message.pending && !isEditing && (onReply || canEdit || isGM) && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             {onReply && (
               <button type="button" onClick={() => onReply(message)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 p-1" aria-label="Reply">
@@ -366,7 +388,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       label: 'text-indigo-800 dark:text-indigo-200',
     }
     return (
-      <div ref={itemRef} className={`flex items-center space-x-3 my-4 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''}`}>
+      <div ref={itemRef} className={`relative flex items-center space-x-3 my-4 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+        {pendingOverlay}
         <div className={`flex-shrink-0 ${tone.icon} p-2 rounded-full`}>
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
@@ -397,13 +420,15 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
           <div className="text-gray-900 dark:text-gray-100 text-lg">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
+          {errorOverlay}
         </div>
       </div>
     )
   }
 
   return (
-    <div ref={itemRef} className={`group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] rounded-lg border border-[#e6d0a4] dark:border-[#4a4238]' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''}`}>
+    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] rounded-lg border border-[#e6d0a4] dark:border-[#4a4238]' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      {pendingOverlay}
       <div className="flex-shrink-0">
         {isNpc ? (
           message.npc_avatar_url ? (
@@ -477,9 +502,10 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
+          {errorOverlay}
         </div>
 
-        {!message.is_deleted && !isEditing && (
+        {!message.is_deleted && !message.pending && !isEditing && (
           <div className="mt-1 flex items-center gap-0.5">
             {reactionsRow}
             {reactionPicker}
@@ -487,7 +513,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
         )}
       </div>
 
-      {!message.is_deleted && !isEditing && (onReply || canEdit || isGM) && (
+      {!message.is_deleted && !message.pending && !isEditing && (onReply || canEdit || isGM) && (
         <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-sm:opacity-100 transition-opacity">
           {onReply && (
             <button type="button" onClick={() => onReply(message)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 p-1" aria-label="Reply">
