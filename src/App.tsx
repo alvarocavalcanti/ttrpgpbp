@@ -20,6 +20,7 @@ import { ChangelogProvider, useChangelog } from './features/changelog/useChangel
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
+import { ScrollToTop } from './components/ScrollToTop'
 
 export function NotFound() {
   return (
@@ -186,6 +187,7 @@ function App() {
     <ToastProvider>
       <AuthProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <ChangelogProvider>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
               <AppNav />
