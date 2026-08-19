@@ -1,3 +1,240 @@
+-- #209: Abuse controls, global suspension, rate limiting, and audit trails.
+
+-- ==========================================
+-- 1. Global Suspension
+-- ==========================================
+
+ALTER TABLE profiles ADD COLUMN is_suspended BOOLEAN NOT NULL DEFAULT false;
+
+CREATE OR REPLACE FUNCTION is_suspended(u_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT is_suspended FROM profiles WHERE id = u_id;
+$$;
+
+-- Modify existing core access functions to deny suspended users
+CREATE OR REPLACE FUNCTION is_channel_member(c_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM channel_members
+    WHERE channel_id = c_id AND user_id = auth.uid() AND is_blocked = false
+  ) AND NOT is_suspended(auth.uid());
+$$;
+
+CREATE OR REPLACE FUNCTION is_channel_gm(c_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM channels
+    WHERE id = c_id AND gm_id = auth.uid()
+  ) AND NOT is_suspended(auth.uid());
+$$;
+
+-- Server admin function to suspend a user
+CREATE OR REPLACE FUNCTION admin_suspend_user(p_user_id UUID, p_suspend BOOLEAN, p_reason TEXT DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT is_server_admin() THEN
+    RAISE EXCEPTION 'Requires server admin privileges';
+  END IF;
+
+  UPDATE profiles SET is_suspended = p_suspend WHERE id = p_user_id;
+
+  INSERT INTO audit_logs (admin_id, action, target_id, details)
+  VALUES (
+    auth.uid(), 
+    CASE WHEN p_suspend THEN 'suspend_user' ELSE 'unsuspend_user' END, 
+    p_user_id, 
+    jsonb_build_object('reason', p_reason)
+  );
+END;
+$$;
+
+
+-- ==========================================
+-- 2. Audit Trails & Abuse Reports
+-- ==========================================
+
+CREATE TABLE audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  target_id UUID,
+  details JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Server admins can view audit logs"
+  ON audit_logs FOR SELECT USING (is_server_admin());
+
+CREATE TABLE abuse_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  reported_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  channel_id UUID REFERENCES channels(id) ON DELETE SET NULL,
+  message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending, resolved, dismissed
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE abuse_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can insert their own reports"
+  ON abuse_reports FOR INSERT WITH CHECK (reporter_id = auth.uid());
+CREATE POLICY "Server admins can view reports"
+  ON abuse_reports FOR SELECT USING (is_server_admin());
+CREATE POLICY "Server admins can update reports"
+  ON abuse_reports FOR UPDATE USING (is_server_admin());
+
+
+-- ==========================================
+-- 3. Rate Limiting (Token Bucket)
+-- ==========================================
+
+CREATE TABLE rate_limits (
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  tokens NUMERIC NOT NULL,
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, action)
+);
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION check_rate_limit(
+  p_user_id UUID,
+  p_action TEXT,
+  p_max_tokens NUMERIC,
+  p_refill_rate_per_minute NUMERIC,
+  p_cost NUMERIC DEFAULT 1
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_current_tokens NUMERIC;
+  v_last_updated TIMESTAMPTZ;
+  v_now TIMESTAMPTZ := NOW();
+  v_minutes_passed NUMERIC;
+BEGIN
+  SELECT tokens, last_updated
+  INTO v_current_tokens, v_last_updated
+  FROM rate_limits
+  WHERE user_id = p_user_id AND action = p_action
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    IF p_max_tokens >= p_cost THEN
+      INSERT INTO rate_limits (user_id, action, tokens, last_updated)
+      VALUES (p_user_id, p_action, p_max_tokens - p_cost, v_now);
+      RETURN TRUE;
+    ELSE
+      RETURN FALSE;
+    END IF;
+  END IF;
+
+  v_minutes_passed := EXTRACT(EPOCH FROM (v_now - v_last_updated)) / 60.0;
+  v_current_tokens := LEAST(p_max_tokens, v_current_tokens + (v_minutes_passed * p_refill_rate_per_minute));
+
+  IF v_current_tokens >= p_cost THEN
+    UPDATE rate_limits
+    SET tokens = v_current_tokens - p_cost,
+        last_updated = v_now
+    WHERE user_id = p_user_id AND action = p_action;
+    RETURN TRUE;
+  ELSE
+    RETURN FALSE;
+  END IF;
+END;
+$$;
+
+-- Apply limits via trigger to row-inserted features
+CREATE OR REPLACE FUNCTION trigger_enforce_rate_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_action TEXT;
+  v_max_tokens NUMERIC;
+  v_refill NUMERIC;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Suspended users cannot perform mutations
+  IF is_suspended(auth.uid()) THEN
+    RAISE EXCEPTION 'Account suspended.';
+  END IF;
+
+  IF TG_TABLE_NAME = 'reactions' THEN
+    v_action := 'reaction';
+    v_max_tokens := 30;
+    v_refill := 10;
+  ELSIF TG_TABLE_NAME = 'messages' THEN
+    v_action := 'send_message';
+    v_max_tokens := 30;
+    v_refill := 10;
+  ELSIF TG_TABLE_NAME = 'dice_rolls' THEN
+    v_action := 'roll_dice';
+    v_max_tokens := 20;
+    v_refill := 10;
+  ELSIF TG_TABLE_NAME = 'channels' THEN
+    v_action := 'create_channel';
+    v_max_tokens := 5;
+    v_refill := 1;
+  ELSIF TG_TABLE_NAME = 'channel_members' THEN
+    v_action := 'join_channel';
+    v_max_tokens := 10;
+    v_refill := 2;
+  ELSIF TG_TABLE_NAME = 'safety_card_events' THEN
+    v_action := 'x_card';
+    v_max_tokens := 10;
+    v_refill := 2;
+  ELSIF TG_TABLE_NAME = 'objects' AND TG_TABLE_SCHEMA = 'storage' THEN
+    v_action := 'image_upload';
+    v_max_tokens := 5;
+    v_refill := 1;
+  ELSE
+    RETURN NEW;
+  END IF;
+
+  IF NOT check_rate_limit(auth.uid(), v_action, v_max_tokens, v_refill) THEN
+    RAISE EXCEPTION 'Rate limit exceeded for %', v_action;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER enforce_reaction_rate_limit
+  BEFORE INSERT ON reactions
+  FOR EACH ROW EXECUTE FUNCTION trigger_enforce_rate_limit();
+
+CREATE TRIGGER enforce_safety_card_rate_limit
+  BEFORE INSERT ON safety_card_events
+  FOR EACH ROW EXECUTE FUNCTION trigger_enforce_rate_limit();
+
+CREATE TRIGGER enforce_storage_rate_limit
+  BEFORE INSERT ON storage.objects
+  FOR EACH ROW EXECUTE FUNCTION trigger_enforce_rate_limit();
 
 CREATE TRIGGER enforce_messages_rate_limit
   BEFORE INSERT ON messages
