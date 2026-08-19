@@ -7,6 +7,11 @@ import { usePushNotifications } from '../auth/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
+import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+
+vi.mock('../../hooks/useIsServerAdmin', () => ({
+  useIsServerAdmin: vi.fn()
+}))
 
 vi.mock('./useChannels', () => ({
   useChannels: vi.fn()
@@ -38,6 +43,7 @@ vi.mock('../../contexts/ToastContext', () => ({
 describe('Lobby', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
     vi.mocked(usePushNotifications).mockReturnValue({
       preferences: { badge_enabled: true } as any
     } as any)
@@ -232,6 +238,8 @@ describe('Lobby', () => {
       user: { id: 'u1' },
       profile: { server_admin: true }
     } as any)
+
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
 
     vi.mocked(supabase.rpc).mockResolvedValue({ data: true, error: null } as any)
 
