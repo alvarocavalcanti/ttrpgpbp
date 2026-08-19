@@ -12,7 +12,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000215', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue214-other@example.com', '', now(), '{}', '{}', now(), now());
 
 INSERT INTO channels (id, name, gm_id, invite_code)
-VALUES ('00000000-0000-0000-0000-000000000216', 'Issue 214', '00000000-0000-0000-0000-000000000214', 'issue214');
+VALUES ('00000000-0000-0000-0000-000000000216', 'Issue 214', '00000000-0000-0000-0000-000000000215', 'issue214');
 
 INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
 VALUES
@@ -50,6 +50,7 @@ SELECT throws_ok(
     SET content = repeat('x', 4001)
     WHERE id = '00000000-0000-0000-0000-000000000219'$$,
   'P0001',
+  'Message is too long (max 4000 characters).',
   'message edits reject content over 4000 characters'
 );
 
@@ -58,6 +59,7 @@ SELECT throws_ok(
     SET roll_dc = 20
     WHERE id = '00000000-0000-0000-0000-000000000219'$$,
   'P0001',
+  'Message metadata is immutable.',
   'message roll metadata is immutable'
 );
 
@@ -67,6 +69,7 @@ SELECT throws_ok(
     repeat('x', 501), NULL, NULL
   )$$,
   'P0001',
+  'Roll warning is too long (max 500 characters).',
   'roll warnings reject content over 500 characters'
 );
 
@@ -75,6 +78,7 @@ SELECT throws_ok(
     '00000000-0000-0000-0000-000000000215'
   )$$,
   'P0001',
+  'User id must match authenticated user.',
   'unread RPC rejects another user id'
 );
 
@@ -83,6 +87,7 @@ SELECT throws_ok(
     SET display_name = repeat('x', 41)
     WHERE id = '00000000-0000-0000-0000-000000000214'$$,
   '23514',
+  'new row for relation "profiles" violates check constraint "profiles_display_name_length"',
   'display names reject content over 40 characters'
 );
 
