@@ -18,9 +18,9 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000209
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000209","role":"authenticated"}', true);
 
 -- Test 1: Global suspension prevents joining channel
-SELECT throws_ok(
-  $$ SELECT join_channel('00000000-0000-0000-0000-000000000002', 'Char') $$,
-  'Account suspended.'
+SELECT is(
+  join_channel('00000000-0000-0000-0000-000000000002', 'Char'),
+  '{"success": false, "error": "Account suspended."}'::jsonb
 );
 
 UPDATE profiles SET is_suspended = false WHERE id = '00000000-0000-0000-0000-000000000209';
@@ -31,12 +31,12 @@ INSERT INTO channel_secrets (channel_id, password_hash) VALUES ('00000000-0000-0
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000219', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000219","role":"authenticated"}', true);
 
-SELECT throws_ok($$ SELECT join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong') $$, 'Invalid password or invite code');
-SELECT throws_ok($$ SELECT join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong') $$, 'Invalid password or invite code');
-SELECT throws_ok($$ SELECT join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong') $$, 'Invalid password or invite code');
-SELECT throws_ok($$ SELECT join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong') $$, 'Invalid password or invite code');
-SELECT throws_ok($$ SELECT join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong') $$, 'Invalid password or invite code');
-SELECT throws_ok($$ SELECT join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong') $$, 'Rate limit exceeded for password attempts. Please wait and try again.');
+SELECT is(join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong'), '{"success": false, "error": "Invalid password or invite code"}'::jsonb);
+SELECT is(join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong'), '{"success": false, "error": "Invalid password or invite code"}'::jsonb);
+SELECT is(join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong'), '{"success": false, "error": "Invalid password or invite code"}'::jsonb);
+SELECT is(join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong'), '{"success": false, "error": "Invalid password or invite code"}'::jsonb);
+SELECT is(join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong'), '{"success": false, "error": "Invalid password or invite code"}'::jsonb);
+SELECT is(join_channel('00000000-0000-0000-0000-000000000210', 'Char', NULL, NULL, 'wrong'), '{"success": false, "error": "Rate limit exceeded for password attempts. Please wait and try again."}'::jsonb);
 
 -- Test 3: Rate limiting blocks repeated actions (create channel, limit 5)
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000209', true);
