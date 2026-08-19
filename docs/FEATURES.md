@@ -5,6 +5,7 @@
 - **Dark mode** — a sun/moon toggle in the app header (and login page) switches between light and dark themes. The choice persists per device; the default follows the OS light/dark preference (applied before first paint to avoid a flash)
 
 - Google account sign-in
+- **Display name** — up to 40 characters; optional character sheet links are limited to 500 characters
 - **About** page — creator attribution, donation links, and GitHub project link
 - Per-channel **character name** (max 20 characters) and **avatar**
 - **Character modifiers** — per-game-system attribute modifier fields (e.g. STR/DEX); inputs accept integers only (floats/exponents/stray characters are rejected) and are clamped to the system's bounds
@@ -24,6 +25,7 @@
 ## Channels & Lobby
 
 - Any user can create a channel (becomes GM)
+- Channel names are limited to 80 characters
 - **Channel limit** — non-server-admins are capped at **N active channels**, where N is the admin-configured `app_settings.max_channels_per_user` (default 10). Server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast. Existing members over a lowered limit are never kicked.
 - **Lobby** lists only the private channels the user has joined
 - **Lobby shows your role per channel** — a "GM" badge when you run the channel, a "Player" badge otherwise
@@ -36,15 +38,15 @@
 - GM can **kick** (remove) or **block** a user (immediately revokes channel access, prevents re-entry, and can be undone via **Unblock**)
 - **System messages** announce member joins, leaves, kicks, blocks, and unblocks in the channel — each is written together with the member change in a single atomic step, so the announcement and the action can never fall out of sync
 - **Archived channels** reject new messages, reactions, and joins server-side, not just in the UI
-- **AFK / Away status** — any player can mark themselves away (with an optional away message like "Away until Monday"). Away members show an **AFK badge**, faded/grayscale avatar, and their away message in the member list; their name is struck through with an **(AFK)** tag in the active-player status bar. While away, **"It's your turn" push notifications are suppressed**.
-- Optional **map URL** (external link)
-- **Resources URL** (single URL — GDrive folder, PDF, etc.)
+- **AFK / Away status** — any player can mark themselves away (with an optional away message up to 200 characters, like "Away until Monday"). Away members show an **AFK badge**, faded/grayscale avatar, and their away message in the member list; their name is struck through with an **(AFK)** tag in the active-player status bar. While away, **"It's your turn" push notifications are suppressed**.
+- Optional **map URL** (external link, up to 500 characters)
+- **Resources URL** (single URL — GDrive folder, PDF, etc.; up to 500 characters)
 - **Export Chat** allows downloading the full message history to a Markdown file
 - GM can **Archive** a channel, removing it from the main lobby (viewable/restorable via side menu)
 
 ## Channel Status (persistent, collapsible)
 
-- **Free-form text** (markdown, emoji) — initiative order, timers, NPCs, etc.
+- **Free-form text** (markdown, emoji; up to 2,000 characters) — initiative order, timers, NPCs, etc.
 - **Active player(s)** — structured field, one or more players, drives notifications
 - Editable by GM at any time
 - When collapsed, first line remains visible
@@ -61,7 +63,7 @@
 - **Daily Dividers** — chat history is grouped by date visually
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete)
-- URLs posted as plain text with external link, no previews or embeds
+- Messages are limited to 4,000 characters. URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
 - **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification. Mention targets are verified server-side against the channel's members, so a mention can never be routed to an outsider. GMs can also use **`@all`** to mention every player at once (authorized server-side, GM-only). On desktop, arrow keys move the highlight through suggestions and Enter/Tab selects
 - **Emoji reactions** — react to any message from a quick-emoji picker; counts update live and toggle per user
@@ -70,7 +72,7 @@
 
 ## NPCs (GM-only)
 
-- **NPC mode** under the composer "+" options — select, type a name, and the message is attributed to the NPC
+- **NPC mode** under the composer "+" options — select, type a name (up to 40 characters), and the message is attributed to the NPC
 - **Create on the fly** — a new name creates the NPC automatically with a random game-icons.net portrait; an existing name reuses the existing portrait
 - **Portrait picker** — search game-icons.net by name/tag and pick a specific icon (curated subset first, full search fallback)
 - **Roster persisted per channel** (`channel_npcs`) — autocompletes existing NPC names; GMs can re-randomize or pick a portrait at any time
@@ -131,8 +133,8 @@
 
 ## Safety Tools (Lines & Veils / X-Card)
 
-- **Lines & Veils** — GM-editable persistent text fields (collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
-- **Safety Tools URL** — optional external link (e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
+- **Lines & Veils** — GM-editable persistent text fields (up to 2,000 characters each; collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
+- **Safety Tools URL** — optional external link (up to 500 characters; e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
 - **X-Card** — a red card-with-X button in the message composer and on each message flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast.
 
 ## Help

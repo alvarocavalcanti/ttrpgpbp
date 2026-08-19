@@ -12,6 +12,8 @@ title: Messages
 
 Messages support **Markdown** and emoji. Bold, italics, lists, headings and code all work. URLs you post become clickable links.
 
+Messages can contain up to **4,000 characters**, including Markdown. The same limit applies when editing.
+
 ## Editing and deleting
 
 - Messages can be **edited** within 15 minutes of posting. Edited messages are marked "edited".

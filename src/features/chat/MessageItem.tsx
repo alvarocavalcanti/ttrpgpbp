@@ -6,6 +6,7 @@ import { getSystemAttributes, clampModifier } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage } from './types'
+import { MAX_MESSAGE_LENGTH } from '../../constants'
 
 type Message = ChatMessage
 
@@ -283,6 +284,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
+                maxLength={MAX_MESSAGE_LENGTH}
                 className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                 rows={3}
               />
@@ -448,6 +450,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
+                maxLength={MAX_MESSAGE_LENGTH}
                 className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                 rows={3}
               />

@@ -8,7 +8,7 @@ The GM can speak as **NPCs** (non-player characters) with their own name and por
 ## Speaking as an NPC
 
 1. Open the **"+"** options in the message composer.
-2. Select **NPC mode** and type a name.
+2. Select **NPC mode** and type a name of up to 40 characters.
 3. The message is attributed to the NPC.
 
 ## Creating NPCs on the fly

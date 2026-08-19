@@ -73,6 +73,7 @@ describe('NpcManagementModal', () => {
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
     fireEvent.click(screen.getByLabelText('Rename Goblin King'))
     const input = screen.getByLabelText('NPC name') as HTMLInputElement
+    expect(input).toHaveAttribute('maxLength', '40')
     fireEvent.change(input, { target: { value: 'Goblin Prince' } })
     fireEvent.click(screen.getByText('Save'))
     await waitFor(() => {
@@ -99,6 +100,7 @@ describe('NpcManagementModal', () => {
   it('adds a new NPC', async () => {
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
     const input = screen.getByLabelText('New NPC name') as HTMLInputElement
+    expect(input).toHaveAttribute('maxLength', '40')
     fireEvent.change(input, { target: { value: 'Orc Warlord' } })
     fireEvent.click(screen.getByText('Add'))
     await waitFor(() => {

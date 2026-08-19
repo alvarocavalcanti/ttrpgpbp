@@ -24,6 +24,9 @@ jobs:
       - name: Verify migrations apply from scratch
         run: supabase db reset
 
+      - name: Run database regression tests
+        run: supabase test db --local
+
   test:
     needs: migrate-check
     runs-on: ubuntu-latest

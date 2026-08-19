@@ -307,6 +307,21 @@ describe('MemberList', () => {
     })
   })
 
+  it('rejects away messages over 200 characters', async () => {
+    window.prompt = vi.fn().mockReturnValue('x'.repeat(201))
+    const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn() })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Away (AFK)'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Away message is limited to 200 characters.')).toBeInTheDocument()
+      expect(mockUpdate).not.toHaveBeenCalled()
+    })
+  })
+
   it('allows marking self as back (clears away)', async () => {
     window.prompt = vi.fn()
     const mockEq = vi.fn().mockResolvedValue({ error: null })

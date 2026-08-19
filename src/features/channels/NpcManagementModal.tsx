@@ -6,6 +6,7 @@ import { randomNpcIconUrl } from '../chat/npcIcons'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useToast } from '../../contexts/ToastContext'
+import { MAX_NPC_NAME_LENGTH } from '../../constants'
 
 type Npc = Database['public']['Tables']['channel_npcs']['Row']
 
@@ -144,6 +145,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                         <input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
+                          maxLength={MAX_NPC_NAME_LENGTH}
                           aria-label="NPC name"
                           className="flex-1 min-w-0 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                           autoFocus
@@ -224,7 +226,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="NPC name"
                   aria-label="New NPC name"
-                  maxLength={40}
+                  maxLength={MAX_NPC_NAME_LENGTH}
                   className="flex-1 min-w-0 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
                 />

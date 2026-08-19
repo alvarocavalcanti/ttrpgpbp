@@ -44,6 +44,19 @@ describe('MessageItem', () => {
     await waitFor(() => expect(mockOnEdit).toHaveBeenCalledWith('n1', 'Intruders!'))
   })
 
+  it('caps message edits at 4000 characters', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'Short message',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1',
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Edit'))
+    expect(screen.getByDisplayValue('Short message')).toHaveAttribute('maxLength', '4000')
+  })
+
   it('renders scene message correctly', () => {
     const msg: any = { type: 'scene', content: 'You enter a dark tavern' }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)

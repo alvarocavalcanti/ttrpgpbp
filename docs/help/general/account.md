@@ -4,7 +4,7 @@ title: Account & Settings
 
 ## Display name and avatar
 
-Your account has a **display name** and **avatar**, shown in the app header. Edit them from the **Settings** page, reachable from the menu in the top-right.
+Your account has a **display name** (up to 40 characters) and **avatar**, shown in the app header. Edit them from the **Settings** page, reachable from the menu in the top-right.
 
 ## Dark mode
 
@@ -16,7 +16,7 @@ Each channel has its own **character name** (max 20 characters) and avatar, so y
 
 ## Character sheet
 
-You can link an optional **character sheet URL** per user per channel.
+You can link an optional **character sheet URL** (up to 500 characters) per user per channel.
 
 ## Server admin
 

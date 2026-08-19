@@ -7,7 +7,7 @@ The **Channel Status Bar** sits at the top of the channel and keeps the group's 
 
 ## What it shows
 
-- **Free-form text** with markdown and emoji support
+- **Free-form text** with markdown and emoji support, up to 2,000 characters
 - **Active player(s)** — a structured field naming who's up, which drives notifications
 - When collapsed, the first line stays visible
 

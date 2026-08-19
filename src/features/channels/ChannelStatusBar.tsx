@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { supabase } from '../../lib/supabase'
+import { MAX_STATUS_LENGTH } from '../../constants'
 
 interface ActivePlayer {
   character_name: string
@@ -75,6 +76,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
+                maxLength={MAX_STATUS_LENGTH}
                 placeholder="Write status, initiative order, or timers here... (Markdown supported)"
                 className="w-full text-gray-900 dark:text-gray-100 border-amber-300 dark:border-amber-700 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white dark:bg-gray-800 p-2"
                 rows={4}

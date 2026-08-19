@@ -93,8 +93,11 @@ describe('ChannelSettings', () => {
     render(<ChannelSettings channel={mockChannel} gmOnlyResourcesUrl="http://gmresources" onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     expect(screen.getByDisplayValue('Game Room')).toBeInTheDocument()
+    expect(screen.getByLabelText('Channel Name')).toHaveAttribute('maxLength', '80')
     expect(screen.getByDisplayValue('http://map')).toBeInTheDocument()
+    expect(screen.getByLabelText('Map URL')).toHaveAttribute('maxLength', '500')
     expect(screen.getByDisplayValue('http://gmresources')).toBeInTheDocument()
+    expect(screen.getByLabelText('GM-Only Resources URL')).toHaveAttribute('maxLength', '500')
     expect(screen.getByDisplayValue('http://localhost/join/c1?code=123')).toBeInTheDocument()
   })
 

@@ -98,6 +98,7 @@ describe('ProfileSettings', () => {
     renderWithRouter(<ProfileSettings />)
 
     expect(screen.getByDisplayValue('Test Player')).toBeInTheDocument()
+    expect(screen.getByLabelText('Display Name')).toHaveAttribute('maxLength', '40')
     expect(screen.getByDisplayValue('user@example.com')).toBeDisabled()
     expect(screen.getByRole('img', { name: 'Avatar' })).toHaveAttribute('src', 'https://example.com/avatar.jpg')
   })

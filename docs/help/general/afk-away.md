@@ -7,7 +7,7 @@ Set yourself **away** to let the group know you're stepping out.
 ## How to go away
 
 1. Mark yourself away in the channel.
-2. Optionally add a message, e.g. "Away until Monday".
+2. Optionally add a message of up to 200 characters, e.g. "Away until Monday".
 
 ## What others see
 

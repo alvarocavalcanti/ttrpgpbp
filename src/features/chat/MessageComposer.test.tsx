@@ -46,6 +46,11 @@ describe('MessageComposer', () => {
     })
   })
 
+  it('caps composed messages at 4000 characters', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    expect(screen.getByPlaceholderText(/Type a message/i)).toHaveAttribute('maxLength', '4000')
+  })
+
   it('allows GM to send scene', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
@@ -63,6 +68,13 @@ describe('MessageComposer', () => {
         active_player_ids: undefined
       })
     })
+  })
+
+  it('caps NPC names at 40 characters', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC'))
+    expect(screen.getByLabelText('NPC Name')).toHaveAttribute('maxLength', '40')
   })
 
   it('allows sending whispers', async () => {
