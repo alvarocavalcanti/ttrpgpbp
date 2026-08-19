@@ -1,3 +1,4 @@
 export NODE_OPTIONS="$(sh "$(dirname "$0")/_sanitize-node-options.sh")"
 npm run build
 npm run test:coverage
+npx playwright test
