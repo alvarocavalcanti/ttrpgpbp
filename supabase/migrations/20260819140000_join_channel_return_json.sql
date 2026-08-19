@@ -50,10 +50,7 @@ BEGIN
   ELSIF v_channel.invite_code IS NOT NULL AND v_channel.invite_code = p_invite_code THEN
     -- Allowed via invite code
   ELSIF v_secret IS NOT NULL AND v_secret.password_hash IS NOT NULL THEN
-    -- They are attempting a password. Enforce a strict rate limit for password guesses.
-    IF NOT check_rate_limit(auth.uid(), 'password_attempt', 5, 1) THEN
-      RETURN jsonb_build_object('success', false, 'error', 'Rate limit exceeded for password attempts. Please wait and try again.');
-    END IF;
+
     IF v_secret.password_hash = p_password_hash THEN
       -- Allowed via password
     ELSE
