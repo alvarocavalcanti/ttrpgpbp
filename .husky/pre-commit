@@ -1,2 +1,4 @@
 export NODE_OPTIONS="$(sh "$(dirname "$0")/_sanitize-node-options.sh")"
 npm run lint
+npm run lint:md
+npm run spellcheck
