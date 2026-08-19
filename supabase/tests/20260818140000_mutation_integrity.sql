@@ -8,11 +8,12 @@ INSERT INTO auth.users (
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 )
 VALUES
+  ('00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue214-gm@example.com', '', now(), '{}', '{}', now(), now()),
   ('00000000-0000-0000-0000-000000000214', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue214-author@example.com', '', now(), '{}', '{}', now(), now()),
   ('00000000-0000-0000-0000-000000000215', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue214-other@example.com', '', now(), '{}', '{}', now(), now());
 
 INSERT INTO channels (id, name, gm_id, invite_code)
-VALUES ('00000000-0000-0000-0000-000000000216', 'Issue 214', '00000000-0000-0000-0000-000000000215', 'issue214');
+VALUES ('00000000-0000-0000-0000-000000000216', 'Issue 214', '00000000-0000-0000-0000-000000000213', 'issue214');
 
 INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
 VALUES
