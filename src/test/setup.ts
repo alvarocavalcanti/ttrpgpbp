@@ -19,6 +19,7 @@ if (sessionStorage) {
 // jsdom has no matchMedia; the theme toggle reads it on mount. Default stub
 // (light) so every test that renders the app header or login page is stable.
 beforeEach(() => {
+  window.scrollTo = () => {}
   if (!window.matchMedia) {
     window.matchMedia = (query: string) => ({
       matches: false,
