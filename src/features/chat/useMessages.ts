@@ -245,6 +245,7 @@ export function useMessages(channelId: string | undefined) {
       mounted = false
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       stopRealtime()
+      void supabase.removeChannel(realtimeChannel)
     }
   }, [channelId, user?.id])
 

@@ -91,6 +91,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       stopRealtime()
+      void supabase.removeChannel(realtimeChannel)
     }
   }, [channelId])
 

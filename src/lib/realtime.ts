@@ -75,6 +75,7 @@ export function subscribeWithRetry(
   const subscribe = () => {
     if (!active) return
     currentSubscription = channel.subscribe((status) => {
+      if (!active) return
       reportRealtimeStatus(channelId, status)
       onStatus?.(status)
 
