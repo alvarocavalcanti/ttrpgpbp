@@ -30,6 +30,10 @@ WHERE id = '00000000-0000-0000-0000-000000000220';
 
 SELECT plan(10);
 
+-- pgTAP test runner needs explicit grants that Supabase usually provides by default
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000214', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000214","role":"authenticated"}', true);
