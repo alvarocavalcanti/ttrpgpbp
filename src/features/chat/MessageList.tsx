@@ -21,13 +21,15 @@ interface MessageListProps {
   onJumpToMessage?: (messageId: string) => void
   lastReadAt?: string | null
   onXCard?: (messageId: string) => void
+  onRetry?: (messageId: string) => void
+  onRemovePending?: (messageId: string) => void
   error?: Error | null
   hasMore?: boolean
   loadingOlder?: boolean
   onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, onRetry, onRemovePending, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   const endOfListRef = useRef<HTMLDivElement>(null)
@@ -150,10 +152,12 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               reactions={reactionsByMessage?.[message.id]}
               onToggleReaction={onToggleReaction}
               onReply={onReply}
-              onJumpToMessage={onJumpToMessage}
-              onXCard={onXCard}
-            />
-          </Fragment>
+                onJumpToMessage={onJumpToMessage}
+                onXCard={onXCard}
+                onRetry={onRetry}
+                onRemovePending={onRemovePending}
+              />
+            </Fragment>
         )
       })}
       <div ref={endOfListRef} />

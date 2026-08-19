@@ -13,4 +13,8 @@ export type ChatMessage = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
   whisper_target?: { display_name: string | null; avatar_url: string | null } | null
   reply?: ReplyMessage | null
+  client_request_id?: string | null
+  pending?: boolean
+  error?: string | null
+  pending_payload?: any
 }

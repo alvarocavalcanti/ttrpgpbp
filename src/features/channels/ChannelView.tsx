@@ -37,7 +37,7 @@ export function ChannelView() {
   }, [id, user?.id, preferences?.badge_enabled])
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction } = useMessages(id)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage } = useMessages(id)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
@@ -243,6 +243,8 @@ export function ChannelView() {
           onJumpToMessage={handleJumpToMessage}
           lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
           onXCard={triggerXCard}
+          onRetry={retryMessage}
+          onRemovePending={removePendingMessage}
           error={messagesError}
           hasMore={hasMore}
           loadingOlder={loadingOlder}

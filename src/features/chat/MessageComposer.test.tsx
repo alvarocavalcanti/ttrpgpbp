@@ -22,11 +22,69 @@ describe('MessageComposer', () => {
   beforeEach(() => {
     mockUploadImage.mockReset()
     mockUploadImage.mockResolvedValue('https://supabase/images/c1/message/u.jpg')
+    localStorage.clear()
     vi.mocked(useImageUpload).mockReturnValue({
       uploadEnabled: true,
       settingsLoading: false,
       uploading: false,
       uploadImage: mockUploadImage,
+    })
+  })
+
+  it('restores draft from localStorage on mount and isolates by channel', () => {
+    localStorage.setItem('ttrpg_draft_c1', 'draft for c1')
+    localStorage.setItem('ttrpg_draft_c2', 'draft for c2')
+
+    const { getByPlaceholderText, unmount } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+    const textarea = getByPlaceholderText(/Type a message/i)
+    expect(textarea).toHaveValue('draft for c1')
+
+    unmount()
+    const { getByPlaceholderText: getByPlaceholderText2 } = render(
+      <MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+    expect(getByPlaceholderText2(/Type a message/i)).toHaveValue('draft for c2')
+  })
+
+  it('saves draft to localStorage on change and clears on success', async () => {
+    const mockOnSendMessage = vi.fn().mockResolvedValue(undefined)
+    const { getByPlaceholderText, getByRole } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={mockOnSendMessage} />
+    )
+    
+    const textarea = getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'new draft' } })
+    
+    expect(localStorage.getItem('ttrpg_draft_c1')).toBe('new draft')
+    
+    const submitBtn = getByRole('button', { name: /Send/i })
+    fireEvent.click(submitBtn)
+    
+    await waitFor(() => {
+      expect(mockOnSendMessage).toHaveBeenCalled()
+      expect(localStorage.getItem('ttrpg_draft_c1')).toBeNull()
+      expect(textarea).toHaveValue('')
+    })
+  })
+
+  it('retains draft on failure', async () => {
+    const mockOnSendMessage = vi.fn().mockRejectedValue(new Error('Network error'))
+    const { getByPlaceholderText, getByRole } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={mockOnSendMessage} />
+    )
+    
+    const textarea = getByPlaceholderText(/Type a message/i)
+    fireEvent.change(textarea, { target: { value: 'failed message' } })
+    
+    const submitBtn = getByRole('button', { name: /Send/i })
+    fireEvent.click(submitBtn)
+    
+    await waitFor(() => {
+      expect(mockOnSendMessage).toHaveBeenCalled()
+      expect(localStorage.getItem('ttrpg_draft_c1')).toBe('failed message')
+      expect(textarea).toHaveValue('failed message')
     })
   })
 
