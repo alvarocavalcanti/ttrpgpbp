@@ -67,7 +67,7 @@ describe('JoinChannel', () => {
   it('renders form and joins successfully without password', async () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview() as any)
-      .mockResolvedValueOnce({ error: null } as any)
+      .mockResolvedValueOnce({ data: { success: true }, error: null } as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -104,7 +104,7 @@ describe('JoinChannel', () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview({ has_password: true }) as any)
       .mockResolvedValueOnce({ data: null, error: null } as any)
-      .mockResolvedValueOnce({ error: null } as any)
+      .mockResolvedValueOnce({ data: { success: true }, error: null } as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -139,7 +139,7 @@ describe('JoinChannel', () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview({ has_password: true }) as any)
       .mockResolvedValueOnce({ data: 'aabbccddeeff00112233445566778899', error: null } as any)
-      .mockResolvedValueOnce({ error: null } as any)
+      .mockResolvedValueOnce({ data: { success: true }, error: null } as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -176,7 +176,7 @@ describe('JoinChannel', () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview({ has_password: true }) as any)
       .mockResolvedValueOnce({ data: null, error: null } as any)
-      .mockResolvedValueOnce({ error: null } as any)
+      .mockResolvedValueOnce({ data: { success: true }, error: null } as any)
 
     render(
       <MemoryRouter initialEntries={['/join/123']}>
@@ -210,7 +210,7 @@ describe('JoinChannel', () => {
   it('surfaces the RPC error message when joining fails', async () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview() as any)
-      .mockResolvedValueOnce({ error: new Error('This channel has been archived and can no longer be joined.') } as any)
+      .mockResolvedValueOnce({ data: { success: false, error: 'This channel has been archived and can no longer be joined.' }, error: null } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -258,7 +258,7 @@ describe('JoinChannel', () => {
   it('shows join form with invite code even if the preview cannot be loaded', async () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce({ data: [], error: new Error('Preview unavailable') } as any)
-      .mockResolvedValueOnce({ error: null } as any)
+      .mockResolvedValueOnce({ data: { success: true }, error: null } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -322,7 +322,7 @@ describe('JoinChannel', () => {
   })
 
   it('accepts only integer stat input and joins with clamped modifiers', async () => {
-    const mockJoin = vi.fn().mockResolvedValue({ error: null })
+    const mockJoin = vi.fn().mockResolvedValue({ data: { success: true }, error: null })
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview({ game_system: 'shadowdark' }) as any)
       .mockImplementationOnce(mockJoin)

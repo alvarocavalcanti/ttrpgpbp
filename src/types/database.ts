@@ -591,7 +591,7 @@ export interface Database {
           p_invite_code?: string
           p_character_attributes?: Record<string, number>
         }
-        Returns: undefined
+        Returns: Json
       }
       roll_dice: {
         Args: {

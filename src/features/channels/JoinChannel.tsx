@@ -77,7 +77,7 @@ export function JoinChannel() {
         numericAttributes[attr] = clampModifier(channel?.game_system, num)
       }
 
-      const { error: rpcError } = await supabase.rpc('join_channel', {
+      const { data, error: rpcError } = await supabase.rpc('join_channel', {
         p_channel_id: id,
         p_character_name: characterName,
         p_password_hash: passwordHash,
@@ -87,11 +87,14 @@ export function JoinChannel() {
 
       if (rpcError) throw rpcError
 
+      const result = data as { success: boolean; error?: string } | null;
+      if (result && !result.success) {
+        throw new Error(result.error || 'Failed to join channel.')
+      }
+
       navigate(`/channel/${id}`)
     } catch (err: any) {
       console.error('Error joining channel:', err)
-      // RPC exceptions are user-facing messages (invalid password/code, channel
-      // archived, limit reached), so surface them directly.
       setError(err?.message || 'Failed to join channel. Invalid password or invite code.')
     } finally {
       setIsSubmitting(false)
