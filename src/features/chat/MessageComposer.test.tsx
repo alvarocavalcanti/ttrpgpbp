@@ -32,8 +32,8 @@ describe('MessageComposer', () => {
   })
 
   it('restores draft from localStorage on mount and isolates by channel', () => {
-    localStorage.setItem('ttrpg_draft_c1', 'draft for c1')
-    localStorage.setItem('ttrpg_draft_c2', 'draft for c2')
+    localStorage.setItem('composer_draft_c1', 'draft for c1')
+    localStorage.setItem('composer_draft_c2', 'draft for c2')
 
     const { getByPlaceholderText, unmount } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
@@ -57,14 +57,14 @@ describe('MessageComposer', () => {
     const textarea = getByPlaceholderText(/Type a message/i)
     fireEvent.change(textarea, { target: { value: 'new draft' } })
     
-    expect(localStorage.getItem('ttrpg_draft_c1')).toBe('new draft')
+    expect(localStorage.getItem('composer_draft_c1')).toBe('new draft')
     
     const submitBtn = getByRole('button', { name: /Send/i })
     fireEvent.click(submitBtn)
     
     await waitFor(() => {
       expect(mockOnSendMessage).toHaveBeenCalled()
-      expect(localStorage.getItem('ttrpg_draft_c1')).toBeNull()
+      expect(localStorage.getItem('composer_draft_c1')).toBeNull()
       expect(textarea).toHaveValue('')
     })
   })
@@ -83,7 +83,7 @@ describe('MessageComposer', () => {
     
     await waitFor(() => {
       expect(mockOnSendMessage).toHaveBeenCalled()
-      expect(localStorage.getItem('ttrpg_draft_c1')).toBe('failed message')
+      expect(localStorage.getItem('composer_draft_c1')).toBe('failed message')
       expect(textarea).toHaveValue('failed message')
     })
   })
