@@ -231,41 +231,42 @@ serve(async (req) => {
       return json({ success: true, message: "No targets" }, 200, req)
     }
 
-    // Get notification preferences and subscriptions for these users
-    const { data: prefs } = await serviceClient
-      .from("notification_preferences")
-      .select("user_id, push_enabled, badge_enabled")
-      .in("user_id", targetUserIds)
-
-    const pushEnabledUserIds = targetUserIds.filter(uid => {
-      const p = prefs?.find(pref => pref.user_id === uid)
-      return p ? p.push_enabled : true // Default to true if no preference set
-    })
-
-    if (pushEnabledUserIds.length === 0) {
-      return json({ success: true, message: "Push disabled for all targets" }, 200, req)
-    }
-
-    // Per-user badge_enabled (default true) and total unread, so the service
-    // worker can set the app icon badge count on supported platforms.
+    const targetUserIdsArray = Array.from(targetUserIds)
+    const pushEnabledUserIds: string[] = []
     const badgeEnabledById = new Map<string, boolean>()
-    for (const uid of pushEnabledUserIds) {
-      const p = prefs?.find(pref => pref.user_id === uid)
-      badgeEnabledById.set(uid, p ? p.badge_enabled !== false : true)
+    const unreadById = new Map<string, number>()
+    const subs: any[] = []
+
+    const BATCH_SIZE = 50
+
+    for (let i = 0; i < targetUserIdsArray.length; i += BATCH_SIZE) {
+      const batchIds = targetUserIdsArray.slice(i, i + BATCH_SIZE)
+
+      const [{ data: prefs }, { data: unreadRows }, { data: batchSubs }] = await Promise.all([
+        serviceClient.from("notification_preferences").select("user_id, push_enabled, badge_enabled").in("user_id", batchIds),
+        serviceClient.rpc("get_unread_totals", { p_user_ids: batchIds }),
+        serviceClient.from("push_subscriptions").select("*").in("user_id", batchIds)
+      ])
+
+      for (const uid of batchIds) {
+        const p = prefs?.find(pref => pref.user_id === uid)
+        const enabled = p ? p.push_enabled : true
+        if (enabled) {
+          pushEnabledUserIds.push(uid)
+          badgeEnabledById.set(uid, p ? p.badge_enabled !== false : true)
+        }
+      }
+
+      for (const row of unreadRows ?? []) {
+        unreadById.set(row.user_id, row.unread_count)
+      }
+
+      if (batchSubs) {
+        subs.push(...batchSubs.filter(sub => pushEnabledUserIds.includes(sub.user_id)))
+      }
     }
 
-    const { data: unreadRows } = await serviceClient
-      .rpc("get_unread_totals", { p_user_ids: pushEnabledUserIds })
-    const unreadById = new Map<string, number>(
-      (unreadRows ?? []).map((row: { user_id: string; unread_count: number }) => [row.user_id, row.unread_count])
-    )
-
-    const { data: subs } = await serviceClient
-      .from("push_subscriptions")
-      .select("*")
-      .in("user_id", pushEnabledUserIds)
-
-    if (!subs || subs.length === 0) {
+    if (subs.length === 0) {
       return json({ success: true, message: "No active subscriptions" }, 200, req)
     }
 
@@ -283,65 +284,69 @@ serve(async (req) => {
       vapidPrivate
     )
 
-    const pushPromises = subs.map(async (sub) => {
-      const pushPayload = JSON.stringify(buildPushPayload(
-        { title, body, url },
-        unreadById.get(sub.user_id) ?? 0,
-        badgeEnabledById.get(sub.user_id) ?? true
-      ))
+    const results: string[] = []
+    const CONCURRENCY = 20
 
-      const outcome = await sendWithRetry(
-        (subscription, payload) =>
-          webPush.sendNotification(
-            subscription as { endpoint: string; keys: { p256dh: string; auth: string } },
-            payload as string
-          ),
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        pushPayload
-      )
+    for (let i = 0; i < subs.length; i += CONCURRENCY) {
+      const chunk = subs.slice(i, i + CONCURRENCY)
+      const pushPromises = chunk.map(async (sub) => {
+        const pushPayload = JSON.stringify(buildPushPayload(
+          { title, body, url },
+          unreadById.get(sub.user_id) ?? 0,
+          badgeEnabledById.get(sub.user_id) ?? true
+        ))
 
-      if (outcome.status === "sent") {
+        const outcome = await sendWithRetry(
+          (subscription, payload) =>
+            webPush.sendNotification(
+              subscription as { endpoint: string; keys: { p256dh: string; auth: string } },
+              payload as string
+            ),
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          pushPayload
+        )
+
+        if (outcome.status === "sent") {
+          await logDelivery(serviceClient, {
+            event_id: eventId,
+            event_kind: event.kind,
+            status: "sent",
+            user_id: sub.user_id,
+            subscription_id: sub.id,
+          })
+          return outcome.status
+        }
+
+        if (outcome.status === "invalid") {
+          await serviceClient
+            .from("push_subscriptions")
+            .delete()
+            .eq("id", sub.id)
+          await logDelivery(serviceClient, {
+            event_id: eventId,
+            event_kind: event.kind,
+            status: "invalid",
+            error_category: "invalid",
+            user_id: sub.user_id,
+            subscription_id: sub.id,
+          })
+          return outcome.status
+        }
+
         await logDelivery(serviceClient, {
           event_id: eventId,
           event_kind: event.kind,
-          status: "sent",
+          status: outcome.status,
+          error_category: outcome.status,
           user_id: sub.user_id,
           subscription_id: sub.id,
         })
         return outcome.status
-      }
-
-      if (outcome.status === "invalid") {
-        // Subscription confirmed gone (HTTP 404/410): remove it so this device
-        // stops being a failed recipient. Other devices are unaffected.
-        await serviceClient
-          .from("push_subscriptions")
-          .delete()
-          .eq("id", sub.id)
-        await logDelivery(serviceClient, {
-          event_id: eventId,
-          event_kind: event.kind,
-          status: "invalid",
-          error_category: "invalid",
-          user_id: sub.user_id,
-          subscription_id: sub.id,
-        })
-        return outcome.status
-      }
-
-      // transient: retries exhausted. failed: permanent non-404/410 error.
-      await logDelivery(serviceClient, {
-        event_id: eventId,
-        event_kind: event.kind,
-        status: outcome.status,
-        error_category: outcome.status,
-        user_id: sub.user_id,
-        subscription_id: sub.id,
       })
-      return outcome.status
-    })
-
-    const results = await Promise.all(pushPromises)
+      
+      const chunkResults = await Promise.all(pushPromises)
+      results.push(...chunkResults)
+    }
 
     // Report recipients actually notified, not everyone attempted.
     return json({ success: true, notified: results.filter(s => s === "sent").length }, 200, req)
