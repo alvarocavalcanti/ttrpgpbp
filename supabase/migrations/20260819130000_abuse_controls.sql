@@ -184,7 +184,7 @@ BEGIN
     RAISE EXCEPTION 'Account suspended.';
   END IF;
 
-  IF TG_TABLE_NAME = 'reactions' THEN
+  IF TG_TABLE_NAME = 'message_reactions' THEN
     v_action := 'reaction';
     v_max_tokens := 30;
     v_refill := 10;
@@ -225,7 +225,7 @@ END;
 $$;
 
 CREATE TRIGGER enforce_reaction_rate_limit
-  BEFORE INSERT ON reactions
+  BEFORE INSERT ON message_reactions
   FOR EACH ROW EXECUTE FUNCTION trigger_enforce_rate_limit();
 
 CREATE TRIGGER enforce_safety_card_rate_limit
