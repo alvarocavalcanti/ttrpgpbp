@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
+import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 
 import { EditCharacterModal } from './EditCharacterModal'
 
@@ -106,6 +107,10 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       if (!targetMember.is_away) {
         const entered = window.prompt('Optional away message (e.g. "Away until Monday"). Leave blank for none.')
         if (entered === null) return
+        if (entered.length > MAX_AWAY_MESSAGE_LENGTH) {
+          setError(`Away message is limited to ${MAX_AWAY_MESSAGE_LENGTH} characters.`)
+          return
+        }
         awayMessage = entered.trim() || null
       }
       const { error } = await supabase
@@ -341,4 +346,3 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     </div>
   )
 }
-

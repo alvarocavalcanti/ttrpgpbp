@@ -267,6 +267,12 @@ describe('useMessages', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ is_deleted: true })
   })
 
+  it('rejects oversized message edits before sending them', async () => {
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await expect(result.current.editMessage('m1', 'x'.repeat(4001))).rejects.toThrow('max 4000')
+  })
+
   it('sends reply_to when replying', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
@@ -462,6 +468,13 @@ describe('useMessages', () => {
       p_notation: '1d20+5',
       p_reply_to: 'parent1'
     }))
+  })
+
+  it('rejects oversized roll warnings before sending them', async () => {
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await expect(result.current.sendDiceRoll('1d20', undefined, 'x'.repeat(501))).rejects.toThrow('max 500')
+    expect(supabase.rpc).not.toHaveBeenCalledWith('roll_dice', expect.anything())
   })
 
   it('passes the DC and reply target for check rolls', async () => {

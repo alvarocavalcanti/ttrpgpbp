@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { getSystemAttributes, clampModifier, isValidModifierInput } from '../../game-systems'
+import { MAX_URL_LENGTH } from '../../constants'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
 
@@ -108,6 +109,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
                 <input
                   type="url"
                   id="charUrl"
+                  maxLength={MAX_URL_LENGTH}
                   value={characterSheetUrl}
                   onChange={(e) => setCharacterSheetUrl(e.target.value)}
                   className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"

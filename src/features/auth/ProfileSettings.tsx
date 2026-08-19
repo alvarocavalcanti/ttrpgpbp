@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { usePushNotifications } from './usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { buildUserDataExport, downloadJson } from './exportUserData'
+import { MAX_DISPLAY_NAME_LENGTH } from '../../constants'
 
 export function ProfileSettings() {
   const { user, profile, signOut } = useAuth()
@@ -161,6 +162,7 @@ export function ProfileSettings() {
               <input
                 type="text"
                 id="displayName"
+                maxLength={MAX_DISPLAY_NAME_LENGTH}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -366,4 +368,3 @@ export function ProfileSettings() {
     </div>
   )
 }
-

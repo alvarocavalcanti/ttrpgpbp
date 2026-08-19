@@ -9,11 +9,11 @@ Everything the **GM** can do to run and manage a channel.
 
 Open **Settings** from the channel sidebar to configure:
 
-- Channel name and game system
+- Channel name (up to 80 characters) and game system
 - **Channel avatar** — upload an image shown in the channel list and header (requires the server admin to enable image uploads)
 - Status bar text and active player(s)
-- Map, resources, and GM resources URLs — the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
-- Safety Tools Doc URL and Lines & Veils
+- Map, resources, and GM resources URLs (up to 500 characters) — the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
+- Safety Tools Doc URL (up to 500 characters) and Lines & Veils (up to 2,000 characters each)
 
 ## Managing members
 

@@ -51,6 +51,16 @@ describe('CreateChannelModal', () => {
     }) as any)
   })
 
+  it('caps channel names at 80 characters', () => {
+    render(
+      <MemoryRouter>
+        <CreateChannelModal onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByLabelText('Channel Name')).toHaveAttribute('maxLength', '80')
+  })
+
   it('creates channel atomically via create_channel RPC with password', async () => {
     const mockOnClose = vi.fn()
 

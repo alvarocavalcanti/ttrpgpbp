@@ -66,6 +66,7 @@ describe('ChannelStatusBar', () => {
     fireEvent.click(screen.getByText('Edit'))
     
     const textarea = screen.getByDisplayValue('Old status')
+    expect(textarea).toHaveAttribute('maxLength', '2000')
     fireEvent.change(textarea, { target: { value: 'New status' } })
     
     fireEvent.click(screen.getByText('Save Status'))

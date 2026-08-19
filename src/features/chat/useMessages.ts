@@ -4,6 +4,7 @@ import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import type { ChatMessage } from './types'
 import { subscribeWithRetry } from '../../lib/realtime'
+import { MAX_MESSAGE_LENGTH, MAX_ROLL_WARNING_LENGTH } from '../../constants'
 
 export interface ReactionSummary {
   emoji: string
@@ -273,6 +274,7 @@ export function useMessages(channelId: string | undefined) {
 
   const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => {
     if (!channelId || !user) return
+    if (payload.content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
 
     // The send_message command owns message semantics server-side: membership
     // and archived checks, mention resolution + @all authorization, reply and
@@ -294,6 +296,7 @@ export function useMessages(channelId: string | undefined) {
 
   const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
     if (!channelId || !user) return
+    if (warning && warning.length > MAX_ROLL_WARNING_LENGTH) throw new Error(`Roll warning is too long (max ${MAX_ROLL_WARNING_LENGTH} characters).`)
 
     // roll_dice is authoritative: the server validates the notation, rolls
     // server-side, clamps the modifier to the game system's bounds, computes
@@ -310,6 +313,7 @@ export function useMessages(channelId: string | undefined) {
   }, [channelId, user?.id])
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
+    if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
     const { error } = await supabase
       .from('messages')
       .update({ content, is_edited: true, updated_at: new Date().toISOString() })

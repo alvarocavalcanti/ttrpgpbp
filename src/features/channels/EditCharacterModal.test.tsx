@@ -22,6 +22,7 @@ describe('EditCharacterModal', () => {
   it('limits character name input to 20 characters', () => {
     render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
     expect(screen.getByLabelText('Character Name')).toHaveAttribute('maxlength', '20')
+    expect(screen.getByLabelText('Sheet URL')).toHaveAttribute('maxlength', '500')
   })
 
   it('renders Shadowdark modal and updates stats', async () => {

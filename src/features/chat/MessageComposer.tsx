@@ -5,6 +5,7 @@ import { linkifyMentions } from './mentions'
 import { randomNpcIconUrl } from './npcIcons'
 import { IconPicker } from './IconPicker'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -381,6 +382,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 <input
                   value={npcName}
                   onChange={(e) => setNpcName(e.target.value)}
+                  maxLength={MAX_NPC_NAME_LENGTH}
                   placeholder="NPC name (reuse existing or create new)"
                   aria-label="NPC Name"
                   className="block w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
@@ -520,6 +522,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 ref={textareaRef}
                 value={content}
                 onChange={handleChange}
+                maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
                 placeholder={isScene ? "Describe the scene..." : isNpc ? (npcName ? `Speak as ${npcName}...` : 'Speak as an NPC...') : whisperTo ? "Type a private whisper..." : "Type a message... (Markdown supported, @ to mention)"}
                 className={`block w-full text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}

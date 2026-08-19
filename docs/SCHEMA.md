@@ -9,9 +9,9 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID, PK | FK to `auth.users.id` |
-| `display_name` | text | From Google account |
+| `display_name` | text | From Google account; maximum 40 characters |
 | `email` | text | From Google account |
-| `avatar_url` | text, nullable | From Google account or custom |
+| `avatar_url` | text, nullable | From Google account or custom; maximum 500 characters |
 | `created_at` | timestamptz | Default `now()` |
 
 ### `channels`
@@ -19,14 +19,14 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID, PK | |
-| `name` | text | |
-| `avatar_url` | text, nullable | Public URL of the uploaded channel avatar (path `{channel_id}/avatar/*.jpg` in the `images` storage bucket) |
+| `name` | text | Maximum 80 characters |
+| `avatar_url` | text, nullable | Public URL of the uploaded channel avatar (maximum 500 characters; path `{channel_id}/avatar/*.jpg` in the `images` storage bucket) |
 | `gm_id` | UUID, FK → profiles, nullable | Creator, channel owner. Nullable + `ON DELETE SET NULL`: deleting a GM's account **orphans** the channel (chat history survives). Server admins reclaim orphans via `admin_claim_channel`. |
 | `is_archived` | boolean | Default `false`. True = hidden from main lobby, read-only/hidden |
 | `invite_code` | text, unique | For invite link sharing |
-| `map_url` | text, nullable | External link |
-| `resources_url` | text, nullable | External link |
-| `status_text` | text, nullable | Free-form markdown (initiative, timers, etc.) |
+| `map_url` | text, nullable | External link; maximum 500 characters |
+| `resources_url` | text, nullable | External link; maximum 500 characters |
+| `status_text` | text, nullable | Free-form markdown (initiative, timers, etc.); maximum 2,000 characters |
 | `last_message_at` | timestamptz, nullable | Set on message insert via trigger; used for lobby ordering |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
@@ -44,7 +44,7 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `channel_id` | UUID, PK, FK → channels | |
 | `password_hash` | text, nullable | Null = no password required |
 | `password_salt` | text, nullable | PBKDF2 salt (hex). Null on legacy pre-salt channels |
-| `gm_only_resources_url` | text, nullable | GM-only link, never visible to members |
+| `gm_only_resources_url` | text, nullable | GM-only link, maximum 500 characters, never visible to members |
 
 ### `channel_members`
 
@@ -55,8 +55,9 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `user_id` | UUID, FK → profiles | |
 | `character_name` | text | |
 | `character_avatar_url` | text, nullable | |
-| `character_notes` | text, nullable | Plain-text notes (no markdown), shown in the member list |
-| `character_sheet_url` | text, nullable | |
+| `character_notes` | text, nullable | Plain-text notes (no markdown), maximum 500 characters, shown in the member list |
+| `character_sheet_url` | text, nullable | Maximum 500 characters |
+| `away_message` | text, nullable | Maximum 200 characters |
 | `is_active_player` | boolean | Default `false`. Multiple can be active. |
 | `is_blocked` | boolean | Default `false`. Blocked members lose channel access (`is_channel_member()` excludes them) and can be unblocked by the GM. (Kick deletes the row) |
 | `joined_at` | timestamptz | |
@@ -71,10 +72,10 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `channel_id` | UUID, FK → channels | |
 | `sender_id` | UUID, FK → profiles | `ON DELETE SET NULL` — when a user deletes their account, their messages stay but the author is anonymized |
 | `type` | text | `regular`, `scene`, `dice_roll`, `system` |
-| `content` | text | Markdown content |
+| `content` | text | Markdown content; messages and edits maximum 4,000 characters |
 | `whisper_to` | UUID, FK → profiles, nullable | If set: visible only to sender + this user + GM |
 | `reply_to` | UUID, FK → messages, nullable | The message this one replies to (must be in the same channel) |
-| `npc_name` / `npc_avatar_url` | text, nullable | Snapshot of the NPC identity for `npc` messages |
+| `npc_name` / `npc_avatar_url` | text, nullable | Snapshot of the NPC identity for `npc` messages; maximum 40 / 500 characters |
 | `roll_dc` / `roll_success` | integer / boolean, nullable | Called-out DC check target + outcome (meets beats) |
 | `mention_user_ids` | uuid[], nullable | Canonical mention recipients, resolved + validated server-side |
 | `client_request_id` | UUID, nullable | Idempotency key (sender + channel unique): a command replay returns the existing row instead of duplicating |
@@ -163,9 +164,9 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | Function | Purpose | Enforces |
 |---|---|---|
 | `send_message` | Create a `regular`/`scene`/`npc` message (+ optional active-player flip) | membership, archived, type authz (scene/NPC GM-only), content length, reply target same channel, whisper target is member, mention resolution + `@all` GM-only, NPC roster snapshot, idempotency |
-| `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, modifier clamped to game-system bounds, DC success (meets beats), archived, membership, reply target, idempotency |
+| `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, warning maximum 500 characters, modifier clamped to game-system bounds, DC success (meets beats), archived, membership, reply target, idempotency |
 | `moderate_member` | Block / unblock / kick / leave + system message | GM-only (block/unblock/kick), self-only (leave), GM is never removable |
-| `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field sanitization |
+| `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field length limits |
 | `join_channel` | Join + attributes + join system message | password/invite, archived, channel cap, attribute bounds |
 | `get_channel_roll_history` | Read-only roll history (excluding rolls from soft-deleted messages) | member-only via RLS |
 

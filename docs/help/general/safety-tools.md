@@ -10,7 +10,7 @@ Safety tools help everyone at the table stay comfortable.
 - **Lines** are the hard limits the group agrees never to cross.
 - **Veils** are topics that can come up, but happen "off-screen".
 
-The GM edits Lines & Veils in **Channel Settings**. Every member can view them from the **Safety Tools** item in the channel sidebar.
+The GM edits Lines & Veils in **Channel Settings**. Each field supports up to 2,000 characters. Every member can view them from the **Safety Tools** item in the channel sidebar.
 
 ## Safety Tools Doc
 
