@@ -11,6 +11,7 @@ vi.mock('../auth/useAuth', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    removeChannel: vi.fn(),
     channel: vi.fn(),
     rpc: vi.fn()
   }

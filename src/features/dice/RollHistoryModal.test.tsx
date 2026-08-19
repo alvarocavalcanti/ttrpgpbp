@@ -7,6 +7,7 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     rpc: vi.fn(),
     from: vi.fn(),
+    removeChannel: vi.fn(),
     channel: vi.fn()
   }
 }))
