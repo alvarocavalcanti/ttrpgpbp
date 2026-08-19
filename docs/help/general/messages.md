@@ -29,6 +29,12 @@ Type `@CharacterName` to **mention** someone. Mentions autocomplete from channel
 
 GMs can type **`@all`** to mention every player in the channel at once.
 
+## Drafts and Resending
+
+The message composer **saves your text automatically** as a draft for each channel. If you close the app or lose connection, your text will still be there when you return.
+
+If a message or dice roll fails to send because of a network drop, it will appear as **Pending** and then give you **Retry** and **Remove** options. Clicking Retry is safe and guaranteed not to send a duplicate.
+
 ## Reactions
 
 React to any message with an **emoji**. The quick-emoji picker covers common reactions, and counts update live.

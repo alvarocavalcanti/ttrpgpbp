@@ -66,6 +66,8 @@
 - Messages are limited to 4,000 characters. URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
 - **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification. Mention targets are verified server-side against the channel's members, so a mention can never be routed to an outsider. GMs can also use **`@all`** to mention every player at once (authorized server-side, GM-only). On desktop, arrow keys move the highlight through suggestions and Enter/Tab selects
+- **Draft persistence** — the composer saves text automatically per-channel. Closing the app or navigating away preserves the draft, which is only cleared after a message successfully sends
+- **Reliable sending** — messages and rolls are sent with a client-generated idempotency key. If the connection drops during sending, the message is kept in a "Pending/Failed" state. Users can click **Retry** to safely resend it without duplicating the message, or **Remove** to discard the pending bubble (the draft text remains safe in the composer)
 - **Emoji reactions** — react to any message from a quick-emoji picker; counts update live and toggle per user
 - **Unread badges** — Lobby shows a "N new" badge per channel counting messages since the member's `last_read_at`; excludes the user's own and deleted messages
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read
