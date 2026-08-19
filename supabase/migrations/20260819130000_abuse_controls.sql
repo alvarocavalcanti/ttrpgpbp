@@ -305,7 +305,7 @@ BEGIN
     -- Allowed via invite code
   ELSIF v_secret IS NOT NULL AND v_secret.password_hash IS NOT NULL THEN
     -- They are attempting a password. Enforce a strict rate limit for password guesses.
-    IF NOT check_rate_limit(auth.uid(), 'password_attempt', 5, 1) THEN
+    IF NOT check_rate_limit(auth.uid(), 'password_attempt', 4, 1) THEN
       RAISE EXCEPTION 'Rate limit exceeded for password attempts. Please wait and try again.';
     END IF;
     IF v_secret.password_hash = p_password_hash THEN
