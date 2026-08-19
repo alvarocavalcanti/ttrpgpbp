@@ -14,7 +14,7 @@ test.describe('Core Journey', () => {
       // but since we only have OAuth in production, we might need a test backdoor or just 
       // rely on whatever auth mock is available locally.
       // If we can't reliably login, this test verifies the page loads at least.
-      await expect(page.getByText(/Role by Post/i)).toBeVisible();
+      await expect(page.getByText(/RoleByPost/i).first()).toBeVisible();
     }
     
     // As this is a generic setup per the task, we stub the actual flow, 
