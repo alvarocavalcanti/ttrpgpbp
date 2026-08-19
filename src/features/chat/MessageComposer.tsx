@@ -34,7 +34,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
 
-  const draftKey = channelId ? `ttrpg_draft_${channelId}` : null
+  const draftKey = channelId ? `composer_draft_${channelId}` : null
 
   useEffect(() => {
     if (draftKey) {
