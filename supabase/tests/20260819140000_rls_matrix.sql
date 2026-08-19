@@ -17,9 +17,9 @@ VALUES
   ('00000000-0000-0000-0000-000000000321', '00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000301', 'P1', now()),
   ('00000000-0000-0000-0000-000000000322', '00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000302', 'P2', now());
 
-INSERT INTO messages (id, channel_id, sender_id, type, content, is_whisper, target_user_ids)
+INSERT INTO messages (id, channel_id, sender_id, type, content, whisper_to)
 VALUES
-  ('00000000-0000-0000-0000-000000000330', '00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000301', 'regular', 'whisper to GM', true, ARRAY['00000000-0000-0000-0000-000000000300']::uuid[]);
+  ('00000000-0000-0000-0000-000000000330', '00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000301', 'regular', 'whisper to GM', '00000000-0000-0000-0000-000000000300');
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
@@ -30,7 +30,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000301', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000301","role":"authenticated"}', true);
 SELECT results_eq(
-  $$SELECT id FROM public.messages WHERE is_whisper = true$$,
+  $$SELECT id FROM public.messages WHERE whisper_to IS NOT NULL$$,
   $$VALUES ('00000000-0000-0000-0000-000000000330'::uuid)$$,
   'Sender can see their own whisper'
 );
@@ -39,7 +39,7 @@ SELECT results_eq(
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000300', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000300","role":"authenticated"}', true);
 SELECT results_eq(
-  $$SELECT id FROM public.messages WHERE is_whisper = true$$,
+  $$SELECT id FROM public.messages WHERE whisper_to IS NOT NULL$$,
   $$VALUES ('00000000-0000-0000-0000-000000000330'::uuid)$$,
   'GM can see whispers to them'
 );
@@ -48,7 +48,7 @@ SELECT results_eq(
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000302', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000302","role":"authenticated"}', true);
 SELECT is_empty(
-  $$SELECT id FROM public.messages WHERE is_whisper = true$$,
+  $$SELECT id FROM public.messages WHERE whisper_to IS NOT NULL$$,
   'Uninvolved party cannot see whisper'
 );
 
