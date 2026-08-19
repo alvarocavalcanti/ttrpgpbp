@@ -56,3 +56,9 @@ jobs:
         
       - name: Run tests with coverage
         run: npm run test:coverage
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+        
+      - name: Run Playwright tests
+        run: npx playwright test

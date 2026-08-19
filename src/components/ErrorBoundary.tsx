@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import * as Sentry from '@sentry/react'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -20,6 +21,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Uncaught render error:', error, info)
+    Sentry.captureException(error, { extra: info as Record<string, unknown> })
   }
 
   handleReload = () => {
