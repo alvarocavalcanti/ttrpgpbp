@@ -121,7 +121,7 @@ describe('LoginPage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Why RoleByPost?')).toBeInTheDocument()
+    expect(screen.getByText('Why Role by Post?')).toBeInTheDocument()
     expect(screen.getByText('Real-time Chat')).toBeInTheDocument()
     expect(screen.getByText('Dice Rolling')).toBeInTheDocument()
     expect(screen.getByText('Campaign Management')).toBeInTheDocument()
@@ -175,7 +175,7 @@ describe('LoginPage', () => {
       'href',
       'https://memorablenaton.es'
     )
-    const featureHeading = screen.getByRole('heading', { name: 'Why RoleByPost?' })
+    const featureHeading = screen.getByRole('heading', { name: 'Why Role by Post?' })
     expect(featureHeading.compareDocumentPosition(attribution) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 

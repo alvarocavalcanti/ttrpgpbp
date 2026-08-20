@@ -11,8 +11,8 @@ export function AboutPage() {
       </Link>
 
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 sm:p-8 text-center">
-        <img src="/RoleByPost.png" alt="RoleByPost logo" className="w-24 h-24 rounded mx-auto mb-4" />
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">About RoleByPost</h1>
+        <img src="/RoleByPost.png" alt="Role by Post logo" className="w-24 h-24 rounded mx-auto mb-4" />
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">About Role by Post</h1>
         <p className="mt-3 text-gray-600 dark:text-gray-400">
           by{' '}
           <a
@@ -54,7 +54,7 @@ export function AboutPage() {
           rel="noreferrer"
           className="inline-flex mt-8 text-indigo-600 dark:text-indigo-400 hover:underline"
         >
-          RoleByPost on GitHub
+          Role by Post on GitHub
         </a>
       </div>
     </div>

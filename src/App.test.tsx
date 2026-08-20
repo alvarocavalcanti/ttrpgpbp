@@ -41,7 +41,7 @@ describe('App', () => {
     render(<App />)
     
     // Wait for the AuthProvider to resolve loading state
-    expect(await screen.findByText('Sign in to access your campaigns')).toBeInTheDocument()
+    expect(await screen.findByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
   })
 
   it('renders lobby and avatar when authenticated with profile avatar', async () => {
@@ -80,7 +80,7 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('RoleByPost')).toBeInTheDocument()
+    expect(await screen.findByText('Role by Post')).toBeInTheDocument()
     expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Test User')).toBeInTheDocument()
@@ -121,7 +121,7 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('RoleByPost')).toBeInTheDocument()
+    expect(await screen.findByText('Role by Post')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('T')).toBeInTheDocument() // The placeholder 'T' from email
@@ -166,7 +166,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('RoleByPost')
+    await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Server Admin')).toBeInTheDocument()
   })
@@ -205,7 +205,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('RoleByPost')
+    await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
   })
@@ -244,7 +244,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('RoleByPost')
+    await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     expect(await screen.findByText('Help Topics')).toBeInTheDocument()
@@ -285,10 +285,10 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('RoleByPost')
+    await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('About'))
-    expect(await screen.findByRole('heading', { name: 'About RoleByPost' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'About Role by Post' })).toBeInTheDocument()
     window.history.replaceState({}, '', '/')
   })
 
@@ -330,7 +330,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('RoleByPost')
+    await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Server Admin'))
     expect(await screen.findByText('Users')).toBeInTheDocument()
@@ -371,7 +371,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('RoleByPost')
+    await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Change Log'))
     expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
