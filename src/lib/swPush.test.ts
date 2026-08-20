@@ -18,7 +18,7 @@ describe('handlePushEvent', () => {
     const { scope, registration } = makeScope()
     await handlePushEvent(scope, {})
     expect(registration.showNotification).toHaveBeenCalledWith(
-      'RoleByPost',
+      'Role by Post',
       expect.objectContaining({ body: '', icon: '/pwa-192x192.png', data: { url: '/' } })
     )
   })

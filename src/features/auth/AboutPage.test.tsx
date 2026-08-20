@@ -11,7 +11,7 @@ describe('AboutPage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByRole('heading', { name: 'About RoleByPost' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'About Role by Post' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Alvaro Cavalcanti' })).toHaveAttribute(
       'href',
       'https://memorablenaton.es'
@@ -30,7 +30,7 @@ describe('AboutPage', () => {
       'src',
       'https://storage.ko-fi.com/cdn/kofi6.png?v=6'
     )
-    expect(screen.getByRole('link', { name: 'RoleByPost on GitHub' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Role by Post on GitHub' })).toHaveAttribute(
       'href',
       'https://github.com/alvarocavalcanti/ttrpgpbp'
     )

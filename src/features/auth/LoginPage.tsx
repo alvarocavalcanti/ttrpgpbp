@@ -91,11 +91,14 @@ export function LoginPage() {
         <div className="max-w-md w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
           <div>
             <div className="flex items-center justify-center gap-3 mt-6">
-              <img src="/RoleByPost.png" alt="RoleByPost" className="w-12 h-12 rounded" />
+              <img src="/RoleByPost.png" alt="Role by Post" className="w-12 h-12 rounded" />
               <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
                 RoleByPost
               </h2>
             </div>
+            <p className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
+              A text-based tabletop RPG platform
+            </p>
             <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
               Sign in to access your campaigns
             </p>
@@ -135,7 +138,7 @@ export function LoginPage() {
             Text-first, no bloat
           </h3>
           <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            RoleByPost is a chat-first app for asynchronous tabletop RPGs, with a few quality-of-life tools to keep play moving. Bring any tabletop RPG: generic play is built in, with optional Shadowdark character stats when useful.
+            Role by Post is a chat-first app for asynchronous tabletop RPGs, with a few quality-of-life tools to keep play moving. Bring any tabletop RPG: generic play is built in, with optional Shadowdark character stats when useful.
           </p>
 
           <div className="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left shadow-sm">
@@ -143,14 +146,14 @@ export function LoginPage() {
               Not a VTT
             </h4>
             <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              You won&apos;t find battle maps, tactical combat automation, animated dice, or AI-generated content here. RoleByPost keeps the conversation flowing while reducing app and tab switching.
+              You won&apos;t find battle maps, tactical combat automation, animated dice, or AI-generated content here. Role by Post keeps the conversation flowing while reducing app and tab switching.
             </p>
           </div>
         </section>
 
         <div className="mt-14">
           <h3 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Why RoleByPost?
+            Why Role by Post?
           </h3>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             The home for asynchronous tabletop roleplaying

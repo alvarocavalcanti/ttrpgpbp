@@ -16,7 +16,7 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">What we collect</h2>
           <p>
-            RoleByPost uses Google Sign-In (OAuth). When you sign in, we receive your name,
+            Role by Post uses Google Sign-In (OAuth). When you sign in, we receive your name,
             email address, and profile picture. We store your display name, avatar, and the
             messages, dice rolls, and channel memberships you create in the app.
           </p>
@@ -50,7 +50,7 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Google API Limited Use Disclosure</h2>
           <p>
-            RoleByPost's use and transfer of information received from Google APIs to any other app will adhere to the{' '}
+            Role by Post's use and transfer of information received from Google APIs to any other app will adhere to the{' '}
             <a
               href="https://developers.google.com/terms/api-services-user-data-policy#limited-use-requirements"
               target="_blank"
@@ -81,7 +81,7 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: August 20, 2026. This policy describes data handling for the RoleByPost application. Contact the server
+          Last updated: August 20, 2026. This policy describes data handling for the Role by Post application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access.
         </p>
       </div>
