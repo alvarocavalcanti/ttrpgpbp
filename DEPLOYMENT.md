@@ -123,6 +123,21 @@ browser, so no user JWT is involved.
   Each deletion batch is recorded in `image_cleanup_audit` before removal and
   marked `deleted` or `failed` afterward.
 
+### `server-report`
+
+  This scheduled edge function generates and emails server reports to admins.
+  Store the secret in Supabase Edge Function secrets along with your Resend API key:
+
+  ```bash
+  supabase secrets set SERVER_REPORT_SECRET=<generated-secret>
+  supabase secrets set RESEND_API_KEY=<your-resend-api-key>
+  supabase functions deploy server-report --project-ref <project-ref>
+  ```
+
+  Schedule an hourly `POST` from a trusted server scheduler. It must send
+  `x-report-secret: <generated-secret>`. It will respect the `app_settings`
+  configuration for `recurring_report_frequency` and only send emails when appropriate.
+
 ## 7. Deploy the frontend
 
 - [ ] Build the static bundle:

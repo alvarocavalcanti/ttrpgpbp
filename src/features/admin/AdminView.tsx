@@ -90,10 +90,13 @@ export function AdminView() {
   const { value: imageUploadingEnabled, loading: imageSettingsLoading } = useAppSetting<boolean>('image_uploading_enabled', false)
   const { value: imageMaxSizeMb } = useAppSetting<number>('image_max_size_mb', 5)
   const { value: imageRetentionDays } = useAppSetting<number>('image_retention_days', 0)
+  const { value: recurringReportFreq } = useAppSetting<string>('recurring_report_frequency', 'off')
   const [imageUploadEnabled, setImageUploadEnabled] = useState(false)
   const [imageMaxSize, setImageMaxSize] = useState('5')
   const [imageRetention, setImageRetention] = useState('0')
+  const [reportFreq, setReportFreq] = useState('off')
   const [isSavingImages, setIsSavingImages] = useState(false)
+  const [isSavingReport, setIsSavingReport] = useState(false)
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
@@ -110,7 +113,8 @@ export function AdminView() {
     setImageUploadEnabled(Boolean(imageUploadingEnabled))
     setImageMaxSize(String(imageMaxSizeMb))
     setImageRetention(String(imageRetentionDays))
-  }, [isServerAdmin, adminLoading, maxChannels, imageUploadingEnabled, imageMaxSizeMb, imageRetentionDays, navigate])
+    setReportFreq(recurringReportFreq)
+  }, [isServerAdmin, adminLoading, maxChannels, imageUploadingEnabled, imageMaxSizeMb, imageRetentionDays, recurringReportFreq, navigate])
 
   useEffect(() => {
     if (!isServerAdmin) return
@@ -193,6 +197,22 @@ export function AdminView() {
       addToast('Failed to update image upload settings.', 'error')
     } finally {
       setIsSavingImages(false)
+    }
+  }
+
+  const handleSaveReportSettings = async () => {
+    setIsSavingReport(true)
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert([{ key: 'recurring_report_frequency', value: `"${reportFreq}"` }], { onConflict: 'key' })
+      if (error) throw error
+      addToast('Report settings updated.', 'success')
+    } catch (err) {
+      console.error('Error saving report settings:', err)
+      addToast('Failed to update report settings.', 'error')
+    } finally {
+      setIsSavingReport(false)
     }
   }
 
@@ -418,6 +438,39 @@ export function AdminView() {
                     className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                   >
                     {isSavingImages ? 'Saving...' : 'Save Image Settings'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Recurring Reports</h3>
+                <div className="mt-3">
+                  <label htmlFor="reportFreq" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Send report via email
+                  </label>
+                  <select
+                    id="reportFreq"
+                    value={reportFreq}
+                    onChange={(e) => setReportFreq(e.target.value)}
+                    className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                  >
+                    <option value="off">Off</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Emails are sent to all server admins via Resend. Ensure RESEND_API_KEY is configured.
+                  </p>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSaveReportSettings}
+                    disabled={isSavingReport}
+                    className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                  >
+                    {isSavingReport ? 'Saving...' : 'Save Report Settings'}
                   </button>
                 </div>
               </div>
