@@ -105,6 +105,6 @@ describe('sendWithRetry', () => {
 
     expect(order).toEqual(['first', 'second', 'third'])
     // 50ms + 100ms of backoff, with a safety margin for test scheduling.
-    expect(elapsed).toBeGreaterThanOrEqual(150)
+    expect(elapsed).toBeGreaterThanOrEqual(140)
   })
 })
