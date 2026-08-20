@@ -1,0 +1,101 @@
+@@ -0,0 +1,100 @@
++# Instructions
++
++- Following Playwright test failed.
++- Explain why, be concise, respect Playwright best practices.
++- Provide a snippet of code with the fix, if possible.
++
++# Test info
++
++- Name: core-journey.spec.ts >> Core Journey >> sign-in, create channel, send message
++- Location: tests/e2e/core-journey.spec.ts:4:3
++
++# Error details
++
++```
++Error: expect(locator).toBeVisible() failed
++
++Locator: getByText(/RoleByPost/i).first()
++Expected: visible
++Timeout: 5000ms
++Error: element(s) not found
++
++Call log:
++  - Expect "toBeVisible" with timeout 5000ms
++  - waiting for getByText(/RoleByPost/i).first()
++
++```
++
++```yaml
++- main:
++  - button "Switch to dark mode":
++    - img
++  - img "Role by Post"
++  - heading "Role by Post" [level=2]
++  - paragraph: A text-based tabletop RPG platform
++  - paragraph: Sign in with your Google account to securely create and access your roleplaying campaigns.
++  - button "Sign in with Google":
++    - img
++    - text: Sign in with Google
++  - heading "Text-first, no bloat" [level=3]
++  - paragraph: "Role by Post is a chat-first app for asynchronous tabletop RPGs, with a few quality-of-life tools to keep play moving. Bring any tabletop RPG: generic play is built in, with optional Shadowdark character stats when useful."
++  - heading "Not a VTT" [level=4]
++  - paragraph: You won't find battle maps, tactical combat automation, animated dice, or AI-generated content here. Role by Post keeps the conversation flowing while reducing app and tab switching.
++  - heading "Why Role by Post?" [level=3]
++  - paragraph: The home for asynchronous tabletop roleplaying
++  - img
++  - heading "Real-time Chat" [level=4]
++  - paragraph: Markdown messages, scene breaks, whispers, and daily date dividers keep the story flowing.
++  - img
++  - heading "Dice Rolling" [level=4]
++  - paragraph: Clickable dice notation, advantage and disadvantage, and built-in ability checks.
++  - img
++  - heading "Campaign Management" [level=4]
++  - paragraph: Private channels with invite links, character tracking, and persistent status bars.
++  - img
++  - heading "Push Notifications" [level=4]
++  - paragraph: Stay in the loop with web push alerts when it's your turn or new messages arrive.
++  - img
++  - heading "Mobile First" [level=4]
++  - paragraph: Designed to feel like a native chat app, on your phone or on the web.
++  - paragraph:
++    - text: by
++    - link "Alvaro Cavalcanti":
++      - /url: https://memorablenaton.es
++  - link "Privacy Policy":
++    - /url: /privacy
++  - text: "|"
++  - link "Terms of Service":
++    - /url: /terms
++```
++
++# Test source
++
++```ts
++  1  | import { test, expect } from '@playwright/test';
++  2  | 
++  3  | test.describe('Core Journey', () => {
++  4  |   test('sign-in, create channel, send message', async ({ page }) => {
++  5  |     // 1. Sign-in
++  6  |     await page.goto('/');
++  7  |     
++  8  |     // We expect the auth UI to be visible if not logged in.
++  9  |     // Assuming local supabase might not have a pre-existing user, or we use standard flow.
++  10 |     // For local dev without real OAuth, we might have email sign-in or a mock login button.
++  11 |     const loginButton = page.getByRole('button', { name: /Sign in/i });
++  12 |     if (await loginButton.isVisible()) {
++  13 |       // In a real local E2E suite, we would need to create a user or use magic link,
++  14 |       // but since we only have OAuth in production, we might need a test backdoor or just 
++  15 |       // rely on whatever auth mock is available locally.
++  16 |       // If we can't reliably login, this test verifies the page loads at least.
++> 17 |       await expect(page.getByText(/RoleByPost/i).first()).toBeVisible();
++     |                                                           ^ Error: expect(locator).toBeVisible() failed
++  18 |     }
++  19 |     
++  20 |     // As this is a generic setup per the task, we stub the actual flow, 
++  21 |     // relying on what is available in the UI.
++  22 |     // We will verify the page loaded and has basic elements.
++  23 |   });
++  24 | });
++  25 | 
++```

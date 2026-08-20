@@ -93,14 +93,14 @@ export function LoginPage() {
             <div className="flex items-center justify-center gap-3 mt-6">
               <img src="/RoleByPost.png" alt="Role by Post" className="w-12 h-12 rounded" />
               <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
-                RoleByPost
+                Role by Post
               </h2>
             </div>
             <p className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
               A text-based tabletop RPG platform
             </p>
             <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-              Sign in to access your campaigns
+              Sign in with your Google account to securely create and access your roleplaying campaigns.
             </p>
           </div>
 

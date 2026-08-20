@@ -41,7 +41,7 @@ describe('App', () => {
     render(<App />)
     
     // Wait for the AuthProvider to resolve loading state
-    expect(await screen.findByText('Sign in to access your campaigns')).toBeInTheDocument()
+    expect(await screen.findByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
   })
 
   it('renders lobby and avatar when authenticated with profile avatar', async () => {
