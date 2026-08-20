@@ -1,5 +1,4 @@
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Markdown } from '../../components/Markdown'
 import { getChangelogMarkdown } from './changelog'
 
 export function ChangelogPage() {
@@ -7,7 +6,7 @@ export function ChangelogPage() {
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
       <article className="max-w-3xl mx-auto">
         <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{getChangelogMarkdown()}</ReactMarkdown>
+          <Markdown>{getChangelogMarkdown()}</Markdown>
         </div>
       </article>
     </div>

@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Markdown } from '../../components/Markdown'
 import { getChannelHelp, type HelpEntry } from './helpContent'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
@@ -68,7 +67,7 @@ export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
                   />
                 )}
                 <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{active.content}</ReactMarkdown>
+                  <Markdown>{active.content}</Markdown>
                 </div>
               </div>
             )}

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { beforeAll, afterEach, afterAll, beforeEach } from 'vitest'
+import { beforeAll, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { server } from './mocks/server'
 
 // Node >= 25 defines a `localStorage` getter on the global that returns
@@ -37,3 +37,5 @@ beforeEach(() => {
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
+import MarkdownImpl from '../components/MarkdownImpl'
+vi.mock('../components/Markdown', () => ({ Markdown: MarkdownImpl }))

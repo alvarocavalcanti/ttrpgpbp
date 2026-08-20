@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Markdown } from '../../components/Markdown'
 import { linkifyDice } from '../dice/parser'
 import { getSystemAttributes, clampModifier } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
@@ -329,7 +328,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               </div>
             </div>
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
+            <Markdown components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}
@@ -418,7 +417,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             )}
           </div>
           <div className="text-gray-900 dark:text-gray-100 text-lg">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+            <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
         </div>
@@ -499,7 +498,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               </div>
             </div>
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</ReactMarkdown>
+            <Markdown components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}

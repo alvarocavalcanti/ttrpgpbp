@@ -165,7 +165,7 @@ describe('MessageItem', () => {
     expect(prose?.className).toContain('break-words')
   })
 
-  it('handles ability checks and sends dice roll', () => {
+  it('handles ability checks and sends dice roll', async () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue('3') // +3 modifier
 
@@ -177,14 +177,14 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
-    const checkBtn = screen.getByRole('button', { name: 'STR Check' })
+    const checkBtn = await screen.findByRole('button', { name: 'STR Check' })
     fireEvent.click(checkBtn)
     
     expect(window.prompt).toHaveBeenCalledWith('Enter modifier for STR Check:', '0')
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1', undefined, undefined)
   })
 
-  it('handles ability checks with negative modifiers', () => {
+  it('handles ability checks with negative modifiers', async () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue('-2') 
 
@@ -200,7 +200,7 @@ describe('MessageItem', () => {
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1', undefined, undefined)
   })
 
-  it('handles ability checks with zero modifiers', () => {
+  it('handles ability checks with zero modifiers', async () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue('0') 
 
@@ -212,11 +212,11 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
-    fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'STR Check' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined, undefined)
   })
 
-  it('handles ability checks with invalid modifiers', () => {
+  it('handles ability checks with invalid modifiers', async () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue('abc') 
 
@@ -228,11 +228,11 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
-    fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'STR Check' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined, undefined)
   })
 
-  it('handles ability checks when prompt is cancelled', () => {
+  it('handles ability checks when prompt is cancelled', async () => {
     const mockOnRollDice = vi.fn()
     vi.spyOn(window, 'prompt').mockReturnValue(null) // user clicked cancel
 
@@ -244,12 +244,12 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
-    fireEvent.click(screen.getByRole('button', { name: 'STR Check' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'STR Check' }))
     
     expect(mockOnRollDice).not.toHaveBeenCalled()
   })
 
-  it('passes the source message id when rolling an inline dice notation', () => {
+  it('passes the source message id when rolling an inline dice notation', async () => {
     const mockOnRollDice = vi.fn()
     const msg: any = {
       id: 'm1',
@@ -259,7 +259,7 @@ describe('MessageItem', () => {
       sender_id: 'u1'
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
-    fireEvent.click(screen.getByRole('button', { name: '1d20' }))
+    fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
   })
 

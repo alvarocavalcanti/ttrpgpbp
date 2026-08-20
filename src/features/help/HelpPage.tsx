@@ -1,6 +1,5 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Markdown } from '../../components/Markdown'
 import { getGeneralHelp } from './helpContent'
 
 export function HelpPage() {
@@ -58,7 +57,7 @@ export function HelpPage() {
             />
           )}
           <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{active.content}</ReactMarkdown>
+            <Markdown>{active.content}</Markdown>
           </div>
         </article>
       </main>
