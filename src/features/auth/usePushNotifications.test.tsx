@@ -1,3 +1,4 @@
+import { env } from "../../env"
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { usePushNotifications } from './usePushNotifications'
@@ -48,7 +49,7 @@ describe('usePushNotifications', () => {
       requestPermission: vi.fn().mockResolvedValue('granted')
     })
 
-    import.meta.env.VITE_VAPID_PUBLIC_KEY = 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus'
+    env.VITE_VAPID_PUBLIC_KEY = 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus'
   })
 
   it('handles general error in fetchPrefsAndSub', async () => {
@@ -207,22 +208,22 @@ describe('usePushNotifications', () => {
   })
 
   it('exposes isConfigured correctly based on VAPID key', () => {
-    const original = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    const original = env.VITE_VAPID_PUBLIC_KEY
 
     // Test when key exists
-    import.meta.env.VITE_VAPID_PUBLIC_KEY = 'test_key'
+    env.VITE_VAPID_PUBLIC_KEY = 'test_key'
     const { result: r1, unmount: u1 } = renderHook(() => usePushNotifications())
     expect(r1.current.isConfigured).toBe(true)
     u1()
 
     // Test when key is missing
-    import.meta.env.VITE_VAPID_PUBLIC_KEY = ''
+    env.VITE_VAPID_PUBLIC_KEY = ''
     const { result: r2, unmount: u2 } = renderHook(() => usePushNotifications())
     expect(r2.current.isConfigured).toBe(false)
     u2()
 
     // Restore original
-    import.meta.env.VITE_VAPID_PUBLIC_KEY = original
+    env.VITE_VAPID_PUBLIC_KEY = original
   })
 
   it('sets needsInstall true on iOS non-standalone', () => {
@@ -282,8 +283,8 @@ describe('usePushNotifications', () => {
   })
 
   it('throws when subscribing without a VAPID key', async () => {
-    const original = import.meta.env.VITE_VAPID_PUBLIC_KEY
-    import.meta.env.VITE_VAPID_PUBLIC_KEY = ''
+    const original = env.VITE_VAPID_PUBLIC_KEY
+    env.VITE_VAPID_PUBLIC_KEY = ''
     const mockUpsert = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
@@ -296,7 +297,7 @@ describe('usePushNotifications', () => {
     await expect(result.current.subscribeToPush()).rejects.toThrow('Missing VAPID public key')
     expect(mockPushManager.subscribe).not.toHaveBeenCalled()
 
-    import.meta.env.VITE_VAPID_PUBLIC_KEY = original
+    env.VITE_VAPID_PUBLIC_KEY = original
   })
 
   it('throws when saving the push subscription fails', async () => {

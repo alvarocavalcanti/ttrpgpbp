@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
+import { env } from '../../env'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321'
+const supabaseUrl = env.VITE_SUPABASE_URL || 'http://localhost:54321'
 
 export const handlers = [
   // Mock profile updates

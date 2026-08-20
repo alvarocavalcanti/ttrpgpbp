@@ -9,6 +9,7 @@ import {
   subscriptionToRow
 } from '../../lib/pushSubscription'
 import type { Database } from '../../types/database'
+import { env } from '../../env'
 
 type NotificationPrefs = Database['public']['Tables']['notification_preferences']['Row']
 
@@ -153,7 +154,7 @@ export function usePushNotifications() {
     const registration = await navigator.serviceWorker.ready
 
     // Subscribe
-    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    const vapidKey = env.VITE_VAPID_PUBLIC_KEY
     if (!vapidKey) throw new Error('Missing VAPID public key')
 
     const convertedVapidKey = urlBase64ToUint8Array(vapidKey)
@@ -211,7 +212,7 @@ export function usePushNotifications() {
     setPreferences(data)
   }
 
-  const isConfigured = !!import.meta.env.VITE_VAPID_PUBLIC_KEY
+  const isConfigured = !!env.VITE_VAPID_PUBLIC_KEY
 
   return {
     isSupported,
