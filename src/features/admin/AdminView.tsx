@@ -82,6 +82,7 @@ export function AdminView() {
   const [tab, setTab] = useState<Tab>('users')
   const [users, setUsers] = useState<AdminUser[]>([])
   const [channels, setChannels] = useState<AdminChannel[]>([])
+  const [storageBytes, setStorageBytes] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [channelLimit, setChannelLimit] = useState('')
@@ -120,15 +121,22 @@ export function AdminView() {
       setLoading(true)
       setError(null)
       try {
-        const [{ data: userData, error: userError }, { data: channelData, error: channelError }] = await Promise.all([
+        const [
+          { data: userData, error: userError },
+          { data: channelData, error: channelError },
+          { data: storageData, error: storageError }
+        ] = await Promise.all([
           supabase.rpc('admin_list_users'),
           supabase.rpc('admin_list_channels'),
+          supabase.rpc('admin_get_image_storage_bytes'),
         ])
         if (userError) throw userError
         if (channelError) throw channelError
+        if (storageError) throw storageError
         if (mounted) {
           setUsers((userData as AdminUser[]) || [])
           setChannels((channelData as AdminChannel[]) || [])
+          setStorageBytes(storageData || 0)
         }
       } catch (err) {
         console.error('Error fetching admin data:', err)
@@ -216,9 +224,59 @@ export function AdminView() {
     { id: 'settings', label: 'Settings' },
   ]
 
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const newUsers = users.filter(u => new Date(u.created_at).getTime() > sevenDaysAgo).length
+  const newChannels = channels.filter(c => new Date(c.created_at).getTime() > sevenDaysAgo).length
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Server Admin</h2>
+
+      {!loading && !settingsLoading && !imageSettingsLoading && !error && (
+        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div className="overflow-hidden rounded-lg bg-white dark:bg-gray-800 shadow px-4 py-5 sm:p-6">
+            <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</dt>
+            <dd className="mt-1 flex items-baseline justify-between md:block lg:flex">
+              <div className="flex items-baseline text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {users.length}
+              </div>
+              <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 md:mt-2 lg:mt-0">
+                +{newUsers} this week
+              </div>
+            </dd>
+          </div>
+          <div className="overflow-hidden rounded-lg bg-white dark:bg-gray-800 shadow px-4 py-5 sm:p-6">
+            <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Total Channels</dt>
+            <dd className="mt-1 flex items-baseline justify-between md:block lg:flex">
+              <div className="flex items-baseline text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {channels.length}
+              </div>
+              <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 md:mt-2 lg:mt-0">
+                +{newChannels} this week
+              </div>
+            </dd>
+          </div>
+          <div className="overflow-hidden rounded-lg bg-white dark:bg-gray-800 shadow px-4 py-5 sm:p-6">
+            <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Image Storage</dt>
+            <dd className="mt-1 flex items-baseline justify-between md:block lg:flex">
+              <div className="flex items-baseline text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {formatBytes(storageBytes)}
+              </div>
+              <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 md:mt-2 lg:mt-0">
+                public bucket
+              </div>
+            </dd>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav className="-mb-px flex space-x-6" aria-label="Admin sections">
