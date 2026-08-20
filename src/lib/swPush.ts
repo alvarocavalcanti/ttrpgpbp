@@ -20,7 +20,7 @@ export interface PushHandlerScope {
   logger?: Pick<Console, 'error'>
 }
 
-const DEFAULT_TITLE = 'RoleByPost'
+const DEFAULT_TITLE = 'Role by Post'
 const DEFAULT_ICON = '/pwa-192x192.png'
 const DEFAULT_BADGE_ICON = '/favicon.svg'
 

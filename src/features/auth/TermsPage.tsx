@@ -16,7 +16,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using RoleByPost, you agree to be bound by these Terms of Service.
+            By accessing or using Role by Post, you agree to be bound by these Terms of Service.
             If you do not agree to all of the terms and conditions, you may not access or use the service.
           </p>
         </section>
@@ -24,7 +24,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">2. Description of Service</h2>
           <p>
-            RoleByPost is a web-based, text-first tabletop roleplaying game (TTRPG) play-by-post platform.
+            Role by Post is a web-based, text-first tabletop roleplaying game (TTRPG) play-by-post platform.
             It provides features including real-time chat, server-authoritative dice rolling, campaign management,
             and push notifications.
           </p>
@@ -33,7 +33,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">3. User Accounts</h2>
           <p>
-            You must sign in using a Google account to access RoleByPost. You are responsible for maintaining the
+            You must sign in using a Google account to access Role by Post. You are responsible for maintaining the
             security of your account and for all activities that occur under your account. You must notify the administrator
             immediately of any unauthorized use of your account.
           </p>
@@ -43,7 +43,7 @@ export function TermsPage() {
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">4. User Content</h2>
           <p>
             You retain ownership of any content you submit, post, or display on or through the service, including messages,
-            NPC profiles, images, and character sheets. By submitting content, you grant RoleByPost a worldwide, non-exclusive,
+            NPC profiles, images, and character sheets. By submitting content, you grant Role by Post a worldwide, non-exclusive,
             royalty-free license to host, store, reproduce, and display such content solely for the purpose of operating,
             developing, and providing the service to you and other channel members.
           </p>
@@ -71,7 +71,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">7. Disclaimer of Warranties</h2>
           <p>
-            RoleByPost is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. We disclaim all warranties of any
+            Role by Post is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. We disclaim all warranties of any
             kind, whether express or implied, including but not limited to the implied warranties of merchantability, fitness
             for a particular purpose, and non-infringement. We do not warrant that the service will be uninterrupted, timely,
             secure, or error-free.
@@ -81,7 +81,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">8. Limitation of Liability</h2>
           <p>
-            In no event shall RoleByPost, its creator, or its administrators be liable for any indirect, incidental, special,
+            In no event shall Role by Post, its creator, or its administrators be liable for any indirect, incidental, special,
             consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other
             intangible losses, resulting from your access to or use of or inability to access or use the service.
           </p>
