@@ -50,6 +50,7 @@
     "pytest",
     "webstorage",
     "PITR",
-    "TTRPG"
+    "TTRPG",
+    "Setof"
   ]
 }

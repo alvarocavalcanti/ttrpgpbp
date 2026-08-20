@@ -116,8 +116,8 @@ describe('CreateChannelModal', () => {
         p_game_system: 'none',
         p_invite_code: '12345678',
         p_character_name: 'GM',
-        p_password_hash: null,
-        p_password_salt: null
+        p_password_hash: undefined,
+        p_password_salt: undefined
       })
 
       expect(mockOnClose).toHaveBeenCalled()

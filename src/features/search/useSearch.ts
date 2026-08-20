@@ -49,7 +49,7 @@ export function useSearch(channelId: string) {
         }))
 
         if (mounted) {
-          setResults(normalizedData)
+          setResults(normalizedData as Message[])
           setError(null)
         }
       } catch (err: any) {

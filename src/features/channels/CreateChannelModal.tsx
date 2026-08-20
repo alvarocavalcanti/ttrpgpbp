@@ -62,8 +62,8 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
         p_game_system: gameSystem,
         p_invite_code: inviteCode,
         p_character_name: characterName,
-        p_password_hash: hashedPassword?.hash ?? null,
-        p_password_salt: hashedPassword?.salt ?? null
+        p_password_hash: hashedPassword?.hash ?? undefined,
+        p_password_salt: hashedPassword?.salt ?? undefined
       })
 
       if (rpcError) throw rpcError

@@ -27,6 +27,11 @@ jobs:
       - name: Run database regression tests
         run: supabase test db --local
 
+      - name: Verify generated types match schema
+        run: |
+          supabase gen types typescript --local > src/types/database.ts
+          git diff --exit-code src/types/database.ts || (echo "Types drift detected. Run 'supabase gen types typescript --local > src/types/database.ts' locally and commit the result." && exit 1)
+
   test:
     needs: migrate-check
     runs-on: ubuntu-latest

@@ -130,11 +130,11 @@ describe('ChannelSettings', () => {
         p_game_system: 'none',
         p_map_url: 'http://map',
         p_resources_url: 'http://resources',
-        p_safety_tools_url: null,
+        p_safety_tools_url: undefined,
         p_gm_only_resources_url: 'http://gmresources',
         p_clear_password: false,
-        p_safety_lines: null,
-        p_safety_veils: null
+        p_safety_lines: undefined,
+        p_safety_veils: undefined
       }))
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
       expect(mockOnUpdate).toHaveBeenCalled()
@@ -200,8 +200,8 @@ describe('ChannelSettings', () => {
 
     await waitFor(() => {
       expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
-        p_safety_lines: null,
-        p_safety_veils: null
+        p_safety_lines: undefined,
+        p_safety_veils: undefined
       }))
     })
   })
@@ -218,8 +218,8 @@ describe('ChannelSettings', () => {
     await waitFor(() => {
       expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
         p_clear_password: true,
-        p_password_hash: null,
-        p_password_salt: null
+        p_password_hash: undefined,
+        p_password_salt: undefined
       }))
     })
   })
