@@ -698,6 +698,10 @@ export interface Database {
           created_at: string
         }[]
       }
+      admin_get_image_storage_bytes: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       admin_list_channels: {
         Args: Record<PropertyKey, never>
         Returns: {

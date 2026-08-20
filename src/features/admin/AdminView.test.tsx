@@ -66,8 +66,27 @@ describe('AdminView', () => {
       if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
       return Promise.resolve({ data: null, error: null })
     }) as any)
+  })
+
+  it('renders stats row with total users, channels, and image storage', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Total Users')).toBeInTheDocument()
+    // users array has 2 items, channels has 2 items
+    expect(screen.getAllByText('2', { selector: 'div.text-2xl' })).toHaveLength(2)
+
+    expect(screen.getByText('Total Channels')).toBeInTheDocument()
+
+    expect(screen.getByText('Image Storage')).toBeInTheDocument()
+    // 1048576 bytes = 1 MB
+    expect(screen.getByText('1 MB', { selector: 'div.text-2xl' })).toBeInTheDocument()
   })
 
   it('renders users tab by default with channel counts', async () => {
