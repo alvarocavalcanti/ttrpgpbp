@@ -64,7 +64,7 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
   })
 
-  it('renders login page inline at / when no user is authenticated', () => {
+  it('renders login page inline at / when no user is authenticated', async () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: null,
@@ -88,7 +88,7 @@ describe('ProtectedRoute', () => {
 
     expect(screen.queryByTestId('lobby')).not.toBeInTheDocument()
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
-    expect(screen.getByText('Sign in with Google')).toBeInTheDocument()
+    expect(await screen.findByText('Sign in with Google')).toBeInTheDocument()
   })
 
   it('redirects to login when no user is authenticated', () => {

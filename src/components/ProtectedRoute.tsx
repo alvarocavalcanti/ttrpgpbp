@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
-import { LoginPage } from '../features/auth/LoginPage'
+import { lazy, Suspense } from 'react'
+const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 
 export function ProtectedRoute() {
   const { user, loading, error } = useAuth()
@@ -26,7 +27,7 @@ export function ProtectedRoute() {
 
   if (!user) {
     if (location.pathname === '/') {
-      return <LoginPage />
+      return <Suspense fallback={null}><LoginPage /></Suspense>
     }
     const from = location.pathname + location.search + location.hash
     return <Navigate to="/login" replace state={{ from }} />

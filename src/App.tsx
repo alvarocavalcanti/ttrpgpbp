@@ -1,27 +1,28 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { useAuth } from './features/auth/useAuth'
 import { useDebounce } from './hooks/useDebounce'
-import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { ProfileSettings } from './features/auth/ProfileSettings'
-import { PrivacyPage } from './features/auth/PrivacyPage'
-import { TermsPage } from './features/auth/TermsPage'
-import { AboutPage } from './features/auth/AboutPage'
-import { Lobby } from './features/channels/Lobby'
-import { JoinChannel } from './features/channels/JoinChannel'
-import { ChannelView } from './features/channels/ChannelView'
-import { ArchivedChannels } from './features/channels/ArchivedChannels'
-import { AdminView } from './features/admin/AdminView'
-import { HelpPage } from './features/help/HelpPage'
-import { ChangelogPage } from './features/changelog/ChangelogPage'
 import { ChangelogProvider, useChangelog } from './features/changelog/useChangelog'
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
 import { ScrollToTop } from './components/ScrollToTop'
+
+const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
+const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
+const PrivacyPage = lazy(() => import('./features/auth/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
+const TermsPage = lazy(() => import('./features/auth/TermsPage').then(m => ({ default: m.TermsPage })))
+const AboutPage = lazy(() => import('./features/auth/AboutPage').then(m => ({ default: m.AboutPage })))
+const Lobby = lazy(() => import('./features/channels/Lobby').then(m => ({ default: m.Lobby })))
+const JoinChannel = lazy(() => import('./features/channels/JoinChannel').then(m => ({ default: m.JoinChannel })))
+const ChannelView = lazy(() => import('./features/channels/ChannelView').then(m => ({ default: m.ChannelView })))
+const ArchivedChannels = lazy(() => import('./features/channels/ArchivedChannels').then(m => ({ default: m.ArchivedChannels })))
+const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ default: m.AdminView })))
+const HelpPage = lazy(() => import('./features/help/HelpPage').then(m => ({ default: m.HelpPage })))
+const ChangelogPage = lazy(() => import('./features/changelog/ChangelogPage').then(m => ({ default: m.ChangelogPage })))
 
 export function NotFound() {
   return (
@@ -190,7 +191,7 @@ function AppNav() {
   )
 }
 
-function App() {
+export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
@@ -201,25 +202,31 @@ function App() {
               <AppNav />
               <RealtimeBanner />
               <main className="flex-1 flex flex-col">
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/" element={<Lobby />} />
-                    <Route path="/archived" element={<ArchivedChannels />} />
-                    <Route path="/admin" element={<AdminView />} />
-                    <Route path="/join/:id" element={<JoinChannel />} />
-                    <Route path="/channel/:id" element={<ChannelView />} />
-                    <Route path="/settings" element={<ProfileSettings />} />
-                    <Route path="/help" element={<HelpPage />} />
-                    <Route path="/help/:topic" element={<HelpPage />} />
-                    <Route path="/changelog" element={<ChangelogPage />} />
-                    <Route path="/about" element={<AboutPage />} />
-                  </Route>
-                  <Route path="/privacy" element={<PrivacyPage />} />
-                  <Route path="/terms" element={<TermsPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <Suspense fallback={
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                }>
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/" element={<Lobby />} />
+                      <Route path="/archived" element={<ArchivedChannels />} />
+                      <Route path="/admin" element={<AdminView />} />
+                      <Route path="/join/:id" element={<JoinChannel />} />
+                      <Route path="/channel/:id" element={<ChannelView />} />
+                      <Route path="/settings" element={<ProfileSettings />} />
+                      <Route path="/help" element={<HelpPage />} />
+                      <Route path="/help/:topic" element={<HelpPage />} />
+                      <Route path="/changelog" element={<ChangelogPage />} />
+                      <Route path="/about" element={<AboutPage />} />
+                    </Route>
+                    <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/terms" element={<TermsPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
               </main>
             </div>
           </ChangelogProvider>
@@ -228,5 +235,3 @@ function App() {
     </ToastProvider>
   )
 }
-
-export default App

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useSearch } from './useSearch'
-import ReactMarkdown from 'react-markdown'
+import { Markdown } from '../../components/Markdown'
 
 interface SearchModalProps {
   channelId: string
@@ -110,7 +110,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                       </span>
                     </div>
                     <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 prose prose-sm max-w-none prose-p:my-0 dark:prose-invert">
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <Markdown>{message.content}</Markdown>
                     </div>
                   </li>
                 ))}
