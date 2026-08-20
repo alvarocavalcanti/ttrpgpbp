@@ -530,9 +530,9 @@ describe('useMessages', () => {
 
     expect(mockRpc).toHaveBeenCalledWith('roll_dice', expect.objectContaining({
       p_notation: '2d20kl1',
-      p_reply_to: null,
-      p_warning: null,
-      p_dc: null
+      p_reply_to: undefined,
+      p_warning: undefined,
+      p_dc: undefined
     }))
   })
 

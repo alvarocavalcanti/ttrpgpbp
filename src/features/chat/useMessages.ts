@@ -306,6 +306,7 @@ export function useMessages(channelId: string | undefined) {
       client_request_id: clientRequestId,
       pending: true,
       pending_payload: payload,
+      reply_message: null,
       sender: user as any, mention_user_ids: null, search_vector: null as any, // sufficient for local display
     }
 
@@ -315,11 +316,11 @@ export function useMessages(channelId: string | undefined) {
       p_channel_id: channelId,
       p_content: payload.content,
       p_type: payload.type,
-      p_reply_to: payload.reply_to ?? null,
-      p_whisper_to: payload.whisper_to ?? null,
-      p_active_player_ids: payload.active_player_ids ?? null,
-      p_npc_name: payload.npc_name ?? null,
-      p_npc_avatar_url: payload.npc_avatar_url ?? null,
+      p_reply_to: payload.reply_to ?? undefined,
+      p_whisper_to: payload.whisper_to ?? undefined,
+      p_active_player_ids: payload.active_player_ids ?? undefined,
+      p_npc_name: payload.npc_name ?? undefined,
+      p_npc_avatar_url: payload.npc_avatar_url ?? undefined,
       p_client_request_id: clientRequestId,
     })
 
@@ -355,6 +356,7 @@ export function useMessages(channelId: string | undefined) {
       client_request_id: clientRequestId,
       pending: true,
       pending_payload: { notation, replyToId, warning, dc },
+      reply_message: null,
       sender: user as any, mention_user_ids: null, search_vector: null as any,
     }
 
@@ -363,9 +365,9 @@ export function useMessages(channelId: string | undefined) {
     const { error: rollError } = await supabase.rpc('roll_dice', {
       p_channel_id: channelId,
       p_notation: notation,
-      p_reply_to: replyToId ?? null,
-      p_warning: warning ?? null,
-      p_dc: dc ?? null,
+      p_reply_to: replyToId ?? undefined,
+      p_warning: warning ?? undefined,
+      p_dc: dc ?? undefined,
       p_client_request_id: clientRequestId,
     })
     
@@ -425,10 +427,10 @@ export function useMessages(channelId: string | undefined) {
       const { error: rollError } = await supabase.rpc('roll_dice', {
         p_channel_id: channelId as string,
         p_notation: notation,
-        p_reply_to: replyToId ?? null,
-        p_warning: warning ?? null,
-        p_dc: dc ?? null,
-        p_client_request_id: msg.client_request_id,
+        p_reply_to: replyToId ?? undefined,
+        p_warning: warning ?? undefined,
+        p_dc: dc ?? undefined,
+        p_client_request_id: msg.client_request_id ?? undefined,
       })
       if (rollError) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: rollError.message } : m))
@@ -439,12 +441,12 @@ export function useMessages(channelId: string | undefined) {
         p_channel_id: channelId as string,
         p_content: payload.content,
         p_type: payload.type,
-        p_reply_to: payload.reply_to ?? null,
-        p_whisper_to: payload.whisper_to ?? null,
-        p_active_player_ids: payload.active_player_ids ?? null,
-        p_npc_name: payload.npc_name ?? null,
-        p_npc_avatar_url: payload.npc_avatar_url ?? null,
-        p_client_request_id: msg.client_request_id,
+        p_reply_to: payload.reply_to ?? undefined,
+        p_whisper_to: payload.whisper_to ?? undefined,
+        p_active_player_ids: payload.active_player_ids ?? undefined,
+        p_npc_name: payload.npc_name ?? undefined,
+        p_npc_avatar_url: payload.npc_avatar_url ?? undefined,
+        p_client_request_id: msg.client_request_id ?? undefined,
       })
       if (error) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: error.message } : m))

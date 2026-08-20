@@ -15,7 +15,7 @@ import {
   MAX_URL_LENGTH,
 } from '../../constants'
 
-type Channel = Database['public']['Tables']['channels']['Row']
+type Channel = Database['public']['Tables']['channels']['Row'] & { has_password?: boolean }
 
 interface ChannelSettingsProps {
   channel: Channel
@@ -154,17 +154,17 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
           p_channel_id: channel.id,
           p_name: name,
           p_game_system: gameSystem,
-          p_map_url: mapUrl || null,
-          p_resources_url: resourcesUrl || null,
-          p_safety_tools_url: safetyToolsUrl || null,
-          p_gm_only_resources_url: gmOnlyResourcesUrl || null,
+          p_map_url: mapUrl || undefined,
+          p_resources_url: resourcesUrl || undefined,
+          p_safety_tools_url: safetyToolsUrl || undefined,
+          p_gm_only_resources_url: gmOnlyResourcesUrl || undefined,
           // Password only sent when the GM toggled "Change Password"; a blank
           // new password clears the existing one.
-          p_password_hash: changePassword ? (hashedPassword?.hash ?? null) : null,
-          p_password_salt: changePassword ? (hashedPassword?.salt ?? null) : null,
+          p_password_hash: changePassword ? (hashedPassword?.hash ?? undefined) : undefined,
+          p_password_salt: changePassword ? (hashedPassword?.salt ?? undefined) : undefined,
           p_clear_password: changePassword && !newPassword,
-          p_safety_lines: showSafetyTools ? safetyLines : null,
-          p_safety_veils: showSafetyTools ? safetyVeils : null,
+          p_safety_lines: showSafetyTools ? safetyLines : undefined,
+          p_safety_veils: showSafetyTools ? safetyVeils : undefined,
         })
 
       if (updateError) throw updateError

@@ -36,7 +36,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
 
     // Persist only integers within the system's modifier bounds. Unknown
     // attribute keys are kept as-is.
-    const attributes = { ...(member.attributes || {}) }
+    const attributes: Record<string, number> = { ...((member.attributes as Record<string, number>) || {}) }
     for (const attr of systemAttributes) {
       const raw = attributeInputs[attr]
       const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0

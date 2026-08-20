@@ -6,9 +6,85 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      abuse_reports: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          id: string
+          message_id: string | null
+          reason: string
+          reported_user_id: string | null
+          reporter_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          reason: string
+          reported_user_id?: string | null
+          reporter_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abuse_reports_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abuse_reports_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           key: string
@@ -24,539 +100,709 @@ export interface Database {
         }
         Relationships: []
       }
-      profiles: {
+      audit_logs: {
         Row: {
-          id: string
-          display_name: string | null
-          avatar_url: string | null
-          server_admin: boolean
+          action: string
+          admin_id: string | null
           created_at: string
-        }
-        Insert: {
+          details: Json | null
           id: string
-          display_name?: string | null
-          avatar_url?: string | null
-          server_admin?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          display_name?: string | null
-          avatar_url?: string | null
-          server_admin?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      channels: {
-        Row: {
-          id: string
-          name: string
-          avatar_url: string | null
-          gm_id: string | null
-          is_archived: boolean
-          game_system: string
-            invite_code: string | null
-            map_url: string | null
-            resources_url: string | null
-            safety_tools_url: string | null
-            status_text: string | null
-          last_message_at: string | null
-          created_at: string
-          updated_at: string
-          has_password?: boolean
+          target_id: string | null
         }
         Insert: {
-          id?: string
-          name: string
-          avatar_url?: string | null
-          gm_id: string
-          is_archived?: boolean
-          game_system?: string
-            invite_code?: string | null
-            map_url?: string | null
-            resources_url?: string | null
-            safety_tools_url?: string | null
-            status_text?: string | null
-          last_message_at?: string | null
+          action: string
+          admin_id?: string | null
           created_at?: string
-          updated_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
         }
         Update: {
-          id?: string
-          name?: string
-          avatar_url?: string | null
-          gm_id?: string | null
-          is_archived?: boolean
-          game_system?: string
-            invite_code?: string | null
-            map_url?: string | null
-            resources_url?: string | null
-            safety_tools_url?: string | null
-            status_text?: string | null
-          last_message_at?: string | null
+          action?: string
+          admin_id?: string | null
           created_at?: string
-          updated_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "channels_gm_id_fkey"
-            columns: ["gm_id"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      channel_secrets: {
-        Row: {
-          channel_id: string
-          password_hash: string | null
-          password_salt: string | null
-          gm_only_resources_url: string | null
-        }
-        Insert: {
-          channel_id: string
-          password_hash?: string | null
-          password_salt?: string | null
-          gm_only_resources_url?: string | null
-        }
-        Update: {
-          channel_id?: string
-          password_hash?: string | null
-          password_salt?: string | null
-          gm_only_resources_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "channel_secrets_channel_id_fkey"
-            columns: ["channel_id"]
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       channel_members: {
         Row: {
-          id: string
+          attributes: Json
+          away_message: string | null
           channel_id: string
-          user_id: string
-          character_name: string
           character_avatar_url: string | null
+          character_name: string
           character_notes: string | null
           character_sheet_url: string | null
+          id: string
           is_active_player: boolean
-          is_blocked: boolean
           is_away: boolean
-          away_message: string | null
-          attributes: any
+          is_blocked: boolean
+          joined_at: string
+          last_read_at: string
           notify_all_messages: boolean
           notify_gm_messages: boolean
           notify_turn: boolean
-          last_read_at?: string
-          joined_at: string
+          user_id: string
         }
         Insert: {
-          id?: string
+          attributes?: Json
+          away_message?: string | null
           channel_id: string
-          user_id: string
-          character_name: string
           character_avatar_url?: string | null
+          character_name: string
           character_notes?: string | null
           character_sheet_url?: string | null
+          id?: string
           is_active_player?: boolean
-          is_blocked?: boolean
           is_away?: boolean
-          away_message?: string | null
-          attributes?: any
+          is_blocked?: boolean
+          joined_at?: string
+          last_read_at?: string
           notify_all_messages?: boolean
           notify_gm_messages?: boolean
           notify_turn?: boolean
-          last_read_at?: string
-          joined_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
+          attributes?: Json
+          away_message?: string | null
           channel_id?: string
-          user_id?: string
-          character_name?: string
           character_avatar_url?: string | null
+          character_name?: string
           character_notes?: string | null
           character_sheet_url?: string | null
+          id?: string
           is_active_player?: boolean
-          is_blocked?: boolean
           is_away?: boolean
-          away_message?: string | null
-          attributes?: any
+          is_blocked?: boolean
+          joined_at?: string
+          last_read_at?: string
           notify_all_messages?: boolean
           notify_gm_messages?: boolean
           notify_turn?: boolean
-          last_read_at?: string
-          joined_at?: string
+          user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "channel_members_channel_id_fkey"
             columns: ["channel_id"]
+            isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "channel_members_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       channel_npcs: {
         Row: {
-          id: string
-          channel_id: string
-          name: string
           avatar_url: string
+          channel_id: string
           created_at: string
+          id: string
+          name: string
         }
         Insert: {
-          id?: string
-          channel_id: string
-          name: string
           avatar_url: string
+          channel_id: string
           created_at?: string
+          id?: string
+          name: string
         }
         Update: {
-          id?: string
-          channel_id?: string
-          name?: string
           avatar_url?: string
+          channel_id?: string
           created_at?: string
+          id?: string
+          name?: string
         }
         Relationships: [
           {
             foreignKeyName: "channel_npcs_channel_id_fkey"
             columns: ["channel_id"]
+            isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       channel_safety_tools: {
         Row: {
           channel_id: string
           lines: string
-          veils: string
           updated_at: string
+          veils: string
         }
         Insert: {
           channel_id: string
           lines?: string
-          veils?: string
           updated_at?: string
+          veils?: string
         }
         Update: {
           channel_id?: string
           lines?: string
-          veils?: string
           updated_at?: string
+          veils?: string
         }
         Relationships: [
           {
             foreignKeyName: "channel_safety_tools_channel_id_fkey"
             columns: ["channel_id"]
+            isOneToOne: true
             referencedRelation: "channels"
             referencedColumns: ["id"]
-          }
+          },
+        ]
+      }
+      channel_secrets: {
+        Row: {
+          channel_id: string
+          gm_only_resources_url: string | null
+          password_hash: string | null
+          password_salt: string | null
+        }
+        Insert: {
+          channel_id: string
+          gm_only_resources_url?: string | null
+          password_hash?: string | null
+          password_salt?: string | null
+        }
+        Update: {
+          channel_id?: string
+          gm_only_resources_url?: string | null
+          password_hash?: string | null
+          password_salt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_secrets_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          game_system: string
+          gm_id: string | null
+          id: string
+          invite_code: string | null
+          is_archived: boolean
+          last_message_at: string | null
+          map_url: string | null
+          name: string
+          resources_url: string | null
+          safety_tools_url: string | null
+          status_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          game_system?: string
+          gm_id?: string | null
+          id?: string
+          invite_code?: string | null
+          is_archived?: boolean
+          last_message_at?: string | null
+          map_url?: string | null
+          name: string
+          resources_url?: string | null
+          safety_tools_url?: string | null
+          status_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          game_system?: string
+          gm_id?: string | null
+          id?: string
+          invite_code?: string | null
+          is_archived?: boolean
+          last_message_at?: string | null
+          map_url?: string | null
+          name?: string
+          resources_url?: string | null
+          safety_tools_url?: string | null
+          status_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channels_gm_id_fkey"
+            columns: ["gm_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dice_rolls: {
+        Row: {
+          breakdown: Json
+          channel_id: string
+          created_at: string
+          id: string
+          message_id: string
+          notation: string
+          result: number
+          roller_id: string
+        }
+        Insert: {
+          breakdown: Json
+          channel_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+          notation: string
+          result: number
+          roller_id: string
+        }
+        Update: {
+          breakdown?: Json
+          channel_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          notation?: string
+          result?: number
+          roller_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dice_rolls_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dice_rolls_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dice_rolls_roller_id_fkey"
+            columns: ["roller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      image_cleanup_audit: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          cutoff_at: string
+          error_message: string | null
+          id: number
+          object_paths: string[]
+          retention_days: number
+          run_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          cutoff_at: string
+          error_message?: string | null
+          id?: never
+          object_paths: string[]
+          retention_days: number
+          run_id: string
+          status: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          cutoff_at?: string
+          error_message?: string | null
+          id?: never
+          object_paths?: string[]
+          retention_days?: number
+          run_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      message_reactions: {
+        Row: {
+          channel_id: string
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       messages: {
         Row: {
-          id: string
           channel_id: string
-          sender_id: string | null
-          type: 'regular' | 'scene' | 'dice_roll' | 'system' | 'npc'
+          client_request_id: string | null
           content: string
-          whisper_to: string | null
-          reply_to: string | null
-          npc_name: string | null
+          created_at: string
+          id: string
+          is_deleted: boolean
+          is_edited: boolean
+          mention_user_ids: string[] | null
           npc_avatar_url: string | null
+          npc_name: string | null
+          reply_to: string | null
           roll_dc: number | null
           roll_success: boolean | null
-          mention_user_ids: string[] | null
-          client_request_id: string | null
-          is_edited: boolean
-          is_deleted: boolean
-          search_vector: unknown | null
-          created_at: string
+          search_vector: unknown
+          sender_id: string | null
+          type: string
           updated_at: string
+          whisper_to: string | null
+          reply_message: {
+            channel_id: string
+            client_request_id: string | null
+            content: string
+            created_at: string
+            id: string
+            is_deleted: boolean
+            is_edited: boolean
+            mention_user_ids: string[] | null
+            npc_avatar_url: string | null
+            npc_name: string | null
+            reply_to: string | null
+            roll_dc: number | null
+            roll_success: boolean | null
+            search_vector: unknown
+            sender_id: string | null
+            type: string
+            updated_at: string
+            whisper_to: string | null
+          } | null
         }
         Insert: {
-          id?: string
           channel_id: string
-          sender_id?: string | null
-          type: 'regular' | 'scene' | 'dice_roll' | 'system' | 'npc'
+          client_request_id?: string | null
           content: string
-          whisper_to?: string | null
-          reply_to?: string | null
-          npc_name?: string | null
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          mention_user_ids?: string[] | null
           npc_avatar_url?: string | null
+          npc_name?: string | null
+          reply_to?: string | null
           roll_dc?: number | null
           roll_success?: boolean | null
-          mention_user_ids?: string[] | null
-          client_request_id?: string | null
-          is_edited?: boolean
-          is_deleted?: boolean
-          search_vector?: unknown | null
-          created_at?: string
+          search_vector?: unknown
+          sender_id?: string | null
+          type: string
           updated_at?: string
+          whisper_to?: string | null
         }
         Update: {
-          id?: string
           channel_id?: string
-          sender_id?: string | null
-          type?: 'regular' | 'scene' | 'dice_roll' | 'system' | 'npc'
+          client_request_id?: string | null
           content?: string
-          whisper_to?: string | null
-          reply_to?: string | null
-          npc_name?: string | null
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          mention_user_ids?: string[] | null
           npc_avatar_url?: string | null
+          npc_name?: string | null
+          reply_to?: string | null
           roll_dc?: number | null
           roll_success?: boolean | null
-          mention_user_ids?: string[] | null
-          client_request_id?: string | null
-          is_edited?: boolean
-          is_deleted?: boolean
-          search_vector?: unknown | null
-          created_at?: string
+          search_vector?: unknown
+          sender_id?: string | null
+          type?: string
           updated_at?: string
+          whisper_to?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "messages_channel_id_fkey"
             columns: ["channel_id"]
+            isOneToOne: false
             referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "messages_whisper_to_fkey"
             columns: ["whisper_to"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "messages_reply_to_fkey"
-            columns: ["reply_to"]
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      message_reactions: {
-        Row: {
-          id: string
-          message_id: string
-          channel_id: string
-          user_id: string
-          emoji: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          message_id: string
-          channel_id: string
-          user_id: string
-          emoji: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          message_id?: string
-          channel_id?: string
-          user_id?: string
-          emoji?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "message_reactions_message_id_fkey"
-            columns: ["message_id"]
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_reactions_channel_id_fkey"
-            columns: ["channel_id"]
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_reactions_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      dice_rolls: {
-        Row: {
-          id: string
-          message_id: string
-          channel_id: string
-          roller_id: string
-          notation: string
-          result: number
-          breakdown: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          message_id: string
-          channel_id: string
-          roller_id: string
-          notation: string
-          result: number
-          breakdown: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          message_id?: string
-          channel_id?: string
-          roller_id?: string
-          notation?: string
-          result?: number
-          breakdown?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dice_rolls_message_id_fkey"
-            columns: ["message_id"]
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dice_rolls_channel_id_fkey"
-            columns: ["channel_id"]
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dice_rolls_roller_id_fkey"
-            columns: ["roller_id"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
         ]
       }
       notification_preferences: {
         Row: {
-          id: string
-          user_id: string
-          push_enabled: boolean
           badge_enabled: boolean
           email_enabled: boolean
+          id: string
+          push_enabled: boolean
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          push_enabled?: boolean
           badge_enabled?: boolean
           email_enabled?: boolean
+          id?: string
+          push_enabled?: boolean
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          push_enabled?: boolean
           badge_enabled?: boolean
           email_enabled?: boolean
+          id?: string
+          push_enabled?: boolean
+          user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "notification_preferences_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_suspended: boolean
+          server_admin: boolean
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          is_suspended?: boolean
+          server_admin?: boolean
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_suspended?: boolean
+          server_admin?: boolean
+        }
+        Relationships: []
+      }
+      push_delivery_log: {
+        Row: {
+          created_at: string
+          error_category: string | null
+          event_id: string
+          event_kind: string
+          id: string
+          status: string
+          subscription_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_category?: string | null
+          event_id: string
+          event_kind: string
+          id?: string
+          status: string
+          subscription_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_category?: string | null
+          event_id?: string
+          event_kind?: string
+          id?: string
+          status?: string
+          subscription_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      push_invocation_log: {
+        Row: {
+          created_at: string
+          entity_id: string
+          event_kind: string
+          id: number
+          request_id: number
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          event_kind: string
+          id?: number
+          request_id: number
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          event_kind?: string
+          id?: number
+          request_id?: number
+        }
+        Relationships: []
+      }
+      push_notification_config: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
       }
       push_subscriptions: {
         Row: {
-          id: string
-          user_id: string
-          endpoint: string
-          p256dh: string
           auth: string
           created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          endpoint: string
-          p256dh: string
           auth: string
           created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          endpoint?: string
-          p256dh?: string
           auth?: string
           created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "push_subscriptions_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       safety_card_events: {
         Row: {
-          id: string
           channel_id: string
-          message_id: string | null
           created_at: string
+          id: string
+          message_id: string | null
         }
         Insert: {
-          id?: string
           channel_id: string
-          message_id?: string | null
           created_at?: string
+          id?: string
+          message_id?: string | null
         }
         Update: {
-          id?: string
           channel_id?: string
-          message_id?: string | null
           created_at?: string
+          id?: string
+          message_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "safety_card_events_channel_id_fkey"
             columns: ["channel_id"]
+            isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "safety_card_events_message_id_fkey"
             columns: ["message_id"]
+            isOneToOne: false
             referencedRelation: "messages"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
     }
@@ -564,159 +810,224 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      get_channel_salt: {
+      admin_claim_channel: {
+        Args: { p_channel_id: string }
+        Returns: undefined
+      }
+      admin_get_image_storage_bytes: { Args: never; Returns: number }
+      admin_list_channels: {
+        Args: never
+        Returns: {
+          created_at: string
+          game_system: string
+          gm_display_name: string
+          gm_id: string
+          id: string
+          last_message_at: string
+          member_count: number
+          name: string
+        }[]
+      }
+      admin_list_users: {
+        Args: never
+        Returns: {
+          channel_count: number
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+        }[]
+      }
+      admin_suspend_user: {
+        Args: { p_reason?: string; p_suspend: boolean; p_user_id: string }
+        Returns: undefined
+      }
+      build_dice_content: {
         Args: {
-          p_channel_id: string
+          p_modifier: number
+          p_notation: string
+          p_rolls: number[]
+          p_total: number
         }
         Returns: string
-      }
-      get_join_channel_preview: {
-        Args: {
-          p_channel_id: string
-        }
-        Returns: {
-          id: string
-          name: string
-          game_system: string
-          has_password: boolean
-        }[]
-      }
-      join_channel: {
-        Args: {
-          p_channel_id: string
-          p_character_name: string
-          p_character_avatar_url?: string
-          p_character_sheet_url?: string
-          p_password_hash?: string
-          p_invite_code?: string
-          p_character_attributes?: Record<string, number>
-        }
-        Returns: Json
-      }
-      roll_dice: {
-        Args: {
-          p_channel_id: string
-          p_notation: string
-          p_reply_to?: string | null
-          p_warning?: string | null
-          p_dc?: number | null
-          p_client_request_id?: string | null
-        }
-        Returns: {
-          message_id: string
-          dice_roll_id: string
-        }[]
-      }
-      send_message: {
-        Args: {
-          p_channel_id: string
-          p_content: string
-          p_type: 'regular' | 'scene' | 'npc'
-          p_reply_to?: string | null
-          p_whisper_to?: string | null
-          p_active_player_ids?: string[] | null
-          p_npc_name?: string | null
-          p_npc_avatar_url?: string | null
-          p_client_request_id?: string | null
-        }
-        Returns: {
-          message_id: string
-        }[]
-      }
-      moderate_member: {
-        Args: {
-          p_channel_id: string
-          p_member_id: string
-          p_action: 'block' | 'unblock' | 'kick' | 'leave'
-        }
-        Returns: undefined
-      }
-      update_channel_settings: {
-        Args: {
-          p_channel_id: string
-          p_name?: string | null
-          p_game_system?: string | null
-          p_map_url?: string | null
-          p_resources_url?: string | null
-          p_safety_tools_url?: string | null
-          p_gm_only_resources_url?: string | null
-          p_password_hash?: string | null
-          p_password_salt?: string | null
-          p_clear_password?: boolean | null
-          p_safety_lines?: string | null
-          p_safety_veils?: string | null
-        }
-        Returns: undefined
-      }
-      get_channel_roll_history: {
-        Args: {
-          p_channel_id: string
-        }
-        Returns: {
-          id: string
-          notation: string
-          result: number
-          breakdown: Json
-          created_at: string
-          roller_id: string
-          roller_display_name: string | null
-        }[]
       }
       create_channel: {
         Args: {
-          p_name: string
+          p_character_avatar_url?: string
+          p_character_name: string
+          p_character_sheet_url?: string
           p_game_system?: string
           p_invite_code: string
-          p_character_name: string
-          p_character_avatar_url?: string
-          p_character_sheet_url?: string
-          p_password_hash?: string | null
-          p_password_salt?: string | null
+          p_name: string
+          p_password_hash?: string
+          p_password_salt?: string
         }
         Returns: string
       }
+      get_channel_roll_history: {
+        Args: { p_channel_id: string }
+        Returns: {
+          breakdown: Json
+          created_at: string
+          id: string
+          notation: string
+          result: number
+          roller_display_name: string
+          roller_id: string
+        }[]
+      }
+      get_channel_salt: { Args: { p_channel_id: string }; Returns: string }
+      get_join_channel_preview: {
+        Args: { p_channel_id: string }
+        Returns: {
+          game_system: string
+          has_password: boolean
+          id: string
+          name: string
+        }[]
+      }
+      get_unread_count: {
+        Args: { channel_id: string; last_read_at: string }
+        Returns: number
+      }
+      get_unread_totals: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          unread_count: number
+          user_id: string
+        }[]
+      }
       get_user_channels_unread: {
-        Args: {
-          p_user_id: string
-        }
+        Args: { p_user_id: string }
         Returns: {
           channel_id: string
           unread_count: number
         }[]
       }
-      is_server_admin: {
-        Args: Record<PropertyKey, never>
+      has_password: {
+        Args: { c: Database["public"]["Tables"]["channels"]["Row"] }
         Returns: boolean
       }
-      admin_list_users: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          display_name: string | null
-          email: string | null
-          channel_count: number
-          created_at: string
-        }[]
+      is_channel_gm: { Args: { c_id: string }; Returns: boolean }
+      is_channel_member: { Args: { c_id: string }; Returns: boolean }
+      is_server_admin: { Args: never; Returns: boolean }
+      is_suspended: { Args: { u_id: string }; Returns: boolean }
+      join_channel: {
+        Args: {
+          p_channel_id: string
+          p_character_attributes?: Json
+          p_character_avatar_url?: string
+          p_character_name: string
+          p_character_sheet_url?: string
+          p_invite_code?: string
+          p_password_hash?: string
+        }
+        Returns: Json
       }
-      admin_get_image_storage_bytes: {
-        Args: Record<PropertyKey, never>
+      moderate_member: {
+        Args: { p_action: string; p_channel_id: string; p_member_id: string }
+        Returns: undefined
+      }
+      push_notification_config_value: {
+        Args: { p_key: string }
+        Returns: string
+      }
+      reply_message: {
+        Args: { "": Database["public"]["Tables"]["messages"]["Row"] }
+        Returns: {
+          channel_id: string
+          client_request_id: string | null
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          is_edited: boolean
+          mention_user_ids: string[] | null
+          npc_avatar_url: string | null
+          npc_name: string | null
+          reply_to: string | null
+          roll_dc: number | null
+          roll_success: boolean | null
+          search_vector: unknown
+          sender_id: string | null
+          type: string
+          updated_at: string
+          whisper_to: string | null
+        }
+        SetofOptions: {
+          from: "messages"
+          to: "messages"
+          isOneToOne: true
+          isSetofReturn: true
+        }
+      }
+      resolve_mention_user_ids: {
+        Args: { p_channel_id: string; p_content: string }
+        Returns: string[]
+      }
+      retry_failed_push_invocations: {
+        Args: { p_max?: number }
         Returns: number
       }
-      admin_list_channels: {
-        Args: Record<PropertyKey, never>
+      roll_dice: {
+        Args: {
+          p_channel_id: string
+          p_client_request_id?: string
+          p_dc?: number
+          p_notation: string
+          p_reply_to?: string
+          p_warning?: string
+        }
         Returns: {
-          id: string
-          name: string
-          game_system: string
-          gm_id: string | null
-          member_count: number
-          created_at: string
-          last_message_at: string | null
-          gm_display_name: string | null
+          dice_roll_id: string
+          message_id: string
         }[]
       }
-      admin_claim_channel: {
-        Args: { p_channel_id: string }
+      roll_dice_unchecked: {
+        Args: {
+          p_channel_id: string
+          p_client_request_id?: string
+          p_dc?: number
+          p_notation: string
+          p_reply_to?: string
+          p_warning?: string
+        }
+        Returns: {
+          dice_roll_id: string
+          message_id: string
+        }[]
+      }
+      send_message: {
+        Args: {
+          p_active_player_ids?: string[]
+          p_channel_id: string
+          p_client_request_id?: string
+          p_content: string
+          p_npc_avatar_url?: string
+          p_npc_name?: string
+          p_reply_to?: string
+          p_type?: string
+          p_whisper_to?: string
+        }
+        Returns: {
+          message_id: string
+        }[]
+      }
+      update_channel_settings: {
+        Args: {
+          p_channel_id: string
+          p_clear_password?: boolean
+          p_game_system?: string
+          p_gm_only_resources_url?: string
+          p_map_url?: string
+          p_name?: string
+          p_password_hash?: string
+          p_password_salt?: string
+          p_resources_url?: string
+          p_safety_lines?: string
+          p_safety_tools_url?: string
+          p_safety_veils?: string
+        }
         Returns: undefined
       }
     }
@@ -728,3 +1039,130 @@ export interface Database {
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const
+

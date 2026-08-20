@@ -87,7 +87,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: 'https://example.com/avatar.jpg',
-        created_at: '',
+        created_at: '', is_suspended: false,
       },
       session: null,
 
@@ -112,7 +112,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: null,
-        created_at: '',
+        created_at: '', is_suspended: false,
       },
       session: null,
 
@@ -149,7 +149,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: null,
-        created_at: '',
+        created_at: '', is_suspended: false,
       },
       session: null,
 
