@@ -179,6 +179,30 @@ describe('LoginPage', () => {
     expect(featureHeading.compareDocumentPosition(attribution) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('renders links to privacy policy and terms of service', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    const privacyLink = screen.getByRole('link', { name: 'Privacy Policy' })
+    const termsLink = screen.getByRole('link', { name: 'Terms of Service' })
+
+    expect(privacyLink).toHaveAttribute('href', '/privacy')
+    expect(termsLink).toHaveAttribute('href', '/terms')
+  })
+
   it('renders the feature grid with responsive layout', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,

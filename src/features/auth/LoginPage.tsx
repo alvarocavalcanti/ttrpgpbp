@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './useAuth'
 import { ThemeToggle } from '../../components/ThemeToggle'
 
@@ -172,17 +172,28 @@ export function LoginPage() {
           </div>
         </div>
       </div>
-      <p className="mt-14 text-center text-sm text-gray-600 dark:text-gray-400">
-        by{' '}
-        <a
-          href="https://memorablenaton.es"
-          target="_blank"
-          rel="noreferrer"
-          className="text-indigo-600 dark:text-indigo-400 hover:underline"
-        >
-          Alvaro Cavalcanti
-        </a>
-      </p>
+      <div className="mt-14 text-center text-sm text-gray-600 dark:text-gray-400 space-y-2 flex flex-col items-center">
+        <p>
+          by{' '}
+          <a
+            href="https://memorablenaton.es"
+            target="_blank"
+            rel="noreferrer"
+            className="text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            Alvaro Cavalcanti
+          </a>
+        </p>
+        <div className="flex gap-4 text-xs">
+          <Link to="/privacy" className="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
+            Privacy Policy
+          </Link>
+          <span className="text-gray-300 dark:text-gray-700">|</span>
+          <Link to="/terms" className="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
+            Terms of Service
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

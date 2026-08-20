@@ -30,9 +30,9 @@ From **Settings → Account & Data → Download My Data** you can export your pr
 
 From **Settings → Account & Data → Delete Account** you can permanently erase your account and personal data. To confirm, type `DELETE`. After deletion your past messages stay in the chat but are shown without your name, and any channels you ran become available to the server admin. This cannot be undone.
 
-## Privacy policy
+## Privacy policy & Terms of Service
 
-The **Privacy Policy** (linked from Settings and the app menu) explains what data we collect, where it is stored, and your access and erasure rights.
+The **Privacy Policy** and **Terms of Service** (linked from the login page footer, Settings, and the app menu) explain what data we collect, where it is stored, your access and erasure rights, and the terms governing your use of the platform.
 
 ## About RoleByPost
 

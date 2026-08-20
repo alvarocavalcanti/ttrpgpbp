@@ -39,4 +39,15 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/Download My Data/)).toBeInTheDocument()
     expect(screen.getByText(/Delete Account/)).toBeInTheDocument()
   })
+
+  it('contains the Google API Limited Use disclosure', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/Google API Services User Data Policy/)).toBeInTheDocument()
+    expect(screen.getByText(/Limited Use Disclosure/)).toBeInTheDocument()
+  })
 })
