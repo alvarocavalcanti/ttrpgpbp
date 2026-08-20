@@ -16,7 +16,7 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">What we collect</h2>
           <p>
-            RoleByPost uses Google Sign-In (OAuth). When you sign in we receive your name,
+            RoleByPost uses Google Sign-In (OAuth). When you sign in, we receive your name,
             email address, and profile picture. We store your display name, avatar, and the
             messages, dice rolls, and channel memberships you create in the app.
           </p>
@@ -36,7 +36,30 @@ export function PrivacyPage() {
           <p>
             Sign-in uses the Google OAuth <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">email</code> and{' '}
             <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">profile</code> scopes. We do
-            not request access to your contacts, calendar, drive, or other Google data.
+            not request access to your contacts, calendar, drive, or other Google data. We only use this information to authenticate you and display your name and profile picture inside the application.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data Sharing &amp; Third Parties</h2>
+          <p>
+            We do not sell, rent, or trade your personal information to third parties. We do not use your personal information for advertising or marketing. Your information is shared only with our infrastructure provider (Supabase) solely for hosting and data storage purposes.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Google API Limited Use Disclosure</h2>
+          <p>
+            RoleByPost's use and transfer of information received from Google APIs to any other app will adhere to the{' '}
+            <a
+              href="https://developers.google.com/terms/api-services-user-data-policy#limited-use-requirements"
+              target="_blank"
+              rel="noreferrer"
+              className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+            >
+              Google API Services User Data Policy
+            </a>
+            , including the Limited Use requirements.
           </p>
         </section>
 
@@ -58,7 +81,7 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          This policy describes data handling for the RoleByPost application. Contact the server
+          Last updated: August 20, 2026. This policy describes data handling for the RoleByPost application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access.
         </p>
       </div>

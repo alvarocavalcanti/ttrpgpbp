@@ -8,6 +8,7 @@ import { LoginPage } from './features/auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ProfileSettings } from './features/auth/ProfileSettings'
 import { PrivacyPage } from './features/auth/PrivacyPage'
+import { TermsPage } from './features/auth/TermsPage'
 import { AboutPage } from './features/auth/AboutPage'
 import { Lobby } from './features/channels/Lobby'
 import { JoinChannel } from './features/channels/JoinChannel'
@@ -155,6 +156,13 @@ function AppNav() {
             >
               Privacy Policy
             </Link>
+            <Link 
+              to="/terms" 
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => setMenuOpen(false)}
+            >
+              Terms of Service
+            </Link>
             {isServerAdmin && (
               <Link 
                 to="/admin" 
@@ -206,9 +214,10 @@ function App() {
                     <Route path="/help" element={<HelpPage />} />
                     <Route path="/help/:topic" element={<HelpPage />} />
                     <Route path="/changelog" element={<ChangelogPage />} />
-                    <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/about" element={<AboutPage />} />
                   </Route>
+                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
