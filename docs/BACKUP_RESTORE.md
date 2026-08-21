@@ -30,3 +30,35 @@ If you have PITR enabled (Pro Tier):
    ```
 
 3. Run integration tests or manually verify the application flow.
+
+## Backup/Restore Drill Plan (Verification)
+
+Run a regular verification check to ensure backup integrity:
+
+1. **Dump production data:**
+
+   ```bash
+   npx supabase db dump --db-url "$PRODUCTION_DB_URL" --data-only > data_dump.sql
+   npx supabase db dump --db-url "$PRODUCTION_DB_URL" --role-only > roles_dump.sql
+   ```
+
+2. **Spin up a local clean environment:**
+
+   ```bash
+   npx supabase db reset
+   ```
+
+3. **Restore dumps to the local database:**
+
+   ```bash
+   psql "$LOCAL_DB_URL" -f roles_dump.sql
+   psql "$LOCAL_DB_URL" -f data_dump.sql
+   ```
+
+4. **Run integration and E2E tests:**
+
+   Verify that restoring the backup does not break schemas, triggers, or existing relationships by running:
+
+   ```bash
+   npm run test:e2e
+   ```
