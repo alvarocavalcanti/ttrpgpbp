@@ -24,6 +24,10 @@ const ArchivedChannels = lazy(() => import('./features/channels/ArchivedChannels
 const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ default: m.AdminView })))
 const HelpPage = lazy(() => import('./features/help/HelpPage').then(m => ({ default: m.HelpPage })))
 const ChangelogPage = lazy(() => import('./features/changelog/ChangelogPage').then(m => ({ default: m.ChangelogPage })))
+import { useIsActiveGM } from './hooks/useIsActiveGM'
+import { useAdminUnread } from './features/admin-messages/useAdminUnread'
+
+const AdminMessagesView = lazy(() => import('./features/admin-messages/AdminMessagesView').then(m => ({ default: m.AdminMessagesView })))
 
 export function NotFound() {
   return (
@@ -38,6 +42,8 @@ export function NotFound() {
 function AppNav() {
   const { user, profile, signOut } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
+  const { isActiveGM } = useIsActiveGM()
+  const adminUnreadCount = useAdminUnread()
   const { openChangelog } = useChangelog()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -92,12 +98,15 @@ function AppNav() {
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="relative p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
           aria-label="Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
+          {adminUnreadCount > 0 && (
+            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800" />
+          )}
         </button>
 
         {menuOpen && (
@@ -127,6 +136,18 @@ function AppNav() {
             >
               Archived Channels
             </Link>
+            {(isServerAdmin || isActiveGM) && (
+              <Link
+                to="/messages"
+                className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setMenuOpen(false)}
+              >
+                <span>Admin Messages</span>
+                {adminUnreadCount > 0 && (
+                  <span className="flex h-2 w-2 rounded-full bg-red-500" />
+                )}
+              </Link>
+            )}
             <Link 
               to="/help" 
               className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -214,6 +235,7 @@ export default function App() {
                     <Route element={<ProtectedRoute />}>
                       <Route path="/" element={<Lobby />} />
                       <Route path="/archived" element={<ArchivedChannels />} />
+                      <Route path="/messages" element={<AdminMessagesView />} />
                       <Route path="/admin" element={<AdminView />} />
                       <Route path="/join/:id" element={<JoinChannel />} />
                       <Route path="/channel/:id" element={<ChannelView />} />

@@ -85,6 +85,132 @@ export type Database = {
           },
         ]
       }
+      admin_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          sender_id: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          sender_id: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          sender_id?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "admin_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_thread_reads: {
+        Row: {
+          last_read_at: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_thread_reads_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "admin_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_thread_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_threads: {
+        Row: {
+          created_at: string
+          created_by: string
+          gm_id: string | null
+          id: string
+          last_message_at: string
+          subject: string | null
+          type: Database["public"]["Enums"]["admin_thread_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          gm_id?: string | null
+          id?: string
+          last_message_at?: string
+          subject?: string | null
+          type: Database["public"]["Enums"]["admin_thread_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          gm_id?: string | null
+          id?: string
+          last_message_at?: string
+          subject?: string | null
+          type?: Database["public"]["Enums"]["admin_thread_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_threads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_threads_gm_id_fkey"
+            columns: ["gm_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           key: string
@@ -815,6 +941,14 @@ export type Database = {
         Returns: undefined
       }
       admin_get_image_storage_bytes: { Args: never; Returns: number }
+      admin_list_active_gms: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+        }[]
+      }
       admin_list_channels: {
         Args: never
         Returns: {
@@ -864,6 +998,7 @@ export type Database = {
         }
         Returns: string
       }
+      get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
       get_channel_roll_history: {
         Args: { p_channel_id: string }
         Returns: {
@@ -908,6 +1043,7 @@ export type Database = {
         Args: { c: Database["public"]["Tables"]["channels"]["Row"] }
         Returns: boolean
       }
+      is_active_gm: { Args: { p_user_id: string }; Returns: boolean }
       is_channel_gm: { Args: { c_id: string }; Returns: boolean }
       is_channel_member: { Args: { c_id: string }; Returns: boolean }
       is_server_admin: { Args: never; Returns: boolean }
@@ -923,6 +1059,10 @@ export type Database = {
           p_password_hash?: string
         }
         Returns: Json
+      }
+      mark_admin_thread_read: {
+        Args: { p_thread_id: string }
+        Returns: undefined
       }
       moderate_member: {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
@@ -1032,7 +1172,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      admin_thread_type: "announcement" | "dm"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1162,7 +1302,9 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      admin_thread_type: ["announcement", "dm"],
+    },
   },
 } as const
 

@@ -1,0 +1,75 @@
+--- a/src/types/database.ts
++++ b/src/types/database.ts
+@@ -936,6 +936,11 @@ export type Database = {
+       [_ in never]: never
+     }
+     Functions: {
++      admin_claim_channel: {
++        Args: { p_channel_id: string }
++        Returns: undefined
++      }
++      admin_get_image_storage_bytes: { Args: never; Returns: number }
+       admin_list_active_gms: {
+         Args: never
+         Returns: {
+@@ -944,23 +949,6 @@ export type Database = {
+           id: string
+         }[]
+       }
+-      get_admin_unread_count: {
+-        Args: { p_user_id: string }
+-        Returns: number
+-      }
+-      is_active_gm: {
+-        Args: { p_user_id: string }
+-        Returns: boolean
+-      }
+-      mark_admin_thread_read: {
+-        Args: { p_thread_id: string }
+-        Returns: undefined
+-      }
+-      admin_claim_channel: {
+-        Args: { p_channel_id: string }
+-        Returns: undefined
+-      }
+-      admin_get_image_storage_bytes: { Args: never; Returns: number }
+       admin_list_channels: {
+         Args: never
+         Returns: {
+@@ -1010,6 +998,7 @@ export type Database = {
+         }
+         Returns: string
+       }
++      get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
+       get_channel_roll_history: {
+         Args: { p_channel_id: string }
+         Returns: {
+@@ -1054,6 +1043,7 @@ export type Database = {
+         Args: { c: Database["public"]["Tables"]["channels"]["Row"] }
+         Returns: boolean
+       }
++      is_active_gm: { Args: { p_user_id: string }; Returns: boolean }
+       is_channel_gm: { Args: { c_id: string }; Returns: boolean }
+       is_channel_member: { Args: { c_id: string }; Returns: boolean }
+       is_server_admin: { Args: never; Returns: boolean }
+@@ -1070,6 +1060,10 @@ export type Database = {
+         }
+         Returns: Json
+       }
++      mark_admin_thread_read: {
++        Args: { p_thread_id: string }
++        Returns: undefined
++      }
+       moderate_member: {
+         Args: { p_action: string; p_channel_id: string; p_member_id: string }
+         Returns: undefined
+@@ -1308,7 +1302,9 @@ export const Constants = {
+     Enums: {},
+   },
+   public: {
+-    Enums: {},
++    Enums: {
++      admin_thread_type: ["announcement", "dm"],
++    },
+   },
+ } as const

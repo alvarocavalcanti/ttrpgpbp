@@ -8,4 +8,10 @@ export const mockSupabase = {
     signOut: vi.fn(),
   },
   from: vi.fn(),
+  rpc: vi.fn(),
+  channel: vi.fn().mockReturnValue({
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+  }),
+  removeChannel: vi.fn(),
 }
