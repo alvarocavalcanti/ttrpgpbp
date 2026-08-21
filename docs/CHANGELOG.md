@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Server Admin & GM communication** — active Game Masters now have a dedicated "Admin Messages" menu item to report issues, ask questions, and read announcements from the server admin. The admin can broadcast announcements and start direct messages with any GM, with push notifications to keep everyone in the loop.
+
 - **Stability improvements** — Added automated system tests to verify the sign-in, channel creation, messaging, and dice rolling features, ensuring the app remains stable and bug-free.
 - **Drafts and reliable sending** — the composer now saves your draft automatically as you type. If you close the app or switch channels mid-sentence, your text is there when you return. Messages and rolls also send more reliably: if your connection drops while sending, the message shows as "Pending" and then gives you "Retry" and "Remove" options when the failure is confirmed, keeping your text safe. Retries are guaranteed not to duplicate the message.
 - **About page and creator support** — the app now credits its creator, links to the RoleByPost project, and provides donation badges for anyone who wants to support development.
