@@ -10,10 +10,10 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
   const { isServerAdmin } = useIsServerAdmin()
   const [showNewModal, setShowNewModal] = useState(false)
 
-  if (loading) return <div className="p-4 text-gray-500">Loading threads...</div>
+  if (loading) return <div className="p-4 w-full text-gray-500">Loading threads...</div>
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-800">
+    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Messages</h2>
         {isServerAdmin ? (

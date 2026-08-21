@@ -28,6 +28,11 @@ export function useAdminUnread() {
         { event: 'INSERT', schema: 'public', table: 'admin_messages' },
         () => fetchUnread()
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` },
+        () => fetchUnread()
+      )
       .subscribe()
 
     // Listen to push messages as a fallback

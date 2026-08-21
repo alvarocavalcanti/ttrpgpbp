@@ -91,6 +91,7 @@ Boundaries: code/commits/PRs written normal.
 
 Every UI change must follow these conventions:
 
+- **Flex layout widths** — always explicitly add `w-full` to `flex-1` children inside `flex-col` containers when they need to span the full width. Relying purely on the default flex stretch behavior causes unexpected width collapse on mobile viewports.
 - **Validations on user input** — enforce min/max bounds at the point of input, not just on save: `maxLength` on text inputs, numeric ranges for numbers, size caps for uploads, integer-only where decimals don't make sense. Reject invalid input as it is typed (ignore the keystroke / `onChange` sanitization) instead of silently coercing or letting the backend reject it. Show a clear inline error when a value can't be fixed automatically.
 - **Empty states** — every list/table view needs an explicit empty state ("No X yet" + a call to action when appropriate), never a blank region.
 - **Loading & error states** — every async fetch shows a spinner while loading and a friendly, actionable error on failure (with a Retry when sensible). A failed sub-request must never blank the whole screen — degrade gracefully (e.g. show the error banner, keep the rest usable).
