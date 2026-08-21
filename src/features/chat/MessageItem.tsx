@@ -1,3 +1,4 @@
+import { Avatar } from '../../components/Avatar';
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { linkifyDice } from '../dice/parser'
@@ -431,14 +432,14 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       <div className="flex-shrink-0">
         {isNpc ? (
           message.npc_avatar_url ? (
-            <img className="h-10 w-10 rounded-full" src={message.npc_avatar_url} alt="" referrerPolicy="no-referrer" />
+            <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={message.npc_avatar_url} alt="" referrerPolicy="no-referrer" />
           ) : (
             <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif">
               {message.npc_name?.[0]?.toUpperCase() || '?'}
             </div>
           )
         ) : message.sender?.avatar_url ? (
-          <img className="h-10 w-10 rounded-full" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
+          <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
         ) : (
           <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400">
             {senderName?.[0]?.toUpperCase() || '?'}
