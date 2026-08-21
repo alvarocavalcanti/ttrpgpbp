@@ -43,6 +43,19 @@ jobs:
         with:
           node-version: '26'
           cache: 'npm'
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          # ponytail: pin v2.111.0 — v2.112.0+ breaks `supabase link`. Re-pin once fixed.
+          version: v2.111.0
+
+      - name: Start local Supabase
+        run: supabase db start
+
+      - name: Generate .env.local from Supabase config
+        run: |
+          supabase status -o env | grep -E "API_URL|ANON_KEY" | sed 's/API_URL/VITE_SUPABASE_URL/' | sed 's/ANON_KEY/VITE_SUPABASE_ANON_KEY/' > .env.local
           
       - name: Install dependencies
         run: npm ci --legacy-peer-deps

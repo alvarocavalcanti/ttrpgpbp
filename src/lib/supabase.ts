@@ -10,3 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
+  // @ts-expect-error - Expose for E2E tests
+  window.__supabase = supabase
+}
