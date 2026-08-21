@@ -54,7 +54,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   const title = thread.type === 'announcement' ? thread.subject : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-800">
+    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
         <button type="button" onClick={onBack} className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
