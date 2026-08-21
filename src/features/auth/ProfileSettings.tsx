@@ -1,3 +1,4 @@
+import { Avatar } from '../../components/Avatar';
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from './useAuth'
@@ -118,7 +119,7 @@ export function ProfileSettings() {
           <div className="flex items-center space-x-6 mb-8">
             <div className="shrink-0">
               {profile.avatar_url ? (
-                <img
+                <Avatar
                   className="h-24 w-24 object-cover rounded-full shadow-sm"
                   src={profile.avatar_url}
                   alt="Avatar"

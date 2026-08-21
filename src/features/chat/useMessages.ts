@@ -177,16 +177,16 @@ export function useMessages(channelId: string | undefined) {
 
             if (data && mounted) {
               setMessages(prev => {
-                if (prev.some(m => m.id === data.id)) return prev
-                const filtered = newMsg.client_request_id ? prev.filter(m => m.client_request_id !== newMsg.client_request_id) : prev
+                // Remove any old version of this message (either matched by temporary client_request_id or real id)
+                const filtered = prev.filter(m => m.id !== data.id && (newMsg.client_request_id ? m.client_request_id !== newMsg.client_request_id : true))
                 return [...filtered, formatMessage(data)].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
               })
             }
           } else {
             if (mounted) {
               setMessages(prev => {
-                if (prev.some(m => m.id === newMsg.id)) return prev
-                const filtered = newMsg.client_request_id ? prev.filter(m => m.client_request_id !== newMsg.client_request_id) : prev
+                // Remove any old version of this message (either matched by temporary client_request_id or real id)
+                const filtered = prev.filter(m => m.id !== newMsg.id && (newMsg.client_request_id ? m.client_request_id !== newMsg.client_request_id : true))
                 return [...filtered, newMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
               })
             }
@@ -312,7 +312,7 @@ export function useMessages(channelId: string | undefined) {
 
     setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
 
-    const { error } = await supabase.rpc('send_message', {
+    const { data, error } = await supabase.rpc('send_message', {
       p_channel_id: channelId,
       p_content: payload.content,
       p_type: payload.type,
@@ -327,6 +327,8 @@ export function useMessages(channelId: string | undefined) {
     if (error) {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: error.message } : m))
       throw error
+    } else if (data && data.length > 0) {
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: data[0].message_id, pending: false } : m))
     }
   }, [channelId, user])
 
@@ -362,7 +364,7 @@ export function useMessages(channelId: string | undefined) {
 
     setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
 
-    const { error: rollError } = await supabase.rpc('roll_dice', {
+    const { data: rollData, error: rollError } = await supabase.rpc('roll_dice', {
       p_channel_id: channelId,
       p_notation: notation,
       p_reply_to: replyToId ?? undefined,
@@ -374,6 +376,8 @@ export function useMessages(channelId: string | undefined) {
     if (rollError) {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: rollError.message } : m))
       throw rollError
+    } else if (rollData && rollData.length > 0) {
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: rollData[0].message_id, pending: false } : m))
     }
   }, [channelId, user])
 

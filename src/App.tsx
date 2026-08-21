@@ -1,3 +1,4 @@
+import { Avatar } from './components/Avatar';
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
@@ -108,7 +109,7 @@ function AppNav() {
             >
               <div className="mr-3 flex-shrink-0">
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
+                  <Avatar src={profile.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shadow-sm">
                     <span className="text-xs font-medium">

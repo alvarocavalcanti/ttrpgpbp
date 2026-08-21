@@ -1,3 +1,4 @@
+import { Avatar } from '../../components/Avatar';
 import { useState, useRef, useEffect } from 'react'
 import type { Database } from '../../types/database'
 import { DiceRoller } from '../dice/DiceRoller'
@@ -417,7 +418,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                         onMouseDown={(e) => { e.preventDefault(); setNpcName(n.name); setNpcAvatarUrl(n.avatar_url) }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950 flex items-center space-x-2"
                       >
-                        <img className="h-5 w-5 rounded-full" src={n.avatar_url} alt="" referrerPolicy="no-referrer" />
+                        <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={n.avatar_url} alt="" referrerPolicy="no-referrer" />
                         <span className="font-medium text-gray-900 dark:text-gray-100">{n.name}</span>
                       </button>
                     ))}
@@ -530,7 +531,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                         className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                       >
                         {m.character_avatar_url && (
-                          <img className="h-5 w-5 rounded-full" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
+                          <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
                         )}
                         <span className="font-medium text-gray-900 dark:text-gray-100">{m.character_name}</span>
                         {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-500">({m.profile.display_name})</span>}
