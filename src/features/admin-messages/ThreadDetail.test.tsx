@@ -32,6 +32,8 @@ const mockThread: Thread = {
   gm_id: null,
   created_by: 'user-admin',
   last_message_at: new Date().toISOString(),
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
   creator: { display_name: 'Admin', avatar_url: null },
   gm: undefined,
   unread: true
