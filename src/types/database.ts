@@ -970,6 +970,7 @@ export type Database = {
           display_name: string
           email: string
           id: string
+          is_suspended: boolean
         }[]
       }
       admin_suspend_user: {
