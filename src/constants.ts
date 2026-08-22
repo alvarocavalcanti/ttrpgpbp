@@ -11,4 +11,5 @@ export const MAX_URL_LENGTH = 500
 export const MAX_STATUS_LENGTH = 2000
 export const MAX_SAFETY_TEXT_LENGTH = 2000
 export const MAX_AWAY_MESSAGE_LENGTH = 200
+export const MAX_ADMIN_SUSPEND_REASON_LENGTH = 200
 export const MAX_NPC_NAME_LENGTH = 40

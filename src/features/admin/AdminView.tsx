@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useAuth } from '../auth/useAuth'
+import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
 
 type AdminUser = {
   id: string
@@ -207,8 +208,14 @@ export function AdminView() {
 
   const handleToggleSuspend = async (targetUser: AdminUser) => {
     const action = targetUser.is_suspended ? 'Unsuspend' : 'Suspend'
-    const reason = window.prompt(`Reason to ${action.toLowerCase()} user ${targetUser.display_name || targetUser.email}?`)
-    if (reason === null) return // cancelled
+    const targetLabel = targetUser.display_name?.trim() || targetUser.email?.trim() || 'Unknown user'
+    const enteredReason = window.prompt(`Reason to ${action.toLowerCase()} user ${targetLabel}?`)
+    if (enteredReason === null) return // cancelled
+    const reason = enteredReason.trim()
+    if (reason.length > MAX_ADMIN_SUSPEND_REASON_LENGTH) {
+      addToast(`Reason is limited to ${MAX_ADMIN_SUSPEND_REASON_LENGTH} characters.`, 'error')
+      return
+    }
 
     try {
       const { error } = await supabase.rpc('admin_suspend_user', {
