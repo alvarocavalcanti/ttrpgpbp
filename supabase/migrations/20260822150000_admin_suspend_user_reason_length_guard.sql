@@ -21,7 +21,7 @@ BEGIN
     auth.uid(),
     CASE WHEN p_suspend THEN 'suspend_user' ELSE 'unsuspend_user' END,
     p_user_id,
-    jsonb_build_object('reason', trim(coalesce(p_reason, '')))
+    jsonb_build_object('reason', trim(p_reason))
   );
 END;
 $$;

@@ -42,3 +42,4 @@ supabase/.temp/
 
 # Serena MCP
 .serena/
+test-results/
