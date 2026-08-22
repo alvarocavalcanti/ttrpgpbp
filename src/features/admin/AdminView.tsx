@@ -369,6 +369,7 @@ export function AdminView() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
+                              type="button"
                               onClick={() => handleToggleSuspend(user)}
                               className={`px-3 py-1 border rounded-md text-sm font-medium ${
                                 user.is_suspended
