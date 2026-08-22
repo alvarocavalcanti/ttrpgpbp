@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS public.admin_list_users();
+
 CREATE OR REPLACE FUNCTION public.admin_list_users()
 RETURNS TABLE (
   id UUID,
