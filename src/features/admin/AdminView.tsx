@@ -12,6 +12,7 @@ type AdminUser = {
   email: string | null
   channel_count: number
   created_at: string
+  is_suspended: boolean
 }
 
 type AdminChannel = {
@@ -204,6 +205,29 @@ export function AdminView() {
     }
   }
 
+  const handleToggleSuspend = async (targetUser: AdminUser) => {
+    const action = targetUser.is_suspended ? 'Unsuspend' : 'Suspend'
+    const reason = window.prompt(`Reason to ${action.toLowerCase()} user ${targetUser.display_name || targetUser.email}?`)
+    if (reason === null) return // cancelled
+
+    try {
+      const { error } = await supabase.rpc('admin_suspend_user', {
+        p_user_id: targetUser.id,
+        p_suspend: !targetUser.is_suspended,
+        p_reason: reason || 'No reason provided'
+      })
+      if (error) throw error
+      
+      setUsers(prev => prev.map(u => 
+        u.id === targetUser.id ? { ...u, is_suspended: !targetUser.is_suspended } : u
+      ))
+      addToast(`User ${action.toLowerCase()}ed successfully.`, 'success')
+    } catch (err) {
+      console.error(`Error ${action.toLowerCase()}ing user:`, err)
+      addToast(`Failed to ${action.toLowerCase()} user.`, 'error')
+    }
+  }
+
   const handleClaimChannel = async (channelId: string) => {
     try {
       const { error } = await supabase.rpc('admin_claim_channel', { p_channel_id: channelId })
@@ -321,17 +345,39 @@ export function AdminView() {
                         <SortHeader label="Name" sortKey="display_name" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
                         <SortHeader label="Channels" sortKey="channel_count" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
                         <SortHeader label="Joined" sortKey="created_at" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                        <SortHeader label="Status" sortKey="is_suspended" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {userSort.sorted.map(user => (
-                        <tr key={user.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        <tr key={user.id} className={user.is_suspended ? "opacity-75 bg-red-50 dark:bg-red-900/10" : ""}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
                             {user.display_name || user.email || 'Unknown'}
+                            {user.is_suspended && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                                Suspended
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.channel_count}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {new Date(user.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {user.is_suspended ? 'Suspended' : 'Active'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleToggleSuspend(user)}
+                              className={`px-3 py-1 border rounded-md text-sm font-medium ${
+                                user.is_suspended
+                                  ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
+                                  : 'border-transparent text-white bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                              } focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                            >
+                              {user.is_suspended ? 'Unsuspend' : 'Suspend'}
+                            </button>
                           </td>
                         </tr>
                       ))}
