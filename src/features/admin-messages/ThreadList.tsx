@@ -121,6 +121,11 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin }: { onClose: () => 
     if (msgError) {
       alert('Failed to send message')
     } else {
+      // Mark the newly created thread as read for the creator so they don't see it as unread.
+      // Non-critical: failure only means the creator sees a spurious unread dot temporarily.
+      const { error: readError } = await supabase.rpc('mark_admin_thread_read', { p_thread_id: threadData.id })
+      if (readError) console.error('Failed to mark new thread as read:', readError)
+
       // Force fetch the full thread with creator details to pass back
       const { data: fullThread } = await supabase.from('admin_threads').select('*, creator:profiles!admin_threads_created_by_fkey(display_name, avatar_url), gm:profiles!admin_threads_gm_id_fkey(display_name, avatar_url)').eq('id', threadData.id).single()
       if (fullThread) onCreated({

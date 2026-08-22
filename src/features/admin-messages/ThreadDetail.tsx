@@ -16,7 +16,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    supabase.rpc('mark_admin_thread_read', { p_thread_id: thread.id })
+    void supabase.rpc('mark_admin_thread_read', { p_thread_id: thread.id })
   }, [thread.id, messages.length])
 
   useEffect(() => {
