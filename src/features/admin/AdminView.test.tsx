@@ -218,6 +218,45 @@ describe('AdminView', () => {
     expect(within(updatedAliceRow as HTMLTableRowElement).getByRole('button', { name: 'Unsuspend' })).toBeInTheDocument()
   })
 
+  it('un-suspends user and updates status UI back to Active', async () => {
+    const suspendedUsers = [
+      { id: 'u1', display_name: 'Alice', email: 'alice@example.com', channel_count: 3, created_at: '2026-01-01T00:00:00Z', is_suspended: true },
+      { id: 'u2', display_name: null, email: 'bob@example.com', channel_count: 0, created_at: '2026-02-01T00:00:00Z', is_suspended: false },
+    ]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_users') return Promise.resolve({ data: suspendedUsers, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+    vi.spyOn(window, 'prompt').mockReturnValue('')
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    const aliceRow = screen.getByText('Alice').closest('tr')
+    expect(aliceRow).not.toBeNull()
+    fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Unsuspend' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_suspend_user', {
+        p_user_id: 'u1',
+        p_suspend: false,
+        p_reason: 'No reason provided',
+      })
+    })
+
+    const updatedAliceRow = screen.getByText('Alice').closest('tr')
+    expect(updatedAliceRow).not.toBeNull()
+    expect(within(updatedAliceRow as HTMLTableRowElement).getByText('Active')).toBeInTheDocument()
+    expect(within(updatedAliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
+  })
+
   it('shows a toast when suspend action fails', async () => {
     const addToast = vi.fn()
     vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
