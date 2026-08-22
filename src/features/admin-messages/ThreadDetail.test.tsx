@@ -46,6 +46,7 @@ const mockMessage: Message = {
   sender_id: 'user-admin',
   thread_id: 'thread-1',
   created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
   is_deleted: false,
   sender: { display_name: 'Admin', avatar_url: null }
 }
