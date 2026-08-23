@@ -316,4 +316,40 @@ describe('Lobby', () => {
     expect(getByTestId('channel-avatar').tagName).toBe('DIV')
     expect(getByTestId('channel-avatar')).toHaveTextContent('M')
   })
+
+  it('keeps user in lobby when back is canceled', () => {
+    const pushStateSpy = vi.spyOn(window.history, 'pushState')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    window.dispatchEvent(new PopStateEvent('popstate'))
+
+    expect(confirmSpy).toHaveBeenCalledWith('Exit application?')
+    expect(pushStateSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('tries to exit app when back is confirmed', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => undefined)
+    const pushStateSpy = vi.spyOn(window.history, 'pushState')
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    window.dispatchEvent(new PopStateEvent('popstate'))
+
+    expect(confirmSpy).toHaveBeenCalledWith('Exit application?')
+    expect(closeSpy).toHaveBeenCalledOnce()
+    expect(pushStateSpy).toHaveBeenCalledTimes(2)
+  })
 })

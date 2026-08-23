@@ -37,6 +37,30 @@ export function Lobby() {
     updateAppBadge(totalUnread, preferences?.badge_enabled !== false)
   }, [myChannels, preferences])
 
+  useEffect(() => {
+    const historyState = { lobbyBackGuard: true }
+
+    window.history.pushState(historyState, '', window.location.href)
+
+    const handlePopState = () => {
+      const shouldExit = window.confirm('Exit application?')
+
+      if (shouldExit) {
+        window.history.pushState(historyState, '', window.location.href)
+        window.close()
+        return
+      }
+
+      window.history.pushState(historyState, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
