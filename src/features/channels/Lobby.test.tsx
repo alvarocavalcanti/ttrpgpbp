@@ -334,9 +334,9 @@ describe('Lobby', () => {
     expect(pushStateSpy).toHaveBeenCalledTimes(2)
   })
 
-  it('tries to exit app when back is confirmed', () => {
+  it('skips channel history when back is confirmed', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-    const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => undefined)
+    const goSpy = vi.spyOn(window.history, 'go').mockImplementation(() => undefined)
     const pushStateSpy = vi.spyOn(window.history, 'pushState')
 
     vi.mocked(useChannels).mockReturnValue({
@@ -349,7 +349,7 @@ describe('Lobby', () => {
     window.dispatchEvent(new PopStateEvent('popstate'))
 
     expect(confirmSpy).toHaveBeenCalledWith('Exit application?')
-    expect(closeSpy).toHaveBeenCalledOnce()
-    expect(pushStateSpy).toHaveBeenCalledTimes(2)
+    expect(goSpy).toHaveBeenCalledWith(-2)
+    expect(pushStateSpy).toHaveBeenCalledTimes(1)
   })
 })
