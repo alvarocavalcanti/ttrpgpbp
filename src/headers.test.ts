@@ -14,6 +14,10 @@ describe('Security Headers (public/_headers)', () => {
     expect(cspLine).toContain('connect-src')
     expect(cspLine).toContain('wss://*.supabase.co')
     expect(cspLine).toContain('https://*.supabase.co')
+    expect(cspLine).toContain('https://*.sentry.io')
+
+    // Google Analytics beacon endpoint (gtag reports here via fetch/XHR)
+    expect(cspLine).toContain('https://*.google-analytics.com')
     
     // Check required image avatars domains
     expect(cspLine).toContain('img-src')
@@ -22,8 +26,10 @@ describe('Security Headers (public/_headers)', () => {
     expect(cspLine).toContain('https://avatars.githubusercontent.com')
     expect(cspLine).toContain('https://cdn.discordapp.com')
 
-    // Check required script execution (for Vite module preload and theme script)
+    // Check required script execution (for Vite module preload, theme script,
+    // and the Google Analytics gtag.js loader)
     expect(cspLine).toContain("script-src 'self' 'unsafe-inline'")
+    expect(cspLine).toContain('https://www.googletagmanager.com')
     
     // Check required style execution
     expect(cspLine).toContain("style-src 'self' 'unsafe-inline'")
