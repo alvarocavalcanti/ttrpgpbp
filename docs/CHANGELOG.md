@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Anonymous usage analytics** — the app now sends basic, anonymous page-view statistics to help the team understand which parts of the app are used. No personal data, messages, or rolls are ever tracked.
+
 - **Server Admin & GM communication** — active Game Masters now have a dedicated "Admin Messages" menu item to report issues, ask questions, and read announcements from the server admin. The admin can broadcast announcements and start direct messages with any GM, with push notifications to keep everyone in the loop.
 
 - **Stability improvements** — Added automated system tests to verify the sign-in, channel creation, messaging, and dice rolling features, ensuring the app remains stable and bug-free.

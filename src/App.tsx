@@ -11,6 +11,7 @@ import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
 import { ScrollToTop } from './components/ScrollToTop'
+import { trackPageView } from './lib/analytics'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -37,6 +38,20 @@ export function NotFound() {
       <Link to="/" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium">Return to Lobby</Link>
     </div>
   )
+}
+
+// Fires a GA page_view on every SPA route change (initial load is covered by
+// initAnalytics). Mirrors ScrollToTop: trackPath includes search so query
+// changes (e.g. lobby search) are captured too.
+function RouteTracker() {
+  const location = useLocation()
+  const { pathname, search } = location
+
+  useEffect(() => {
+    trackPageView(pathname + search)
+  }, [pathname, search])
+
+  return null
 }
 
 function AppNav() {
@@ -219,6 +234,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <ScrollToTop />
+          <RouteTracker />
           <ChangelogProvider>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
               <AppNav />

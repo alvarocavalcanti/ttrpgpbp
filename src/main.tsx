@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { env } from './env'
+import { initAnalytics } from './lib/analytics'
 
 if (env.VITE_SENTRY_DSN) {
   Sentry.init({
@@ -21,6 +22,8 @@ if (env.VITE_SENTRY_DSN) {
 }
 
 registerSW({ immediate: true })
+
+initAnalytics()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

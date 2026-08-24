@@ -44,6 +44,7 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 | `VITE_SUPABASE_URL` | Your Supabase project URL | Static host env (build) |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key | Static host env (build) |
 | `VITE_VAPID_PUBLIC_KEY` | Public half of the VAPID keypair | Static host env (build) and `supabase secrets set` |
+| `VITE_GA_MEASUREMENT_ID` | Optional Google Analytics 4 measurement ID (e.g. `G-XXXXXXXXXX`). When set, Google Analytics loads and page views are tracked; omit to disable analytics (local dev, self-hosted instances) | Static host env (build) |
 | `VAPID_PRIVATE_KEY` | Private half of the VAPID keypair | `supabase secrets set VAPID_PRIVATE_KEY` |
 | `ALLOWED_ORIGINS` | Optional comma-separated list of app origins allowed to call the push-notifications function (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, `https://rolebypost.com`, and any `*.ttrpgpbp.pages.dev` preview | `supabase secrets set ALLOWED_ORIGINS=...` |
 | `SUPABASE_AUTH_GOOGLE_SECRET` | Google OAuth client secret | Supabase Dashboard → Auth → Providers → Google |
@@ -136,7 +137,7 @@ browser, so no user JWT is involved.
 - [ ] Cloudflare Pages (reference):
   - Create a new Pages project connected to your repo.
   - Build command: `npm run build`, output directory: `dist`.
-  - Add the three `VITE_*` environment variables (Production and Preview).
+  - Add the `VITE_*` environment variables (Production and Preview).
   - Add your custom domain (Workers & Pages → project → **Custom domains**). The reference deployment serves both `https://rolebypost.com` and the default `https://<project>.pages.dev`; keep both live so installed PWAs and old links keep working. Do **not** redirect `pages.dev` to the custom domain — PWA installs, service workers, and push subscriptions are origin-bound, so a redirect would break them.
 - [ ] Point DNS: for a Cloudflare-managed zone, add an apex CNAME (`rolebypost.com` → `<project>.pages.dev`, proxied) and wait for certificate issuance.
 - [ ] Allow OAuth redirects for every origin the app is served from: `supabase config push` (or Dashboard → Auth → URL Configuration) so `https://rolebypost.com` and `https://<project>.pages.dev` are in the additional redirect URLs.
