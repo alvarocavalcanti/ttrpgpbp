@@ -6,7 +6,7 @@ import { useMessages } from '../chat/useMessages'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../auth/usePushNotifications'
 import { notifyChannelRead } from '../../lib/channelRead'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
 
 vi.mock('./useChannel', () => ({
@@ -833,5 +833,33 @@ describe('ChannelView search functionality', () => {
     await waitFor(() => {
       expect(notifyChannelRead).toHaveBeenCalledWith('c1', 'user1', true)
     })
+  })
+
+  it('replaces the channel entry when returning to lobby so back does not re-enter the channel', () => {
+    function BackProbe() {
+      const navigate = useNavigate()
+      return (
+        <button type="button" onClick={() => navigate(-1)} data-testid="back-probe">
+          back
+        </button>
+      )
+    }
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+            <Route path="/" element={<BackProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByLabelText('Back to Lobby'))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('back-probe'))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
   })
 })

@@ -126,7 +126,7 @@ export function JoinChannel() {
         <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/', { replace: true })}
           className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium"
         >
           Return to Lobby
@@ -242,7 +242,7 @@ export function JoinChannel() {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/', { replace: true })}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
             >
               Cancel
