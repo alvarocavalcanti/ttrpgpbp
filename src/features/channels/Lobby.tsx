@@ -46,8 +46,8 @@ export function Lobby() {
       const shouldExit = window.confirm('Exit application?')
 
       if (shouldExit) {
-        window.removeEventListener('popstate', handlePopState)
-        window.history.go(-2)
+        window.close()
+        window.history.pushState(historyState, '', window.location.href)
         return
       }
 
