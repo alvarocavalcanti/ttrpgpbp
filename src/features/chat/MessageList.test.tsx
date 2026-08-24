@@ -82,7 +82,9 @@ describe('MessageList', () => {
     render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.getAllByTestId('msg-item')).toHaveLength(3)
     expect(screen.getByText('Msg 1')).toBeInTheDocument()
-    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    // Initial load with no unread messages pins directly via scrollTop, not
+    // scrollIntoView (that path is reserved for the unread divider).
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 
   it('clips horizontal overflow so the list does not scroll sideways', () => {
@@ -208,14 +210,18 @@ describe('MessageList scroll anchoring', () => {
 
   it('keeps the viewport anchored when older messages are prepended', () => {
     scrollHeight = 1000
-    scrollTop = 800
 
     const { rerender, container } = render(
       <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} hasMore onLoadOlder={vi.fn()} />
     )
+    // Initial load lands on the bottom (no unread divider).
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
 
-    // Initial load scrolls to bottom (mocked), then the ref captures the
-    // pre-prepend scroll state { height: 1000, top: 800 }.
+    // The user scrolls up, then older messages are prepended.
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 800
+    fireEvent.scroll(list)
+
     scrollHeight = 1200
     rerender(
       <MessageList
@@ -231,16 +237,17 @@ describe('MessageList scroll anchoring', () => {
     // 200px were added above the viewport; scrollTop should grow by that much
     // so the same messages stay on screen instead of jumping to the bottom.
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
-    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 
-  it('scrolls to the newest message when a new message is appended', () => {
+  it('scrolls to the newest message when a new message is appended while at the bottom', () => {
     scrollHeight = 1000
-    scrollTop = 800
 
-    const { rerender } = render(
+    const { rerender, container } = render(
       <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
     )
+    // Initial load pinned to the bottom.
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
 
     scrollHeight = 1100
     rerender(
@@ -252,6 +259,64 @@ describe('MessageList scroll anchoring', () => {
       />
     )
 
-    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(2)
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1100)
+  })
+
+  it('keeps pinned to the bottom when content grows while at the bottom (lazy images)', () => {
+    scrollHeight = 1000
+    const { container } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
+
+    // Content below the fold finishes loading: height grows, no message change.
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1400)
+  })
+
+  it('does not re-pin when content grows while the user has scrolled up', () => {
+    scrollHeight = 1000
+    const { container } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 300)
+  })
+
+  it('scrolls to the oldest unread message when the app returns to the foreground', () => {
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('scrolls to the bottom on restore when there are no unread messages', () => {
+    scrollHeight = 1000
+    const { container } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    ;(container.firstChild as HTMLElement).scrollTop = 0
+
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
   })
 })

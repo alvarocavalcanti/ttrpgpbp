@@ -1,10 +1,15 @@
-import { useEffect, useRef, Fragment, useMemo } from 'react'
+import { useEffect, useRef, Fragment, useMemo, useCallback } from 'react'
 import { MessageItem } from './MessageItem'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage } from './types'
 import { useAuth } from '../auth/useAuth'
 
 type Message = ChatMessage
+
+// Within this many pixels of the bottom we consider the user "at the bottom",
+// so late-loading content (lazy images) keeps the view pinned to the newest
+// message instead of leaving a gap.
+const SCROLL_BOTTOM_THRESHOLD = 24
 
 interface MessageListProps {
   messages: Message[]
@@ -32,7 +37,9 @@ interface MessageListProps {
 export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, onRetry, onRemovePending, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
-  const endOfListRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const newMessagesDividerRef = useRef<HTMLDivElement>(null)
+  const atBottomRef = useRef(true)
 
   // Scroll position bookkeeping: prepending older messages must keep the
   // viewport anchored where the user is, not jump back to the bottom.
@@ -56,7 +63,23 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     [lastReadAt]
   )
 
-  // Auto-scroll to the newest message when new ones arrive, unless we are
+  // Scroll to the oldest unread message (the "New messages" divider) when one
+  // exists, otherwise to the bottom. Used for the initial load and when the
+  // app comes back to the foreground, so both behave the same.
+  const scrollToUnread = useCallback(() => {
+    if (newMessagesDividerRef.current) {
+      newMessagesDividerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      atBottomRef.current = false
+      return
+    }
+    const list = listRef.current
+    if (list) {
+      list.scrollTop = list.scrollHeight
+      atBottomRef.current = true
+    }
+  }, [])
+
+  // Auto-scroll on initial load or when new messages arrive, unless we are
   // highlighting a message. Loading older history (prepending) preserves the
   // current scroll position instead of snapping back to the bottom.
   useEffect(() => {
@@ -76,12 +99,55 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     if (prepended && list) {
       const addedHeight = list.scrollHeight - scrollInfoRef.current.height
       list.scrollTop = scrollInfoRef.current.top + addedHeight
-    } else if (initialLoad || appended) {
-      endOfListRef.current?.scrollIntoView({ behavior: 'smooth' })
+    } else if (initialLoad) {
+      scrollToUnread()
+    } else if (appended && atBottomRef.current && list) {
+      list.scrollTop = list.scrollHeight
     }
 
     if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
-  }, [messages, highlightMessageId])
+  }, [messages, highlightMessageId, scrollToUnread])
+
+  // Track whether the user is at the bottom. Also keeps the prepend-anchoring
+  // bookkeeping fresh on manual scrolling.
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const onScroll = () => {
+      atBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < SCROLL_BOTTOM_THRESHOLD
+      scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
+    }
+    list.addEventListener('scroll', onScroll)
+    return () => list.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Late-loading content (lazy images with unknown heights) grows the list
+  // without a message-array change; while pinned to the bottom, keep the
+  // newest message visible instead of leaving a gap above the viewport edge.
+  useEffect(() => {
+    const list = listRef.current
+    const content = contentRef.current
+    if (!list || !content) return
+    const observer = new ResizeObserver(() => {
+      if (!atBottomRef.current) return
+      // Setting scrollTop does not resize the content wrapper, so this cannot
+      // loop back into the observer.
+      list.scrollTop = list.scrollHeight - list.clientHeight
+    })
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [])
+
+  // Re-anchor to the oldest unread message (or the bottom) when the app comes
+  // back to the foreground; mobile browsers can drop the scroll position
+  // while the app is not in view.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') scrollToUnread()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [scrollToUnread])
 
   if (messages.length === 0) {
     return (
@@ -97,6 +163,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
 
   return (
     <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
+      <div ref={contentRef}>
       {hasMore && (
         <div className="flex justify-center py-2">
           <button
@@ -131,7 +198,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               </div>
             )}
             {showNewDivider && (
-              <div data-testid="new-messages-divider" className="flex items-center my-6">
+              <div ref={newMessagesDividerRef} data-testid="new-messages-divider" className="flex items-center my-6">
                 <div className="flex-grow border-t-2 border-red-400 dark:border-red-500"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider">
                   New messages
@@ -160,7 +227,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             </Fragment>
         )
       })}
-      <div ref={endOfListRef} />
+      </div>
     </div>
   )
 }
