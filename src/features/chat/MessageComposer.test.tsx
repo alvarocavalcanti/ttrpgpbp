@@ -543,6 +543,24 @@ describe('MessageComposer', () => {
     expect(screen.queryByLabelText('Upload Image')).not.toBeInTheDocument()
   })
 
+  it('renders all composer chips with uniform dimensions', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} onXCard={vi.fn()} onRollDice={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+
+    const chips = [
+      screen.getByRole('button', { name: 'Roll Dice' }),
+      screen.getByLabelText('X-Card'),
+      screen.getByLabelText('Upload Image').closest('label'),
+      screen.getByLabelText('Scene Description'),
+      screen.getByLabelText('NPC Mode'),
+    ]
+
+    for (const chip of chips) {
+      expect(chip).not.toBeNull()
+      expect(chip).toHaveClass('px-3', 'py-2', 'text-sm', 'font-medium', 'rounded-lg', 'border')
+    }
+  })
+
   it('uploads an image and inserts the markdown at the cursor', async () => {
     render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)
 

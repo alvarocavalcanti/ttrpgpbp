@@ -10,6 +10,7 @@ import { BottomSheet } from '../../components/BottomSheet'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
+import { chipBase, chipIdle, chipActive } from './composerChip'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -257,10 +258,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   const isMobile = useMediaQuery('(max-width: 640px)')
-
-  const chipBase = 'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-  const chipIdle = 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400'
-  const chipActive = 'bg-indigo-50 dark:bg-indigo-950 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
 
   const optionsContent = (
     <div className="flex flex-col gap-4 w-full">

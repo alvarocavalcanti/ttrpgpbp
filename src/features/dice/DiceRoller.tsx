@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { chipBase, chipIdle } from '../chat/composerChip'
 
 interface DiceRollerProps {
   onRoll: (notation: string) => void
@@ -34,9 +35,9 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center px-2 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className={`${chipBase} ${chipIdle}`}
       >
-        <svg className="w-4 h-4 mr-1 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <svg className="w-5 h-5 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
           <circle cx="8" cy="8" r="2" fill="currentColor" />
           <circle cx="16" cy="8" r="2" fill="currentColor" />
