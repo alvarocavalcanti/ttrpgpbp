@@ -114,7 +114,7 @@
 ## Notifications
 
 - **Push** — on by default
-- **Server-side delivery** — push is triggered by a database trigger on new messages / active-player changes, so delivery no longer depends on the sender's browser being open or connected when they send
+- **Server-side delivery** — push is triggered by a database trigger on new messages, active-player changes, and admin messages (announcements and server-admin DMs), so delivery no longer depends on the sender's browser being open or connected when they send
 - **Subscription self-repair** — the app reconciles the server's copy of the push subscription on startup and whenever it returns to the foreground, and the service worker relays browser-initiated subscription rotation to the page so the stored endpoint/keys never go stale
 - **Reliable delivery** — transient provider failures are retried with bounded backoff; only confirmed-invalid subscriptions (HTTP 404/410) are removed, and removing one device never affects another. Every delivery is logged to `push_delivery_log` (outcome, user, subscription, error category — never message content or push keys), and failed trigger dispatches can be re-queued via `retry_failed_push_invocations()`
 - **In-app badge** — on by default

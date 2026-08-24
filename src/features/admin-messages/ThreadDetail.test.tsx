@@ -61,23 +61,31 @@ describe('ThreadDetail', () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
   })
 
-  it('calls mark_admin_thread_read when thread is opened', async () => {
+  it('subscribes to mark_admin_thread_read when thread is opened', async () => {
+    const thenable = { then: vi.fn(() => thenable), catch: vi.fn(() => thenable) }
+    vi.mocked(supabase.rpc).mockReturnValue(thenable as any)
+
     render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
 
-    await waitFor(() => {
-      expect(supabase.rpc).toHaveBeenCalledWith('mark_admin_thread_read', { p_thread_id: 'thread-1' })
-    })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_admin_thread_read', { p_thread_id: 'thread-1' })
+    // The supabase-js v2 RPC returns a lazy thenable; it only fires the HTTP
+    // request when subscribed. Asserting `.then` was invoked catches a regression
+    // where the promise is discarded (e.g. `void supabase.rpc(...)`) and never runs.
+    expect(thenable.then).toHaveBeenCalled()
   })
 
-  it('calls mark_admin_thread_read again when new messages arrive', async () => {
+  it('subscribes to mark_admin_thread_read again when new messages arrive', async () => {
+    const thenable = { then: vi.fn(() => thenable), catch: vi.fn(() => thenable) }
+    vi.mocked(supabase.rpc).mockReturnValue(thenable as any)
+
     const { rerender } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(thenable.then).toHaveBeenCalledTimes(1)
 
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
     rerender(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
 
-    await waitFor(() => {
-      expect(supabase.rpc).toHaveBeenCalledTimes(2)
-    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+    expect(thenable.then).toHaveBeenCalledTimes(2)
   })
 
   it('shows loading state', () => {
