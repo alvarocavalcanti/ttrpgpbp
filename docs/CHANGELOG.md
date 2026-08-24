@@ -37,7 +37,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- **Realtime updates after reconnecting** — when your connection drops or the app returns from the background, RoleByPost now shows what is happening and catches up on messages, channel changes, rolls, and unread counts without losing loaded chat.
+- **Announcements and admin messages never counted as read** — opening an announcement or a direct message from the server admin now clears its unread dot, even if the message was sent before this fix. Your own new announcements no longer show as unread, and announcements and admin DMs now send a push notification so you know right away when one arrives.
 - **Dark mode polish** — every screen now reads correctly in dark mode: text you type in editors and input fields stays visible, help pages and search results render cleanly, and the browser toolbar matches your theme.
 - **Push notifications arriving late or not at all** — notifications can now show up reliably after the app refreshes or sits in the background. A failed badge update (e.g. on iOS) no longer blocks the notification itself.
 - **X-Card alert never reached the GM** — the GM's alert when a player uses an X-Card sometimes never arrived. It now always shows, as a single dismissible banner that reads "Handle the scene outside the chat."

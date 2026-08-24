@@ -170,6 +170,71 @@ async function buildTurnEvent(
   }
 }
 
+// Admin message events: the trigger supplies a message_id. Recipients and copy
+// are read from admin_threads/admin_messages. Announcements go to every active
+// GM; admin DMs go to the non-sender participant (the server admin or the GM).
+async function buildAdminMessageEvent(
+  payload: Record<string, unknown>,
+  serviceClient: ReturnType<typeof createClient>
+): Promise<BuiltEvent> {
+  const messageId = payload.message_id
+  if (typeof messageId !== "string") {
+    throw new HttpError(400, "Invalid payload")
+  }
+
+  const { data: message, error } = await serviceClient
+    .from("admin_messages")
+    .select("id, thread_id, sender_id, content")
+    .eq("id", messageId)
+    .maybeSingle()
+
+  if (error || !message) {
+    throw new HttpError(404, "Admin message not found")
+  }
+
+  const [{ data: thread }, { data: sender }] = await Promise.all([
+    serviceClient.from("admin_threads").select("type, subject, gm_id").eq("id", message.thread_id).maybeSingle(),
+    serviceClient.from("profiles").select("display_name").eq("id", message.sender_id).maybeSingle(),
+  ])
+
+  if (!thread) {
+    throw new HttpError(404, "Thread not found")
+  }
+
+  let adminTargetUserIds: string[] = []
+  if (thread.type === "announcement") {
+    const { data: gms } = await serviceClient
+      .from("channels")
+      .select("gm_id")
+      .neq("gm_id", null)
+      .eq("is_archived", false)
+    adminTargetUserIds = [...new Set((gms ?? []).map(r => r.gm_id))]
+  } else {
+    const { data: admin } = await serviceClient
+      .from("profiles")
+      .select("id")
+      .eq("server_admin", true)
+      .single()
+    const adminId = admin?.id
+    adminTargetUserIds = adminId && message.sender_id === adminId
+      ? (thread.gm_id ? [thread.gm_id] : [])
+      : (adminId ? [adminId] : [])
+  }
+
+  return {
+    members: [],
+    event: {
+      kind: "admin_message",
+      admin_type: thread.type,
+      subject: thread.subject ?? undefined,
+      content: message.content,
+      sender_id: message.sender_id,
+      sender_name: sender?.display_name,
+      admin_target_user_ids: adminTargetUserIds,
+    },
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) })
@@ -214,6 +279,10 @@ serve(async (req) => {
       if (!built.isActivePlayer) {
         return json({ success: true, message: "Not an active player event" }, 200, req)
       }
+      event = built.event
+      members = built.members
+    } else if (table === "admin_messages") {
+      const built = await buildAdminMessageEvent(payload, serviceClient)
       event = built.event
       members = built.members
     } else {

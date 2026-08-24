@@ -11,7 +11,7 @@ export interface PushMember {
   is_away?: boolean
 }
 
-export type PushEventKind = 'message' | 'turn'
+export type PushEventKind = 'message' | 'turn' | 'admin_message'
 
 export interface PushEvent {
   kind: PushEventKind
@@ -29,6 +29,10 @@ export interface PushEvent {
   gm_id?: string
   // turn events
   user_id?: string
+  // admin_message events (announcements / admin DMs)
+  admin_type?: 'announcement' | 'dm'
+  subject?: string
+  admin_target_user_ids?: string[]
 }
 
 export interface PushTargetResult {
@@ -67,6 +71,19 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
   const senderName = event.sender_name || 'Someone'
   // NPC messages attribute the push to the NPC, not the GM sending it.
   const displayName = event.npc_name || senderName
+
+  if (event.kind === 'admin_message') {
+    const targets = (event.admin_target_user_ids ?? []).filter(uid => uid !== event.sender_id)
+    const title = event.admin_type === 'announcement' && event.subject
+      ? `Announcement: ${event.subject}`
+      : `New message from ${senderName}`
+    return {
+      targetUserIds: targets,
+      title,
+      body: truncate(event.content || ''),
+      url: '/messages',
+    }
+  }
 
   if (event.kind === 'turn') {
     if (!event.channel_id || !event.user_id) {

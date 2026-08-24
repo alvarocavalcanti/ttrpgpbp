@@ -281,6 +281,83 @@ describe('resolvePushTargets', () => {
       expect(result.targetUserIds).toEqual([])
     })
   })
+
+  describe('admin_message events', () => {
+    it('routes announcements to targets, excluding the sender', () => {
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'announcement',
+        subject: 'Server maintenance',
+        content: 'Downtime tonight.',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        admin_target_user_ids: ['u1', 'u2', 'u3']
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u2', 'u3'])
+      expect(result.title).toBe('Announcement: Server maintenance')
+      expect(result.body).toBe('Downtime tonight.')
+      expect(result.url).toBe('/messages')
+    })
+
+    it('routes admin DMs to the non-sender participant', () => {
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'dm',
+        content: 'Hey GM.',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        admin_target_user_ids: ['u2']
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u2'])
+      expect(result.title).toBe('New message from Alv')
+      expect(result.body).toBe('Hey GM.')
+      expect(result.url).toBe('/messages')
+    })
+
+    it('truncates long admin message bodies', () => {
+      const longContent = 'y'.repeat(150)
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'dm',
+        content: longContent,
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        admin_target_user_ids: ['u2']
+      }, MEMBERS)
+
+      expect(result.body).toBe(`${'y'.repeat(100)}…`)
+    })
+
+    it('returns empty when only the sender is targeted', () => {
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'announcement',
+        subject: 'Hi',
+        content: 'Hello',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        admin_target_user_ids: ['u1']
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual([])
+    })
+
+    it('returns empty when there are no targets', () => {
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'dm',
+        content: 'Hello',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        admin_target_user_ids: []
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual([])
+      expect(result.title).toBe('New message from Alv')
+    })
+  })
 })
 
 describe('buildPushPayload', () => {
