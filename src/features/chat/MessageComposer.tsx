@@ -5,7 +5,10 @@ import { DiceRoller } from '../dice/DiceRoller'
 import { linkifyMentions } from './mentions'
 import { randomNpcIconUrl } from './npcIcons'
 import { IconPicker } from './IconPicker'
+import { Menu } from '../../components/Menu'
+import { BottomSheet } from '../../components/BottomSheet'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -253,6 +256,133 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
   const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  const isMobile = useMediaQuery('(max-width: 640px)')
+
+  const chipBase = 'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+  const chipIdle = 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400'
+  const chipActive = 'bg-indigo-50 dark:bg-indigo-950 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+
+  const optionsContent = (
+    <div className="flex flex-col gap-4 w-full">
+      <div className="flex flex-wrap items-center gap-3">
+        {onRollDice && (
+          <div className="shrink-0">
+            <DiceRoller onRoll={(notation) => replyTo ? onRollDice?.(notation, replyTo.id) : onRollDice?.(notation)} />
+          </div>
+        )}
+
+        {onXCard && (
+          <button
+            type="button"
+            onClick={onXCard}
+            aria-label="X-Card"
+            className={`${chipBase} ${chipIdle} text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800`}
+            title="X-Card: privately flag the current scene to the GM"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
+            </svg>
+            X Card
+          </button>
+        )}
+
+        {isGM && (
+          <label
+            className={`${chipBase} ${chipIdle} cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+            title="Upload an image"
+          >
+            <input
+              type="file"
+              accept="image/*"
+              aria-label="Upload Image"
+              disabled={uploading || !uploadEnabled || settingsLoading}
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {uploading ? 'Uploading...' : 'Upload'}
+          </label>
+        )}
+      </div>
+
+      {isGM && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            aria-pressed={isScene}
+            aria-label="Scene Description"
+            onClick={() => { setIsScene(!isScene); if (!isScene) setIsNpc(false) }}
+            className={`${chipBase} ${isScene ? chipActive : chipIdle}`}
+            title="Scene Description"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+            </svg>
+            Scene
+          </button>
+
+          <button
+            type="button"
+            aria-pressed={isNpc}
+            aria-label="NPC Mode"
+            onClick={() => toggleNpc(!isNpc)}
+            className={`${chipBase} ${isNpc ? chipActive : chipIdle}`}
+            title="Speak as an NPC"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            NPC
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {isGM && (
+          <Menu
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            }
+            label="Active Player"
+            value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
+            onSelect={(val) => {
+              if (val === '') setActivePlayerIds(undefined)
+              else if (val === 'clear') setActivePlayerIds([])
+              else setActivePlayerIds([val])
+            }}
+            options={[
+              { value: '', label: 'No change' },
+              { value: 'clear', label: 'Clear Active Player' },
+              ...members.map(m => ({ value: m.user_id, label: m.character_name, hint: m.profile?.display_name || undefined })),
+            ]}
+          />
+        )}
+
+        {!isScene && (
+          <Menu
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            }
+            label="Whisper"
+            value={whisperTo}
+            onSelect={setWhisperTo}
+            options={[
+              { value: '', label: 'Everyone (Public)' },
+              ...members.map(m => ({ value: m.user_id, label: m.character_name, hint: m.profile?.display_name || undefined })),
+            ]}
+          />
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2 sm:p-4">
@@ -280,121 +410,11 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
           )}
 
           {/* Controls row */}
-          {isExpanded && (
-            <div className="flex flex-wrap items-center gap-4 text-sm mb-2 px-2 sm:px-0">
-              {onRollDice && (
-                <div className="shrink-0">
-                  <DiceRoller onRoll={(notation) => replyTo ? onRollDice?.(notation, replyTo.id) : onRollDice?.(notation)} />
-                </div>
-              )}
-
-              {onXCard && (
-                <button
-                  type="button"
-                  onClick={onXCard}
-                  className="flex items-center space-x-1.5 shrink-0 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 px-2 py-1 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  aria-label="X-Card"
-                  title="X-Card: privately flag the current scene to the GM"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
-                  </svg>
-                  <span className="hidden sm:inline">X Card</span>
-                </button>
-              )}
-
-              {isGM && (
-                <div className="flex items-center space-x-4 shrink-0">
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Scene Description">
-                    <input
-                      type="checkbox"
-                      aria-label="Scene Description"
-                      checked={isScene}
-                      onChange={(e) => { setIsScene(e.target.checked); if (e.target.checked) setIsNpc(false) }}
-                      className="rounded text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
-                    />
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                    </svg>
-                    <span className="hidden sm:inline">Scene</span>
-                  </label>
-
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Speak as an NPC">
-                    <input
-                      type="checkbox"
-                      aria-label="NPC Mode"
-                      checked={isNpc}
-                      onChange={(e) => toggleNpc(e.target.checked)}
-                      className="rounded text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
-                    />
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span className="hidden sm:inline">NPC</span>
-                  </label>
-
-                  <label className="flex items-center space-x-1.5 cursor-pointer text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Upload an image">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      aria-label="Upload Image"
-                      disabled={uploading || !uploadEnabled || settingsLoading}
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="hidden sm:inline">{uploading ? 'Uploading...' : 'Upload'}</span>
-                  </label>
-                </div>
-              )}
-
-              {isGM && (
-                <div className="flex items-center space-x-2 shrink-0">
-                  <label htmlFor="activePlayers" className="text-gray-700 dark:text-gray-300">Active Player:</label>
-                  <select
-                    id="activePlayers"
-                    value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val === '') setActivePlayerIds(undefined)
-                      else if (val === 'clear') setActivePlayerIds([])
-                      else setActivePlayerIds([val])
-                    }}
-                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">(No change)</option>
-                    <option value="clear">Clear Active Player</option>
-                    {members.map(m => (
-                      <option key={m.id} value={m.user_id}>
-                        {m.character_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {!isScene && (
-                <div className="flex items-center space-x-2 shrink-0">
-                  <label htmlFor="whisperTo" className="text-gray-700 dark:text-gray-300">Whisper:</label>
-                  <select
-                    id="whisperTo"
-                    value={whisperTo}
-                    onChange={(e) => setWhisperTo(e.target.value)}
-                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1 pl-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Everyone (Public)</option>
-                    {members.map(m => (
-                      <option key={m.id} value={m.user_id}>
-                        {m.character_name} ({m.profile?.display_name})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+          {isExpanded && !isMobile && (
+            <div className="px-2 sm:px-0 mb-2">{optionsContent}</div>
+          )}
+          {isExpanded && isMobile && (
+            <BottomSheet title="Options" onClose={() => setIsExpanded(false)}>{optionsContent}</BottomSheet>
           )}
 
           {/* NPC config row */}

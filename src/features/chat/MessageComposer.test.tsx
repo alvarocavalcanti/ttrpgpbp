@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 import { useImageUpload } from '../../hooks/useImageUpload'
 
@@ -30,6 +30,33 @@ describe('MessageComposer', () => {
       uploadImage: mockUploadImage,
     })
   })
+
+  afterEach(() => {
+    // Restore the default non-matching viewport so the composer renders inline.
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+  })
+
+  const setMobileViewport = () => {
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+  }
 
   it('restores draft from localStorage on mount and isolates by channel', () => {
     localStorage.setItem('composer_draft_c1', 'draft for c1')
@@ -131,7 +158,7 @@ describe('MessageComposer', () => {
   it('caps NPC names at 40 characters', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
-    fireEvent.click(screen.getByLabelText('NPC'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
     expect(screen.getByLabelText('NPC Name')).toHaveAttribute('maxLength', '40')
   })
 
@@ -140,7 +167,8 @@ describe('MessageComposer', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
     fireEvent.click(screen.getByLabelText('Toggle options'))
-    fireEvent.change(screen.getByLabelText('Whisper:'), { target: { value: 'u1' } })
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
     fireEvent.change(screen.getByPlaceholderText(/Type a private whisper/i), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
@@ -487,11 +515,11 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    expect(screen.getByLabelText('NPC Mode')).toBeChecked()
+    expect(screen.getByLabelText('NPC Mode')).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(screen.getByLabelText('Scene Description'))
-    expect(screen.getByLabelText('Scene Description')).toBeChecked()
-    expect(screen.getByLabelText('NPC Mode')).not.toBeChecked()
+    expect(screen.getByLabelText('Scene Description')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('NPC Mode')).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('calls onXCard when X-Card button clicked in the expanded options', () => {
@@ -580,7 +608,7 @@ describe('MessageComposer', () => {
     expect(messageInput).toHaveClass('dark:bg-gray-800')
     expect(messageInput).toHaveClass('text-gray-900')
     expect(messageInput).toHaveClass('dark:text-gray-100')
-    expect(screen.getByLabelText('Whisper:')).toHaveClass('dark:bg-gray-800')
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     expect(screen.getByPlaceholderText(/Speak as an NPC/i)).toHaveClass('dark:bg-[#2a2620]')
@@ -596,5 +624,77 @@ describe('MessageComposer', () => {
     expect(screen.getByPlaceholderText(/Speak as Goblin King/i)).toHaveClass('dark:text-gray-100')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('text-gray-900')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('dark:text-gray-100')
+  })
+
+  it('renders options inline (not in a sheet) on desktop', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Scene Description')).toBeInTheDocument()
+  })
+
+  it('renders options in a bottom sheet on mobile', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByRole('dialog', { name: 'Options' })).toBeInTheDocument()
+  })
+
+  it('shows text labels on option chips on mobile (no icon-only controls)', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} onXCard={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByRole('button', { name: 'Scene Description' })).toHaveTextContent('Scene')
+    expect(screen.getByRole('button', { name: 'NPC Mode' })).toHaveTextContent('NPC')
+    expect(screen.getByText('X Card')).toBeInTheDocument()
+  })
+
+  it('selects a whisper target via the menu on mobile', async () => {
+    setMobileViewport()
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    fireEvent.change(screen.getByPlaceholderText(/Type a private whisper/i), { target: { value: 'psst' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith({
+        content: 'psst',
+        type: 'regular',
+        whisper_to: 'u1',
+        active_player_ids: undefined
+      })
+    })
+  })
+
+  it('sets the active player via its menu', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Go!' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith(expect.objectContaining({
+        content: 'Go!',
+        type: 'regular',
+        active_player_ids: ['u1']
+      }))
+    })
+  })
+
+  it('closes the bottom sheet on Escape', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByRole('dialog', { name: 'Options' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
