@@ -16,6 +16,27 @@ if (sessionStorage) {
   Object.defineProperty(globalThis, 'sessionStorage', { value: sessionStorage, configurable: true })
 }
 
+// jsdom has no ResizeObserver; components that re-anchor scroll on content
+// growth (lazy images) construct one. Stub it out and keep instances reachable
+// so tests can trigger the callback deterministically.
+if (!(globalThis as any).ResizeObserver) {
+  ;(globalThis as any).__resizeObservers = []
+  class ResizeObserverMock {
+    private cb: (entries: any[], observer: unknown) => void
+    constructor(cb: (entries: any[], observer: unknown) => void) {
+      this.cb = cb
+      ;(globalThis as any).__resizeObservers.push(this)
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    trigger() {
+      this.cb([], this)
+    }
+  }
+  ;(globalThis as any).ResizeObserver = ResizeObserverMock
+}
+
 // jsdom has no matchMedia; the theme toggle reads it on mount. Default stub
 // (light) so every test that renders the app header or login page is stable.
 beforeEach(() => {
