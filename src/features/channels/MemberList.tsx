@@ -91,7 +91,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     try {
       const error = await moderateMember(memberId, 'leave')
       if (error) throw error
-      navigate('/')
+      navigate('/', { replace: true })
     } catch (err) {
       console.error('Error leaving channel:', err)
       setError('Failed to leave channel.')

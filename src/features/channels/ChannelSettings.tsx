@@ -235,7 +235,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       if (archiveError) throw archiveError
       
       onClose()
-      navigate('/')
+      navigate('/', { replace: true })
     } catch (err) {
       console.error('Failed to archive:', err)
       addToast('Failed to archive channel.', 'error')
