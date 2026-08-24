@@ -383,7 +383,10 @@ describe('Lobby', () => {
     if (originalClosedDescriptor) {
       Object.defineProperty(window, 'closed', originalClosedDescriptor)
     } else {
-      delete (window as Window & { closed?: boolean }).closed
+      Object.defineProperty(window, 'closed', {
+        configurable: true,
+        get: () => false,
+      })
     }
   })
 })
