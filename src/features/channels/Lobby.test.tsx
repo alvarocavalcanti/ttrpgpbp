@@ -335,6 +335,7 @@ describe('Lobby', () => {
   })
 
   it('tries to close app and keeps lobby guard when back is confirmed', () => {
+    vi.useFakeTimers()
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => undefined)
     const pushStateSpy = vi.spyOn(window.history, 'pushState')
@@ -347,9 +348,42 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     window.dispatchEvent(new PopStateEvent('popstate'))
+    vi.runAllTimers()
+    vi.useRealTimers()
 
     expect(confirmSpy).toHaveBeenCalledWith('Exit application?')
     expect(closeSpy).toHaveBeenCalledOnce()
     expect(pushStateSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not re-arm guard when window is closed after exit confirm', () => {
+    vi.useFakeTimers()
+    const originalClosedDescriptor = Object.getOwnPropertyDescriptor(window, 'closed')
+    Object.defineProperty(window, 'closed', {
+      configurable: true,
+      get: () => true,
+    })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'close').mockImplementation(() => undefined)
+    const pushStateSpy = vi.spyOn(window.history, 'pushState')
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    vi.runAllTimers()
+    vi.useRealTimers()
+
+    expect(pushStateSpy).toHaveBeenCalledTimes(1)
+
+    if (originalClosedDescriptor) {
+      Object.defineProperty(window, 'closed', originalClosedDescriptor)
+    } else {
+      delete (window as Window & { closed?: boolean }).closed
+    }
   })
 })

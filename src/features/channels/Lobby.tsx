@@ -47,7 +47,11 @@ export function Lobby() {
 
       if (shouldExit) {
         window.close()
-        window.history.pushState(historyState, '', window.location.href)
+        window.setTimeout(() => {
+          if (!window.closed) {
+            window.history.pushState(historyState, '', window.location.href)
+          }
+        }, 0)
         return
       }
 
