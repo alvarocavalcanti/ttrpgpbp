@@ -25,6 +25,30 @@ describe('MessageItem', () => {
     expect(avatar).not.toBeNull()
   })
 
+  it('inverts game-icons NPC portraits in dark mode but not uploaded images', () => {
+    const icon: any = {
+      type: 'npc',
+      content: 'Trespassers!',
+      npc_name: 'Goblin King',
+      npc_avatar_url: 'https://api.iconify.design/game-icons/goblin-head.svg',
+      created_at: new Date().toISOString(),
+      sender_id: 'gm1'
+    }
+    const { container } = render(<MessageItem message={icon} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(container.querySelector('img[src="https://api.iconify.design/game-icons/goblin-head.svg"]')).toHaveClass('dark:invert')
+
+    const uploaded: any = {
+      type: 'npc',
+      content: 'Trespassers!',
+      npc_name: 'Goblin King',
+      npc_avatar_url: 'https://example.com/king.png',
+      created_at: new Date().toISOString(),
+      sender_id: 'gm1'
+    }
+    const { container: c2 } = render(<MessageItem message={uploaded} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(c2.querySelector('img[src="https://example.com/king.png"]')).not.toHaveClass('dark:invert')
+  })
+
   it('allows the GM author to edit an NPC message within the edit window', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
     window.confirm = vi.fn().mockReturnValue(true)

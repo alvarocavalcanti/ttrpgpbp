@@ -13,6 +13,13 @@ describe('IconPicker', () => {
     expect(onPick).toHaveBeenCalledWith(npcIconUrl('wizard-face'))
   })
 
+  it('inverts game-icons in dark mode so they stay visible on dark backgrounds', () => {
+    render(<IconPicker onPick={vi.fn()} onClose={vi.fn()} />)
+
+    const img = screen.getByRole('button', { name: 'wizard-face' }).querySelector('img')
+    expect(img).toHaveClass('dark:invert')
+  })
+
   it('searches the Iconify API and falls back on failure', async () => {
     const onPick = vi.fn()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ icons: ['dragon-head'] }) }))
