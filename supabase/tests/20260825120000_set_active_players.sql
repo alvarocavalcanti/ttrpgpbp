@@ -35,7 +35,7 @@ SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 SELECT lives_ok(
   $$SELECT public.set_active_players(
     '00000000-0000-0000-0000-000000000305',
-    ARRAY['00000000-0000-0000-0000-000000000302','00000000-0000-0000-0000-000000000303']
+    ARRAY['00000000-0000-0000-0000-000000000302','00000000-0000-0000-0000-000000000303']::uuid[]
   )$$,
   'GM can set active players'
 );
@@ -68,7 +68,7 @@ SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 SELECT throws_ok(
   $$SELECT public.set_active_players(
     '00000000-0000-0000-0000-000000000305',
-    ARRAY['00000000-0000-0000-0000-000000000302']
+    ARRAY['00000000-0000-0000-0000-000000000302']::uuid[]
   )$$,
   'P0001',
   'Only the GM can change active players.',
@@ -82,7 +82,7 @@ SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 SELECT throws_ok(
   $$SELECT public.set_active_players(
     '00000000-0000-0000-0000-000000000305',
-    ARRAY['00000000-0000-0000-0000-000000000304']
+    ARRAY['00000000-0000-0000-0000-000000000304']::uuid[]
   )$$,
   'P0001',
   'Active player must be a member of this channel.',
