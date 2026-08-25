@@ -51,7 +51,7 @@
 - **Active player(s)** — structured field, one or more players, drives notifications
 - Editable by GM at any time
 - When collapsed, first line remains visible
-- GM can set active player(s) while composing a message (updates status + notifies)
+- GM can set active player(s) directly from the channel menu (no message needed) or while composing a message (updates status + notifies)
 
 ## Messages
 

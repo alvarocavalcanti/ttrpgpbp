@@ -29,6 +29,10 @@ The **NPCs** sidebar item opens the NPC roster for the channel. From there the G
 - **Delete** an NPC — removes it from the roster; past messages keep their portrait snapshot
 - **Add** a new NPC directly, with a chosen or random portrait
 
+## Setting active players
+
+The **Active Player** sidebar item opens a list of the channel's players. Check one or more to name who is up next, then **Save** — the change applies immediately (no message needed) and sends the active player(s) an "It's your turn" notification. Leaving all boxes unchecked clears the active player.
+
 ## Archiving
 
 The GM can **archive** a channel, removing it from the main lobby. Archived channels are still viewable and restorable from the **Archived Channels** item in the app menu.

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { supabase } from '../../lib/supabase'
 import { MAX_STATUS_LENGTH } from '../../constants'
@@ -23,6 +23,16 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
   const [editContent, setEditContent] = useState(statusText || '')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Chevron only when the clamped (collapsed) status text actually overflows
+  // one line; single-line text has nothing to expand.
+  const statusRef = useRef<HTMLDivElement>(null)
+  const [overflows, setOverflows] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = statusRef.current
+    if (!el) return
+    setOverflows(el.scrollHeight > el.clientHeight + 1)
+  }, [statusText, isExpanded])
 
   const handleSave = async () => {
     setIsSubmitting(true)
@@ -105,7 +115,9 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             </div>
           ) : (
             <div className="relative">
-              <div className={`prose prose-sm max-w-none dark:prose-invert text-amber-900 dark:text-amber-200 prose-p:text-amber-900 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-200 prose-headings:text-amber-900 dark:prose-headings:text-amber-200 prose-em:text-amber-900 dark:prose-em:text-amber-200 prose-a:text-amber-700 dark:prose-a:text-amber-300 prose-blockquote:text-amber-900 dark:prose-blockquote:text-amber-200 prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700 prose-ul:text-amber-900 dark:prose-ul:text-amber-200 prose-ol:text-amber-900 dark:prose-ol:text-amber-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
+              <div
+                ref={statusRef}
+                className={`prose prose-sm max-w-none dark:prose-invert text-amber-900 dark:text-amber-200 prose-p:text-amber-900 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-200 prose-headings:text-amber-900 dark:prose-headings:text-amber-200 prose-em:text-amber-900 dark:prose-em:text-amber-200 prose-a:text-amber-700 dark:prose-a:text-amber-300 prose-blockquote:text-amber-900 dark:prose-blockquote:text-amber-200 prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700 prose-ul:text-amber-900 dark:prose-ul:text-amber-200 prose-ol:text-amber-900 dark:prose-ol:text-amber-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
                 {statusText ? (
                   <Markdown>{statusText}</Markdown>
                 ) : (
@@ -127,7 +139,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             </button>
           )}
           
-          {!isEditing && statusText && (
+          {!isEditing && statusText && (overflows || isExpanded) && (
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}

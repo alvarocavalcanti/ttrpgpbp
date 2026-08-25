@@ -728,4 +728,39 @@ describe('MessageComposer', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+
+  it('renders no indicator chips when no options are active', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    expect(screen.queryByLabelText(/^Edit /)).not.toBeInTheDocument()
+  })
+
+  it('shows an indicator chip for an active scene when the panel is closed', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByLabelText('Edit Scene')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Edit NPC')).not.toBeInTheDocument()
+  })
+
+  it('clicking an indicator chip reopens the options panel', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Edit Scene'))
+    expect(screen.getByLabelText('Scene Description')).toBeInTheDocument()
+  })
+
+  it('shows whisper and active player indicator chips with member names', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByLabelText('Edit Whisper: Hero')).toBeInTheDocument()
+    expect(screen.getByLabelText('Edit Active: Hero')).toBeInTheDocument()
+  })
 })

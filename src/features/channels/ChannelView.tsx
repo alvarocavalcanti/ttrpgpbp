@@ -16,6 +16,7 @@ import { SearchModal } from '../search/SearchModal'
 import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
 import { useChannelNpcs } from './useChannelNpcs'
 import { NpcManagementModal } from './NpcManagementModal'
+import { ActivePlayerModal } from './ActivePlayerModal'
 import { SafetyToolsModal } from './SafetyToolsModal'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
@@ -47,6 +48,7 @@ export function ChannelView() {
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showSafetyTools, setShowSafetyTools] = useState(false)
   const [showNpcs, setShowNpcs] = useState(false)
+  const [showActivePlayer, setShowActivePlayer] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
@@ -65,10 +67,10 @@ export function ChannelView() {
   // Overlay modals open on top of the sidebar; close the mobile sidebar so it
   // doesn't stay open behind them.
   useEffect(() => {
-    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp) {
+    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer) {
       setShowMobileSidebar(false)
     }
-  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp])
+  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer])
 
   const handleJumpToMessage = useCallback((messageId: string) => {
     setHighlightMessageId(messageId)
@@ -151,6 +153,11 @@ export function ChannelView() {
 
   // Omit the GM from the whisper target list (or omit the current user)
   const whisperableMembers = members.filter(m => m.user_id !== myMemberInfo?.user_id)
+
+  // Active-player modal: selectable members are non-blocked, non-GM players
+  // (the GM's own row is not a valid active player).
+  const activePlayerMembers = members.filter(m => !m.is_blocked && m.user_id !== channel.gm_id)
+  const currentActiveIds = members.filter(m => m.is_active_player && !m.is_blocked).map(m => m.user_id)
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-white dark:bg-gray-800 relative">
@@ -392,6 +399,15 @@ export function ChannelView() {
           {isGM && (
             <button
               type="button"
+              onClick={() => setShowActivePlayer(true)}
+              className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Active Player
+            </button>
+          )}
+          {isGM && (
+            <button
+              type="button"
               onClick={() => setShowSettings(true)}
               className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
@@ -451,6 +467,16 @@ export function ChannelView() {
           channelId={channel.id}
           onClose={() => setShowNpcs(false)}
           onUpdate={refetchNpcs}
+        />
+      )}
+
+      {showActivePlayer && isGM && (
+        <ActivePlayerModal
+          channelId={channel.id}
+          members={activePlayerMembers}
+          currentActiveIds={currentActiveIds}
+          onClose={() => setShowActivePlayer(false)}
+          onSaved={refetch}
         />
       )}
     </div>

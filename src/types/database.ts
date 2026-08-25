@@ -1154,6 +1154,13 @@ export type Database = {
           message_id: string
         }[]
       }
+      set_active_players: {
+        Args: {
+          p_active_player_ids: string[]
+          p_channel_id: string
+        }
+        Returns: undefined
+      }
       update_channel_settings: {
         Args: {
           p_channel_id: string

@@ -383,6 +383,60 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
     </div>
   )
 
+  // Collapsed-state indicator bar: a small chip per active option so the GM
+  // sees what's queued (scene/NPC/whisper/active player) without opening the
+  // options panel. Clicking a chip reopens the panel.
+  const whisperMember = whisperTo ? members.find(m => m.user_id === whisperTo) : undefined
+  const activePlayerName = isGM && activePlayerIds?.length
+    ? members.find(m => m.user_id === activePlayerIds[0])?.character_name
+    : undefined
+  const indicatorChips: { key: string; label: string; icon: React.ReactNode }[] = []
+  if (isScene) {
+    indicatorChips.push({
+      key: 'scene',
+      label: 'Scene',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+        </svg>
+      ),
+    })
+  }
+  if (isNpc) {
+    indicatorChips.push({
+      key: 'npc',
+      label: 'NPC',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+    })
+  }
+  if (whisperMember) {
+    indicatorChips.push({
+      key: 'whisper',
+      label: `Whisper: ${whisperMember.character_name}`,
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      ),
+    })
+  }
+  if (activePlayerName) {
+    indicatorChips.push({
+      key: 'active',
+      label: `Active: ${activePlayerName}`,
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+    })
+  }
+
   return (
     <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2 sm:p-4">
       <form onSubmit={handleSubmit}>
@@ -509,6 +563,23 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
           {imageError && (
             <div className="mb-2 p-2 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 text-sm rounded-md border border-red-200 dark:border-red-800" role="alert">
               {imageError}
+            </div>
+          )}
+
+          {!isExpanded && indicatorChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-2 sm:px-0">
+              {indicatorChips.map(chip => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setIsExpanded(true)}
+                  aria-label={`Edit ${chip.label}`}
+                  className={`${chipBase} ${chipActive} !px-2 !py-1 text-xs`}
+                >
+                  {chip.icon}
+                  {chip.label}
+                </button>
+              ))}
             </div>
           )}
 
