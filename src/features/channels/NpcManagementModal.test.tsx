@@ -61,6 +61,20 @@ describe('NpcManagementModal', () => {
     expect(screen.getByText('Goblin King')).toBeInTheDocument()
     expect(screen.getByText('Dragon')).toBeInTheDocument()
     expect(container.querySelectorAll('img').length).toBe(2)
+    expect(container.querySelector('img[class*="dark:invert"]')).toBeNull()
+  })
+
+  it('inverts game-icons roster portraits but not uploaded ones', () => {
+    mockHook({
+      npcs: [
+        { id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://api.iconify.design/game-icons/goblin-head.svg', created_at: '2026-01-01' },
+        { id: 'n2', channel_id: 'c1', name: 'Dragon', avatar_url: 'https://icon/dragon.svg', created_at: '2026-01-02' },
+      ],
+    })
+    const { container } = render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
+    const inverted = container.querySelector('img[class*="dark:invert"]')
+    expect(inverted?.getAttribute('src')).toBe('https://api.iconify.design/game-icons/goblin-head.svg')
+    expect(container.querySelector('img[src="https://icon/dragon.svg"]')).not.toHaveClass('dark:invert')
   })
 
   it('shows an empty state when no NPCs exist', () => {
