@@ -18,9 +18,13 @@ describe('Security Headers (public/_headers)', () => {
 
     // Google Analytics beacon endpoint (gtag reports here via fetch/XHR)
     expect(cspLine).toContain('https://*.google-analytics.com')
-    
-    // Check required image avatars domains
+
+    // NPC portrait CDN (Iconify) — images load via <img>, search via fetch
+    expect(cspLine).toContain('https://api.iconify.design')
+    expect(cspLine).toContain('connect-src')
     expect(cspLine).toContain('img-src')
+
+    // Check required image avatars domains
     expect(cspLine).toContain('https://*.supabase.co')
     expect(cspLine).toContain('https://*.googleusercontent.com')
     expect(cspLine).toContain('https://avatars.githubusercontent.com')
