@@ -83,7 +83,7 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
                     title={name}
                     aria-label={name}
                   >
-                    <img className="h-8 w-8" src={npcIconUrl(name)} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                    <img className="h-8 w-8 dark:invert" src={npcIconUrl(name)} alt="" loading="lazy" referrerPolicy="no-referrer" />
                   </button>
                 ))}
               </div>

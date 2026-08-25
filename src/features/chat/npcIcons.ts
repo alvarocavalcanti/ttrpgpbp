@@ -16,3 +16,11 @@ export function npcIconUrl(name: string): string {
 export function randomNpcIconUrl(): string {
   return npcIconUrl(CURATED_NPC_ICONS[Math.floor(Math.random() * CURATED_NPC_ICONS.length)])
 }
+
+// game-icons SVGs are monochrome black with a transparent background; when
+// loaded via <img> the `currentColor` fill never inherits, so they turn black
+// on dark backgrounds. Detect them so we can flip them to white in dark mode
+// without touching uploaded images or user photos.
+export function isNpcIconUrl(url: string | null | undefined): boolean {
+  return !!url && url.startsWith('https://api.iconify.design/game-icons/')
+}

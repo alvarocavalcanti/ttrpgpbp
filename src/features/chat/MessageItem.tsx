@@ -6,6 +6,7 @@ import { getSystemAttributes, clampModifier } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage } from './types'
+import { isNpcIconUrl } from './npcIcons'
 import { MAX_MESSAGE_LENGTH } from '../../constants'
 
 type Message = ChatMessage
@@ -432,7 +433,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       <div className="flex-shrink-0">
         {isNpc ? (
           message.npc_avatar_url ? (
-            <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={message.npc_avatar_url} alt="" referrerPolicy="no-referrer" />
+            <Avatar className={`h-10 w-10 rounded-full flex-shrink-0 ${isNpcIconUrl(message.npc_avatar_url) ? 'dark:invert' : ''}`} src={message.npc_avatar_url} alt="" referrerPolicy="no-referrer" />
           ) : (
             <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif">
               {message.npc_name?.[0]?.toUpperCase() || '?'}

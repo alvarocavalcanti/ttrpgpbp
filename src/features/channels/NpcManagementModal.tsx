@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Database } from '../../types/database'
 import { useChannelNpcs } from './useChannelNpcs'
 import { IconPicker } from '../chat/IconPicker'
-import { randomNpcIconUrl } from '../chat/npcIcons'
+import { randomNpcIconUrl, isNpcIconUrl } from '../chat/npcIcons'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useToast } from '../../contexts/ToastContext'
@@ -135,7 +135,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                 {npcs.map(npc => (
                   <li key={npc.id} className="flex items-center space-x-3 p-2 rounded-md bg-gray-50 dark:bg-gray-900">
                     {npc.avatar_url ? (
-                      <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={npc.avatar_url} alt="" referrerPolicy="no-referrer" />
+                      <Avatar className={`h-10 w-10 rounded-full flex-shrink-0 ${isNpcIconUrl(npc.avatar_url) ? 'dark:invert' : ''}`} src={npc.avatar_url} alt="" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif flex-shrink-0">
                         {npc.name[0]?.toUpperCase() || '?'}
@@ -232,7 +232,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
                 />
                 {newAvatar ? (
-                  <Avatar className="h-8 w-8 rounded-full flex-shrink-0" src={newAvatar} alt="New NPC portrait preview" referrerPolicy="no-referrer" />
+                  <Avatar className={`h-8 w-8 rounded-full flex-shrink-0 ${isNpcIconUrl(newAvatar) ? 'dark:invert' : ''}`} src={newAvatar} alt="New NPC portrait preview" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 flex-shrink-0">
                     <span className="text-xs font-medium">?</span>
