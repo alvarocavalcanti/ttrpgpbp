@@ -667,15 +667,17 @@ describe('MessageComposer', () => {
     expect(screen.getByText('X Card')).toBeInTheDocument()
   })
 
-  it('drops the whisper and active player menus downward on mobile', () => {
+  it('opens whisper and active player as dialog popups on mobile', () => {
     setMobileViewport()
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
-    expect(screen.getByRole('menu', { name: 'Whisper' })).toHaveClass('top-full')
+    expect(screen.getByRole('dialog', { name: 'Whisper' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitemradio', { name: /Hero/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
-    expect(screen.getByRole('menu', { name: 'Active Player' })).toHaveClass('top-full')
+    expect(screen.getByRole('dialog', { name: 'Active Player' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitemradio', { name: /Hero/ })).toBeInTheDocument()
   })
 
   it('selects a whisper target via the menu on mobile', async () => {

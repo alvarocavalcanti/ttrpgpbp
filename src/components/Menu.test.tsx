@@ -26,15 +26,34 @@ describe('Menu', () => {
     expect(screen.getByRole('menuitemradio', { name: /Archer/ })).toBeInTheDocument()
   })
 
-  it('opens upward by default and downward when dropUp is false', () => {
-    const { unmount } = render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+  it('opens upward by default', () => {
+    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     expect(screen.getByRole('menu', { name: 'Whisper' })).toHaveClass('bottom-full')
-    unmount()
+  })
 
-    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} dropUp={false} />)
+  it('opens as a dialog popup when popup is true', () => {
+    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} popup />)
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
-    expect(screen.getByRole('menu', { name: 'Whisper' })).toHaveClass('top-full')
+    expect(screen.getByRole('dialog', { name: 'Whisper' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitemradio', { name: /Hero/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitemradio', { name: /Archer/ })).toBeInTheDocument()
+  })
+
+  it('selects an option from the popup and closes', () => {
+    const onSelect = vi.fn()
+    render(<Menu label="Whisper" value="" options={options} onSelect={onSelect} popup />)
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    expect(onSelect).toHaveBeenCalledWith('u1')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('closes the popup on Escape', () => {
+    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} popup />)
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('marks the current value as checked', () => {
