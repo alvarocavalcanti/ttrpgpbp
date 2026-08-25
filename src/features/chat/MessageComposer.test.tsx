@@ -455,11 +455,16 @@ describe('MessageComposer', () => {
 
   it('sends an NPC message with a generated portrait', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
-    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+    const { container } = render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
 
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Goblin King' } })
+
+    const preview = container.querySelector('img[class*="dark:invert"]')
+    expect(preview).not.toBeNull()
+    expect(preview?.getAttribute('src')).toMatch(/^https:\/\/api\.iconify\.design\/game-icons\//)
+
     fireEvent.change(screen.getByPlaceholderText(/Speak as Goblin King/i), { target: { value: 'Trespassers!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
@@ -478,7 +483,7 @@ describe('MessageComposer', () => {
   it('reuses the existing NPC avatar when the name matches the roster', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
-    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={mockOnSend} />)
+    const { container } = render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={mockOnSend} />)
 
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
@@ -493,6 +498,7 @@ describe('MessageComposer', () => {
         npc_avatar_url: 'https://example.com/king.png'
       }))
     })
+    expect(container.querySelector('img[class*="dark:invert"]')).toBeNull()
   })
 
   it('blocks NPC send without a name', async () => {
