@@ -64,7 +64,7 @@ export function ArchivedChannels() {
   return (
     <div className="w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
       <div className="flex items-center space-x-4 mb-6">
-        <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <Link to="/" replace aria-label="Back to Lobby" className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>

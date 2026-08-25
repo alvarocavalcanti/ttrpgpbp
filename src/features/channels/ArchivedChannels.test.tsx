@@ -3,7 +3,16 @@ import { describe, it, expect, vi } from 'vitest'
 import { ArchivedChannels } from './ArchivedChannels'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+
+function BackProbe() {
+  const navigate = useNavigate()
+  return (
+    <button type="button" onClick={() => navigate(-1)} data-testid="back-probe">
+      back
+    </button>
+  )
+}
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -92,4 +101,28 @@ describe('ArchivedChannels', () => {
     })
   })
 
+  it('replaces the entry when returning to lobby so back does not re-enter the page', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockEq2 = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq: mockEq1 }) } as any)
+
+    render(
+      <MemoryRouter initialEntries={['/archived']}>
+        <Routes>
+          <Route path="/archived" element={<ArchivedChannels />} />
+          <Route path="/" element={<BackProbe />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => expect(screen.getByText('No archived channels found.')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('link', { name: 'Back to Lobby' }))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('back-probe'))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
+  })
 })

@@ -106,7 +106,7 @@ export function AdminView() {
   useEffect(() => {
     if (adminLoading) return
     if (!isServerAdmin) {
-      navigate('/')
+      navigate('/', { replace: true })
       return
     }
     setChannelLimit(String(maxChannels))

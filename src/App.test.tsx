@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App'
 import { supabase } from './lib/supabase'
@@ -381,5 +381,54 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Change Log'))
     expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
     window.history.replaceState({}, '', '/')
+  })
+
+  it('replaces the entry when the header logo returns to the lobby so back does not re-enter a sub-page', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+
+    await screen.findByText('Role by Post')
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByText('Help'))
+    await screen.findByText('Help Topics')
+
+    fireEvent.click(screen.getByRole('link', { name: 'Role by Post' }))
+    expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
+
+    window.history.back()
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/')
+    })
+    expect(screen.queryByText('Help Topics')).not.toBeInTheDocument()
   })
 })
