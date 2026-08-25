@@ -26,6 +26,17 @@ describe('Menu', () => {
     expect(screen.getByRole('menuitemradio', { name: /Archer/ })).toBeInTheDocument()
   })
 
+  it('opens upward by default and downward when dropUp is false', () => {
+    const { unmount } = render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    expect(screen.getByRole('menu', { name: 'Whisper' })).toHaveClass('bottom-full')
+    unmount()
+
+    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} dropUp={false} />)
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    expect(screen.getByRole('menu', { name: 'Whisper' })).toHaveClass('top-full')
+  })
+
   it('marks the current value as checked', () => {
     render(<Menu label="Whisper" value="u1" options={options} onSelect={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))

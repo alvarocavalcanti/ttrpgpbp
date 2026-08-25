@@ -14,11 +14,12 @@ interface MenuProps {
   value: string
   options: MenuOption[]
   onSelect: (value: string) => void
+  dropUp?: boolean
 }
 
 // A labelled chip that opens a dropdown menu of options. The current selection
 // is shown alongside the label so the control is never a bare icon.
-export function Menu({ icon, label, value, options, onSelect }: MenuProps) {
+export function Menu({ icon, label, value, options, onSelect, dropUp = true }: MenuProps) {
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
   const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false), open)
@@ -74,7 +75,7 @@ export function Menu({ icon, label, value, options, onSelect }: MenuProps) {
           ref={listRef}
           role="menu"
           aria-label={label}
-          className="absolute bottom-full mb-2 left-0 w-64 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
+          className={`absolute ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 w-64 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1`}
         >
           {options.map((opt, i) => (
             <button
