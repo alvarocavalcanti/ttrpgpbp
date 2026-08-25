@@ -1,12 +1,21 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { AdminView } from './AdminView'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
+
+function BackProbe() {
+  const navigate = useNavigate()
+  return (
+    <button type="button" onClick={() => navigate(-1)} data-testid="back-probe">
+      back
+    </button>
+  )
+}
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -413,11 +422,40 @@ describe('AdminView', () => {
 
     render(
       <MemoryRouter initialEntries={['/admin']}>
-        <AdminView />
+        <Routes>
+          <Route path="/admin" element={<AdminView />} />
+          <Route path="/" element={<BackProbe />} />
+        </Routes>
       </MemoryRouter>
     )
 
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
+  })
+
+  it('replaces the redirect to lobby so back from the lobby does not re-enter admin', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'u1' } as any,
+      profile: { id: 'u1', server_admin: false } as any,
+    } as any)
+
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+
+    render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <Routes>
+          <Route path="/admin" element={<AdminView />} />
+          <Route path="/" element={<BackProbe />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByTestId('back-probe')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('back-probe'))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
   })
 
   it('uses the configured limit for the input default', async () => {

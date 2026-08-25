@@ -1,7 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { AboutPage } from './AboutPage'
+
+function BackProbe() {
+  const navigate = useNavigate()
+  return (
+    <button type="button" onClick={() => navigate(-1)} data-testid="back-probe">
+      back
+    </button>
+  )
+}
 
 describe('AboutPage', () => {
   it('renders attribution, donation badges, and GitHub link', () => {
@@ -34,5 +43,22 @@ describe('AboutPage', () => {
       'href',
       'https://github.com/alvarocavalcanti/ttrpgpbp'
     )
+  })
+
+  it('replaces the entry when returning to lobby so back does not re-enter the page', () => {
+    render(
+      <MemoryRouter initialEntries={['/about']}>
+        <Routes>
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/" element={<BackProbe />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'Back' }))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('back-probe'))
+    expect(screen.getByTestId('back-probe')).toBeInTheDocument()
   })
 })
