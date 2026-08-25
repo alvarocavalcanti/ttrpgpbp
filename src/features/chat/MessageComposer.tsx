@@ -347,6 +347,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             }
             label="Active Player"
             value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
+            dropUp={!isMobile}
             onSelect={(val) => {
               if (val === '') setActivePlayerIds(undefined)
               else if (val === 'clear') setActivePlayerIds([])
@@ -371,6 +372,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             label="Whisper"
             value={whisperTo}
             onSelect={setWhisperTo}
+            dropUp={!isMobile}
             options={[
               { value: '', label: 'Everyone (Public)' },
               ...members.map(m => ({ value: m.user_id, label: m.character_name, hint: m.profile?.display_name || undefined })),

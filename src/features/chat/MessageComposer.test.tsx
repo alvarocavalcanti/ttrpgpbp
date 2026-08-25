@@ -667,6 +667,17 @@ describe('MessageComposer', () => {
     expect(screen.getByText('X Card')).toBeInTheDocument()
   })
 
+  it('drops the whisper and active player menus downward on mobile', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    expect(screen.getByRole('menu', { name: 'Whisper' })).toHaveClass('top-full')
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
+    expect(screen.getByRole('menu', { name: 'Active Player' })).toHaveClass('top-full')
+  })
+
   it('selects a whisper target via the menu on mobile', async () => {
     setMobileViewport()
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
