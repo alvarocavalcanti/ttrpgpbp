@@ -26,8 +26,10 @@ A modern, mobile-friendly Play-by-Post application built for asynchronous tablet
 
 Support RoleByPost development:
 
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/alvarocavalcanti)
-[![Buy Me a Coffee at ko-fi.com](https://storage.ko-fi.com/cdn/kofi6.png?v=6)](https://ko-fi.com/O4O1WSP5B)
+<p align="center">
+  <a href="https://www.buymeacoffee.com/alvarocavalcanti"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="150"></a>
+  <a href="https://ko-fi.com/O4O1WSP5B"><img src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" alt="Buy Me a Coffee at ko-fi.com" width="150"></a>
+</p>
 
 For a comprehensive feature breakdown, see [FEATURES.md](docs/FEATURES.md).
 
