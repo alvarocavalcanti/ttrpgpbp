@@ -19,13 +19,21 @@
             "high": { "reasoningEffort": "high" },
             "max": { "disabled": true }
           }
+        },
+        "deepseek-v4-flash-vision-exp": {
+          "variants": {
+            "low": { "reasoningEffort": "low" },
+            "medium": { "reasoningEffort": "medium" },
+            "high": { "reasoningEffort": "high" },
+            "max": { "disabled": true }
+          }
         }
       }
     }
   },
   "agent": {
-    "plan": { "model": "opencode-go/deepseek-v4-pro" },
-    "build": { "model": "opencode-go/deepseek-v4-flash" },
+    "plan": { "model": "opencode-go/deepseek-v4-flash-vision-exp", "variant": "high" },
+    "build": { "model": "opencode-go/deepseek-v4-flash", "variant": "low" },
     "cavecrew-builder": {
       "mode": "subagent"
     },
