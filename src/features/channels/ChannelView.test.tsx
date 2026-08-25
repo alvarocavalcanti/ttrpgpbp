@@ -570,6 +570,66 @@ describe('ChannelView search functionality', () => {
     expect(items).not.toContain('NPCs')
   })
 
+  it('shows the Active Player sidebar item and opens the modal for GMs', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [{ user_id: 'u2', character_name: 'Hero', is_active_player: false }],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const sidebar = screen.getByTestId('sidebar-menu')
+    const items = Array.from(sidebar.querySelectorAll('a, button'))
+      .map(el => el.textContent?.trim())
+
+    expect(items).toContain('Active Player')
+    fireEvent.click(screen.getByText('Active Player'))
+    expect(screen.getByRole('dialog', { name: 'Active Player' })).toBeInTheDocument()
+  })
+
+  it('does not show the Active Player sidebar item for non-GMs', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const sidebar = screen.getByTestId('sidebar-menu')
+    const items = Array.from(sidebar.querySelectorAll('a, button'))
+      .map(el => el.textContent?.trim())
+
+    expect(items).not.toContain('Active Player')
+  })
+
   it('shows GM Resources link to GM when set', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },

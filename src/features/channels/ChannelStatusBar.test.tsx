@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelStatusBar } from './ChannelStatusBar'
 import { supabase } from '../../lib/supabase'
 
@@ -9,9 +9,20 @@ vi.mock('../../lib/supabase', () => ({
   }
 }))
 
+// jsdom reports 0 for both; we override so tests can simulate overflow (or the
+// single-line no-overflow case) on the measured status container.
+const setOverflow = (scrollHeight: number, clientHeight: number) => {
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => clientHeight })
+}
+
 describe('ChannelStatusBar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    setOverflow(0, 0)
   })
 
   it('renders null if no status and not GM', () => {
@@ -32,6 +43,7 @@ describe('ChannelStatusBar', () => {
   })
 
   it('renders markdown status text and toggles expansion', () => {
+    setOverflow(100, 30)
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="**Bold** status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
     expect(screen.getByText('Bold').tagName).toBe('STRONG')
     
@@ -44,6 +56,18 @@ describe('ChannelStatusBar', () => {
     // Expand
     fireEvent.click(toggleButton)
     expect(container.querySelector('.line-clamp-1')).not.toBeInTheDocument()
+  })
+
+  it('hides the chevron on single-line status text', () => {
+    // Default (0/0) means no overflow — nothing to expand.
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="Short status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    expect(container.querySelector('button[title="Expand Status"]')).toBeNull()
+  })
+
+  it('shows the chevron only when the status text overflows', () => {
+    setOverflow(100, 30)
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="A very long status line that would overflow the single line clamp." activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    expect(container.querySelector('button[title="Expand Status"]')).toBeInTheDocument()
   })
 
   it('applies dark-mode prose variants to the status markdown', () => {

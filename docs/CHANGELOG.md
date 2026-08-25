@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Standalone active-player control (GM-only)** — the channel sidebar's new **Active Player** item opens a list of the channel's players. Check one or more to name who is up next and save — no message needed — and the active player gets an "It's your turn" notification. The composer also shows a small chip for each active option (Scene, NPC, Whisper, Active Player) once the options panel is closed, so it's clear what's queued.
 - **Anonymous usage analytics** — the app now sends basic, anonymous page-view statistics to help the team understand which parts of the app are used. No personal data, messages, or rolls are ever tracked.
 
 - **Server Admin & GM communication** — active Game Masters now have a dedicated "Admin Messages" menu item to report issues, ask questions, and read announcements from the server admin. The admin can broadcast announcements and start direct messages with any GM, with push notifications to keep everyone in the loop.
