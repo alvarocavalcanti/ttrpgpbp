@@ -8,7 +8,7 @@ interface AvatarProps extends ImgHTMLAttributes<HTMLImageElement> {
 
 export function Avatar({ src, alt, className, fallbackIconClassName, ...props }: AvatarProps) {
   const [hasError, setHasError] = useState(false);
-  const resolvedSrc = useSignedImageUrl(src);
+  const { src: resolvedSrc } = useSignedImageUrl(src);
 
   if (!src || hasError || !resolvedSrc) {
     return (

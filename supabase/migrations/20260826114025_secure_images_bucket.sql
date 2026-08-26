@@ -60,6 +60,14 @@ BEGIN
     RAISE EXCEPTION 'Image exceeds the % MB size limit', v_max_mb;
   END IF;
 
+  -- Coarse content gate. The stored mimetype is the Content-Type the storage
+  -- server will serve the object with, so requiring image/* keeps uploaded
+  -- objects from ever being served as HTML/text. It is NOT byte-level proof:
+  -- a caller can label arbitrary bytes as image/* and pass this check.
+  -- ponytail: real byte validation needs a trusted upload service that reads
+  -- the object back; add one (and gate direct storage inserts on it) if
+  -- serving non-image bytes ever becomes a concern. For now this + the
+  -- client-side resize (which re-encodes to JPEG) keep served content safe.
   v_mime := COALESCE(NEW.metadata->>'mimetype', '');
   IF v_mime NOT LIKE 'image/%' THEN
     RAISE EXCEPTION 'Only image files may be uploaded';
@@ -76,40 +84,45 @@ CREATE TRIGGER images_upload_rules
 
 -- 4. Rewrite legacy public URLs to bare object paths. The old format was
 --    `https://<ref>.supabase.co/storage/v1/object/public/images/<path>`; the
---    new stored value is just `<path>` (signed at render time). External URLs
---    (drive, owlbear, lorekeeper, Google avatars, game-icons) are untouched —
---    the LIKE guard only matches the images bucket prefix.
+--    new stored value is just `<path>` (signed at render time).
+--
+--    Only URLs whose image path is UUID-prefixed (i.e. ours: every upload lives
+--    at `{channel_id}/{folder}/{uuid}.jpg`) are rewritten. This intentionally
+--    ignores `/storage/v1/object/public/images/...` URLs from *other* Supabase
+--    projects or any non-UUID-prefixed external URL, so a pasted external image
+--    link is never corrupted into an unusable local path. External tool links
+--    (drive, owlbear, lorekeeper), Google avatars and game-icons are untouched.
 
 -- 4a. Message content (markdown `![](url)` and inline URLs) and the NPC avatar
 --     snapshot column.
 UPDATE messages SET
   content = regexp_replace(
     content,
-    'https?://[^[:space:])]+/storage/v1/object/public/images/',
-    '',
+    'https?://[^[:space:])]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)',
+    '\1',
     'g'
   ),
-  npc_avatar_url = CASE WHEN npc_avatar_url LIKE '%/storage/v1/object/public/images/%'
-    THEN regexp_replace(npc_avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/', '')
+  npc_avatar_url = CASE WHEN npc_avatar_url ~ 'https?://[^[:space:]]+/storage/v1/object/public/images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+    THEN regexp_replace(npc_avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)', '\1')
     ELSE npc_avatar_url END;
 
 -- 4b. Channel image columns.
 UPDATE channels SET
-  avatar_url = CASE WHEN avatar_url LIKE '%/storage/v1/object/public/images/%'
-    THEN regexp_replace(avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/', '')
+  avatar_url = CASE WHEN avatar_url ~ 'https?://[^[:space:]]+/storage/v1/object/public/images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+    THEN regexp_replace(avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)', '\1')
     ELSE avatar_url END,
-  map_url = CASE WHEN map_url LIKE '%/storage/v1/object/public/images/%'
-    THEN regexp_replace(map_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/', '')
+  map_url = CASE WHEN map_url ~ 'https?://[^[:space:]]+/storage/v1/object/public/images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+    THEN regexp_replace(map_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)', '\1')
     ELSE map_url END,
-  resources_url = CASE WHEN resources_url LIKE '%/storage/v1/object/public/images/%'
-    THEN regexp_replace(resources_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/', '')
+  resources_url = CASE WHEN resources_url ~ 'https?://[^[:space:]]+/storage/v1/object/public/images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+    THEN regexp_replace(resources_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)', '\1')
     ELSE resources_url END;
 
 -- 4c. NPC and character portraits.
-UPDATE channel_npcs SET avatar_url = CASE WHEN avatar_url LIKE '%/storage/v1/object/public/images/%'
-  THEN regexp_replace(avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/', '')
+UPDATE channel_npcs SET avatar_url = CASE WHEN avatar_url ~ 'https?://[^[:space:]]+/storage/v1/object/public/images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+  THEN regexp_replace(avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)', '\1')
   ELSE avatar_url END;
 
-UPDATE channel_members SET character_avatar_url = CASE WHEN character_avatar_url LIKE '%/storage/v1/object/public/images/%'
-  THEN regexp_replace(character_avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/', '')
+UPDATE channel_members SET character_avatar_url = CASE WHEN character_avatar_url ~ 'https?://[^[:space:]]+/storage/v1/object/public/images/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+  THEN regexp_replace(character_avatar_url, 'https?://[^[:space:]]+/storage/v1/object/public/images/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)', '\1')
   ELSE character_avatar_url END;
