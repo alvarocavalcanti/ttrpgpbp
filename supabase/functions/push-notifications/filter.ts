@@ -124,13 +124,15 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
   }
 
   let targetUserIds: string[] = []
-  if (event.mention_user_ids?.length) {
+  if (event.whisper_to) {
+    // Whisper always wins over mentions: never route whisper content to a
+    // mentioned user or fall through to channel-wide routing.
+    targetUserIds = [event.whisper_to]
+  } else if (event.mention_user_ids?.length) {
     // Mentions route only to the mentioned users (excluding the sender).
     title = `${displayName} mentioned you`
     body = truncate(event.content || '')
     targetUserIds = event.mention_user_ids.filter(uid => uid !== event.sender_id)
-  } else if (event.whisper_to) {
-    targetUserIds = [event.whisper_to]
   } else {
     const isGM = event.sender_id === event.gm_id
     targetUserIds = members
@@ -177,17 +179,21 @@ export function extractMentionUserIds(content: string | null | undefined): strin
 }
 
 // Resolves extracted mention ids to a routing list: expands the `all` sentinel
-// to every member and excludes the sender. Empty when there are no mentions.
+// to every member and excludes the sender. Explicit ids are intersected with
+// channel membership so a fabricated mention chip can't push to an outsider,
+// matching the server-side mention resolution (blocked members excluded).
+// Empty when there are no mentions.
 export function resolveMentionTargets(
   mentionIds: string[],
   members: PushMember[],
   senderId: string
 ): string[] {
   if (mentionIds.length === 0) return []
+  const memberIds = new Set(members.filter(m => !m.is_blocked).map(m => m.user_id))
   const ids = mentionIds.includes('all')
     ? members.map(m => m.user_id)
     : mentionIds
-  return [...new Set(ids)].filter(uid => uid !== senderId)
+  return [...new Set(ids)].filter(uid => uid !== senderId && memberIds.has(uid))
 }
 
 // Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma

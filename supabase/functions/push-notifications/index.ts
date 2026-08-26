@@ -102,12 +102,12 @@ async function buildMessageEvent(
   const members = fetchedMembers ?? []
 
   // Mentions are parsed from the persisted markdown chips, not trusted from the
-  // request, so routing works for any caller.
-  const mentionIds = resolveMentionTargets(
-    extractMentionUserIds(message.content),
-    members,
-    message.sender_id
-  )
+  // request, so routing works for any caller. Whisper content is never parsed
+  // for mentions — a whisper routes only to its target, so mention chips inside
+  // it can't leak the text to other users.
+  const mentionIds = message.whisper_to
+    ? []
+    : resolveMentionTargets(extractMentionUserIds(message.content), members, message.sender_id)
 
   return {
     members,
