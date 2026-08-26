@@ -65,7 +65,7 @@ describe('changelog module', () => {
   it('getRecentItems returns the 5 most recent items from the real changelog', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
-    expect(items[0].title).toBe('Standalone active-player control (GM-only)')
+    expect(items[0].title).toBe('Security hardening')
   })
 
   it('getChangelogHash is a non-empty string', () => {
