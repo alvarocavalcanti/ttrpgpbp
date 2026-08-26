@@ -55,7 +55,7 @@ Boundaries: code/commits/PRs written normal.
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
-  4. **Work, commit, push, open PR.** Report the PR link.
+  4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI (token expensive), unless the user tells otherwise.
 
   5. **Two paths from here — user decides:**
 
