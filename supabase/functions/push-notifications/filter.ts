@@ -109,15 +109,18 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
   let title: string
   let body: string
 
-  if (event.type === 'scene') {
+  if (event.whisper_to) {
+    // Whisper body never carries content, even when the whisper is a scene or
+    // dice roll — a whispered scene must not leak its text to the target's lock
+    // screen (and routing stays exclusively on whisper_to below).
+    title = `New whisper from ${displayName}`
+    body = `New whisper from ${displayName} in ${channelName}`
+  } else if (event.type === 'scene') {
     title = `New Scene in ${channelName}`
     body = truncate(event.content || '')
   } else if (event.type === 'dice_roll') {
     title = `${senderName} rolled dice`
     body = truncate(event.content || '')
-  } else if (event.whisper_to) {
-    title = `New whisper from ${displayName}`
-    body = `New whisper from ${displayName} in ${channelName}`
   } else {
     title = `New message in ${channelName}`
     body = `${displayName}: ${truncate(event.content || '')}`
