@@ -221,6 +221,27 @@ describe('resolvePushTargets', () => {
       expect(result.body).toContain('[@Hero]')
     })
 
+    it('mention routing drops non-member and blocked ids via resolveMentionTargets', () => {
+      const members = [
+        { user_id: 'u1' },
+        { user_id: 'u2', is_blocked: true },
+        { user_id: 'u3' }
+      ]
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content: 'secret [@X](user:outsider)',
+        type: 'regular',
+        mention_user_ids: ['u2', 'u3', 'outsider'],
+        gm_id: 'u9'
+      }, members)
+
+      expect(result.targetUserIds).toEqual(['u3'])
+    })
+
     it('falls back to normal routing when mention list is empty', () => {
       const result = resolvePushTargets({
         kind: 'message',

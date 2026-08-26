@@ -40,8 +40,8 @@ SELECT throws_ok(
   $$INSERT INTO public.messages (channel_id, sender_id, type, content, mention_user_ids)
     VALUES ('00000000-0000-0000-0000-000000000510', '00000000-0000-0000-0000-000000000503', 'regular', 'hi [@Outsider](user:00000000-0000-0000-0000-000000000504)',
             ARRAY['00000000-0000-0000-0000-000000000504']::uuid[])$$,
-  '42501',
-  NULL,
+  'P0001',
+  'Mention target is not a member of this channel.',
   'insert with mention of a non-member is rejected'
 );
 
@@ -79,9 +79,8 @@ SELECT lives_ok(
   $$SELECT public.retry_failed_push_invocations()$$,
   'retry_failed_push_invocations runs without config'
 );
-SELECT is(
-  (SELECT public.retry_failed_push_invocations()),
-  0,
+SELECT ok(
+  (SELECT public.retry_failed_push_invocations()) = 0,
   'retry_failed_push_invocations returns 0 when unconfigured'
 );
 
