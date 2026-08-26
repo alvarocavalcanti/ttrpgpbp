@@ -4,7 +4,8 @@ CREATE EXTENSION IF NOT EXISTS pgtap;
 
 -- Issue #302: whisper/mention privacy + push retry routing. Covers the DB
 -- hardening (fabricated mention_user_ids rejected on direct insert) and the
--- admin-message retry path.
+-- admin-message retry path. Runs under SET LOCAL ROLE authenticated so RLS is
+-- enforced; otherwise the queries would run as the table owner and bypass it.
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -29,6 +30,8 @@ SELECT plan(7);
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
+
+SET LOCAL ROLE authenticated;
 
 -- ==========================================
 -- 1. Direct insert cannot fabricate mention_user_ids
@@ -85,11 +88,15 @@ SELECT ok(
 );
 
 -- ==========================================
--- 3. Admin RLS: outsiders cannot see GMs-only threads
+-- 3. Admin RLS: outsiders cannot see announcements
 -- ==========================================
+-- Insert the announcement as the server admin (announcements are admin-only).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000501', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000501","role":"authenticated"}', true);
 INSERT INTO public.admin_threads (id, type, subject, created_by)
 VALUES ('00000000-0000-0000-0000-000000000530', 'announcement', 'Maintenance', '00000000-0000-0000-0000-000000000501');
 
+-- A non-admin, non-GM outsider must not see it.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000504', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000504","role":"authenticated"}', true);
 SELECT ok(
