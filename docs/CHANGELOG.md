@@ -12,10 +12,9 @@ All notable changes to this project are documented in this file.
 
 - **Server Admin & GM communication** — active Game Masters now have a dedicated "Admin Messages" menu item to report issues, ask questions, and read announcements from the server admin. The admin can broadcast announcements and start direct messages with any GM, with push notifications to keep everyone in the loop.
 
-- **Stability improvements** — Added automated system tests to verify the sign-in, channel creation, messaging, and dice rolling features, ensuring the app remains stable and bug-free.
 - **Drafts and reliable sending** — the composer now saves your draft automatically as you type. If you close the app or switch channels mid-sentence, your text is there when you return. Messages and rolls also send more reliably: if your connection drops while sending, the message shows as "Pending" and then gives you "Retry" and "Remove" options when the failure is confirmed, keeping your text safe. Retries are guaranteed not to duplicate the message.
 - **About page and creator support** — the app now credits its creator, links to the RoleByPost project, and provides donation badges for anyone who wants to support development.
-- **Trustworthy dice rolls** — every roll is now generated and recorded on the server: the result, the individual dice, dropped dice, and any modifier are saved together with the roll message in one atomic step. Everyone at the table sees the same outcome, nothing can be tampered with, and modifier limits from the game system always apply. Roll history also drops rolls that came from deleted messages.
+- **Trustworthy dice rolls** — every roll is now generated and recorded on the server: the result, the individual dice, dropped dice, and any modifier are saved together with the roll message in a single step. Everyone at the table sees the same outcome, nothing can be tampered with, and modifier limits from the game system always apply. Roll history also drops rolls that came from deleted messages.
 - **Push delivery hardening** — play-by-post games feel much smoother: push notifications now arrive reliably, even after a refresh or after the app sat in the background. Outdated subscriptions are cleaned up automatically, and a hiccup on one device never blocks notifications to the rest.
 - **Dark mode** — a sun/moon toggle in the app header (and on the login page) switches the whole app between light and dark themes. Your choice is saved per device and follows your system theme by default.
 - **NPC management screen (GM-only)** — the channel sidebar's **NPCs** item opens the full NPC roster. GMs can add an NPC, rename it, change its portrait, or delete it. Past messages keep the name and portrait they were posted with.
@@ -23,20 +22,19 @@ All notable changes to this project are documented in this file.
 - **Character notes** — a plain-text notes field per player, shown in the member list.
 - **Channel avatar** — GMs can upload an image avatar for a channel from Channel Settings; it shows in the channel list and the channel header.
 - **What's New changelog modal** — when new features ship, a **What's New** popup appears on app load showing the 5 most recent changes. Dismiss it until the next update, or forever; a **Change Log** menu item reopens it anytime, and a `/changelog` page shows the full history.
-- **Deployment and contributing docs** — `DEPLOYMENT.md` walks through setting up your own instance (Supabase project, Google sign-in, push keys, migrations, and the static frontend), and `CONTRIBUTING.md` explains the project's philosophy and how to contribute.
 - **MIT License** — the project is now MIT-licensed. You're free to self-host, modify, and even build paid services on it, as long as you keep attribution to the original project.
 - **AFK / Away status** — any player can mark themselves away from the member-list menu, optionally with a message like "Away until Monday". Away players show an AFK badge and a faded avatar, and "It's your turn" push notifications pause while they're away.
 - **Safety Tools: Lines & Veils** — a collapsible **Safety Tools (Lines & Veils)** section in GM Channel Settings holds persistent hard-limits (Lines) and off-screen topics (Veils). All members can view them via the new **Safety Tools** sidebar item.
 - **Safety Tools URL** — an optional link (e.g. a shared Google Doc) configured by the GM in settings and surfaced to every member as a **Safety Tools Doc** menu item in the sidebar, matching the Map/Resources URL pattern.
 - **Digital X-Card** — a card-with-X button on each message and in the composer lets any player privately flag a scene to the GM. The GM gets an instant in-app alert, and the player who pressed it gets a private confirmation. The flag is always anonymous.
 - **Server admin view** — a "Server Admin" menu item opens an admin area with Users, Channels, and Settings tabs. The Settings tab lets the admin change the **Maximum Channels per user** value. Nobody is kicked if the limit is lowered; players keep their existing channels.
-- **Admin-configurable channel cap** — the per-user channel limit is now a server setting (default 10) instead of hardcoded, and the whole app stays in sync with it.
+- **Admin-configurable channel cap** — the per-user channel limit is now a server setting (default 10), and the whole app stays in sync with it.
 - **GM/Player role badges in the lobby** — each channel in the lobby list now shows a "GM" badge when the user runs that channel and a "Player" badge otherwise.
 - **NPC messages (GM-only)** — GMs can speak as NPCs with a name and portrait, straight from the composer's "+" options. NPC messages look distinct, respect the usual edit window, support whispers and replies, and show up in search and exports with the NPC's name. Reusing an NPC keeps its portrait.
-- **Channel limit per user** — non-server-admins can join at most 10 active channels. The lobby "Create Channel" button greys out at the cap with a toast explaining why. A `server_admin` flag exempts admins from the limit.
+- **Channel limit per user** — non-server-admins can join at most 10 active channels. The lobby "Create Channel" button greys out at the cap with a toast explaining why. Server admins are exempt from the limit.
 - **System messages on member events** — a channel now posts a system message when a player joins, leaves, is kicked, or is blocked.
 - **Private channels only** — public channels are no longer supported. The lobby lists only the private channels you've joined, and joining a channel always happens through its invite link, with an optional password.
-- **PWA high-resolution icons** — installing the app to a phone home screen now shows a proper app icon instead of a blank one.
+- **Phone home-screen app icon** — installing the app to a phone home screen now shows a proper app icon instead of a blank one.
 - **Character name length limit** — channel character names are capped at 20 characters.
 
 ### Fixed
@@ -53,5 +51,5 @@ All notable changes to this project are documented in this file.
 - **Unread message badge counted own + deleted messages** — the Lobby unread count no longer includes your own messages or deleted ones.
 - **Missing "new messages" marker** — opening a channel now shows a red "New messages" divider at the point you last read up to.
 - **Channel view didn't reliably scroll to your unread messages** — a channel with a lot of history could leave the view pinned partway while images finished loading, and returning to the app after it sat in the background often dropped your place. Opening a channel now consistently takes you to your oldest unread message (or the latest one when you're caught up), and coming back to the app after a pause restores that same spot instead of leaving you stranded.
-- **Chat messages no longer load** — a server-schema quirk could stop chat from loading after a deploy, silently emptying channels. Messages now load reliably.
+- **Chat messages no longer load** — a behind-the-scenes server change could stop chat from loading, silently emptying channels. Messages now load reliably.
 - **Silent error handling** — things that used to fail silently now show a clear, friendly error message: the lobby, a channel view, notification settings, archived channels, the roll history, and the sign-in flow all surface problems instead of leaving you with stale or empty screens.
