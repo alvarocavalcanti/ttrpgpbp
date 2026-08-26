@@ -146,6 +146,26 @@ describe('resolvePushTargets', () => {
       expect(result.body).toBe('New whisper from GM in The Den')
     })
 
+    it('whisper wins over mentions: content never leaks to mentioned users', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'GM',
+        content: 'secret [@Hero](user:u2)',
+        type: 'regular',
+        whisper_to: 'u4',
+        mention_user_ids: ['u2'],
+        gm_id: 'u1'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u4'])
+      expect(result.title).toBe('New whisper from GM')
+      expect(result.body).toBe('New whisper from GM in The Den')
+      expect(result.body).not.toContain('secret')
+    })
+
     it('routes mentions only to mentioned users, excluding sender', () => {
       const result = resolvePushTargets({
         kind: 'message',
@@ -421,6 +441,23 @@ describe('resolveMentionTargets', () => {
 
   it('dedupes repeated ids', () => {
     expect(resolveMentionTargets(['u2', 'u2', 'u3'], MEMBERS, 'u1')).toEqual(['u2', 'u3'])
+  })
+
+  it('drops explicit mentions that are not channel members (fabricated chips)', () => {
+    expect(resolveMentionTargets(['u2', 'outsider'], MEMBERS, 'u1')).toEqual(['u2'])
+  })
+
+  it('drops blocked members from mention routing', () => {
+    const members = [
+      { user_id: 'u1' },
+      { user_id: 'u2', is_blocked: true },
+      { user_id: 'u3' }
+    ]
+    expect(resolveMentionTargets(['u2', 'u3'], members, 'u1')).toEqual(['u3'])
+  })
+
+  it('returns empty when every mention resolves to a non-member', () => {
+    expect(resolveMentionTargets(['outsider1', 'outsider2'], MEMBERS, 'u1')).toEqual([])
   })
 })
 
