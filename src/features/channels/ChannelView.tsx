@@ -8,6 +8,7 @@ import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
 import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
 import { useAuth } from '../auth/useAuth'
+import { SignedImg } from '../../components/SignedImg'
 import { usePushNotifications } from '../auth/usePushNotifications'
 import { notifyChannelRead } from '../../lib/channelRead'
 
@@ -171,7 +172,7 @@ export function ChannelView() {
               </svg>
             </Link>
             {channel.avatar_url ? (
-              <img
+              <SignedImg
                 src={channel.avatar_url}
                 alt=""
                 referrerPolicy="no-referrer"

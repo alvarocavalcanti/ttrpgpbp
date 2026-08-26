@@ -8,6 +8,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
 import { useChannelAvatar } from './useChannelAvatar'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { SignedImg } from '../../components/SignedImg'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import {
   MAX_CHANNEL_NAME_LENGTH,
@@ -279,7 +280,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
                   {avatarUrl ? (
-                    <img
+                    <SignedImg
                       src={avatarUrl}
                       alt="Channel avatar"
                       referrerPolicy="no-referrer"

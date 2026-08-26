@@ -24,15 +24,12 @@ const makeFile = (size: number, type = 'image/png') => new File([new Uint8Array(
 
 describe('useImageUpload', () => {
   const mockUpload = vi.fn()
-  const mockGetPublicUrl = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockUpload.mockResolvedValue({ error: null })
-    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://supabase/images/c1/message/u.jpg' } })
     vi.mocked(supabase.storage.from).mockReturnValue({
       upload: mockUpload,
-      getPublicUrl: mockGetPublicUrl,
     } as any)
     vi.mocked(resizeImageFile).mockResolvedValue(new File(['resized'], 'photo.jpg', { type: 'image/jpeg' }))
     vi.mocked(useAppSetting).mockImplementation((key: string, fallback: any) => {
@@ -42,15 +39,15 @@ describe('useImageUpload', () => {
     })
   })
 
-  it('uploads a resized image into the channel folder and returns the public URL', async () => {
+  it('uploads a resized image into the channel folder and returns the object path', async () => {
     const { result } = renderHook(() => useImageUpload('c1'))
 
-    const url = await result.current.uploadImage(makeFile(1024), 'message', 1200)
+    const path = await result.current.uploadImage(makeFile(1024), 'message', 1200)
 
     expect(resizeImageFile).toHaveBeenCalledWith(expect.any(File), 1200)
-    const path = mockUpload.mock.calls[0][0]
-    expect(path).toMatch(/^c1\/message\/.+\.jpg$/)
-    expect(url).toBe('https://supabase/images/c1/message/u.jpg')
+    const uploadPath = mockUpload.mock.calls[0][0]
+    expect(uploadPath).toMatch(/^c1\/message\/.+\.jpg$/)
+    expect(path).toBe(uploadPath)
     expect(result.current.uploading).toBe(false)
   })
 

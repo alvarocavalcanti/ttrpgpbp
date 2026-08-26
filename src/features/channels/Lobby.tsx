@@ -8,6 +8,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { SignedImg } from '../../components/SignedImg'
 import { updateAppBadge } from '../../lib/appBadge'
 import { MAX_CHANNELS_PER_USER } from '../../constants'
 
@@ -76,7 +77,7 @@ export function Lobby() {
                       <div className="flex flex-col space-y-1 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                         <div className="flex items-center space-x-3">
                           {channel.avatar_url ? (
-                            <img
+                            <SignedImg
                               src={channel.avatar_url}
                               alt=""
                               referrerPolicy="no-referrer"

@@ -24,19 +24,16 @@ const makeFile = (size: number) => new File([new Uint8Array(size)], 'photo.png',
 
 describe('useChannelAvatar', () => {
   const mockUpload = vi.fn()
-  const mockGetPublicUrl = vi.fn()
   const mockEq = vi.fn()
   const mockUpdate = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockUpload.mockResolvedValue({ error: null })
-    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://supabase/images/c1/avatar/u.jpg' } })
     mockEq.mockResolvedValue({ error: null })
     mockUpdate.mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.storage.from).mockReturnValue({
       upload: mockUpload,
-      getPublicUrl: mockGetPublicUrl,
     } as any)
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { update: mockUpdate } as any
@@ -50,7 +47,7 @@ describe('useChannelAvatar', () => {
     })
   })
 
-  it('uploads a resized avatar and persists the public URL', async () => {
+  it('uploads a resized avatar and persists the object path', async () => {
     const onUpdated = vi.fn()
     const { result } = renderHook(() => useChannelAvatar('c1', onUpdated))
 
@@ -60,8 +57,8 @@ describe('useChannelAvatar', () => {
     const path = mockUpload.mock.calls[0][0]
     expect(path).toMatch(/^c1\/avatar\/.+\.jpg$/)
     expect(mockUpload.mock.calls[0][1]).toBeInstanceOf(File)
-    expect(url).toBe('https://supabase/images/c1/avatar/u.jpg')
-    expect(mockUpdate).toHaveBeenCalledWith({ avatar_url: url })
+    expect(url).toBe(path)
+    expect(mockUpdate).toHaveBeenCalledWith({ avatar_url: path })
     expect(mockEq).toHaveBeenCalledWith('id', 'c1')
     expect(onUpdated).toHaveBeenCalled()
     expect(result.current.uploading).toBe(false)

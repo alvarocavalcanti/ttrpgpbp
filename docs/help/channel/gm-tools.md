@@ -41,6 +41,8 @@ The GM can **archive** a channel, removing it from the main lobby. Archived chan
 
 Channels are private and joined via **invite link**. The GM can set an optional **password** to join.
 
+Uploaded images (message images, channel avatars, NPC portraits, and map/resource uploads) are also private: only people in the channel can view them, and a player who is kicked or blocked loses access. The server admin's image-upload setting and size limit apply to every upload.
+
 ## Messages
 
 - GMs can post **Scene** and **NPC** messages
