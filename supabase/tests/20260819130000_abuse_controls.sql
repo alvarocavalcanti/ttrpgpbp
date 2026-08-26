@@ -10,9 +10,10 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000209
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000209","role":"authenticated"}', true);
 SELECT is(join_channel('00000000-0000-0000-0000-000000000002', 'Char'), '{"success": false, "error": "Account suspended."}'::jsonb);
 -- #300: direct is_suspended flips are now blocked while authenticated. Clear
--- the JWT so this reset runs as postgres (auth.uid() = NULL), like a dashboard
--- edit, instead of being rejected by the suspension trigger.
+-- both JWT GUCs (auth.uid() falls back to request.jwt.claims) so this reset
+-- runs as postgres (auth.uid() = NULL), like a dashboard edit.
 SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT set_config('request.jwt.claims', '{}', false);
 UPDATE profiles SET is_suspended = false WHERE id = '00000000-0000-0000-0000-000000000209';
 INSERT INTO channels (id, name, gm_id) VALUES ('00000000-0000-0000-0000-000000000210', 'Test', '00000000-0000-0000-0000-000000000209');
 INSERT INTO channel_secrets (channel_id, password_hash) VALUES ('00000000-0000-0000-0000-000000000210', 'hash');
