@@ -92,9 +92,8 @@ VALUES ('00000000-0000-0000-0000-000000000530', 'announcement', 'Maintenance', '
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000504', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000504","role":"authenticated"}', true);
-SELECT is(
-  (SELECT count(*) FROM public.admin_threads WHERE id = '00000000-0000-0000-0000-000000000530'),
-  0,
+SELECT ok(
+  (SELECT count(*) FROM public.admin_threads WHERE id = '00000000-0000-0000-0000-000000000530') = 0,
   'outsider cannot see an admin announcement'
 );
 
