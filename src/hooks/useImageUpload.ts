@@ -12,11 +12,12 @@ export interface ImageUploadApi {
   uploadImage: (file: File, folder: string, maxDimension?: number) => Promise<string | null>
 }
 
-// Uploads an image into a folder of the channel's public 'images' bucket:
-// client-side resize, then return the public URL. Gated by the admin's
-// image_uploading_enabled setting (off by default) and image_max_size_mb;
-// storage RLS still enforces GM-only writes on the object path's first
-// segment (the channel id).
+// Uploads an image into a folder of the channel's private 'images' bucket:
+// client-side resize, then return the bare object path (signed at render time
+// via useSignedImageUrl). Gated by the admin's image_uploading_enabled setting
+// (off by default) and image_max_size_mb; the server enforces both again via a
+// storage.objects trigger, and storage RLS gates reads to channel members and
+// writes to the GM of the object path's first segment (the channel id).
 export function useImageUpload(channelId: string | undefined): ImageUploadApi {
   const { value: uploadEnabled, loading: settingsLoading } = useAppSetting<boolean>('image_uploading_enabled', false)
   const { value: maxSizeMb } = useAppSetting<number>('image_max_size_mb', DEFAULT_MAX_SIZE_MB)
@@ -44,8 +45,7 @@ export function useImageUpload(channelId: string | undefined): ImageUploadApi {
       })
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(path)
-      return publicUrl
+      return path
     } finally {
       setUploading(false)
     }

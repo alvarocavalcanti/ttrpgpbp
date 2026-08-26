@@ -1,4 +1,5 @@
 import { Avatar } from '../../components/Avatar';
+import { SignedImg } from '../../components/SignedImg';
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { linkifyDice } from '../dice/parser'
@@ -57,6 +58,10 @@ function urlTransform(url: string): string {
   } catch {
     // Relative URLs are fine
     if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?')) return url
+    // Bare private-bucket object paths ({channel_id}/{folder}/{uuid}.jpg) are
+    // allowed so message images survive into the markdown img renderer, which
+    // exchanges them for signed URLs. No scheme, so nothing to sanitize.
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//.test(url)) return url
   }
   return ''
 }
@@ -219,7 +224,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     },
     img: ({ src, alt, ...props }: any) => {
       return (
-        <img 
+        <SignedImg 
           src={src} 
           alt={alt || "Image"} 
           className="max-w-full h-auto rounded-lg shadow-sm my-2 object-contain max-h-96" 

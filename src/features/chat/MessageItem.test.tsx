@@ -460,8 +460,9 @@ describe('MessageItem', () => {
     const link = screen.getByText('Bad Link')
     expect(link).toHaveAttribute('href', '')
     
-    const img = screen.getByRole('img', { name: 'Bad Image' })
-    expect(img.getAttribute('src')).toBeFalsy()
+    // A sanitized (non-http) image src renders nothing rather than a broken
+    // or dangerous <img>.
+    expect(screen.queryByRole('img', { name: 'Bad Image' })).not.toBeInTheDocument()
   })
 
   it('renders check correctly for Shadowdark missing modifier', async () => {

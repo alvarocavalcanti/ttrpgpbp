@@ -5,6 +5,7 @@ import type { Database } from '../../types/database'
 import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 
 import { EditCharacterModal } from './EditCharacterModal'
+import { SignedImg } from '../../components/SignedImg'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -166,7 +167,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
               <div className={`flex items-center space-x-3 ${member.is_away ? 'opacity-60' : ''}`}>
                 <div className="flex-shrink-0 relative">
                   {member.character_avatar_url || member.profile?.avatar_url ? (
-                    <img 
+                    <SignedImg 
                       className={`h-10 w-10 rounded-full object-cover ${member.is_away ? 'grayscale' : ''}`} 
                       src={member.character_avatar_url || member.profile?.avatar_url || ''} 
                       alt="" 

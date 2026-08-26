@@ -8,6 +8,7 @@ import { IconPicker } from './IconPicker'
 import { Menu } from '../../components/Menu'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { SignedImg } from '../../components/SignedImg'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 import { chipBase, chipIdle, chipActive } from './composerChip'
@@ -499,7 +500,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 )}
               </div>
               {resolvedNpcAvatar && (
-                <img
+                <SignedImg
                   className={`h-8 w-8 rounded-full ${isNpcIconUrl(resolvedNpcAvatar) ? 'dark:invert' : ''}`}
                   src={resolvedNpcAvatar}
                   alt={matchedNpc ? `${matchedNpc.name} portrait` : 'NPC portrait preview'}
