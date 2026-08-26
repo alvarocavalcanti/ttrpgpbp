@@ -42,4 +42,8 @@ supabase/.temp/
 
 # Serena MCP
 .serena/
+
+# Test report artifacts
 test-results/
+playwright-report/
+blob-report/
