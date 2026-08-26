@@ -132,10 +132,12 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     // mentioned user or fall through to channel-wide routing.
     targetUserIds = [event.whisper_to]
   } else if (event.mention_user_ids?.length) {
-    // Mentions route only to the mentioned users (excluding the sender).
+    // Mentions route only to the mentioned users (excluding the sender),
+    // intersected with membership and deduped via resolveMentionTargets so a
+    // blocked/non-member id can never receive content.
     title = `${displayName} mentioned you`
     body = truncate(event.content || '')
-    targetUserIds = event.mention_user_ids.filter(uid => uid !== event.sender_id)
+    targetUserIds = resolveMentionTargets(event.mention_user_ids, members, event.sender_id ?? '')
   } else {
     const isGM = event.sender_id === event.gm_id
     targetUserIds = members
