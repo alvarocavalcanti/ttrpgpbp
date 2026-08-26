@@ -1022,10 +1022,6 @@ export type Database = {
           name: string
         }[]
       }
-      get_unread_count: {
-        Args: { channel_id: string; last_read_at: string }
-        Returns: number
-      }
       get_unread_totals: {
         Args: { p_user_ids: string[] }
         Returns: {
