@@ -166,6 +166,43 @@ describe('resolvePushTargets', () => {
       expect(result.body).not.toContain('secret')
     })
 
+    it('whisper scene message uses safe whisper body, never the scene text', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'GM',
+        content: 'a hidden alley with secrets',
+        type: 'scene',
+        whisper_to: 'u4',
+        gm_id: 'u1'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u4'])
+      expect(result.title).toBe('New whisper from GM')
+      expect(result.body).toBe('New whisper from GM in The Den')
+      expect(result.body).not.toContain('alley')
+    })
+
+    it('whisper dice roll uses safe whisper body, never the roll text', () => {
+      const result = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'GM',
+        content: 'Rolled 1d20: **15**',
+        type: 'dice_roll',
+        whisper_to: 'u4',
+        gm_id: 'u1'
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u4'])
+      expect(result.body).toBe('New whisper from GM in The Den')
+      expect(result.body).not.toContain('1d20')
+    })
+
     it('routes mentions only to mentioned users, excluding sender', () => {
       const result = resolvePushTargets({
         kind: 'message',
