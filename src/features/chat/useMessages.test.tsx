@@ -518,6 +518,29 @@ describe('useMessages', () => {
     expect(fire).toMatchObject({ count: 1, hasReacted: false })
   })
 
+  it('drops malformed initial reaction rows before aggregation', async () => {
+    const reactionsData = [
+      { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u1', emoji: '👍', created_at: '' },
+      // Malformed: missing channel_id -> schema rejects
+      { id: 'r2', message_id: 'm1', emoji: '🔥' },
+    ]
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: reactionsData, error: null }) })
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.reactions['m1']).toHaveLength(1)
+    })
+
+    const thumbsUp = result.current.reactions['m1'][0]
+    expect(thumbsUp).toMatchObject({ emoji: '👍', count: 1 })
+    expect(result.current.reactions['m1'].some(r => r.emoji === '🔥')).toBe(false)
+  })
+
   it('updates reactions on realtime INSERT and DELETE', async () => {
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })

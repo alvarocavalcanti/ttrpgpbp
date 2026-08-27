@@ -39,12 +39,15 @@ describe('Security Headers (public/_headers)', () => {
     expect(cspLine).toContain("style-src 'self' 'unsafe-inline'")
 
     // Clickjacking protection: who may embed the app in a frame (#305)
-    expect(cspLine).toContain("frame-ancestors 'self'")
+    const frameAncestors = cspLine!.match(/frame-ancestors\s+([^;]+)/)?.[1]?.trim()
+    expect(frameAncestors).toBe("'self'")
   })
 
   it('sets X-Frame-Options to SAMEORIGIN for legacy browsers', () => {
     const headersPath = path.resolve(__dirname, '../public/_headers')
     const content = fs.readFileSync(headersPath, 'utf-8')
-    expect(content).toContain('X-Frame-Options: SAMEORIGIN')
+    const xfoLine = content.split('\n').find(line => line.includes('X-Frame-Options:'))
+    expect(xfoLine).toBeDefined()
+    expect(xfoLine!.split('X-Frame-Options:')[1].trim()).toBe('SAMEORIGIN')
   })
 })
