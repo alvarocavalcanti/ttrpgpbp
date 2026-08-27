@@ -80,4 +80,56 @@ describe('RollHistoryModal', () => {
       expect(screen.getByText(/Modifier:/).parentElement).toHaveTextContent('Modifier: +5')
     })
   })
+
+  it('skips a malformed realtime INSERT row instead of crashing', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockChannel()
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('No dice rolls yet.')).toBeInTheDocument()
+    })
+
+    const onMock = vi.mocked(supabase.channel).mock.results[0].value.on
+    const insertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')[2]
+    await insertCb({ new: { id: 'x', notation: 123 } })
+
+    expect(supabase.from).not.toHaveBeenCalledWith('profiles')
+    expect(screen.getByText('No dice rolls yet.')).toBeInTheDocument()
+  })
+
+  it('appends a valid realtime INSERT row', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { display_name: 'Foo' }, error: null })
+        })
+      })
+    } as any)
+    mockChannel()
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('No dice rolls yet.')).toBeInTheDocument()
+    })
+
+    const onMock = vi.mocked(supabase.channel).mock.results[0].value.on
+    const insertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')[2]
+    await insertCb({
+      new: {
+        id: 'r2',
+        roller_id: 'u2',
+        notation: '1d6',
+        result: 4,
+        breakdown: { rolls: [4] },
+        created_at: new Date().toISOString()
+      }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Foo')).toBeInTheDocument()
+      expect(screen.getByText('1d6')).toBeInTheDocument()
+    })
+  })
 })

@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
+import { toError } from '../../lib/errors'
 import { getSystemAttributes, clampModifier, isValidModifierInput } from '../../game-systems'
 
 interface JoinChannelPreview {
@@ -95,7 +96,7 @@ export function JoinChannel() {
       navigate(`/channel/${id}`)
     } catch (err) {
       console.error('Error joining channel:', err)
-      setError(err instanceof Error ? err.message : 'Failed to join channel. Invalid password or invite code.')
+      setError(toError(err).message)
     } finally {
       setIsSubmitting(false)
     }
