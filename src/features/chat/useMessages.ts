@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth'
 import type { ChatMessage } from './types'
 import { subscribeWithRetry } from '../../lib/realtime'
 import { MAX_MESSAGE_LENGTH, MAX_ROLL_WARNING_LENGTH } from '../../constants'
+import { parseServerMessage, ReactionRowSchema } from './validation'
 
 export interface ReactionSummary {
   emoji: string
@@ -25,13 +26,11 @@ const PAGE_SIZE = 50
 // 20260807161732_add_reply_message_function.sql).
 const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:reply_message(id, content, sender_id, is_deleted, type)'
 
-function formatMessage(m: any): Message {
-  return {
-    ...m,
-    sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
-    whisper_target: Array.isArray(m.whisper_target) ? m.whisper_target[0] : m.whisper_target,
-    reply: Array.isArray(m.reply) ? m.reply[0] : m.reply,
-  }
+// Validates a raw server message (Realtime or PostgREST row) and normalizes
+// joined embeds. Returns null for malformed rows so callers can drop them
+// instead of crashing reducers with a bad payload (#305).
+function formatMessage(m: unknown): Message | null {
+  return parseServerMessage(m) as Message | null
 }
 
 // Aggregates reaction rows into per-message summaries.
@@ -128,7 +127,7 @@ export function useMessages(channelId: string | undefined) {
         if (mounted) {
           // Newest-first fetch; reverse for ascending display. Keep live rows
           // received while this request was in flight and dedupe by id.
-          const fetched = (data || []).map(formatMessage).reverse()
+          const fetched = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
           setMessages(prev => {
             const fetchedIds = new Set(fetched.map(message => message.id))
             const merged = [...prev.filter(message => !fetchedIds.has(message.id)), ...fetched]
@@ -192,7 +191,7 @@ export function useMessages(channelId: string | undefined) {
           if (mounted) setError(error)
           return
         }
-        const batch = (data || []).map(formatMessage)
+        const batch = (data || []).map(formatMessage).filter((m): m is Message => m !== null)
         if (batch.length === 0) return
         setMessages(prev => {
           const existing = new Set(prev.map(m => m.id))
@@ -221,7 +220,8 @@ export function useMessages(channelId: string | undefined) {
         // Realtime doesn't send joined data, so we have to fetch it if it's an INSERT,
         // or just update local state if it's an UPDATE or DELETE.
         if (payload.eventType === 'INSERT') {
-          const newMsg = payload.new as Message
+          const newMsg = parseServerMessage(payload.new)
+          if (!newMsg) return
 
           if (newMsg.sender_id || newMsg.whisper_to) {
             // Re-fetch this single message with joins
@@ -231,11 +231,12 @@ export function useMessages(channelId: string | undefined) {
               .eq('id', newMsg.id)
               .single()
 
-            if (data && mounted) {
+            const fetched = data && formatMessage(data)
+            if (fetched && mounted) {
               setMessages(prev => {
                 // Remove any old version of this message (either matched by temporary client_request_id or real id)
-                const filtered = prev.filter(m => m.id !== data.id && (newMsg.client_request_id ? m.client_request_id !== newMsg.client_request_id : true))
-                return [...filtered, formatMessage(data)].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+                const filtered = prev.filter(m => m.id !== fetched.id && (newMsg.client_request_id ? m.client_request_id !== newMsg.client_request_id : true))
+                return [...filtered, fetched].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
               })
             }
           } else {
@@ -243,15 +244,14 @@ export function useMessages(channelId: string | undefined) {
               setMessages(prev => {
                 // Remove any old version of this message (either matched by temporary client_request_id or real id)
                 const filtered = prev.filter(m => m.id !== newMsg.id && (newMsg.client_request_id ? m.client_request_id !== newMsg.client_request_id : true))
-                return [...filtered, newMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+                return [...filtered, newMsg as Message].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
               })
             }
           }
         } else if (payload.eventType === 'UPDATE') {
-          const updatedMsg = payload.new as Message
-          if (mounted) {
-            setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m))
-          }
+          const updatedMsg = parseServerMessage(payload.new)
+          if (!updatedMsg || !mounted) return
+          setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg as Message } : m))
         } else if (payload.eventType === 'DELETE') {
           const deletedId = payload.old.id
           // Depending on soft-delete logic, DELETE event might actually be hard-delete
@@ -269,11 +269,13 @@ export function useMessages(channelId: string | undefined) {
       }, (payload) => {
         if (!mounted) return
         if (payload.eventType === 'INSERT') {
-          const row = payload.new as ReactionRow
-          setReactions(prev => upsertReaction(prev, row, user?.id))
+          const row = ReactionRowSchema.safeParse(payload.new)
+          if (!row.success) return
+          setReactions(prev => upsertReaction(prev, row.data, user?.id))
         } else if (payload.eventType === 'DELETE') {
-          const row = payload.old as ReactionRow
-          setReactions(prev => dropReaction(prev, row, user?.id))
+          const row = ReactionRowSchema.safeParse(payload.old)
+          if (!row.success) return
+          setReactions(prev => dropReaction(prev, row.data, user?.id))
         }
       })
     const stopRealtime = subscribeWithRetry(realtimeChannel, `chat:${channelId}`, (status) => {
@@ -323,7 +325,7 @@ export function useMessages(channelId: string | undefined) {
       // ponytail: created_at cursor; equal timestamps at the boundary could
       // straddle pages. Microsecond precision makes it a non-issue in practice;
       // an id-based cursor is the upgrade path if it ever bites.
-      const older = (data || []).map(formatMessage).reverse()
+      const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
       setMessages(prev => {
         const existing = new Set(prev.map(m => m.id))
         return [...older.filter(m => !existing.has(m.id)), ...prev]

@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
 import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
+import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
+import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription } from "./validation.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
 
 // Origin allowlist for CORS. Reads the ALLOWED_ORIGINS secret (comma separated)
@@ -69,13 +71,10 @@ interface BuiltEvent {
 // fires for authenticated, RLS-passing inserts, so there is no caller identity
 // to check here — the shared secret is the trust boundary.
 async function buildMessageEvent(
-  payload: Record<string, unknown>,
+  payload: MessageTrigger,
   serviceClient: ReturnType<typeof createClient>
 ): Promise<BuiltEvent> {
   const messageId = payload.message_id
-  if (typeof messageId !== "string") {
-    throw new HttpError(400, "Invalid payload")
-  }
 
   const { data: message, error } = await serviceClient
     .from("messages")
@@ -132,13 +131,10 @@ async function buildMessageEvent(
 // is_active_player transition fires the trigger, so the member is always an
 // active player here; the guard below keeps direct API misuse harmless.
 async function buildTurnEvent(
-  payload: Record<string, unknown>,
+  payload: TurnTrigger,
   serviceClient: ReturnType<typeof createClient>
 ): Promise<BuiltEvent & { isActivePlayer: boolean }> {
   const memberId = payload.member_id
-  if (typeof memberId !== "string") {
-    throw new HttpError(400, "Invalid payload")
-  }
 
   const { data: member, error } = await serviceClient
     .from("channel_members")
@@ -174,13 +170,10 @@ async function buildTurnEvent(
 // are read from admin_threads/admin_messages. Announcements go to every active
 // GM; admin DMs go to the non-sender participant (the server admin or the GM).
 async function buildAdminMessageEvent(
-  payload: Record<string, unknown>,
+  payload: AdminTrigger,
   serviceClient: ReturnType<typeof createClient>
 ): Promise<BuiltEvent> {
   const messageId = payload.message_id
-  if (typeof messageId !== "string") {
-    throw new HttpError(400, "Invalid payload")
-  }
 
   const { data: message, error } = await serviceClient
     .from("admin_messages")
@@ -264,29 +257,30 @@ serve(async (req) => {
       return json({ error: "Unauthorized" }, 401, req)
     }
 
-    const payload = await req.json() as Record<string, unknown>
-    const table = payload.table
+    const parsedPayload = TriggerPayloadSchema.safeParse(await req.json())
+    if (!parsedPayload.success) {
+      return json({ error: "Invalid payload" }, 400, req)
+    }
+    const payload = parsedPayload.data
 
     let event: PushEvent
     let members: PushMember[]
 
-    if (table === "messages") {
+    if (payload.table === "messages") {
       const built = await buildMessageEvent(payload, serviceClient)
       event = built.event
       members = built.members
-    } else if (table === "channel_members") {
+    } else if (payload.table === "channel_members") {
       const built = await buildTurnEvent(payload, serviceClient)
       if (!built.isActivePlayer) {
         return json({ success: true, message: "Not an active player event" }, 200, req)
       }
       event = built.event
       members = built.members
-    } else if (table === "admin_messages") {
+    } else {
       const built = await buildAdminMessageEvent(payload, serviceClient)
       event = built.event
       members = built.members
-    } else {
-      return json({ error: "Unknown table" }, 400, req)
     }
 
     // Correlation id for this notification, shared across every delivery-log
@@ -304,7 +298,7 @@ serve(async (req) => {
     const pushEnabledUserIds: string[] = []
     const badgeEnabledById = new Map<string, boolean>()
     const unreadById = new Map<string, number>()
-    const subs: any[] = []
+    const subs: PushSubscription[] = []
 
     const BATCH_SIZE = 50
 
@@ -331,7 +325,12 @@ serve(async (req) => {
       }
 
       if (batchSubs) {
-        subs.push(...batchSubs.filter(sub => pushEnabledUserIds.includes(sub.user_id)))
+        for (const sub of batchSubs) {
+          const parsed = PushSubscriptionSchema.safeParse(sub)
+          if (parsed.success && pushEnabledUserIds.includes(parsed.data.user_id)) {
+            subs.push(parsed.data)
+          }
+        }
       }
     }
 

@@ -57,6 +57,7 @@
     "Clickjacking",
     "unindexed",
     "unvalidated",
-    "Rangeable"
+    "Rangeable",
+    "SAMEORIGIN"
   ]
 }
