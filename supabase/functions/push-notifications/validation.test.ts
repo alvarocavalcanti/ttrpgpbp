@@ -37,6 +37,6 @@ describe('PushSubscriptionSchema', () => {
 
   it('rejects rows missing web-push fields', () => {
     expect(PushSubscriptionSchema.safeParse({ id: 's1', user_id: 'u1' }).success).toBe(false)
-    expect(PushSubscriptionSchema.safeParse({ id: 's1', user_id: 'u1', endpoint: '', p256dh: '', auth: '' }).success).toBe(true)
+    expect(PushSubscriptionSchema.safeParse({ id: 's1', user_id: 'u1', endpoint: '', p256dh: '', auth: '' }).success).toBe(false)
   })
 })
