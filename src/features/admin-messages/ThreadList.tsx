@@ -30,7 +30,7 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
       <div className="flex-1 overflow-y-auto">
         {error && (
           <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
-            <span>Couldn't load messages.</span>
+            <span>Couldn't load conversations.</span>
             <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>
           </div>
         )}

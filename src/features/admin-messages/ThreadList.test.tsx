@@ -101,7 +101,7 @@ describe('ThreadList', () => {
     } as any)
 
     render(<ThreadList onSelectThread={vi.fn()} />)
-    expect(screen.getByText("Couldn't load messages.")).toBeInTheDocument()
+    expect(screen.getByText("Couldn't load conversations.")).toBeInTheDocument()
     fireEvent.click(screen.getByText('Retry'))
     expect(refetch).toHaveBeenCalled()
   })
