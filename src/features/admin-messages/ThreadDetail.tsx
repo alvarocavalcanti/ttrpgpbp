@@ -8,7 +8,7 @@ import { useAuth } from '../auth/useAuth'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 
 export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () => void }) {
-  const { messages, loading } = useAdminMessages(thread.id)
+  const { messages, loading, hasMore, loadMore, refetch, error } = useAdminMessages(thread.id)
   const { user } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
   const [replyContent, setReplyContent] = useState('')
@@ -73,7 +73,18 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {loading ? (
+        {error && (
+          <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
+            <span>Couldn't load messages.</span>
+            <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>
+          </div>
+        )}
+        {hasMore && (
+          <button type="button" onClick={() => loadMore()} className="w-full p-2 text-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700">
+            {loading ? 'Loading...' : 'Load earlier messages'}
+          </button>
+        )}
+        {loading && messages.length === 0 ? (
           <div className="text-center text-gray-500">Loading...</div>
         ) : (
           messages.map(msg => (

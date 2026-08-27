@@ -6,11 +6,11 @@ import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { supabase } from '../../lib/supabase'
 
 export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void }) {
-  const { threads, loading } = useAdminThreads()
+  const { threads, loading, hasMore, loadMore, refetch, error } = useAdminThreads()
   const { isServerAdmin } = useIsServerAdmin()
   const [showNewModal, setShowNewModal] = useState(false)
 
-  if (loading) return <div className="p-4 w-full text-gray-500">Loading threads...</div>
+  if (loading && threads.length === 0) return <div className="p-4 w-full text-gray-500">Loading threads...</div>
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
@@ -28,7 +28,13 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {threads.length === 0 ? (
+        {error && (
+          <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
+            <span>Couldn't load messages.</span>
+            <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>
+          </div>
+        )}
+        {threads.length === 0 && !error ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             No messages yet.
           </div>
@@ -70,6 +76,11 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
               </button>
             ))}
           </div>
+        )}
+        {hasMore && (
+          <button type="button" onClick={() => loadMore()} className="w-full p-3 text-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700">
+            {loading ? 'Loading...' : 'Load more'}
+          </button>
         )}
       </div>
 

@@ -71,6 +71,41 @@ describe('ThreadList', () => {
     expect(screen.getByText('Announcement')).toBeInTheDocument()
   })
 
+  it('calls loadMore when Load more is clicked', () => {
+    const loadMore = vi.fn()
+    vi.mocked(useAdminThreads).mockReturnValue({
+      threads: [{
+        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
+        created_by: 'admin-1', last_message_at: new Date().toISOString(),
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        creator: { display_name: 'Admin', avatar_url: null },
+        unread: false
+      }],
+      loading: false,
+      hasMore: true,
+      loadMore
+    } as any)
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('Load more'))
+    expect(loadMore).toHaveBeenCalled()
+  })
+
+  it('shows error banner and retries via refetch', () => {
+    const refetch = vi.fn()
+    vi.mocked(useAdminThreads).mockReturnValue({
+      threads: [],
+      loading: false,
+      error: new Error('boom'),
+      refetch
+    } as any)
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(screen.getByText("Couldn't load messages.")).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Retry'))
+    expect(refetch).toHaveBeenCalled()
+  })
+
   it('calls mark_admin_thread_read after creating announcement', async () => {
     const threadId = 'new-thread-id'
     const onSelectThread = vi.fn()
