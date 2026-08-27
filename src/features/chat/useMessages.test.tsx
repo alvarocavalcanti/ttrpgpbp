@@ -50,6 +50,22 @@ function mockChannels() {
   return { callbacks, emitStatus: (status: string) => statusCb?.(status) }
 }
 
+// A full valid message row as served by PostgREST/Realtime. Callers override
+// the fields they assert on; anything left defaults so row-level validation
+// accepts it.
+const baseMessage = (overrides: Record<string, unknown> = {}) => ({
+  id: 'm1', channel_id: 'c1', sender_id: 'u1', content: '', type: 'regular',
+  whisper_to: null, reply_to: null, npc_name: null, npc_avatar_url: null,
+  is_deleted: false, is_edited: false, created_at: '2023-01-01T00:00:00.000Z',
+  updated_at: '2023-01-01T00:00:00.000Z', roll_dc: null, roll_success: null,
+  ...overrides,
+})
+
+const validReaction = (overrides: Record<string, unknown> = {}) => ({
+  id: 'r1', channel_id: 'c1', created_at: '', emoji: '👍', message_id: 'm1', user_id: 'u1',
+  ...overrides,
+})
+
 describe('useMessages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -62,7 +78,7 @@ describe('useMessages', () => {
   })
 
   it('fetches messages and subscribes', async () => {
-    const mockLimit = vi.fn().mockResolvedValue({ data: [{ id: 'm1', sender: [{ display_name: 'Hero' }] }], error: null })
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ sender: [{ display_name: 'Hero' }] })], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
@@ -80,9 +96,9 @@ describe('useMessages', () => {
   })
 
   it('recovers a multi-page message gap on reconnect via cursor catch-up', async () => {
-    const initial = { id: 'm0', created_at: '2023-01-01T00:00:00.000Z' }
-    const gapPage1 = Array.from({ length: 50 }, (_, i) => ({ id: `g${i}`, created_at: `2023-01-01T00:00:00.${String(i + 1).padStart(3, '0')}Z` }))
-    const gapTail = { id: 'newest', created_at: '2023-01-01T00:00:09.999Z' }
+    const initial = baseMessage({ id: 'm0', created_at: '2023-01-01T00:00:00.000Z' })
+    const gapPage1 = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `g${i}`, created_at: `2023-01-01T00:00:00.${String(i + 1).padStart(3, '0')}Z` }))
+    const gapTail = baseMessage({ id: 'newest', created_at: '2023-01-01T00:00:09.999Z' })
 
     const mockInitialLimit = vi.fn().mockResolvedValue({ data: [initial], error: null })
     const mockDescOrder = vi.fn().mockReturnValue({ limit: mockInitialLimit })
@@ -118,8 +134,8 @@ describe('useMessages', () => {
 
   it('clears previous channel messages when switching channels', async () => {
     const mockLimit = vi.fn()
-      .mockResolvedValueOnce({ data: [{ id: 'm1', content: 'from c1' }], error: null })
-      .mockResolvedValueOnce({ data: [{ id: 'm2', content: 'from c2' }], error: null })
+      .mockResolvedValueOnce({ data: [baseMessage({ id: 'm1', content: 'from c1' })], error: null })
+      .mockResolvedValueOnce({ data: [baseMessage({ id: 'm2', content: 'from c2' })], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     mockChannels()
@@ -210,7 +226,7 @@ describe('useMessages', () => {
   })
 
   it('fetches messages using the reply_message computed relationship', async () => {
-    const mockLimit = vi.fn().mockResolvedValue({ data: [{ id: 'm1', reply: { id: 'm0' } }], error: null })
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ reply: { id: 'm0', content: '', sender_id: null, is_deleted: false, type: 'regular' } })], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
@@ -228,13 +244,13 @@ describe('useMessages', () => {
     expect(selectArg).toContain('reply:reply_message(')
     expect(selectArg).not.toContain('messages_reply_to_fkey')
     expect(selectArg).not.toContain('reply:messages(')
-    expect(result.current.messages[0].reply).toEqual({ id: 'm0' })
+    expect(result.current.messages[0].reply).toEqual(expect.objectContaining({ id: 'm0' }))
   })
 
   it('handles realtime INSERT with joins', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockSingleJoin = vi.fn().mockResolvedValue({ data: { id: 'm3', sender: { display_name: 'JoinedUser' } } })
+    const mockSingleJoin = vi.fn().mockResolvedValue({ data: baseMessage({ id: 'm3', sender: { display_name: 'JoinedUser' } }) })
 
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
@@ -246,7 +262,7 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'm3', sender_id: 'u2' }) })
     })
 
     expect(result.current.messages).toHaveLength(1)
@@ -268,10 +284,32 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm3', sender_id: 'u2' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'm3', sender_id: 'u2' }) })
     })
 
     expect(result.current.messages).toHaveLength(0)
+  })
+
+  it('drops malformed realtime INSERT and UPDATE payloads', async () => {
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'valid' })], error: null })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(1)
+    })
+
+    await act(async () => {
+      // Missing required fields -> schema rejects, row is dropped, no crash.
+      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm2' } })
+      await callbacks['messages']({ eventType: 'UPDATE', new: { id: 'm1', content: 'nope' } })
+    })
+
+    expect(result.current.messages).toHaveLength(1)
+    expect(result.current.messages[0].content).toBe('valid')
   })
 
   it('handles realtime INSERT without joins', async () => {
@@ -285,8 +323,8 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
-      await callbacks['messages']({ eventType: 'INSERT', new: { id: 'm2', content: 'system msg' } })
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'm2', content: 'system msg', type: 'system', sender_id: null }) })
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'm2', content: 'system msg', type: 'system', sender_id: null }) })
     })
 
     expect(result.current.messages).toHaveLength(1)
@@ -294,7 +332,7 @@ describe('useMessages', () => {
   })
 
   it('handles realtime UPDATE and DELETE', async () => {
-    const mockLimit = vi.fn().mockResolvedValue({ data: [{ id: 'm1', content: 'hello' }], error: null })
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'hello' })], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
@@ -304,7 +342,7 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['messages']({ eventType: 'UPDATE', new: { id: 'm1', content: 'edited' } })
+      await callbacks['messages']({ eventType: 'UPDATE', new: baseMessage({ id: 'm1', content: 'edited' }) })
     })
 
     expect(result.current.messages[0].content).toBe('edited')
@@ -466,12 +504,12 @@ describe('useMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await callbacks['message_reactions']({ eventType: 'INSERT', new: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' }) })
     })
     expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false }])
 
     await act(async () => {
-      await callbacks['message_reactions']({ eventType: 'DELETE', old: { id: 'r1', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '👍' } })
+      await callbacks['message_reactions']({ eventType: 'DELETE', old: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' }) })
     })
     expect(result.current.reactions['m1']).toBeUndefined()
   })
@@ -644,7 +682,7 @@ describe('useMessages', () => {
   })
 
   it('exposes hasMore when the initial page is full', async () => {
-    const full = Array.from({ length: 50 }, (_, i) => ({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
+    const full = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
     const mockLimit = vi.fn().mockResolvedValue({ data: full, error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
@@ -660,7 +698,7 @@ describe('useMessages', () => {
   })
 
   it('does not expose hasMore when the initial page is partial', async () => {
-    const partial = [{ id: 'm1', content: 'only one' }]
+    const partial = [baseMessage({ id: 'm1', content: 'only one' })]
     const mockLimit = vi.fn().mockResolvedValue({ data: partial, error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
@@ -676,8 +714,8 @@ describe('useMessages', () => {
   })
 
   it('loads older messages and prepends them without duplicating', async () => {
-    const initial = Array.from({ length: 50 }, (_, i) => ({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
-    const older = [{ id: 'm-old', content: 'older', created_at: '2022-12-31T00:00:00Z' }]
+    const initial = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
+    const older = [baseMessage({ id: 'm-old', content: 'older', created_at: '2022-12-31T00:00:00Z' })]
     const mockLimit = vi.fn()
       .mockResolvedValueOnce({ data: initial, error: null })
       .mockResolvedValueOnce({ data: older, error: null })

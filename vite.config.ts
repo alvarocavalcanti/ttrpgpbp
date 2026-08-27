@@ -19,6 +19,10 @@ export default defineConfig({
   ],
   test: {
     globals: true,
+    alias: {
+      'npm:zod@^4': 'zod',
+      'npm:zod': 'zod',
+    },
     exclude: ['**/node_modules/**', '**/dist/**', '**/.idea/**', '**/.git/**', '**/.cache/**', 'tests/e2e/**'],
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
