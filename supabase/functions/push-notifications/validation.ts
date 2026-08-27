@@ -33,7 +33,7 @@ export type TriggerPayload = z.infer<typeof TriggerPayloadSchema>
 export const PushSubscriptionSchema = z.object({
   id: z.string(),
   user_id: z.string(),
-  endpoint: z.string(),
+  endpoint: z.string().min(1),
   p256dh: z.string(),
   auth: z.string(),
 })

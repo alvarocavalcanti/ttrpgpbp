@@ -65,14 +65,16 @@ export const ReactionRowSchema = z.object({
 export type ReactionRow = z.infer<typeof ReactionRowSchema>
 
 // Normalizes a validated server message, collapsing one-to-many embeds into a
-// single object. Returns null when the row is malformed (the caller drops it).
+// single object. Only rewrites an embed key when the source row actually
+// carries it (PostgREST joins arrive as arrays; Realtime `new` rows have no
+// embed keys at all) — so spreading the result over an existing message never
+// blanks embeds it already holds.
 export function normalizeMessage(row: ServerMessage) {
-  return {
-    ...row,
-    sender: Array.isArray(row.sender) ? row.sender[0] : row.sender,
-    whisper_target: Array.isArray(row.whisper_target) ? row.whisper_target[0] : row.whisper_target,
-    reply: Array.isArray(row.reply) ? row.reply[0] : row.reply,
-  }
+  const out = { ...row }
+  if (Array.isArray(row.sender)) out.sender = row.sender[0]
+  if (Array.isArray(row.whisper_target)) out.whisper_target = row.whisper_target[0]
+  if (Array.isArray(row.reply)) out.reply = row.reply[0]
+  return out
 }
 
 export function parseServerMessage(value: unknown) {

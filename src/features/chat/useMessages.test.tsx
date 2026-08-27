@@ -312,6 +312,31 @@ describe('useMessages', () => {
     expect(result.current.messages[0].content).toBe('valid')
   })
 
+  it('preserves joined embeds across a realtime UPDATE', async () => {
+    const mockLimit = vi.fn().mockResolvedValue({
+      data: [baseMessage({ id: 'm1', content: 'hello', sender: { display_name: 'Hero', avatar_url: null } })],
+      error: null,
+    })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(1)
+      expect(result.current.messages[0].sender?.display_name).toBe('Hero')
+    })
+
+    await act(async () => {
+      // Raw UPDATE payload has no embed keys; the existing embeds must survive.
+      await callbacks['messages']({ eventType: 'UPDATE', new: baseMessage({ id: 'm1', content: 'edited' }) })
+    })
+
+    expect(result.current.messages[0].content).toBe('edited')
+    expect(result.current.messages[0].sender?.display_name).toBe('Hero')
+  })
+
   it('handles realtime INSERT without joins', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
