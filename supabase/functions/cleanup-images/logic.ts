@@ -24,6 +24,35 @@ export interface CleanupDependencies {
 
 export const CLEANUP_BATCH_SIZE = 500
 
+export interface StorageListOptions {
+  limit: number
+  offset: number
+}
+
+export interface ListedObject {
+  id?: string | null
+  name: string
+  metadata?: Record<string, unknown> | null
+}
+
+// storage.list caps each call at 1000 objects; page by offset until a short
+// page so every object under the prefix is returned, not just the first 1000.
+export async function listAllObjects(
+  list: (path: string, options: StorageListOptions) => Promise<ListedObject[]>,
+  path: string,
+  pageSize = 1000,
+): Promise<ListedObject[]> {
+  const all: ListedObject[] = []
+  let offset = 0
+  for (;;) {
+    const page = await list(path, { limit: pageSize, offset })
+    all.push(...page)
+    if (page.length < pageSize) break
+    offset += pageSize
+  }
+  return all
+}
+
 export function isAuthorizedCleanupRequest(request: Request, expectedSecret: string | undefined): boolean {
   return Boolean(expectedSecret && request.headers.get('x-cleanup-secret') === expectedSecret)
 }

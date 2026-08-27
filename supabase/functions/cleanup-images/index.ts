@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
-import { isAuthorizedCleanupRequest, runCleanup, type ListedImage } from "./logic.ts"
+import { isAuthorizedCleanupRequest, listAllObjects, runCleanup, type ListedImage, type ListedObject } from "./logic.ts"
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -50,16 +50,21 @@ serve(async (req) => {
       listImages: async () => {
         const candidates: ListedImage[] = []
 
-        // storage.list does not recurse; walk each channel folder (the object
-        // path's first segment) in turn.
-        const { data: channelDirs, error: dirError } = await bucket.list("", { limit: 1000, offset: 0 })
-        if (dirError) throw dirError
+        // storage.list returns { data, error }; adapt to the pure helper's
+        // array shape, then walk each channel folder (the object path's first
+        // segment) in turn, paginating past the 1000-object cap.
+        const listBucket = async (path: string, options: { limit: number; offset: number }): Promise<ListedObject[]> => {
+          const { data, error } = await bucket.list(path, options)
+          if (error) throw error
+          return (data ?? []) as ListedObject[]
+        }
 
-        for (const dir of channelDirs ?? []) {
+        const channelDirs = await listAllObjects(listBucket, "")
+
+        for (const dir of channelDirs) {
           if (!dir.id) continue
-          const { data: files, error: fileError } = await bucket.list(dir.name, { limit: 1000, offset: 0 })
-          if (fileError) throw fileError
-          for (const file of files ?? []) {
+          const files = await listAllObjects(listBucket, dir.name)
+          for (const file of files) {
             candidates.push({
               path: `${dir.name}/${file.name}`,
               lastModified: String(file.metadata?.lastModified ?? ""),

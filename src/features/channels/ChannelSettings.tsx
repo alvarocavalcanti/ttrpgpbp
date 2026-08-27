@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { fetchAllRows } from '../../lib/supabasePagination'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
@@ -53,7 +54,6 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const [showPassword, setShowPassword] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [warning, setWarning] = useState<string | null>(null)
 
   const { uploadEnabled, settingsLoading, uploading, uploadAvatar } = useChannelAvatar(channel.id, () => {
     addToast('Channel avatar updated', 'success')
@@ -182,21 +182,17 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   const handleExport = async () => {
     try {
-      setIsSubmitting(true)
-      setWarning(null)
-      const { data: messages, error: messagesError } = await supabase
-        .from('messages')
-        .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
-        .eq('channel_id', channel.id)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true })
-        .limit(5000)
+setIsSubmitting(true)
 
-      if (messagesError) throw messagesError
-
-      if (messages.length === 5000) {
-        setWarning('This channel has more than 5000 messages. Export may be incomplete. Batch export coming soon.')
-      }
+      const messages = await fetchAllRows(
+        supabase
+          .from('messages')
+          .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
+          .eq('channel_id', channel.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true }),
+      )
 
       let markdown = `# Chat Log for ${channel.name}\n\n`
       for (const msg of messages) {
@@ -516,12 +512,6 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
                   )}
                 </div>
 
-
-              {warning && (
-                <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 p-2 rounded">
-                  {warning}
-                </div>
-              )}
 
               <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
                 <button

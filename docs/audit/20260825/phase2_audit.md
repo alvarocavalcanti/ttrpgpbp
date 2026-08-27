@@ -36,8 +36,8 @@ P0: none observed.
 - [ ] **P1: Reconnect data loss.** Catch-up refetches only latest 50 messages; more than 50 missed inserts cannot be recovered.
 - [ ] **P1: Pending-send inconsistency.** Rejected or empty RPC responses leave optimistic messages permanently pending; retry does not reconcile returned message IDs.
 - [ ] **P1: Unrestricted unread RPC.** Legacy `get_unread_count` is `SECURITY DEFINER`, has no membership check, and has no `REVOKE`; callers can count messages in arbitrary private channels (`20260801195300_add_unread_count_rpc.sql:2-15`).
-- [ ] **P1: GDPR/export truncation.** Exports lack cursor pagination; PostgREST is capped at 1,000 rows while channel export requests 5,000 (`ChannelSettings.tsx:186-198`, `exportUserData.ts:67-92`, `supabase/config.toml:5-11`).
-- [ ] **P1: Retention incompleteness.** Cleanup scans only first 1,000 channel directories and first 1,000 files per directory (`cleanup-images/index.ts:53-69`).
+- [x] **P1: GDPR/export truncation.** Fixed: exports paginate past the 1,000-row cap via offset `range()` (`fetchAllRows`, `ChannelSettings.tsx`, `exportUserData.ts`).
+- [x] **P1: Retention incompleteness.** Fixed: cleanup walks every channel directory / file via paginated storage listing (`listAllObjects`, `cleanup-images`).
 - [ ] **P1: Clickjacking protection missing.** `_headers` lacks `frame-ancestors` and `X-Frame-Options`.
 - [ ] **P1: Runtime payload validation absent.** Realtime/database payloads use raw casts and `any`; only environment variables use Zod (`useMessages.ts:28,168,195,216`, `MessageItem.tsx:22,137,220`, `push-notifications/index.ts:267,307,371`).
 - [ ] **P1: Privacy-policy mismatch.** GA, Sentry tracing, and replay are active but policy claims data is shared only with Supabase (`main.tsx:11-20`, `PrivacyPage.tsx:43-47`).

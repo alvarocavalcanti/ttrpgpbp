@@ -288,8 +288,9 @@ describe('ChannelSettings', () => {
   })
 
   it('handles export chat error', async () => {
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: null, error: new Error('err') }) }) }) }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    const range = vi.fn().mockResolvedValue({ data: null, error: new Error('err') })
+    const eq = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ range }) }) }) })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
@@ -301,10 +302,13 @@ describe('ChannelSettings', () => {
     })
   })
 
-  it('handles export chat with 5000 messages warning', async () => {
-    const messages = Array.from({ length: 5000 }).map((_, i) => ({ content: `msg ${i}`, created_at: '2023-01-01', sender: { display_name: 'test' }, type: 'regular' }))
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: messages, error: null }) }) }) }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+  it('exports all messages past the 1000-row cap via pagination', async () => {
+    const messages = Array.from({ length: 1500 }).map((_, i) => ({ content: `msg ${i}`, created_at: '2023-01-01', sender: { display_name: 'test' }, type: 'regular' }))
+    const range = vi.fn().mockImplementation((from: number, to: number) =>
+      Promise.resolve({ data: messages.slice(from, to + 1), error: null }),
+    )
+    const eq = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ range }) }) }) })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
     vi.stubGlobal('URL', { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() })
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
@@ -312,14 +316,16 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByText('Export Chat to Markdown'))
     
     await waitFor(() => {
-      expect(screen.getByText(/This channel has more than 5000 messages/)).toBeInTheDocument()
+      expect(mockAddToast).toHaveBeenCalledWith('Chat exported successfully', 'success')
+      expect(range).toHaveBeenCalledTimes(2)
     })
   })
 
   it('handles export chat', async () => {
     // Basic coverage for the button click
-    const mockSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [{ content: 'msg', created_at: '2023-01-01', sender: { display_name: 'test' } }], error: null }) }) }) }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    const range = vi.fn().mockResolvedValue({ data: [{ content: 'msg', created_at: '2023-01-01', sender: { display_name: 'test' } }], error: null })
+    const eq = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ range }) }) }) })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
 
     vi.stubGlobal('URL', { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() })
 
@@ -328,7 +334,6 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByText('Export Chat to Markdown'))
     
     await waitFor(() => {
-      expect(mockSelect).toHaveBeenCalled()
       expect(mockAddToast).toHaveBeenCalledWith('Chat exported successfully', 'success')
     })
   })
