@@ -154,7 +154,11 @@ export function useMessages(channelId: string | undefined) {
           .eq('channel_id', channelId as string)
         if (error) throw error
         if (mounted) {
-          setReactions(buildReactionMap(data || [], user?.id))
+          const rows = (data || []).flatMap(row => {
+            const parsed = ReactionRowSchema.safeParse(row)
+            return parsed.success ? [parsed.data] : []
+          })
+          setReactions(buildReactionMap(rows, user?.id))
         }
       } catch (err: any) {
         // Reactions are non-critical; log without failing the channel view.
