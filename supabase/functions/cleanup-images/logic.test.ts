@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   collectExpiredImages,
   isAuthorizedCleanupRequest,
+  listAllObjects,
   positiveRetentionDays,
   runCleanup,
   splitCleanupBatches,
@@ -59,6 +60,35 @@ describe('cleanup configuration and batching', () => {
     const paths = Array.from({ length: 1001 }, (_, i) => `c1/message/${i}.jpg`)
     const batches = splitCleanupBatches(paths)
     expect(batches.map(batch => batch.length)).toEqual([500, 500, 1])
+  })
+})
+
+describe('listAllObjects', () => {
+  const makeObjects = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({ name: `obj-${i}`, id: `id-${i}` }))
+
+  function pagedList(count: number) {
+    return vi.fn().mockImplementation((_path: string, { limit, offset }: { limit: number; offset: number }) =>
+      Promise.resolve(makeObjects(count).slice(offset, offset + limit)),
+    )
+  }
+
+  it('returns every object across multiple pages past the 1000 cap', async () => {
+    const list = pagedList(2500)
+    const objects = await listAllObjects(list, '')
+    expect(objects).toHaveLength(2500)
+    expect(list).toHaveBeenCalledWith('', { limit: 1000, offset: 0 })
+    expect(list).toHaveBeenCalledWith('', { limit: 1000, offset: 1000 })
+    expect(list).toHaveBeenCalledWith('', { limit: 1000, offset: 2000 })
+  })
+
+  it('returns objects from a single short page', async () => {
+    const objects = await listAllObjects(pagedList(3), 'c1')
+    expect(objects.map(o => o.name)).toEqual(['obj-0', 'obj-1', 'obj-2'])
+  })
+
+  it('returns an empty array when nothing is listed', async () => {
+    expect(await listAllObjects(pagedList(0), 'c1')).toEqual([])
   })
 })
 

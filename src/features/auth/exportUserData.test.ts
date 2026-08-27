@@ -32,9 +32,14 @@ const mockPrefs = { push_enabled: true, badge_enabled: false, email_enabled: fal
 function mockChain(data: unknown, error: Error | null = null) {
   const chain: any = {}
   chain.maybeSingle = vi.fn().mockResolvedValue({ data, error })
-  chain.then = (resolve: any, reject: any) => Promise.resolve({ data, error }).then(resolve, reject)
+  chain.range = vi.fn().mockImplementation((from: number, to: number) => {
+    const rows = Array.isArray(data) ? data : []
+    return Promise.resolve({ data: rows.slice(from, to + 1), error })
+  })
+  chain.then = (resolve: any, reject: any) => Promise.resolve(chain).then(resolve, reject)
   chain.select = vi.fn().mockReturnValue(chain)
   chain.eq = vi.fn().mockReturnValue(chain)
+  chain.order = vi.fn().mockReturnValue(chain)
   return chain
 }
 
@@ -91,6 +96,32 @@ describe('buildUserDataExport', () => {
     }) as any)
     const result = await buildUserDataExport('u1')
     expect(result.channel_memberships[0].channel_name).toBe('The Den')
+  })
+
+  it('retrieves all rows past the 1000-row cap via pagination', async () => {
+    const manyMessages = Array.from({ length: 1500 }, (_, i) => ({
+      id: `m${i}`,
+      channel_id: 'c1',
+      type: 'regular',
+      content: `msg ${i}`,
+      whisper_to: null,
+      npc_name: null,
+      is_edited: false,
+      is_deleted: false,
+      created_at: '2026-01-03T00:00:00Z',
+    }))
+    vi.mocked(supabase.from).mockImplementation(((table: string) => {
+      if (table === 'messages') return mockChain(manyMessages)
+      if (table === 'profiles') return mockChain(mockProfile)
+      if (table === 'channel_members') return mockChain(mockMemberships)
+      if (table === 'dice_rolls') return mockChain(mockDice)
+      if (table === 'message_reactions') return mockChain(mockReactions)
+      if (table === 'notification_preferences') return mockChain(mockPrefs)
+      return mockChain(null)
+    }) as any)
+
+    const result = await buildUserDataExport('u1')
+    expect(result.messages).toHaveLength(1500)
   })
 
   it('throws when a query fails', async () => {

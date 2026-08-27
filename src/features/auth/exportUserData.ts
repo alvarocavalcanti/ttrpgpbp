@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase'
+import { fetchAllRows } from '../../lib/supabasePagination'
 
 export interface ChannelMembership {
   channel_id: string
@@ -56,50 +57,54 @@ export interface UserDataExport {
 // messages.sender_id). Channel names come from the nested channels relation,
 // which RLS allows because the user is a member of their own channels.
 export async function buildUserDataExport(userId: string): Promise<UserDataExport> {
-  const [
+  const profile = supabase
+    .from('profiles')
+    .select('display_name, avatar_url, created_at')
+    .eq('id', userId)
+    .maybeSingle()
+  const membershipsQuery = supabase
+    .from('channel_members')
+    .select('channel_id, channel:channels(name), character_name, character_avatar_url, character_sheet_url, is_away, is_blocked, joined_at')
+    .eq('user_id', userId)
+    .order('id', { ascending: true })
+  const messagesQuery = supabase
+    .from('messages')
+    .select('id, channel_id, type, content, whisper_to, npc_name, is_edited, is_deleted, created_at')
+    .eq('sender_id', userId)
+    .order('id', { ascending: true })
+  const diceRollsQuery = supabase
+    .from('dice_rolls')
+    .select('id, channel_id, notation, result, breakdown, created_at')
+    .eq('roller_id', userId)
+    .order('id', { ascending: true })
+  const reactionsQuery = supabase
+    .from('message_reactions')
+    .select('id, channel_id, emoji, created_at')
+    .eq('user_id', userId)
+    .order('id', { ascending: true })
+  const prefs = supabase
+    .from('notification_preferences')
+    .select('push_enabled, badge_enabled, email_enabled')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const [profileResult, memberships, messages, diceRolls, reactions, prefsResult] = await Promise.all([
     profile,
-    memberships,
-    messages,
-    diceRolls,
-    reactions,
+    fetchAllRows(membershipsQuery),
+    fetchAllRows(messagesQuery),
+    fetchAllRows(diceRollsQuery),
+    fetchAllRows(reactionsQuery),
     prefs,
-  ] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('display_name, avatar_url, created_at')
-      .eq('id', userId)
-      .maybeSingle(),
-    supabase
-      .from('channel_members')
-      .select('channel_id, channel:channels(name), character_name, character_avatar_url, character_sheet_url, is_away, is_blocked, joined_at')
-      .eq('user_id', userId),
-    supabase
-      .from('messages')
-      .select('id, channel_id, type, content, whisper_to, npc_name, is_edited, is_deleted, created_at')
-      .eq('sender_id', userId),
-    supabase
-      .from('dice_rolls')
-      .select('id, channel_id, notation, result, breakdown, created_at')
-      .eq('roller_id', userId),
-    supabase
-      .from('message_reactions')
-      .select('id, channel_id, emoji, created_at')
-      .eq('user_id', userId),
-    supabase
-      .from('notification_preferences')
-      .select('push_enabled, badge_enabled, email_enabled')
-      .eq('user_id', userId)
-      .maybeSingle(),
   ])
 
-  for (const result of [profile, memberships, messages, diceRolls, reactions, prefs]) {
+  for (const result of [profileResult, prefsResult]) {
     if (result.error) throw result.error
   }
 
   return {
     exported_at: new Date().toISOString(),
-    profile: profile.data,
-    channel_memberships: (memberships.data ?? []).map(m => ({
+    profile: profileResult.data,
+    channel_memberships: memberships.map(m => ({
       channel_id: m.channel_id,
       channel_name: Array.isArray(m.channel) ? m.channel[0]?.name ?? null : m.channel?.name ?? null,
       character_name: m.character_name,
@@ -109,10 +114,10 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
       is_blocked: m.is_blocked,
       joined_at: m.joined_at,
     })),
-    messages: messages.data ?? [],
-    dice_rolls: diceRolls.data ?? [],
-    reactions: reactions.data ?? [],
-    notification_preferences: prefs.data ?? null,
+    messages,
+    dice_rolls: diceRolls,
+    reactions,
+    notification_preferences: prefsResult.data ?? null,
   }
 }
 
