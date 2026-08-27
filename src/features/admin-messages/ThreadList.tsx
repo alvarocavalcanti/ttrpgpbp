@@ -178,7 +178,7 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin }: { onClose: () => 
             {isServerAdmin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                <select value={type} onChange={e => setType(e.target.value as any)} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
+                <select value={type} onChange={e => setType(e.target.value as 'announcement' | 'dm')} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
                   <option value="announcement">Announcement</option>
                   <option value="dm">Direct Message</option>
                 </select>

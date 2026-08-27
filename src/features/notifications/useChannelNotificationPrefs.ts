@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
+import { toError } from '../../lib/errors'
 
 export interface ChannelNotificationPrefs {
   notify_all_messages: boolean
@@ -46,9 +47,9 @@ export function useChannelNotificationPrefs(channelId: string | undefined, myMem
             notify_turn: data.notify_turn
           })
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching notification prefs:', err)
-        if (mounted) setError(err)
+        if (mounted) setError(toError(err))
       } finally {
         if (mounted) setLoading(false)
       }

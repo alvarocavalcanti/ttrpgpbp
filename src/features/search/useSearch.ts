@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useDebounce } from '../../hooks/useDebounce'
+import { toError } from '../../lib/errors'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
@@ -52,11 +53,11 @@ export function useSearch(channelId: string) {
           setResults(normalizedData as Message[])
           setError(null)
         }
-      } catch (err: any) {
+      } catch (err) {
         // Aborting an in-flight request on a new keystroke is not an error.
-        if (err?.name === 'AbortError') return
+        if (err instanceof Error && err.name === 'AbortError') return
         console.error('Search error:', err)
-        if (mounted) setError(err)
+        if (mounted) setError(toError(err))
       } finally {
         if (mounted) setLoading(false)
       }

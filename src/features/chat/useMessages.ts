@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import type { ChatMessage } from './types'
+import type { ChatMessage, MessageSendPayload } from './types'
 import { subscribeWithRetry } from '../../lib/realtime'
 import { MAX_MESSAGE_LENGTH, MAX_ROLL_WARNING_LENGTH } from '../../constants'
 import { parseServerMessage, ReactionRowSchema } from './validation'
+import { toError } from '../../lib/errors'
 
 export interface ReactionSummary {
   emoji: string
@@ -139,9 +140,9 @@ export function useMessages(channelId: string | undefined) {
           })
           setHasMore((data || []).length === PAGE_SIZE)
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching messages:', err)
-        if (mounted) setError(err)
+        if (mounted) setError(toError(err))
       } finally {
         if (mounted) setLoading(false)
       }
@@ -161,7 +162,7 @@ export function useMessages(channelId: string | undefined) {
           })
           setReactions(buildReactionMap(rows, user?.id))
         }
-      } catch (err: any) {
+      } catch (err) {
         // Reactions are non-critical; log without failing the channel view.
         console.error('Error fetching reactions:', err)
       }
@@ -336,9 +337,9 @@ export function useMessages(channelId: string | undefined) {
         return [...older.filter(m => !existing.has(m.id)), ...prev]
       })
       setHasMore((data || []).length === PAGE_SIZE)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error loading older messages:', err)
-      setError(err)
+      setError(toError(err))
     } finally {
       setLoadingOlder(false)
     }
@@ -347,14 +348,18 @@ export function useMessages(channelId: string | undefined) {
   // Reconcile an optimistic message with the server-returned id (clears
   // pending + error). Both send_message and roll_dice are idempotent on
   // client_request_id, so a retry that gets here is safe from duplicates.
-  const applyRpcResult = useCallback((clientRequestId: string, data: any) => {
+  // RPC send_message/roll_dice return an array of rows carrying the confirmed id.
+type RpcResult = { message_id?: string }[] | { message_id?: string } | null
+
+  const applyRpcResult = useCallback((clientRequestId: string, data: RpcResult) => {
     const row = Array.isArray(data) ? data[0] : data
-    if (row?.message_id) {
-      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: row.message_id, pending: false, error: null } : m))
+    const messageId = row?.message_id
+    if (messageId) {
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: messageId, pending: false, error: null } : m))
     }
   }, [])
 
-  const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => {
+  const sendMessage = useCallback(async (payload: MessageSendPayload) => {
     if (!channelId || !user) return
     if (payload.content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
 
@@ -378,9 +383,11 @@ export function useMessages(channelId: string | undefined) {
       roll_success: null,
       client_request_id: clientRequestId,
       pending: true,
-      pending_payload: payload,
+      pending_payload: { kind: 'message', ...payload },
       reply_message: null,
-      sender: user as any, mention_user_ids: null, search_vector: null as any, // sufficient for local display
+      sender: { display_name: user.user_metadata?.display_name ?? null, avatar_url: null },
+      mention_user_ids: null,
+      search_vector: null,
     }
 
     setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
@@ -434,9 +441,11 @@ export function useMessages(channelId: string | undefined) {
       roll_success: null,
       client_request_id: clientRequestId,
       pending: true,
-      pending_payload: { notation, replyToId, warning, dc },
+      pending_payload: { kind: 'roll', notation, replyToId, warning, dc },
       reply_message: null,
-      sender: user as any, mention_user_ids: null, search_vector: null as any,
+      sender: { display_name: user.user_metadata?.display_name ?? null, avatar_url: null },
+      mention_user_ids: null,
+      search_vector: null,
     }
 
     setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
@@ -505,8 +514,9 @@ export function useMessages(channelId: string | undefined) {
 
     setMessages(prev => prev.map(m => m.id === id ? { ...m, error: null } : m))
 
-    if (msg.type === 'dice_roll') {
-      const { notation, replyToId, warning, dc } = msg.pending_payload
+    const pending = msg.pending_payload
+    if (pending.kind === 'roll') {
+      const { notation, replyToId, warning, dc } = pending
       const { data: rollData, error: rollError } = await supabase.rpc('roll_dice', {
         p_channel_id: channelId as string,
         p_notation: notation,
@@ -521,16 +531,16 @@ export function useMessages(channelId: string | undefined) {
         applyRpcResult(msg.client_request_id ?? id, rollData)
       }
     } else {
-      const payload = msg.pending_payload
+      const { content, type, whisper_to, reply_to, active_player_ids, npc_name, npc_avatar_url } = pending
       const { data, error } = await supabase.rpc('send_message', {
         p_channel_id: channelId as string,
-        p_content: payload.content,
-        p_type: payload.type,
-        p_reply_to: payload.reply_to ?? undefined,
-        p_whisper_to: payload.whisper_to ?? undefined,
-        p_active_player_ids: payload.active_player_ids ?? undefined,
-        p_npc_name: payload.npc_name ?? undefined,
-        p_npc_avatar_url: payload.npc_avatar_url ?? undefined,
+        p_content: content,
+        p_type: type,
+        p_reply_to: reply_to ?? undefined,
+        p_whisper_to: whisper_to ?? undefined,
+        p_active_player_ids: active_player_ids ?? undefined,
+        p_npc_name: npc_name ?? undefined,
+        p_npc_avatar_url: npc_avatar_url ?? undefined,
         p_client_request_id: msg.client_request_id ?? undefined,
       })
       if (error) {

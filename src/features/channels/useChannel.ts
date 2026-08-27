@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import { subscribeWithRetry } from '../../lib/realtime'
+import { toError } from '../../lib/errors'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -93,9 +94,9 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
               else onRead?.()
             })
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching channel data:', err)
-        if (mounted) setError(err)
+        if (mounted) setError(toError(err))
       } finally {
         if (mounted) setLoading(false)
       }

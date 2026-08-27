@@ -1,6 +1,7 @@
 import { Avatar } from '../../components/Avatar';
 import { useState, useRef, useEffect } from 'react'
 import type { Database } from '../../types/database'
+import type { MessageSendPayload } from './types'
 import { DiceRoller } from '../dice/DiceRoller'
 import { linkifyMentions } from './mentions'
 import { randomNpcIconUrl, isNpcIconUrl } from './npcIcons'
@@ -200,7 +201,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
     try {
       const { content: mentionContent } = linkifyMentions(content, members, { allMentionEnabled: isGM })
 
-      const payload: any = {
+      const payload: MessageSendPayload = {
         content: mentionContent,
         type: isNpc ? 'npc' : isScene ? 'scene' : 'regular',
         whisper_to: whisperTo || undefined,
@@ -208,7 +209,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       }
       if (isNpc) {
         payload.npc_name = npcName.trim()
-        payload.npc_avatar_url = resolvedNpcAvatar
+        payload.npc_avatar_url = resolvedNpcAvatar ?? undefined
       }
       if (replyTo) payload.reply_to = replyTo.id
 
@@ -234,7 +235,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Send on Cmd/Ctrl + Enter
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSubmit(e as any)
+      handleSubmit(e as unknown as React.FormEvent)
       return
     }
     // Enter/Tab while a mention is open picks the highlighted option instead of submitting

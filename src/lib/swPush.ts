@@ -2,13 +2,17 @@
 // rules are unit-testable (#191): a rejected or missing setAppBadge must never
 // suppress the system-tray notification (or reject the push event).
 
-export interface PushNotificationData {
-  title?: string
-  body?: string
-  url?: string
-  badgeEnabled?: boolean
-  unreadCount?: number
-}
+import { z } from 'zod'
+
+export const PushNotificationDataSchema = z.object({
+  title: z.string().optional(),
+  body: z.string().optional(),
+  url: z.string().optional(),
+  badgeEnabled: z.boolean().optional(),
+  unreadCount: z.number().optional()
+})
+
+export type PushNotificationData = z.infer<typeof PushNotificationDataSchema>
 
 export interface PushHandlerScope {
   registration: {

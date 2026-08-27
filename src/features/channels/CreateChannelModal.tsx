@@ -72,7 +72,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
       onClose()
       navigate(`/channel/${channelId}`)
       
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error creating channel:', err)
       setError('Failed to create channel. Please try again.')
     } finally {

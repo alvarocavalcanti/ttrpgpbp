@@ -6,7 +6,7 @@ import { linkifyDice } from '../dice/parser'
 import { getSystemAttributes, clampModifier } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
-import type { ChatMessage } from './types'
+import type { ChatMessage, Member } from './types'
 import { isNpcIconUrl } from './npcIcons'
 import { MAX_MESSAGE_LENGTH } from '../../constants'
 
@@ -20,7 +20,7 @@ interface MessageItemProps {
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string, replyToId?: string, warning?: string, dc?: number | null) => void
   isHighlighted?: boolean
-  members?: Array<{ user_id: string; character_name: string; attributes?: any }>
+  members?: Member[]
   gameSystem?: string
   reactions?: ReactionSummary[]
   onToggleReaction?: (messageId: string, emoji: string) => void
@@ -139,7 +139,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   // local re-renders (e.g. editing) don't hand ReactMarkdown a new `components`
   // reference and force a markdown re-parse.
   const renderers = useMemo(() => ({
-    a: ({ _node, href, children, ...props }: any) => {
+    a: ({ href, children, ...props }: React.ComponentProps<'a'>) => {
       if (href?.startsWith('dice:')) {
         const notation = href.slice(5)
         return (
@@ -222,7 +222,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       }
       return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
     },
-    img: ({ src, alt, ...props }: any) => {
+    img: ({ src, alt, ...props }: React.ComponentProps<'img'>) => {
       return (
         <SignedImg 
           src={src} 

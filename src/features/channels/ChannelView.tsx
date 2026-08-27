@@ -1,5 +1,5 @@
 import { useParams, Navigate, Link } from 'react-router-dom'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
 import { ChannelStatusBar } from './ChannelStatusBar'
@@ -7,6 +7,7 @@ import { MemberList } from './MemberList'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
 import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
+import type { ChatMessage, Member } from '../chat/types'
 import { useAuth } from '../auth/useAuth'
 import { SignedImg } from '../../components/SignedImg'
 import { usePushNotifications } from '../auth/usePushNotifications'
@@ -77,7 +78,7 @@ export function ChannelView() {
     setHighlightMessageId(messageId)
   }, [])
 
-  const handleReply = useCallback((message: any) => {
+  const handleReply = useCallback((message: ChatMessage) => {
     const senderName = members.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name || null
     setReplyTo({ id: message.id, content: message.content, senderName })
   }, [members])
@@ -159,6 +160,15 @@ export function ChannelView() {
   // (the GM's own row is not a valid active player).
   const activePlayerMembers = members.filter(m => !m.is_blocked && m.user_id !== channel.gm_id)
   const currentActiveIds = members.filter(m => m.is_active_player && !m.is_blocked).map(m => m.user_id)
+
+  // Dice-roll mentions only need user_id/character_name plus per-ability
+  // modifiers; channel_members.attributes is a JSON object, so adapt the
+  // narrow Member shape for MessageList.
+  const chatMembers = useMemo<Member[]>(() => members.map(m => ({
+    user_id: m.user_id,
+    character_name: m.character_name,
+    attributes: (m.attributes as Record<string, number> | null) ?? undefined
+  })), [members])
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-white dark:bg-gray-800 relative">
@@ -244,7 +254,7 @@ export function ChannelView() {
           onDelete={deleteMessage} 
           onRollDice={sendDiceRoll}
           highlightMessageId={highlightMessageId}
-          members={members}
+          members={chatMembers}
           gameSystem={channel.game_system}
           reactionsByMessage={reactions}
           onToggleReaction={handleToggleReaction}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, Fragment, useMemo, useCallback } from 'react'
 import { MessageItem } from './MessageItem'
 import type { ReactionSummary } from './useMessages'
-import type { ChatMessage } from './types'
+import type { ChatMessage, Member } from './types'
 import { useAuth } from '../auth/useAuth'
 
 type Message = ChatMessage
@@ -18,7 +18,7 @@ interface MessageListProps {
   onDelete: (id: string) => Promise<void>
   onRollDice?: (notation: string, replyToId?: string, warning?: string) => void
   highlightMessageId?: string | null
-  members?: Array<{ user_id: string; character_name: string; attributes?: any }>
+  members?: Member[]
   gameSystem?: string
   reactionsByMessage?: Record<string, ReactionSummary[]>
   onToggleReaction?: (messageId: string, emoji: string) => void
