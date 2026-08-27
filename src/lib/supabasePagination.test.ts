@@ -32,4 +32,13 @@ describe('fetchAllRows', () => {
     const query = { range: vi.fn().mockResolvedValue({ data: null, error: new Error('db down') }) }
     await expect(fetchAllRows(query as any, 1000)).rejects.toThrow('db down')
   })
+
+  it.each([0, -1, 1.5, 1001])('rejects an invalid pageSize of %s', async (pageSize) => {
+    await expect(fetchAllRows(pagedQuery(5) as any, pageSize)).rejects.toThrow(RangeError)
+  })
+
+  it('accepts the boundary page sizes of 1 and 1000', async () => {
+    await expect(fetchAllRows(pagedQuery(1) as any, 1)).resolves.toHaveLength(1)
+    await expect(fetchAllRows(pagedQuery(1000) as any, 1000)).resolves.toHaveLength(1000)
+  })
 })

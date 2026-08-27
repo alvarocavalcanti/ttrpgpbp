@@ -9,6 +9,11 @@ interface RangeableQuery<T> {
 // offset .range() so large datasets are fully retrievable. The builder must
 // carry a deterministic .order() so offset pagination stays stable.
 export async function fetchAllRows<T>(query: RangeableQuery<T>, pageSize = 1000): Promise<T[]> {
+  // pageSize outside [1, 1000] either loops forever (0/negative) or stops before
+  // the cap and silently drops rows (over PostgREST's max_rows of 1000).
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) {
+    throw new RangeError(`pageSize must be an integer between 1 and 1000, got ${pageSize}`)
+  }
   const rows: T[] = []
   let offset = 0
   for (;;) {

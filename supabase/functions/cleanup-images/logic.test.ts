@@ -3,6 +3,7 @@ import {
   collectExpiredImages,
   isAuthorizedCleanupRequest,
   listAllObjects,
+  listChannelImages,
   positiveRetentionDays,
   runCleanup,
   splitCleanupBatches,
@@ -89,6 +90,36 @@ describe('listAllObjects', () => {
 
   it('returns an empty array when nothing is listed', async () => {
     expect(await listAllObjects(pagedList(0), 'c1')).toEqual([])
+  })
+})
+
+describe('listChannelImages', () => {
+  it('walks id === null directory entries and skips stray root files', async () => {
+    const list = vi.fn().mockImplementation((path: string) =>
+      Promise.resolve(
+        path === ''
+          ? [
+              { name: 'c1', id: null },
+              { name: 'readme.txt', id: 'file-1' },
+            ]
+          : [
+              { name: 'a.jpg', id: 'file-a', metadata: { lastModified: '2026-01-01T00:00:00.000Z' } },
+              { name: 'b.jpg', id: 'file-b', metadata: { lastModified: '2026-01-02T00:00:00.000Z' } },
+            ],
+      ),
+    )
+
+    const images = await listChannelImages(list)
+
+    expect(images).toEqual([
+      { path: 'c1/a.jpg', lastModified: '2026-01-01T00:00:00.000Z' },
+      { path: 'c1/b.jpg', lastModified: '2026-01-02T00:00:00.000Z' },
+    ])
+    expect(list).toHaveBeenCalledWith('c1', { limit: 1000, offset: 0 })
+  })
+
+  it('returns no images when the bucket root is empty', async () => {
+    expect(await listChannelImages(async () => [])).toEqual([])
   })
 })
 

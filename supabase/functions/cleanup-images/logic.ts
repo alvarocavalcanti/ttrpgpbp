@@ -53,6 +53,27 @@ export async function listAllObjects(
   return all
 }
 
+// Storage directories have id === null; files have a non-null id. The root
+// listing is the channel folders, so walk only the id === null entries and
+// skip stray files sitting at the root (id !== null).
+export async function listChannelImages(
+  list: (path: string, options: StorageListOptions) => Promise<ListedObject[]>,
+): Promise<ListedImage[]> {
+  const dirs = await listAllObjects(list, "")
+  const images: ListedImage[] = []
+  for (const dir of dirs) {
+    if (dir.id !== null) continue
+    const files = await listAllObjects(list, dir.name)
+    for (const file of files) {
+      images.push({
+        path: `${dir.name}/${file.name}`,
+        lastModified: String(file.metadata?.lastModified ?? ""),
+      })
+    }
+  }
+  return images
+}
+
 export function isAuthorizedCleanupRequest(request: Request, expectedSecret: string | undefined): boolean {
   return Boolean(expectedSecret && request.headers.get('x-cleanup-secret') === expectedSecret)
 }
