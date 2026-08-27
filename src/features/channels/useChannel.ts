@@ -28,6 +28,17 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
 
   useEffect(() => {
     let mounted = true
+    // Drop any state from a previous channel (route change keeps this hook
+    // mounted), so we never render another channel's members/secrets or reuse
+    // its read boundary.
+    setChannel(null)
+    setMembers([])
+    setGmOnlyResourcesUrl(null)
+    setError(null)
+    setLoading(true)
+    setLastReadAt(null)
+    boundaryCapturedRef.current = false
+
     if (!channelId || !user?.id) {
       setLoading(false)
       return

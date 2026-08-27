@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -93,8 +93,22 @@ export function useMessages(channelId: string | undefined) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
 
+  // Live view of messages so async catch-up can compute the newest held row
+  // without stale-closure reads inside the subscribe effect (same pattern as
+  // reactionsRef in ChannelView).
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+
   useEffect(() => {
     let mounted = true
+    // Drop any state from a previous channel (route change keeps this hook
+    // mounted), so we never render another channel's messages.
+    setMessages([])
+    setReactions({})
+    setHasMore(false)
+    setError(null)
+    setLoading(true)
+
     if (!channelId) {
       setLoading(false)
       return
@@ -146,6 +160,48 @@ export function useMessages(channelId: string | undefined) {
       } catch (err: any) {
         // Reactions are non-critical; log without failing the channel view.
         console.error('Error fetching reactions:', err)
+      }
+    }
+
+    // Cursor catch-up after a disconnect/background gap. Unlike fetchMessages
+    // (which only reloads the newest PAGE_SIZE window), this paginates forward
+    // from the newest message we still hold, so more than PAGE_SIZE missed
+    // inserts are recovered instead of silently dropped.
+    async function catchUp() {
+      const held = messagesRef.current
+      const newest = held.reduce<Message | null>((max, m) => (!max || (m.created_at ?? '') > max.created_at ? m : max), null)
+      if (!newest?.created_at) {
+        await fetchMessages()
+        return
+      }
+      // ponytail: created_at cursor; equal timestamps at the boundary could
+      // straddle pages. Microsecond precision makes it a non-issue in practice;
+      // an id-based cursor is the upgrade path if it ever bites.
+      let cursor = newest.created_at
+      for (let guard = 0; guard < 100; guard += 1) {
+        if (!mounted) return
+        const { data, error } = await supabase
+          .from('messages')
+          .select(MESSAGE_SELECT)
+          .eq('channel_id', channelId as string)
+          .gt('created_at', cursor)
+          .order('created_at', { ascending: true })
+          .limit(PAGE_SIZE)
+        if (error) {
+          console.error('Error catching up messages:', error)
+          if (mounted) setError(error)
+          return
+        }
+        const batch = (data || []).map(formatMessage)
+        if (batch.length === 0) return
+        setMessages(prev => {
+          const existing = new Set(prev.map(m => m.id))
+          const merged = [...prev, ...batch.filter(m => !existing.has(m.id))]
+          merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+          return merged
+        })
+        cursor = batch[batch.length - 1].created_at
+        if (batch.length < PAGE_SIZE) return
       }
     }
 
@@ -229,14 +285,14 @@ export function useMessages(channelId: string | undefined) {
           if (firstSubscribe) {
             firstSubscribe = false
           } else {
-            void Promise.all([fetchMessages(), fetchReactions()])
+            void Promise.all([catchUp(), fetchReactions()])
           }
         }
       })
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void Promise.all([fetchMessages(), fetchReactions()])
+        void Promise.all([catchUp(), fetchReactions()])
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -280,6 +336,16 @@ export function useMessages(channelId: string | undefined) {
       setLoadingOlder(false)
     }
   }, [channelId, loadingOlder, hasMore, messages])
+
+  // Reconcile an optimistic message with the server-returned id (clears
+  // pending + error). Both send_message and roll_dice are idempotent on
+  // client_request_id, so a retry that gets here is safe from duplicates.
+  const applyRpcResult = useCallback((clientRequestId: string, data: any) => {
+    const row = Array.isArray(data) ? data[0] : data
+    if (row?.message_id) {
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: row.message_id, pending: false, error: null } : m))
+    }
+  }, [])
 
   const sendMessage = useCallback(async (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => {
     if (!channelId || !user) return
@@ -328,7 +394,11 @@ export function useMessages(channelId: string | undefined) {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: error.message } : m))
       throw error
     } else if (data && data.length > 0) {
-      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: data[0].message_id, pending: false } : m))
+      applyRpcResult(clientRequestId, data)
+    } else {
+      // No error but no returned id: the insert isn't confirmed. Flag it so the
+      // user can retry; client_request_id keeps the retry idempotent.
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Message was not confirmed. Tap retry to resend.' } : m))
     }
   }, [channelId, user])
 
@@ -377,7 +447,9 @@ export function useMessages(channelId: string | undefined) {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: rollError.message } : m))
       throw rollError
     } else if (rollData && rollData.length > 0) {
-      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, id: rollData[0].message_id, pending: false } : m))
+      applyRpcResult(clientRequestId, rollData)
+    } else {
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Roll was not confirmed. Tap retry to reroll.' } : m))
     }
   }, [channelId, user])
 
@@ -428,7 +500,7 @@ export function useMessages(channelId: string | undefined) {
 
     if (msg.type === 'dice_roll') {
       const { notation, replyToId, warning, dc } = msg.pending_payload
-      const { error: rollError } = await supabase.rpc('roll_dice', {
+      const { data: rollData, error: rollError } = await supabase.rpc('roll_dice', {
         p_channel_id: channelId as string,
         p_notation: notation,
         p_reply_to: replyToId ?? undefined,
@@ -438,10 +510,12 @@ export function useMessages(channelId: string | undefined) {
       })
       if (rollError) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: rollError.message } : m))
+      } else {
+        applyRpcResult(msg.client_request_id ?? id, rollData)
       }
     } else {
       const payload = msg.pending_payload
-      const { error } = await supabase.rpc('send_message', {
+      const { data, error } = await supabase.rpc('send_message', {
         p_channel_id: channelId as string,
         p_content: payload.content,
         p_type: payload.type,
@@ -454,9 +528,11 @@ export function useMessages(channelId: string | undefined) {
       })
       if (error) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: error.message } : m))
+      } else {
+        applyRpcResult(msg.client_request_id ?? id, data)
       }
     }
-  }, [messages, channelId])
+  }, [messages, channelId, applyRpcResult])
 
   return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
 }

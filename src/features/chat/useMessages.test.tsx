@@ -79,12 +79,21 @@ describe('useMessages', () => {
     expect(callbacks['message_reactions']).toBeDefined()
   })
 
-  it('reconciles by refetching after a realtime reconnect', async () => {
-    const mockLimit = vi.fn()
-      .mockResolvedValueOnce({ data: [{ id: 'm1' }], error: null })
-      .mockResolvedValueOnce({ data: [{ id: 'm1' }, { id: 'm2' }], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+  it('recovers a multi-page message gap on reconnect via cursor catch-up', async () => {
+    const initial = { id: 'm0', created_at: '2023-01-01T00:00:00.000Z' }
+    const gapPage1 = Array.from({ length: 50 }, (_, i) => ({ id: `g${i}`, created_at: `2023-01-01T00:00:00.${String(i + 1).padStart(3, '0')}Z` }))
+    const gapTail = { id: 'newest', created_at: '2023-01-01T00:00:09.999Z' }
+
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: [initial], error: null })
+    const mockDescOrder = vi.fn().mockReturnValue({ limit: mockInitialLimit })
+    const mockCatchLimit = vi.fn()
+      .mockResolvedValueOnce({ data: gapPage1, error: null })
+      .mockResolvedValueOnce({ data: [gapTail], error: null })
+    const mockCatchOrder = vi.fn().mockReturnValue({ limit: mockCatchLimit })
+    const mockGt = vi.fn().mockReturnValue({ order: mockCatchOrder })
+
+    // eq() serves both the initial fetch (.order desc) and the catch-up (.gt -> .order asc).
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt }) }) })
     const { emitStatus } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -94,17 +103,94 @@ describe('useMessages', () => {
       expect(result.current.messages).toHaveLength(1)
     })
 
-    // Simulate the socket dropping and re-establishing: the missed 'm2' insert
-    // is recovered by the refetch triggered on the second SUBSCRIBED.
+    // Simulate the socket dropping and re-establishing while >50 inserts were
+    // missed; the cursor catch-up pulls both pages and fills the whole gap.
     await act(async () => {
       emitStatus('SUBSCRIBED')
     })
 
     await waitFor(() => {
-      expect(result.current.messages).toHaveLength(2)
+      expect(result.current.messages).toHaveLength(1 + 50 + 1)
     })
-    expect(result.current.messages[0].id).toBe('m2')
-    expect(mockLimit).toHaveBeenCalledTimes(2)
+    expect(result.current.messages[0].id).toBe('m0')
+    expect(result.current.messages[result.current.messages.length - 1].id).toBe('newest')
+  })
+
+  it('clears previous channel messages when switching channels', async () => {
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: [{ id: 'm1', content: 'from c1' }], error: null })
+      .mockResolvedValueOnce({ data: [{ id: 'm2', content: 'from c2' }], error: null })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockChannels()
+
+    const { result, rerender } = renderHook(({ id }) => useMessages(id), { initialProps: { id: 'c1' } })
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(1)
+      expect(result.current.messages[0].id).toBe('m1')
+    })
+
+    rerender({ id: 'c2' })
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(1)
+      expect(result.current.messages[0].id).toBe('m2')
+    })
+    expect(result.current.messages.some(m => m.id === 'm1')).toBe(false)
+  })
+
+  it('reconciles a failed send after a successful retry', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendMessage({ content: 'hi', type: 'regular' })).rejects.toThrow('boom')
+    })
+    const pending = result.current.messages.find(m => m.pending)!
+    expect(pending).toBeDefined()
+    expect(pending.error).toBe('boom')
+
+    await act(async () => {
+      await result.current.retryMessage(pending.id)
+    })
+
+    const reconciled = result.current.messages.find(m => m.client_request_id === pending.client_request_id)!
+    expect(reconciled.id).toBe('real-id')
+    expect(reconciled.pending).toBe(false)
+    expect(reconciled.error).toBeNull()
+  })
+
+  it('marks a message unconfirmed when the RPC returns no id', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    const msg = result.current.messages.find(m => m.pending)!
+    expect(msg).toBeDefined()
+    expect(msg.pending).toBe(true)
+    expect(msg.error).toContain('not confirmed')
   })
 
   it('handles fetch error gracefully', async () => {
