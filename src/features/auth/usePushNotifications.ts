@@ -197,9 +197,9 @@ export function usePushNotifications() {
       ...preferences,
       ...updates,
       user_id: user.id
-    } as any
+    }
 
-    delete payload.id
+    delete (payload as Partial<NotificationPrefs>).id
 
     // Upsert preference
     const { data, error } = await supabase

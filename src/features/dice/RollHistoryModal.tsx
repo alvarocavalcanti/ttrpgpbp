@@ -1,14 +1,31 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Json } from '../../types/database'
+import { z } from 'zod'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { subscribeWithRetry } from '../../lib/realtime'
+
+const rollBreakdownSchema = z.object({
+  rolls: z.array(z.number()).optional(),
+  dropped: z.array(z.number()).optional(),
+  modifier: z.number().optional()
+})
+type RollBreakdown = z.infer<typeof rollBreakdownSchema>
+
+const rollHistorySchema = z.object({
+  id: z.string(),
+  notation: z.string(),
+  result: z.number(),
+  breakdown: rollBreakdownSchema,
+  created_at: z.string(),
+  roller_id: z.string(),
+  roller_display_name: z.string().nullable()
+})
 
 type DiceRoll = {
   id: string
   notation: string
   result: number
-  breakdown: Json
+  breakdown: RollBreakdown
   created_at: string
   roller_id: string
   roller_display_name: string | null
@@ -34,7 +51,12 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
         // deleted messages.
         const { data, error } = await supabase.rpc('get_channel_roll_history', { p_channel_id: channelId })
         if (error) throw error
-        const fetched = (data || []).map(r => ({ ...r, roller: { display_name: r.roller_display_name } }))
+        const parsed = z.array(rollHistorySchema).safeParse(data)
+        if (!parsed.success) {
+          setError('Failed to load roll history.')
+          return
+        }
+        const fetched = parsed.data.map(r => ({ ...r, roller: { display_name: r.roller_display_name } }))
         setRolls(prev => {
           const fetchedIds = new Set(fetched.map(roll => roll.id))
           return [...prev.filter(roll => !fetchedIds.has(roll.id)), ...fetched]
@@ -127,7 +149,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
             ) : (
               <ul className="space-y-4">
                 {rolls.map(roll => {
-                  const bd = roll.breakdown as any
+                  const bd = roll.breakdown
                   return (
                     <li key={roll.id} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                       <div className="flex justify-between items-start mb-2">
@@ -146,11 +168,11 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
                       </div>
                       <div className="mt-3 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-2 flex flex-wrap gap-x-4">
                         <div><span className="font-semibold">Rolls:</span> [{bd?.rolls?.join(', ')}]</div>
-                        {bd?.dropped?.length > 0 && (
+                        {bd?.dropped && bd.dropped.length > 0 && (
                           <div className="text-red-500 dark:text-red-400"><span className="font-semibold">Dropped:</span> [{bd.dropped.join(', ')}]</div>
                         )}
-                        {bd?.modifier !== 0 && (
-                          <div><span className="font-semibold">Modifier:</span> {bd?.modifier > 0 ? `+${bd.modifier}` : bd?.modifier}</div>
+                        {bd?.modifier !== undefined && bd.modifier !== 0 && (
+                          <div><span className="font-semibold">Modifier:</span> {bd.modifier > 0 ? `+${bd.modifier}` : bd.modifier}</div>
                         )}
                       </div>
                     </li>

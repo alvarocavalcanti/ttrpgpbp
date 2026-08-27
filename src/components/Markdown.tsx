@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react'
+import type { Components } from 'react-markdown'
 
 const MarkdownImpl = lazy(() => import('./MarkdownImpl'))
 
 export interface MarkdownProps {
   children: string
-  components?: any
+  components?: Components
   urlTransform?: (url: string) => string
 }
 

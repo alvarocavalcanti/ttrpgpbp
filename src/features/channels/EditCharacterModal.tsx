@@ -58,7 +58,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
       
       onUpdate()
       onClose()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error updating character:', err)
       setError('Failed to update character.')
       setIsSubmitting(false)

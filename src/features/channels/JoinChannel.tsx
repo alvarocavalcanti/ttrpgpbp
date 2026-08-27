@@ -25,7 +25,7 @@ export function JoinChannel() {
   const [error, setError] = useState<string | null>(null)
   
   const [characterName, setCharacterName] = useState(profile?.display_name || '')
-  const [attributes, setAttributes] = useState<any>({})
+  const [attributes, setAttributes] = useState<Record<string, string>>({})
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -38,7 +38,7 @@ export function JoinChannel() {
         if (error) throw error
         const preview = Array.isArray(data) && data.length > 0 ? data[0] : null
         setChannel(preview)
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching channel to join:', err)
         if (!inviteCode) {
           setError('Channel not found.')
@@ -72,7 +72,7 @@ export function JoinChannel() {
       // attributes (clamped to the game system's bounds), and the join system
       // message all commit atomically.
       const numericAttributes: Record<string, number> = {}
-      for (const [attr, raw] of Object.entries(attributes as Record<string, string>)) {
+      for (const [attr, raw] of Object.entries(attributes)) {
         const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0
         numericAttributes[attr] = clampModifier(channel?.game_system, num)
       }
@@ -93,9 +93,9 @@ export function JoinChannel() {
       }
 
       navigate(`/channel/${id}`)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error joining channel:', err)
-      setError(err?.message || 'Failed to join channel. Invalid password or invite code.')
+      setError(err instanceof Error ? err.message : 'Failed to join channel. Invalid password or invite code.')
     } finally {
       setIsSubmitting(false)
     }
@@ -103,7 +103,7 @@ export function JoinChannel() {
 
   const handleAttributeChange = (attr: string, value: string) => {
     if (!isValidModifierInput(value)) return
-    setAttributes((prev: any) => ({
+    setAttributes((prev: Record<string, string>) => ({
       ...prev,
       [attr]: value
     }))

@@ -5,6 +5,7 @@
     "jsx-a11y/no-static-element-interactions": "error",
     "jsx-a11y/click-events-have-key-events": "error",
     "vitest/expect-expect": "error",
+    "typescript/no-explicit-any": "error",
     "jsx-a11y/control-has-associated-label": "off",
     "jsx-a11y/label-has-associated-control": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off",
@@ -13,5 +14,13 @@
     "react-hooks/exhaustive-deps": "off",
     "vitest/require-mock-type-parameters": "off",
     "vitest/require-to-throw-message": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.test.tsx", "*.spec.ts", "src/test/**", "tests/**"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    }
+  ]
 }

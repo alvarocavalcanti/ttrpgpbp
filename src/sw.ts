@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute } from 'workbox-precaching'
 import { handlePushEvent } from './lib/swPush'
+import { PushNotificationDataSchema } from './lib/swPush'
 import type { PushNotificationData } from './lib/swPush'
 
 declare let self: ServiceWorkerGlobalScope
@@ -12,7 +13,12 @@ self.addEventListener('push', (event) => {
 
   let data: PushNotificationData
   try {
-    data = event.data.json()
+    const parsed = PushNotificationDataSchema.safeParse(event.data.json())
+    if (!parsed.success) {
+      console.error('Invalid push payload', parsed.error)
+      return
+    }
+    data = parsed.data
   } catch (err) {
     console.error('Invalid push payload', err)
     return
