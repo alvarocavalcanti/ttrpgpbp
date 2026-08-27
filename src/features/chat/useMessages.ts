@@ -349,7 +349,7 @@ export function useMessages(channelId: string | undefined) {
   // pending + error). Both send_message and roll_dice are idempotent on
   // client_request_id, so a retry that gets here is safe from duplicates.
   // RPC send_message/roll_dice return an array of rows carrying the confirmed id.
-type RpcResult = { message_id?: string }[] | { message_id?: string } | null
+  type RpcResult = { message_id?: string }[] | { message_id?: string } | null
 
   const applyRpcResult = useCallback((clientRequestId: string, data: RpcResult) => {
     const row = Array.isArray(data) ? data[0] : data

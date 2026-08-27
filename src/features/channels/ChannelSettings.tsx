@@ -197,7 +197,7 @@ setIsSubmitting(true)
       let markdown = `# Chat Log for ${channel.name}\n\n`
       for (const msg of messages) {
         const date = new Date(msg.created_at).toLocaleString()
-        const sender = msg.npc_name || (msg.sender as { display_name?: string | null } | null)?.display_name || 'System/Unknown'
+        const sender = msg.npc_name || msg.sender?.display_name || 'System/Unknown'
         markdown += `**[${date}] ${sender}:**\n${msg.content}\n\n`
       }
 

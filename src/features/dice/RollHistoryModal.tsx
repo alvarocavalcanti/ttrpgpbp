@@ -21,6 +21,10 @@ const rollHistorySchema = z.object({
   roller_display_name: z.string().nullable()
 })
 
+// Realtime INSERTs carry the raw dice_rolls row, which has no
+// roller_display_name (that's joined in by get_channel_roll_history).
+const rollRealtimeSchema = rollHistorySchema.omit({ roller_display_name: true })
+
 type DiceRoll = {
   id: string
   notation: string
@@ -83,15 +87,16 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
         table: 'dice_rolls',
         filter: `channel_id=eq.${channelId}`
       }, async (payload) => {
-        const newRoll = payload.new as DiceRoll
+        const parsed = rollRealtimeSchema.safeParse(payload.new)
+        if (!parsed.success) return
         // Fetch profile
         const { data } = await supabase
           .from('profiles')
           .select('display_name')
-          .eq('id', newRoll.roller_id)
+          .eq('id', parsed.data.roller_id)
           .single()
 
-        newRoll.roller = data
+        const newRoll: DiceRoll = { ...parsed.data, roller_display_name: null, roller: data }
         setRolls(prev => prev.some(roll => roll.id === newRoll.id)
           ? prev
           : [newRoll, ...prev].slice(0, 50))

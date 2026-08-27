@@ -139,7 +139,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   // local re-renders (e.g. editing) don't hand ReactMarkdown a new `components`
   // reference and force a markdown re-parse.
   const renderers = useMemo(() => ({
-    a: ({ href, children, ...props }: React.ComponentProps<'a'>) => {
+    a: ({ node: _node, href, children, ...props }: React.ComponentProps<'a'> & { node?: unknown }) => {
       if (href?.startsWith('dice:')) {
         const notation = href.slice(5)
         return (
