@@ -110,12 +110,17 @@ Every UI change must follow these conventions:
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (<http://localhost:54323>) to create a mock user, or link your `.env.local` to the remote Supabase.
 
-> **Known issue — Docker Desktop blocks local Supabase (macOS).** `supabase start` fails on this
-> machine with `error while creating mount source path '.../docker.raw.sock'` when starting the
-> `supabase_vector_*` container. This is a Docker Desktop bug, not a migration problem. When it
-> bites, do NOT chase the error — skip local DB verification and rely on CI:
-> push the branch and let the `migrate-check` job in `.github/workflows/ci.yml` run
-> `supabase db start` + `supabase db reset`. Fix any failure via a new migration, then rebase.
+> **Known issue — Docker Desktop blocks local Supabase (macOS).** `supabase start` used to fail
+> on this machine with `error while creating mount source path '.../docker.raw.sock'` when starting
+> the `supabase_vector_*` container. Cause: `~/.zshrc` exported `DOCKER_HOST` to the raw Docker
+> Desktop socket (`.../Data/docker.raw.sock`), which the Supabase CLI can't bind-mount into the
+> vector container. Fix (applied): `~/.zshrc` now exports
+> `export DOCKER_HOST="unix://$HOME/.docker/run/docker.sock"` — the user-space socket. There was
+> previously a second `DOCKER_HOST=...docker.raw.sock` export at the bottom of `~/.zshrc` (Docker
+> Desktop's completions block) that overrode the good one; keep exactly one, pointing at
+> `$HOME/.docker/run/docker.sock`. Open a fresh interactive shell (or `source ~/.zshrc`) before
+> running `npx supabase start`. If the vector mount error ever comes back, check `~/.zshrc` for a
+> stray `docker.raw.sock` `DOCKER_HOST` export.
 
 ## Database Migrations
 
