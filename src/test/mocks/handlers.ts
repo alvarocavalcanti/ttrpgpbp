@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { env } from '../../env'
 
-const supabaseUrl = env.VITE_SUPABASE_URL || 'http://localhost:54321'
+export const supabaseUrl = env.VITE_SUPABASE_URL || 'http://localhost:54321'
 
 // MSW runs with onUnhandledRequest: 'error' (src/test/setup.ts). These
 // handlers cover the REST/RPC endpoints a component may hit when a test
@@ -22,10 +22,10 @@ export const handlers = [
     return HttpResponse.json([])
   }),
   http.post(`${supabaseUrl}/rest/v1/push_subscriptions`, async () => {
-    return HttpResponse.json([])
+    return HttpResponse.json([{ id: 'mock-subscription' }])
   }),
   http.patch(`${supabaseUrl}/rest/v1/push_subscriptions`, async () => {
-    return HttpResponse.json([])
+    return HttpResponse.json([{ id: 'mock-subscription' }])
   }),
 
   // RPCs
