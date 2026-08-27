@@ -7,19 +7,22 @@ type Npc = Database['public']['Tables']['channel_npcs']['Row']
 export function useChannelNpcs(channelId: string | undefined) {
   const [npcs, setNpcs] = useState<Npc[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const fetchNpcs = useCallback(async (mounted: { current: boolean }) => {
     if (!channelId) {
       if (mounted.current) setLoading(false)
       return
     }
-    const { data, error } = await supabase
+    setError(null)
+    const { data, error: fetchError } = await supabase
       .from('channel_npcs')
       .select('*')
       .eq('channel_id', channelId)
       .order('name', { ascending: true })
-    if (error) {
-      console.error('Failed to fetch channel NPCs:', error)
+    if (fetchError) {
+      console.error('Failed to fetch channel NPCs:', fetchError)
+      if (mounted.current) setError(fetchError)
     } else if (mounted.current) {
       setNpcs(data || [])
     }
@@ -102,5 +105,5 @@ export function useChannelNpcs(channelId: string | undefined) {
     return true
   }, [refetch])
 
-  return { npcs, loading, refetch, addNpc, createNpc, renameNpc, repictureNpc, deleteNpc }
+  return { npcs, loading, error, refetch, addNpc, createNpc, renameNpc, repictureNpc, deleteNpc }
 }

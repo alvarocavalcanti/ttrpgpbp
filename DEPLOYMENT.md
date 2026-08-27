@@ -4,7 +4,7 @@ Checklist for setting up your own RoleByPost server. The app is a static fronten
 
 ## Prerequisites
 
-- [ ] Node.js 20+
+- [ ] Node.js 26+
 - [ ] npm
 - [ ] A [Supabase](https://supabase.com) account (free tier works)
 - [ ] A static hosting account (Cloudflare Pages, Netlify, Vercel, GitHub Pages, ...)

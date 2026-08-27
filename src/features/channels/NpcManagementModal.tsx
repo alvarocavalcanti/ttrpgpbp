@@ -22,7 +22,7 @@ interface NpcManagementModalProps {
 export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManagementModalProps) {
   useEscapeToClose(onClose)
   const { addToast } = useToast()
-  const { npcs, loading, createNpc, renameNpc, repictureNpc, deleteNpc } = useChannelNpcs(channelId)
+  const { npcs, loading, error, refetch, createNpc, renameNpc, repictureNpc, deleteNpc } = useChannelNpcs(channelId)
   const { uploadEnabled, settingsLoading, uploading, uploadImage } = useImageUpload(channelId)
 
   const [newName, setNewName] = useState('')
@@ -119,6 +119,12 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
           </button>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded flex justify-between items-center">
+            <span>Couldn't load your NPCs.</span>
+            <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>
+          </div>
+        )}
         {loading ? (
           <div className="animate-pulse space-y-4 py-1">
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>

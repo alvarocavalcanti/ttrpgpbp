@@ -184,8 +184,7 @@ describe('ThreadDetail', () => {
     })
   })
 
-  it('shows alert on reply failure', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+  it('shows an inline error on reply failure', async () => {
     const insertChain: any = { insert: vi.fn().mockResolvedValue({ data: null, error: { message: 'fail' } }) }
     vi.mocked(supabase.from).mockReturnValue(insertChain)
 
@@ -196,9 +195,8 @@ describe('ThreadDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith('Failed to send reply')
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't send your reply. Tap Send to retry.")
     })
-    alertSpy.mockRestore()
   })
 
   it('shows delete thread button for server admin', () => {

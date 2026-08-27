@@ -39,7 +39,7 @@ Full agent and contributor rules (including the git worktree workflow) live in [
 
 - TypeScript, React functional components, Tailwind CSS.
 - Run `npm run lint` (oxlint) before pushing.
-- Every change must have tests. Coverage minimum is 80% (goal is 100%); a PR that lowers coverage will fail CI.
+- Every change must have tests. Coverage minimum is 80% for lines, functions, and statements, and 79% for branches (goal is 100%); a PR that lowers coverage will fail CI.
 
 ## Database changes
 
