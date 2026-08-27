@@ -9,6 +9,7 @@ interface PushEventLike {
 
 let pushHandler: (event: PushEventLike) => void
 let messageHandler: ((event: any) => void) | undefined
+let notificationClickHandler: ((event: any) => void) | undefined
 
 function dispatchPush(payload: Record<string, unknown>) {
   const waitUntil = vi.fn()
@@ -20,6 +21,15 @@ function dispatchMessage(payload: unknown) {
   const waitUntil = vi.fn((p: Promise<unknown>) => p)
   messageHandler?.({ data: payload, waitUntil })
   return waitUntil
+}
+
+function dispatchNotificationClick(data: unknown, clients: { url: string; focus?: ReturnType<typeof vi.fn> }[]) {
+  const close = vi.fn()
+  const waitUntil = vi.fn((p: Promise<unknown>) => p)
+  const matchAll = vi.fn().mockResolvedValue(clients)
+  Object.defineProperty(self, 'clients', { value: { matchAll, openWindow: vi.fn().mockResolvedValue(undefined) }, configurable: true })
+  notificationClickHandler?.({ notification: { close, data }, waitUntil })
+  return { close, waitUntil, matchAll }
 }
 
 describe('sw push handler badge', () => {
@@ -37,6 +47,8 @@ describe('sw push handler badge', () => {
     pushHandler = push[1] as (event: PushEventLike) => void
     const message = addEventListener.mock.calls.find(([type]) => type === 'message')
     if (message) messageHandler = message[1] as (event: any) => void
+    const click = addEventListener.mock.calls.find(([type]) => type === 'notificationclick')
+    if (click) notificationClickHandler = click[1] as (event: any) => void
   })
 
   beforeEach(() => {
@@ -108,6 +120,7 @@ describe('sw message handler closes channel notifications', () => {
     getNotifications = vi.fn().mockResolvedValue([
       { data: { url: '/channel/c1' }, close },
       { data: { url: '/channel/c1/extra' }, close },
+      { data: { url: '/channel/c10' }, close },
       { data: { url: '/channel/c2' }, close },
       { data: { url: '/' }, close },
     ])
@@ -118,12 +131,13 @@ describe('sw message handler closes channel notifications', () => {
     })
   })
 
-  it('closes only the notifications for the given channel', async () => {
+  it('closes only the notifications for the exact channel path', async () => {
     const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
     await waitUntil.mock.calls[0][0]
 
     expect(getNotifications).toHaveBeenCalled()
-    expect(close).toHaveBeenCalledTimes(2)
+    // Exact pathname match: /channel/c1 only, not /channel/c1/extra or /channel/c10.
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   it('ignores messages without a channelId', async () => {
@@ -136,5 +150,22 @@ describe('sw message handler closes channel notifications', () => {
     const waitUntil = dispatchMessage({ type: 'SOMETHING_ELSE', channelId: 'c1' })
     expect(waitUntil).not.toHaveBeenCalled()
     expect(getNotifications).not.toHaveBeenCalled()
+  })
+})
+
+describe('sw notificationclick focuses the exact channel', () => {
+  it('focuses a client whose path matches the notification url', async () => {
+    const focus = vi.fn()
+    const { waitUntil } = dispatchNotificationClick({ url: '/channel/c1' }, [{ url: 'https://app.example/channel/c1', focus }])
+    await waitUntil.mock.calls[0][0]
+    expect(focus).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not focus a client on a different-but-prefixed channel', async () => {
+    const focus = vi.fn()
+    const { waitUntil, matchAll } = dispatchNotificationClick({ url: '/channel/c1' }, [{ url: 'https://app.example/channel/c10', focus }])
+    await waitUntil.mock.calls[0][0]
+    expect(focus).not.toHaveBeenCalled()
+    expect(matchAll).toHaveBeenCalled()
   })
 })
