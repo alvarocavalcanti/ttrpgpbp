@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
-import { isAuthorizedCleanupRequest, listAllObjects, runCleanup, type ListedImage, type ListedObject } from "./logic.ts"
+import { isAuthorizedCleanupRequest, listChannelImages, runCleanup, type ListedObject } from "./logic.ts"
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -48,8 +48,6 @@ serve(async (req) => {
         return Number(data?.value ?? 0)
       },
       listImages: async () => {
-        const candidates: ListedImage[] = []
-
         // storage.list returns { data, error }; adapt to the pure helper's
         // array shape, then walk each channel folder (the object path's first
         // segment) in turn, paginating past the 1000-object cap.
@@ -59,19 +57,7 @@ serve(async (req) => {
           return (data ?? []) as ListedObject[]
         }
 
-        const channelDirs = await listAllObjects(listBucket, "")
-
-        for (const dir of channelDirs) {
-          if (!dir.id) continue
-          const files = await listAllObjects(listBucket, dir.name)
-          for (const file of files) {
-            candidates.push({
-              path: `${dir.name}/${file.name}`,
-              lastModified: String(file.metadata?.lastModified ?? ""),
-            })
-          }
-        }
-        return candidates
+        return listChannelImages(listBucket)
       },
       auditBatch: async ({ runId, retentionDays, cutoffAt, objectPaths }) => {
         const { data, error } = await client
