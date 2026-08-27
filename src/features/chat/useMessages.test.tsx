@@ -767,9 +767,12 @@ describe('useMessages', () => {
     const mockLimit = vi.fn()
       .mockResolvedValueOnce({ data: initial, error: null })
       .mockResolvedValueOnce({ data: older, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    // eq() must satisfy both the initial fetch (order) and loadOlder (lt).
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder, lt: vi.fn().mockReturnValue({ order: mockOrder }) })
+    const mockOrder = vi.fn()
+    mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    // eq() must satisfy both the initial fetch (order) and loadOlder (or),
+    // which now uses a composite (created_at, id) cursor.
+    const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
     mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
     mockChannels()
 
@@ -787,5 +790,6 @@ describe('useMessages', () => {
     expect(result.current.messages).toHaveLength(51)
     expect(result.current.messages[0].id).toBe('m-old')
     expect(result.current.hasMore).toBe(false)
+    expect(mockOr).toHaveBeenCalledWith('created_at.lt.2023-01-01T00:00:00Z,and(created_at.eq.2023-01-01T00:00:00Z,id.lt.m0)')
   })
 })

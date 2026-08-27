@@ -317,18 +317,18 @@ export function useMessages(channelId: string | undefined) {
     setLoadingOlder(true)
     const oldest = messages[0]
     try {
+      // Composite (created_at, id) cursor so two messages sharing the exact
+      // created_at at the page boundary can't straddle or skip.
       const { data, error } = await supabase
         .from('messages')
         .select(MESSAGE_SELECT)
         .eq('channel_id', channelId)
-        .lt('created_at', oldest.created_at)
+        .or(`created_at.lt.${oldest.created_at},and(created_at.eq.${oldest.created_at},id.lt.${oldest.id})`)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(PAGE_SIZE)
       if (error) throw error
 
-      // ponytail: created_at cursor; equal timestamps at the boundary could
-      // straddle pages. Microsecond precision makes it a non-issue in practice;
-      // an id-based cursor is the upgrade path if it ever bites.
       const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
       setMessages(prev => {
         const existing = new Set(prev.map(m => m.id))

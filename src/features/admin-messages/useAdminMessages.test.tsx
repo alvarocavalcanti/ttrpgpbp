@@ -1,0 +1,89 @@
+import { renderHook, waitFor, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useAdminMessages } from './useAdminMessages'
+import { supabase } from '../../lib/supabase'
+
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+    channel: vi.fn(),
+    removeChannel: vi.fn()
+  }
+}))
+
+const msg = (over: Record<string, unknown> = {}) => ({
+  id: 'm1',
+  thread_id: 'thread-1',
+  sender_id: 'u1',
+  content: 'hello',
+  is_deleted: false,
+  created_at: '2026-08-01T00:00:00Z',
+  updated_at: '2026-08-01T00:00:00Z',
+  sender: [{ display_name: 'Admin', avatar_url: null }],
+  ...over
+})
+
+function makeChain({ limitData, limitError, orData, orError }: { limitData?: any, limitError?: any, orData?: any, orError?: any }) {
+  const mockOr = vi.fn()
+  const mockLimit = vi.fn()
+  const mockOrder = vi.fn()
+  const mockOrLimit = vi.fn()
+  const chain = { order: mockOrder, or: mockOr, limit: mockLimit }
+  mockOrder.mockReturnValue(chain)
+  mockOr.mockReturnValue({ limit: mockOrLimit })
+  if (limitError) mockLimit.mockResolvedValueOnce({ data: null, error: limitError })
+  else mockLimit.mockResolvedValue({ data: limitData ?? [], error: null })
+  mockOrLimit.mockResolvedValue({ data: orData ?? [], error: orError ?? null })
+  return { chain, mockOrder, mockOr, mockLimit }
+}
+
+describe('useAdminMessages', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(supabase.channel).mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn()
+    } as any)
+  })
+
+  it('fetches messages newest-first and displays them ascending', async () => {
+    const { chain, mockLimit } = makeChain({ limitData: [msg({ id: 'm2', created_at: '2026-08-02T00:00:00Z' }), msg({ id: 'm1', created_at: '2026-08-01T00:00:00Z' })] })
+    const eq = vi.fn().mockReturnValue(chain)
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.messages.map(m => m.id)).toEqual(['m1', 'm2'])
+    expect(result.current.messages[0].sender).toEqual({ display_name: 'Admin', avatar_url: null })
+    expect(mockLimit).toHaveBeenCalled()
+  })
+
+  it('prepends older messages on loadMore with a cursor', async () => {
+    const firstPage = Array.from({ length: 50 }, (_, i) => msg({ id: `m${i}`, created_at: `2026-08-01T00:00:0${i % 10}Z` }))
+    const { chain, mockOr } = makeChain({ limitData: firstPage, orData: [msg({ id: 'old', created_at: '2026-07-31T00:00:00Z' })] })
+    const eq = vi.fn().mockReturnValue(chain)
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    await waitFor(() => expect(result.current.hasMore).toBe(true))
+
+    await act(async () => { await result.current.loadMore() })
+
+    expect(result.current.messages).toHaveLength(51)
+    expect(result.current.messages[0].id).toBe('old')
+    expect(mockOr).toHaveBeenCalled()
+  })
+
+  it('surfaces a fetch error', async () => {
+    const { chain } = makeChain({ limitError: new Error('boom') })
+    const eq = vi.fn().mockReturnValue(chain)
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.error).toEqual(new Error('boom'))
+    expect(result.current.messages).toHaveLength(0)
+  })
+})

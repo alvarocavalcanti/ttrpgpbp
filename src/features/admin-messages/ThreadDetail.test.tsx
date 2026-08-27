@@ -100,6 +100,23 @@ describe('ThreadDetail', () => {
     expect(screen.getByText('Hello world')).toBeInTheDocument()
   })
 
+  it('calls loadMore when Load earlier messages is clicked', () => {
+    const loadMore = vi.fn()
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false, hasMore: true, loadMore } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    fireEvent.click(screen.getByText('Load earlier messages'))
+    expect(loadMore).toHaveBeenCalled()
+  })
+
+  it('shows error banner and retries via refetch', () => {
+    const refetch = vi.fn()
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [], loading: false, error: new Error('boom'), refetch } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(screen.getByText("Couldn't load messages.")).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Retry'))
+    expect(refetch).toHaveBeenCalled()
+  })
+
   it('renders deleted message placeholder', () => {
     const deleted: Message = { ...mockMessage, is_deleted: true, content: '' }
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [deleted], loading: false } as any)
