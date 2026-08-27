@@ -70,8 +70,10 @@ describe('useAdminThreads', () => {
     expect(mockLimit).toHaveBeenCalled()
   })
 
-  it('sets hasMore and prepends older threads on loadMore', async () => {
-    const firstPage = Array.from({ length: 50 }, (_, i) => row({ id: `t${i}`, last_message_at: `2026-08-01T00:00:${i}Z` }))
+  it('appends older threads and uses a composite cursor at the same-timestamp boundary', async () => {
+    // Newest-first descending page where every row shares last_message_at, so
+    // ordering falls back to id DESC (t49 newest … t0 oldest).
+    const firstPage = Array.from({ length: 50 }, (_, i) => row({ id: `t${49 - i}`, last_message_at: '2026-08-01T00:00:00Z' }))
     const { chain, mockOr } = makeChain({ limitData: firstPage, orData: [row({ id: 'old', last_message_at: '2026-07-31T00:00:00Z' })] })
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue(chain) } as any)
 
@@ -81,8 +83,8 @@ describe('useAdminThreads', () => {
     await act(async () => { await result.current.loadMore() })
 
     expect(result.current.threads).toHaveLength(51)
-    expect(result.current.threads[0].id).toBe('old')
-    expect(mockOr).toHaveBeenCalled()
+    expect(result.current.threads[50].id).toBe('old')
+    expect(mockOr).toHaveBeenCalledWith('last_message_at.lt.2026-08-01T00:00:00Z,and(last_message_at.eq.2026-08-01T00:00:00Z,id.lt.t0)')
   })
 
   it('surfaces a fetch error', async () => {

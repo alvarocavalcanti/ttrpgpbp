@@ -18,7 +18,7 @@ function formatThread(row: Record<string, unknown>): Thread {
 
 // Cursor pagination over (last_message_at, id) so the thread list keeps
 // working past PostgREST's 1000-row cap and equal timestamps at the page
-// boundary can't straddle pages.
+// boundary can't straddle pages. Newest-first display; older pages append.
 export function useAdminThreads() {
   const { user } = useAuth()
   const [threads, setThreads] = useState<Thread[]>([])
@@ -38,14 +38,16 @@ export function useAdminThreads() {
       .order('last_message_at', { ascending: false })
       .order('id', { ascending: false })
 
-  const applyPage = useCallback((rows: Record<string, unknown>[], reset: boolean) => {
+  // Applies the newest page (newest-first). `reset` replaces the list (first
+  // load); otherwise the newest rows merge by id and older cached rows stay at
+  // the tail, so a realtime refresh or Retry keeps pages the user loaded.
+  const applyNewestPage = useCallback((rows: Record<string, unknown>[], reset: boolean) => {
+    const page = rows.map(formatThread)
     setThreads(prev => {
-      const page = rows.map(formatThread)
-      const existing = new Set(prev.map(t => t.id))
-      const merged = reset
-        ? page
-        : [...page.filter(t => !existing.has(t.id)), ...prev]
-      return merged
+      if (reset) return page
+      const pageIds = new Set(page.map(t => t.id))
+      const retained = prev.filter(t => !pageIds.has(t.id))
+      return [...page, ...retained]
     })
     setHasMore(rows.length === PAGE_SIZE)
   }, [])
@@ -57,10 +59,10 @@ export function useAdminThreads() {
     if (queryError) {
       setError(queryError)
     } else {
-      applyPage(data as Record<string, unknown>[], true)
+      applyNewestPage(data as Record<string, unknown>[], true)
     }
     setLoading(false)
-  }, [applyPage])
+  }, [applyNewestPage])
 
   useEffect(() => {
     if (!user?.id) return
@@ -81,16 +83,22 @@ export function useAdminThreads() {
     if (loading || !hasMore || threads.length === 0) return
     const oldest = threads[threads.length - 1]
     setLoading(true)
+    setError(null)
     const { data, error: queryError } = await baseQuery()
       .or(`last_message_at.lt.${oldest.last_message_at},and(last_message_at.eq.${oldest.last_message_at},id.lt.${oldest.id})`)
       .limit(PAGE_SIZE)
     if (queryError) {
       setError(queryError)
     } else {
-      applyPage(data as Record<string, unknown>[], false)
+      const older = (data as Record<string, unknown>[]).map(formatThread)
+      setThreads(prev => {
+        const existing = new Set(prev.map(t => t.id))
+        return [...prev, ...older.filter(t => !existing.has(t.id))]
+      })
+      setHasMore((data as Record<string, unknown>[]).length === PAGE_SIZE)
     }
     setLoading(false)
-  }, [loading, hasMore, threads, applyPage])
+  }, [loading, hasMore, threads])
 
   return { threads, loading, hasMore, loadMore, refetch: fetchFirstPage, error }
 }

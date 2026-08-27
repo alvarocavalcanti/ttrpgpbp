@@ -108,6 +108,33 @@ describe('ThreadDetail', () => {
     expect(loadMore).toHaveBeenCalled()
   })
 
+  it('keeps the viewport anchored when loading earlier messages', async () => {
+    const olderMsg = { ...mockMessage, id: 'old' }
+    let rerenderFn: (ui: React.ReactElement) => void
+    let scroller: HTMLElement
+    const holder: any = {
+      messages: [mockMessage], loading: false, hasMore: true,
+      loadMore: vi.fn(async () => {
+        // Prepending older messages grows the scroll container.
+        Object.defineProperty(scroller, 'scrollHeight', { value: 200, configurable: true })
+        holder.messages = [olderMsg, mockMessage]
+        rerenderFn(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+      }),
+      refetch: vi.fn(), error: null
+    }
+    vi.mocked(useAdminMessages).mockReturnValue(holder)
+    const { container, rerender } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    rerenderFn = rerender
+    scroller = container.querySelector('.overflow-y-auto') as HTMLElement
+    Object.defineProperty(scroller, 'scrollHeight', { value: 100, configurable: true })
+    Object.defineProperty(scroller, 'scrollTop', { value: 50, configurable: true, writable: true })
+
+    fireEvent.click(screen.getByText('Load earlier messages'))
+
+    // Viewport restored to the pre-load position instead of jumping to bottom.
+    await waitFor(() => expect(scroller.scrollTop).toBe(150))
+  })
+
   it('shows error banner and retries via refetch', () => {
     const refetch = vi.fn()
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [], loading: false, error: new Error('boom'), refetch } as any)

@@ -14,6 +14,10 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   const [replyContent, setReplyContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Set to the container's height before a load-more prepend; the effect that
+  // normally scrolls to the bottom instead restores the viewport on that page.
+  const loadMoreHeightRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!thread.id) return
@@ -22,8 +26,22 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   }, [thread.id, messages.length])
 
   useEffect(() => {
+    if (loadMoreHeightRef.current !== null) {
+      // Older messages were prepended; keep the viewport on the previously
+      // visible content instead of jumping to the bottom.
+      const el = scrollRef.current
+      if (el) el.scrollTop += el.scrollHeight - loadMoreHeightRef.current
+      loadMoreHeightRef.current = null
+      return
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  const handleLoadMore = async () => {
+    const el = scrollRef.current
+    if (el) loadMoreHeightRef.current = el.scrollHeight
+    await loadMore()
+  }
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,7 +90,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
         {error && (
           <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
             <span>Couldn't load messages.</span>
@@ -80,7 +98,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
           </div>
         )}
         {hasMore && (
-          <button type="button" onClick={() => loadMore()} className="w-full p-2 text-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700">
+          <button type="button" onClick={() => void handleLoadMore()} className="w-full p-2 text-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700">
             {loading ? 'Loading...' : 'Load earlier messages'}
           </button>
         )}

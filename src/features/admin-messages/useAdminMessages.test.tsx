@@ -86,4 +86,49 @@ describe('useAdminMessages', () => {
     expect(result.current.error).toEqual(new Error('boom'))
     expect(result.current.messages).toHaveLength(0)
   })
+
+  it('keeps older pages loaded by loadMore when refreshed', async () => {
+    const firstPage = Array.from({ length: 50 }, (_, i) => msg({ id: `m${i}`, created_at: `2026-08-01T00:00:0${i % 10}Z` }))
+    const { chain } = makeChain({ limitData: firstPage, orData: [msg({ id: 'old', created_at: '2026-07-31T00:00:00Z' })] })
+    const eq = vi.fn().mockReturnValue(chain)
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    await waitFor(() => expect(result.current.hasMore).toBe(true))
+
+    await act(async () => { await result.current.loadMore() })
+    expect(result.current.messages).toHaveLength(51)
+
+    // A refresh (realtime event or Retry) returns the same newest page; the
+    // older page loaded by loadMore must survive instead of being reset.
+    await act(async () => { await result.current.refetch() })
+
+    expect(result.current.messages).toHaveLength(51)
+    expect(result.current.messages[0].id).toBe('old')
+  })
+
+  it('ignores stale results from a previous thread', async () => {
+    let resolveA: ((v: { data: unknown[]; error: null }) => void) | undefined
+    const deferredA = new Promise<{ data: unknown[]; error: null }>(r => { resolveA = r })
+    const orderA = vi.fn()
+    const chainA = { order: orderA, or: vi.fn(), limit: vi.fn().mockReturnValue(deferredA) }
+    orderA.mockReturnValue(chainA)
+    const orderB = vi.fn()
+    const chainB = { order: orderB, or: vi.fn(), limit: vi.fn().mockResolvedValue({ data: [msg({ id: 'b1' })], error: null }) }
+    orderB.mockReturnValue(chainB)
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn((...args: unknown[]) => (args[1] === 'a' ? chainA : chainB))
+      })
+    } as any)
+
+    const { result, rerender } = renderHook((tid: string) => useAdminMessages(tid), { initialProps: 'a' })
+    rerender('b')
+    await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['b1']))
+
+    // Thread A's slow request resolves after B; its result must be discarded.
+    await act(async () => { resolveA?.({ data: [msg({ id: 'a1' })], error: null }) })
+
+    expect(result.current.messages.map(m => m.id)).toEqual(['b1'])
+  })
 })
