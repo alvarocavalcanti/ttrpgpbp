@@ -155,6 +155,9 @@ describe('NpcManagementModal', () => {
     mockHook({ npcs: [], error: new Error('boom'), refetch })
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={vi.fn()} onUpdate={vi.fn()} /></ToastProvider>)
     expect(screen.getByText("Couldn't load your NPCs.")).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    // Failed fetch must not masquerade as an empty roster.
+    expect(screen.queryByText(/No NPCs yet/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Retry'))
     expect(refetch).toHaveBeenCalled()
   })

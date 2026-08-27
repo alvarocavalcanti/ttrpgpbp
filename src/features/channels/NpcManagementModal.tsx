@@ -120,7 +120,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
         </div>
 
         {error && (
-          <div className="mb-4 p-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded flex justify-between items-center">
+          <div role="alert" className="mb-4 p-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded flex justify-between items-center">
             <span>Couldn't load your NPCs.</span>
             <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>
           </div>
@@ -132,7 +132,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
           </div>
         ) : (
           <>
-            {npcs.length === 0 ? (
+            {!error && npcs.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400 py-4">
                 No NPCs yet. Create one below, or speak as a new NPC from the composer.
               </p>

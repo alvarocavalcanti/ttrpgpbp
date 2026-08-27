@@ -14,7 +14,7 @@ export function useChannelNpcs(channelId: string | undefined) {
       if (mounted.current) setLoading(false)
       return
     }
-    setError(null)
+    if (mounted.current) setError(null)
     const { data, error: fetchError } = await supabase
       .from('channel_npcs')
       .select('*')
