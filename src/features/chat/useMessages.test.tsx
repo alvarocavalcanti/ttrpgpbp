@@ -20,7 +20,7 @@ vi.mock('../../lib/supabase', () => ({
 // Builds a mock `from()` chain. For 'messages' it uses fetchBuilder, for
 // 'message_reactions' it returns an empty list (override with reactionsBuilder).
 function mockFrom({
-  fetchBuilder = () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+  fetchBuilder = () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
   reactionsBuilder = () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
   tableHandler,
 }: {
@@ -48,6 +48,14 @@ function mockChannels() {
     return { on } as any
   })
   return { callbacks, emitStatus: (status: string) => statusCb?.(status) }
+}
+
+// Order mock that chains for the composite (created_at, id) sort so the
+// initial fetch and loadOlder both tolerate the two .order() calls.
+function makeOrder(limit: any) {
+  const order = vi.fn()
+  order.mockReturnValue({ order, limit })
+  return order
 }
 
 // A full valid message row as served by PostgREST/Realtime. Callers override
@@ -79,7 +87,7 @@ describe('useMessages', () => {
 
   it('fetches messages and subscribes', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ sender: [{ display_name: 'Hero' }] })], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
@@ -101,7 +109,7 @@ describe('useMessages', () => {
     const gapTail = baseMessage({ id: 'newest', created_at: '2023-01-01T00:00:09.999Z' })
 
     const mockInitialLimit = vi.fn().mockResolvedValue({ data: [initial], error: null })
-    const mockDescOrder = vi.fn().mockReturnValue({ limit: mockInitialLimit })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
     const mockCatchLimit = vi.fn()
       .mockResolvedValueOnce({ data: gapPage1, error: null })
       .mockResolvedValueOnce({ data: [gapTail], error: null })
@@ -136,7 +144,7 @@ describe('useMessages', () => {
     const mockLimit = vi.fn()
       .mockResolvedValueOnce({ data: [baseMessage({ id: 'm1', content: 'from c1' })], error: null })
       .mockResolvedValueOnce({ data: [baseMessage({ id: 'm2', content: 'from c2' })], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     mockChannels()
 
@@ -161,7 +169,7 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
@@ -190,7 +198,7 @@ describe('useMessages', () => {
   it('marks a message unconfirmed when the RPC returns no id', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
@@ -211,7 +219,7 @@ describe('useMessages', () => {
 
   it('handles fetch error gracefully', async () => {
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') }) }) }) })
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })) }) })
     })
     mockChannels()
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -227,7 +235,7 @@ describe('useMessages', () => {
 
   it('fetches messages using the reply_message computed relationship', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ reply: { id: 'm0', content: '', sender_id: null, is_deleted: false, type: 'regular' } })], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockImplementation((table: string) => {
@@ -249,7 +257,7 @@ describe('useMessages', () => {
 
   it('handles realtime INSERT with joins', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: baseMessage({ id: 'm3', sender: { display_name: 'JoinedUser' } }) })
 
     mockFrom({
@@ -271,7 +279,7 @@ describe('useMessages', () => {
 
   it('handles realtime INSERT with joins when data is null', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: null })
 
     mockFrom({
@@ -292,7 +300,7 @@ describe('useMessages', () => {
 
   it('drops malformed realtime INSERT and UPDATE payloads', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'valid' })], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
@@ -317,7 +325,7 @@ describe('useMessages', () => {
       data: [baseMessage({ id: 'm1', content: 'hello', sender: { display_name: 'Hero', avatar_url: null } })],
       error: null,
     })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
@@ -339,7 +347,7 @@ describe('useMessages', () => {
 
   it('handles realtime INSERT without joins', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
@@ -358,7 +366,7 @@ describe('useMessages', () => {
 
   it('handles realtime UPDATE and DELETE', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'hello' })], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
@@ -384,7 +392,7 @@ describe('useMessages', () => {
     const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
 
     mockFrom({
       fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }),
@@ -426,9 +434,9 @@ describe('useMessages', () => {
   it('sends reply_to when replying', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -450,9 +458,9 @@ describe('useMessages', () => {
   it('sends NPC messages through the send_message command', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -479,7 +487,7 @@ describe('useMessages', () => {
 
   it('handles reactions fetch error without failing the view', async () => {    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: null, error: new Error('Reactions DB Error') }) })
     })
     mockChannels()
@@ -501,7 +509,7 @@ describe('useMessages', () => {
       { id: 'r3', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '🔥', created_at: '' },
     ]
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: reactionsData, error: null }) })
     })
     mockChannels()
@@ -525,7 +533,7 @@ describe('useMessages', () => {
       { id: 'r2', message_id: 'm1', emoji: '🔥' },
     ]
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: reactionsData, error: null }) })
     })
     mockChannels()
@@ -543,7 +551,7 @@ describe('useMessages', () => {
 
   it('updates reactions on realtime INSERT and DELETE', async () => {
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     const { callbacks } = mockChannels()
 
@@ -568,10 +576,10 @@ describe('useMessages', () => {
     const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
 
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
         if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
       }
     })
     mockChannels()
@@ -594,9 +602,9 @@ describe('useMessages', () => {
   it('updates active_player_ids when sending a message', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -618,9 +626,9 @@ describe('useMessages', () => {
   it('sends a dice roll through the roll_dice command', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -653,9 +661,9 @@ describe('useMessages', () => {
   it('passes the DC and reply target for check rolls', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -682,9 +690,9 @@ describe('useMessages', () => {
   it('rolls without a reply target or DC when omitted', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -711,9 +719,9 @@ describe('useMessages', () => {
   it('surfaces roll_dice errors', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: new Error('Too many dice') })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -732,7 +740,7 @@ describe('useMessages', () => {
   it('exposes hasMore when the initial page is full', async () => {
     const full = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
     const mockLimit = vi.fn().mockResolvedValue({ data: full, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     mockChannels()
 
@@ -748,7 +756,7 @@ describe('useMessages', () => {
   it('does not expose hasMore when the initial page is partial', async () => {
     const partial = [baseMessage({ id: 'm1', content: 'only one' })]
     const mockLimit = vi.fn().mockResolvedValue({ data: partial, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
     mockChannels()
 
@@ -791,5 +799,22 @@ describe('useMessages', () => {
     expect(result.current.messages[0].id).toBe('m-old')
     expect(result.current.hasMore).toBe(false)
     expect(mockOr).toHaveBeenCalledWith('created_at.lt.2023-01-01T00:00:00Z,and(created_at.eq.2023-01-01T00:00:00Z,id.lt.m0)')
+  })
+
+  it('orders the initial page by created_at desc and id desc', async () => {
+    const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockOrder = vi.fn()
+    mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+    mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // The initial page must share loadOlder's composite order so a
+    // same-timestamp boundary cuts deterministically and nothing is skipped.
+    expect(mockOrder).toHaveBeenNthCalledWith(1, 'created_at', { ascending: false })
+    expect(mockOrder).toHaveBeenNthCalledWith(2, 'id', { ascending: false })
   })
 })

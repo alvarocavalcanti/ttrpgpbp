@@ -120,6 +120,7 @@ export function useMessages(channelId: string | undefined) {
           .select(MESSAGE_SELECT)
           .eq('channel_id', channelId as string)
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(PAGE_SIZE)
 
         if (fetchError) throw fetchError

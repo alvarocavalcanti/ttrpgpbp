@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Message } from './types'
 
@@ -19,6 +19,9 @@ export function useAdminMessages(threadId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  // Bumped on threadId change so a slow in-flight request for an old thread
+  // can't overwrite a newer thread's messages when it resolves.
+  const generationRef = useRef(0)
 
   const baseQuery = () =>
     supabase
@@ -31,37 +34,42 @@ export function useAdminMessages(threadId: string | undefined) {
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
 
-  const applyPage = useCallback((rows: Record<string, unknown>[], reset: boolean) => {
+  // Applies the newest page. `reset` replaces the list (first load / thread
+  // change); otherwise the newest rows merge by id over the cached list so a
+  // realtime refresh or Retry keeps older pages the user already loaded.
+  const applyNewestPage = useCallback((rows: Record<string, unknown>[], reset: boolean) => {
+    const fetched = rows.map(formatMessage)
     setMessages(prev => {
-      const page = rows.map(formatMessage)
-      const existing = new Set(prev.map(m => m.id))
-      if (reset) return page.reverse()
-      const older = page.filter(m => !existing.has(m.id)).reverse()
-      return [...older, ...prev]
+      if (reset) return fetched.reverse()
+      const fetchedIds = new Set(fetched.map(m => m.id))
+      const retained = prev.filter(m => !fetchedIds.has(m.id))
+      return [...retained, ...fetched.reverse()]
     })
     setHasMore(rows.length === PAGE_SIZE)
   }, [])
 
-  const fetchFirstPage = useCallback(async () => {
+  const fetchFirstPage = useCallback(async (reset: boolean, generation: number) => {
     if (!threadId) return
     setLoading(true)
     setError(null)
     const { data, error: queryError } = await baseQuery().limit(PAGE_SIZE)
+    if (generation !== generationRef.current) return
     if (queryError) {
       setError(queryError)
     } else {
-      applyPage(data as Record<string, unknown>[], true)
+      applyNewestPage(data as Record<string, unknown>[], reset)
     }
     setLoading(false)
-  }, [threadId, applyPage])
+  }, [threadId, applyNewestPage])
 
   useEffect(() => {
-    void fetchFirstPage()
+    const generation = ++generationRef.current
+    void fetchFirstPage(true, generation)
 
     if (!threadId) return
 
     const channel = supabase.channel(`admin_messages_${threadId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_messages', filter: `thread_id=eq.${threadId}` }, () => void fetchFirstPage())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_messages', filter: `thread_id=eq.${threadId}` }, () => void fetchFirstPage(false, generation))
       .subscribe()
 
     return () => {
@@ -73,16 +81,24 @@ export function useAdminMessages(threadId: string | undefined) {
     if (loading || !hasMore || messages.length === 0) return
     const oldest = messages[0]
     setLoading(true)
+    setError(null)
     const { data, error: queryError } = await baseQuery()
       .or(`created_at.lt.${oldest.created_at},and(created_at.eq.${oldest.created_at},id.lt.${oldest.id})`)
       .limit(PAGE_SIZE)
     if (queryError) {
       setError(queryError)
     } else {
-      applyPage(data as Record<string, unknown>[], false)
+      const older = (data as Record<string, unknown>[]).map(formatMessage).reverse()
+      setMessages(prev => {
+        const existing = new Set(prev.map(m => m.id))
+        return [...older.filter(m => !existing.has(m.id)), ...prev]
+      })
+      setHasMore((data as Record<string, unknown>[]).length === PAGE_SIZE)
     }
     setLoading(false)
-  }, [loading, hasMore, messages, applyPage])
+  }, [loading, hasMore, messages])
 
-  return { messages, loading, hasMore, loadMore, refetch: fetchFirstPage, error }
+  const refetch = useCallback(() => void fetchFirstPage(false, generationRef.current), [fetchFirstPage])
+
+  return { messages, loading, hasMore, loadMore, refetch, error }
 }
