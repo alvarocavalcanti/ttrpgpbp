@@ -55,6 +55,47 @@ describe('ThreadList', () => {
     expect(screen.getByText('No messages yet.')).toBeInTheDocument()
   })
 
+  it('shows a spinner during initial load', () => {
+    vi.mocked(useAdminThreads).mockReturnValue({ threads: [], loading: true } as any)
+
+    const { container } = render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+  })
+
+  it('shows an inline spinner while refetching with existing threads', () => {
+    vi.mocked(useAdminThreads).mockReturnValue({
+      threads: [{
+        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
+        created_by: 'admin-1', last_message_at: new Date().toISOString(),
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        creator: { display_name: 'Admin', avatar_url: null },
+        unread: false
+      }],
+      loading: true
+    } as any)
+
+    const { container } = render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(screen.getByText('Announcement')).toBeInTheDocument()
+  })
+
+  it('shows a spinner in the load-more button while loading more', () => {
+    vi.mocked(useAdminThreads).mockReturnValue({
+      threads: [{
+        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
+        created_by: 'admin-1', last_message_at: new Date().toISOString(),
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        creator: { display_name: 'Admin', avatar_url: null },
+        unread: false
+      }],
+      loading: true,
+      hasMore: true
+    } as any)
+
+    const { container } = render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+  })
+
   it('shows thread list when threads exist', () => {
     vi.mocked(useAdminThreads).mockReturnValue({
       threads: [{

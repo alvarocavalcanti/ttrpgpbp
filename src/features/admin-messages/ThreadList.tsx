@@ -10,7 +10,13 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
   const { isServerAdmin } = useIsServerAdmin()
   const [showNewModal, setShowNewModal] = useState(false)
 
-  if (loading && threads.length === 0) return <div className="p-4 w-full text-gray-500">Loading threads...</div>
+  if (loading && threads.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full w-full bg-white dark:bg-gray-800">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
@@ -28,6 +34,11 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
       </div>
 
       <div className="flex-1 overflow-y-auto">
+        {loading && threads.length > 0 && (
+          <div className="flex justify-center p-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 dark:border-indigo-500" aria-label="Loading"></div>
+          </div>
+        )}
         {error && (
           <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
             <span>Couldn't load conversations.</span>
@@ -78,8 +89,13 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
           </div>
         )}
         {hasMore && (
-          <button type="button" onClick={() => loadMore()} className="w-full p-3 text-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700">
-            {loading ? 'Loading...' : 'Load more'}
+          <button type="button" onClick={() => loadMore()} className="w-full p-3 text-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-2">
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
+                Loading...
+              </>
+            ) : 'Load more'}
           </button>
         )}
       </div>
