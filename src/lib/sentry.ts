@@ -15,8 +15,13 @@ export function scrubSentryEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
   }
   for (const breadcrumb of event.breadcrumbs ?? []) {
     const data = breadcrumb.data as Record<string, unknown> | undefined
-    if (data && typeof data.url === 'string') {
-      data.url = scrubUrl(data.url)
+    if (!data) continue
+    // Navigation breadcrumbs carry URLs as data.from/data.to, all other
+    // URL-bearing breadcrumbs as data.url.
+    for (const key of ['url', 'from', 'to'] as const) {
+      if (typeof data[key] === 'string') {
+        data[key] = scrubUrl(data[key] as string)
+      }
     }
   }
   return event

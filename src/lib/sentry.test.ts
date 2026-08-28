@@ -33,16 +33,19 @@ describe('sentry', () => {
       expect(scrubSentryEvent(event).request?.url).toBe('/lobby')
     })
 
-    it('strips query from breadcrumb urls', () => {
+    it('strips query from navigation breadcrumb from/to urls', () => {
       const event = {
         breadcrumbs: [
+          { category: 'navigation', data: { from: 'https://app.example/lobby?search=dragon', to: '/channel/abc?x=1&y=2#frag' } },
           { data: { url: 'https://app.example/lobby?search=dragon' } },
           { data: { unrelated: 42 } },
         ],
       } as unknown as FakeEvent
       const result = scrubSentryEvent(event)
-      expect(result.breadcrumbs?.[0]?.data?.url).toBe('/lobby')
-      expect(result.breadcrumbs?.[1]?.data?.unrelated).toBe(42)
+      expect(result.breadcrumbs?.[0]?.data?.from).toBe('/lobby')
+      expect(result.breadcrumbs?.[0]?.data?.to).toBe('/channel/abc')
+      expect(result.breadcrumbs?.[1]?.data?.url).toBe('/lobby')
+      expect(result.breadcrumbs?.[2]?.data?.unrelated).toBe(42)
     })
 
     it('leaves events without urls untouched', () => {
