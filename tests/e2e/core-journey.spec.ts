@@ -39,6 +39,14 @@ test.describe('Core Journey', () => {
 
     // 3. Wait for redirect to Lobby (/)
     await page.waitForURL('/');
+
+    // A fresh session has never seen the changelog; dismiss the "What's New"
+    // dialog so it does not overlay the lobby and block the create button.
+    const whatsNew = page.getByRole('dialog', { name: "What's new" });
+    if (await whatsNew.isVisible().catch(() => false)) {
+      await whatsNew.getByRole('button', { name: 'Close' }).click();
+    }
+
     const createChannelFab = page.locator('[data-testid="create-channel-fab"]');
     await expect(createChannelFab).toBeVisible();
 
@@ -52,7 +60,7 @@ test.describe('Core Journey', () => {
 
     // 5. Verify redirect to the channel page
     await expect(page).toHaveURL(/\/channel\/.+/);
-    await expect(page.locator('header')).toContainText(channelName);
+    await expect(page.getByRole('heading', { name: channelName })).toBeVisible();
 
     // 6. Send a message
     const messageInput = page.getByPlaceholder(/Type a message.../);
@@ -64,6 +72,8 @@ test.describe('Core Journey', () => {
     await expect(page.getByText('Hello from E2E test!')).toBeVisible();
 
     // 7. Roll dice
+    const toggle = page.getByRole('button', { name: 'Toggle options' });
+    if (await toggle.isVisible().catch(() => false)) await toggle.click();
     const rollDiceBtn = page.getByRole('button', { name: /Roll Dice/i });
     await expect(rollDiceBtn).toBeVisible();
     await rollDiceBtn.click();
