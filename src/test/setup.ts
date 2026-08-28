@@ -3,13 +3,19 @@ import { beforeAll, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { server } from './mocks/server'
 
 // jsdom cannot navigate (or download); blob-download helpers call
-// anchor.click(), which jsdom turns into an unhandled
-// "Not implemented: navigation" error at teardown. Suppress the default
-// (navigation) while still notifying listeners: dispatch a click whose
-// canceled flag is already set, mirroring what clicking a download anchor does
-// in a real browser. Event-path clicks (react-router <Link> etc.) dispatch
-// through fireEvent/click() and are unaffected.
+// anchor.click() on anchors with a download attribute, which jsdom turns into
+// an unhandled "Not implemented: navigation" error at teardown. Suppress the
+// default only for download anchors (match a real browser, where clicking a
+// download link does not navigate) by dispatching a pre-cancelled click so
+// listeners still fire. Non-download anchors keep their native click — a
+// stray `element.click()` that would navigate is surfaced instead of masked.
+const nativeAnchorClick = HTMLAnchorElement.prototype.click
 HTMLAnchorElement.prototype.click = function click() {
+  const isDownload = this.hasAttribute('download')
+  if (!isDownload) {
+    nativeAnchorClick.call(this)
+    return
+  }
   const event = new MouseEvent('click', { bubbles: true, cancelable: true, composed: true })
   event.preventDefault()
   this.dispatchEvent(event)
