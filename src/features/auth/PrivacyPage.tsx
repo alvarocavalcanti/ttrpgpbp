@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { env } from '../../env'
 
 export function PrivacyPage() {
   return (
@@ -43,8 +44,23 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data Sharing &amp; Third Parties</h2>
           <p>
-            We do not sell, rent, or trade your personal information to third parties. We do not use your personal information for advertising or marketing. Your information is shared only with our infrastructure provider (Supabase) solely for hosting and data storage purposes.
+            We do not sell, rent, or trade your personal information to third parties. We do not use your personal information for advertising or marketing. Your information is shared only with the services below, and only for the purposes described:
           </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <span className="font-semibold">Supabase</span> — our hosting and database provider. We store your account and game data here so the app works.
+            </li>
+            {env.VITE_GA_MEASUREMENT_ID && (
+              <li>
+                <span className="font-semibold">Google Analytics</span> — anonymous page-view statistics so we understand which screens are used. We track the page address only, never your search terms, messages, or dice rolls.
+              </li>
+            )}
+            {env.VITE_SENTRY_DSN && (
+              <li>
+                <span className="font-semibold">Sentry</span> — error reports when something goes wrong, used only to find and fix bugs. These may include a brief screen recording of the session where the error occurred.
+              </li>
+            )}
+          </ul>
         </section>
 
         <section>
@@ -81,7 +97,7 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: August 20, 2026. This policy describes data handling for the Role by Post application. Contact the server
+          Last updated: August 28, 2026. This policy describes data handling for the Role by Post application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access.
         </p>
       </div>

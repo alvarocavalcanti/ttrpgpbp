@@ -41,7 +41,10 @@ export function initAnalytics(): void {
 }
 
 // Fires a page_view for SPA route changes. Guards against gtag being
-// unavailable (analytics disabled or script not yet loaded).
+// unavailable (analytics disabled or script not yet loaded). Only the
+// pathname is reported — the query string is stripped so search terms (e.g.
+// lobby search) never leave the device.
 export function trackPageView(pagePath: string): void {
-  push('event', 'page_view', { page_path: pagePath })
+  const pathname = pagePath.split('?')[0]
+  push('event', 'page_view', { page_path: pathname })
 }

@@ -21,7 +21,8 @@
   - **Download My Data** — exports profile, channel memberships (with channel names and character notes), authored messages (including authored whispers), dice rolls, reactions, and notification preferences as a downloadable JSON file
   - **Delete Account** — permanent erasure. Confirmation requires typing `DELETE`. Deletes the account and personal data (auth record, profile, memberships, dice rolls, reactions, preferences, push subscriptions); past messages are kept **anonymized** and the user's GM channels are **orphaned** for server-admin reclaim. The sole server admin cannot delete their own account.
   - **Privacy Policy & Terms of Service** links — publicly accessible `/privacy` and `/terms` pages detailing Google OAuth scopes (`email`, `profile`), Supabase data storage, access/erasure rights, user content license, and disclaimers
-- **Google Analytics** — optional anonymous page-view tracking via Google Analytics 4, enabled only when the `VITE_GA_MEASUREMENT_ID` build-time env var is set (self-hosted instances can leave it unset to disable analytics entirely)
+- **Google Analytics** — optional anonymous page-view tracking via Google Analytics 4, enabled only when the `VITE_GA_MEASUREMENT_ID` build-time env var is set (self-hosted instances can leave it unset to disable analytics entirely). Only the page path is reported — search strings are stripped and never leave the device
+- **Sentry** — optional error reporting (stack traces, browser tracing, and a screen replay captured only when an error occurs), enabled only when the `VITE_SENTRY_DSN` build-time env var is set. See `docs/OBSERVABILITY.md` for setup
 
 ## Channels & Lobby
 
