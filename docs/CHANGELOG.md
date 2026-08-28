@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Character notes in your data export** — the "Download My Data" file now includes the character notes you saved on each channel, so everything you wrote down comes out with the rest of your data.
 - **Security hardening** — players can no longer change who the active player is or suspend accounts unless they hold the right role, and channels without a Game Master are protected from edits. These protections keep every table fair.
 - **Standalone active-player control (GM-only)** — the channel sidebar's new **Active Player** item opens a list of the channel's players. Check one or more to name who is up next and save — no message needed — and the active player gets an "It's your turn" notification. The composer also shows a small chip for each active option (Scene, NPC, Whisper, Active Player) once the options panel is closed, so it's clear what's queued.
 - **Anonymous usage analytics** — the app now sends basic, anonymous page-view statistics to help the team understand which parts of the app are used. No personal data, messages, or rolls are ever tracked.

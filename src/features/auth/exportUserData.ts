@@ -7,6 +7,7 @@ export interface ChannelMembership {
   character_name: string
   character_avatar_url: string | null
   character_sheet_url: string | null
+  character_notes: string | null
   is_away: boolean
   is_blocked: boolean
   joined_at: string
@@ -64,7 +65,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .maybeSingle()
   const membershipsQuery = supabase
     .from('channel_members')
-    .select('channel_id, channel:channels(name), character_name, character_avatar_url, character_sheet_url, is_away, is_blocked, joined_at')
+    .select('channel_id, channel:channels(name), character_name, character_avatar_url, character_sheet_url, character_notes, is_away, is_blocked, joined_at')
     .eq('user_id', userId)
     .order('id', { ascending: true })
   const messagesQuery = supabase
@@ -110,6 +111,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
       character_name: m.character_name,
       character_avatar_url: m.character_avatar_url,
       character_sheet_url: m.character_sheet_url,
+      character_notes: m.character_notes,
       is_away: m.is_away,
       is_blocked: m.is_blocked,
       joined_at: m.joined_at,
