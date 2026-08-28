@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Thread } from './types'
 import { useAuth } from '../auth/useAuth'
@@ -25,6 +25,10 @@ export function useAdminThreads() {
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  // Bumped on every fetch start and on user change so a stale or overlapping
+  // in-flight request (from an earlier refresh or a previous user) can't
+  // overwrite newer threads/errors/loading state when it resolves.
+  const generationRef = useRef(0)
 
   const baseQuery = () =>
     supabase
@@ -53,9 +57,11 @@ export function useAdminThreads() {
   }, [])
 
   const fetchFirstPage = useCallback(async (reset: boolean) => {
+    const generation = ++generationRef.current
     setLoading(true)
     setError(null)
     const { data, error: queryError } = await baseQuery().limit(PAGE_SIZE)
+    if (generation !== generationRef.current) return
     if (queryError) {
       setError(queryError)
     } else {
@@ -70,7 +76,16 @@ export function useAdminThreads() {
     void fetchFirstPage(true)
 
     const channel = supabase.channel('admin_threads_list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_threads' }, () => void fetchFirstPage(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_threads' }, (payload) => {
+        // A DELETE refreshes nothing (the row is gone from the newest page and
+        // the merge would retain it), so drop the deleted id from the list.
+        if (payload.eventType === 'DELETE') {
+          const deletedId = (payload.old as { id?: string })?.id
+          if (deletedId) setThreads(prev => prev.filter(t => t.id !== deletedId))
+          return
+        }
+        void fetchFirstPage(false)
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_messages' }, () => void fetchFirstPage(false))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` }, () => void fetchFirstPage(false))
       .subscribe()
