@@ -9,6 +9,18 @@ interface PushEventLike {
 
 let pushHandler: (event: PushEventLike) => void
 let messageHandler: ((event: any) => void) | undefined
+let notificationClickHandler: ((event: any) => void) | undefined
+
+beforeAll(async () => {
+  const origAdd = self.addEventListener.bind(self)
+  const addEventListener = vi.fn(origAdd as unknown as (type: string, listener: unknown) => void)
+  Object.defineProperty(self, 'addEventListener', { value: addEventListener, configurable: true })
+  await import('./sw')
+  const find = (type: string) => addEventListener.mock.calls.find(([t]) => t === type)?.[1]
+  pushHandler = find('push') as (event: PushEventLike) => void
+  messageHandler = find('message') as ((event: any) => void) | undefined
+  notificationClickHandler = find('notificationclick') as ((event: any) => void) | undefined
+})
 
 function dispatchPush(payload: Record<string, unknown> | null, jsonImpl?: () => Record<string, unknown>) {
   const waitUntil = vi.fn()
@@ -25,22 +37,20 @@ function dispatchMessage(payload: unknown) {
   return waitUntil
 }
 
+function dispatchNotificationClick(data: unknown, clients: { url: string; focus?: ReturnType<typeof vi.fn> }[]) {
+  const close = vi.fn()
+  const waitUntil = vi.fn((p: Promise<unknown>) => p)
+  const matchAll = vi.fn().mockResolvedValue(clients)
+  const openWindow = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(self, 'clients', { value: { matchAll, openWindow }, configurable: true })
+  notificationClickHandler?.({ notification: { close, data }, waitUntil })
+  return { close, waitUntil, matchAll, openWindow }
+}
+
 describe('sw push handler badge', () => {
   let showNotification: ReturnType<typeof vi.fn>
   let setAppBadge: ReturnType<typeof vi.fn>
   let postMessage: ReturnType<typeof vi.fn>
-
-  beforeAll(async () => {
-    const origAdd = self.addEventListener.bind(self)
-    const addEventListener = vi.fn(origAdd as unknown as (type: string, listener: unknown) => void)
-    Object.defineProperty(self, 'addEventListener', { value: addEventListener, configurable: true })
-    await import('./sw')
-    const push = addEventListener.mock.calls.find(([type]) => type === 'push')
-    if (!push) throw new Error('push listener not registered')
-    pushHandler = push[1] as (event: PushEventLike) => void
-    const message = addEventListener.mock.calls.find(([type]) => type === 'message')
-    if (message) messageHandler = message[1] as (event: any) => void
-  })
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -125,6 +135,7 @@ describe('sw message handler closes channel notifications', () => {
     getNotifications = vi.fn().mockResolvedValue([
       { data: { url: '/channel/c1' }, close },
       { data: { url: '/channel/c1/extra' }, close },
+      { data: { url: '/channel/c10' }, close },
       { data: { url: '/channel/c2' }, close },
       { data: { url: '/' }, close },
     ])
@@ -135,12 +146,13 @@ describe('sw message handler closes channel notifications', () => {
     })
   })
 
-  it('closes only the notifications for the given channel', async () => {
+  it('closes only the notifications for the exact channel path', async () => {
     const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
     await waitUntil.mock.calls[0][0]
 
     expect(getNotifications).toHaveBeenCalled()
-    expect(close).toHaveBeenCalledTimes(2)
+    // Exact pathname match: /channel/c1 only, not /channel/c1/extra or /channel/c10.
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   it('ignores messages without a channelId', async () => {
@@ -153,5 +165,40 @@ describe('sw message handler closes channel notifications', () => {
     const waitUntil = dispatchMessage({ type: 'SOMETHING_ELSE', channelId: 'c1' })
     expect(waitUntil).not.toHaveBeenCalled()
     expect(getNotifications).not.toHaveBeenCalled()
+  })
+
+  it('does not close notifications with a malformed url', async () => {
+    getNotifications.mockResolvedValue([{ data: { url: 'http://[bad' }, close }])
+    const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
+    await waitUntil.mock.calls[0][0]
+
+    expect(close).not.toHaveBeenCalled()
+  })
+})
+
+describe('sw notificationclick focuses the exact channel', () => {
+  it('focuses a client whose path matches the notification url', async () => {
+    const focus = vi.fn()
+    const { waitUntil, openWindow } = dispatchNotificationClick({ url: '/channel/c1' }, [{ url: 'https://app.example/channel/c1', focus }])
+    await waitUntil.mock.calls[0][0]
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(openWindow).not.toHaveBeenCalled()
+  })
+
+  it('does not focus a client on a different-but-prefixed channel and falls back to openWindow', async () => {
+    const focus = vi.fn()
+    const { waitUntil, matchAll, openWindow } = dispatchNotificationClick({ url: '/channel/c1' }, [{ url: 'https://app.example/channel/c10', focus }])
+    await waitUntil.mock.calls[0][0]
+    expect(focus).not.toHaveBeenCalled()
+    expect(matchAll).toHaveBeenCalled()
+    expect(openWindow).toHaveBeenCalledWith('/channel/c1')
+  })
+
+  it('gracefully handles a malformed notification url', async () => {
+    const focus = vi.fn()
+    const { waitUntil, openWindow } = dispatchNotificationClick({ url: 'http://[bad' }, [{ url: 'https://app.example/channel/c1', focus }])
+    await waitUntil.mock.calls[0][0]
+    expect(focus).not.toHaveBeenCalled()
+    expect(openWindow).toHaveBeenCalledWith('http://[bad')
   })
 })

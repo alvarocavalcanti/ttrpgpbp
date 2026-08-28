@@ -8,6 +8,19 @@ declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST || [])
 
+// Exact pathname comparison (not substring) so `/channel/c1` can never match
+// `/channel/c10`. Both sides are resolved against the worker origin so a
+// relative push url like `/channel/c1` compares against the client's absolute
+// `location.href`.
+function matchesPath(url: string, target: string): boolean {
+  try {
+    const base = self.location.origin
+    return new URL(url, base).pathname === new URL(target, base).pathname
+  } catch {
+    return false
+  }
+}
+
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
@@ -70,7 +83,7 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(
       self.clients.matchAll({ type: 'window' }).then((clientList) => {
         for (const client of clientList) {
-          if (client.url.includes(url) && 'focus' in client) {
+          if (matchesPath(client.url, url) && 'focus' in client) {
             return client.focus()
           }
         }
@@ -93,7 +106,7 @@ self.addEventListener('message', (event) => {
     self.registration.getNotifications().then((notifications) => {
       const channelUrl = `/channel/${data.channelId}`
       notifications
-        .filter(n => n.data?.url?.includes(channelUrl))
+        .filter(n => typeof n.data?.url === 'string' && matchesPath(n.data.url, channelUrl))
         .forEach(n => n.close())
     })
   )
