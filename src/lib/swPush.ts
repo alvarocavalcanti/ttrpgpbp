@@ -9,7 +9,10 @@ export const PushNotificationDataSchema = z.object({
   body: z.string().optional(),
   url: z.string().optional(),
   badgeEnabled: z.boolean().optional(),
-  unreadCount: z.number().optional()
+// Badge counts must be valid non-negative safe integers: setAppBadge's
+  // [EnforceRange] unsigned long long conversion throws synchronously on
+  // negative, fractional, or oversized values, so reject them at the boundary.
+  unreadCount: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional()
 })
 
 export type PushNotificationData = z.infer<typeof PushNotificationDataSchema>

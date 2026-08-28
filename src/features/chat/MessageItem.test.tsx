@@ -448,6 +448,23 @@ describe('MessageItem', () => {
     expect(img).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
 
+  it('does not leak react-markdown renderer props onto the img element', () => {
+    const msg: any = {
+      type: 'regular',
+      content: '![Alt text](https://example.com/test.png)',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+
+    const img = screen.getByRole('img', { name: 'Alt text' })
+    // react-markdown hands renderers a `node` prop; the img renderer must not
+    // spread it onto the DOM (the `a` renderer already pulls it off).
+    expect(img).not.toHaveAttribute('node')
+    expect(container.querySelector('img[node]')).toBeNull()
+  })
+
   it('sanitizes insecure URLs', () => {
     const msg: any = {
       type: 'regular',

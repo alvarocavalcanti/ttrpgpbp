@@ -214,6 +214,55 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load messages/)
   })
 
+  it('projects channel member attributes so ability checks reuse the stored modifier', async () => {
+    const mockSendDiceRoll = vi.fn()
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: '[STR Check](check:STR)', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() }],
+      reactions: {},
+      loading: false,
+      error: null,
+      hasMore: false,
+      loadingOlder: false,
+      loadOlder: vi.fn(),
+      sendMessage: vi.fn(),
+      sendDiceRoll: mockSendDiceRoll,
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'gm1', game_system: 'shadowdark' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero', attributes: { STR: 3 } }],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+    const promptSpy = vi.spyOn(window, 'prompt')
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const checkBtn = await screen.findByRole('button', { name: /STR Check/ })
+    fireEvent.click(checkBtn)
+
+    // The projected member carries the STR:3 attribute, so the stored modifier
+    // is reused instead of prompting.
+    expect(promptSpy).not.toHaveBeenCalled()
+    expect(mockSendDiceRoll).toHaveBeenCalledWith('1d20+3', 'msg1', undefined, undefined)
+    promptSpy.mockRestore()
+  })
+
   it('shows an archived banner and hides the composer for archived channels', async () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel', is_archived: true, game_system: 'none' },
