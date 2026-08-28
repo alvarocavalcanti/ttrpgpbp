@@ -102,6 +102,17 @@ export function ChannelView() {
     }
   }, [addReaction, removeReaction, addToast])
 
+  // Dice-roll mentions only need user_id/character_name plus per-ability
+  // modifiers; channel_members.attributes is a JSON object, so adapt the
+  // narrow Member shape for MessageList. Declared above the early returns so
+  // the hook count stays identical between the loading and loaded renders
+  // (Rules of Hooks — a mismatch here crashes ChannelView on every cold load).
+  const chatMembers = useMemo<Member[]>(() => members.map(m => ({
+    user_id: m.user_id,
+    character_name: m.character_name,
+    attributes: (m.attributes as Record<string, number> | null) ?? undefined
+  })), [members])
+
   if (channelLoading || messagesLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -160,15 +171,6 @@ export function ChannelView() {
   // (the GM's own row is not a valid active player).
   const activePlayerMembers = members.filter(m => !m.is_blocked && m.user_id !== channel.gm_id)
   const currentActiveIds = members.filter(m => m.is_active_player && !m.is_blocked).map(m => m.user_id)
-
-  // Dice-roll mentions only need user_id/character_name plus per-ability
-  // modifiers; channel_members.attributes is a JSON object, so adapt the
-  // narrow Member shape for MessageList.
-  const chatMembers = useMemo<Member[]>(() => members.map(m => ({
-    user_id: m.user_id,
-    character_name: m.character_name,
-    attributes: (m.attributes as Record<string, number> | null) ?? undefined
-  })), [members])
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-white dark:bg-gray-800 relative">

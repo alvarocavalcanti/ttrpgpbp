@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useState } from 'react'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
@@ -158,6 +159,71 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+  })
+
+  it('does not crash when the loading render transitions to loaded (stable hook order)', () => {
+    const shared = { isLoading: true }
+    const channel = {
+      id: 'c1',
+      name: 'Hooked Channel',
+      gm_id: 'user1',
+      avatar_url: null,
+      is_archived: false,
+      game_system: 'generic',
+      status_text: null
+    }
+    vi.mocked(useChannel).mockImplementation(() => ({
+      channel: shared.isLoading ? null : channel,
+      members: [],
+      loading: shared.isLoading,
+      error: null,
+      isGM: !shared.isLoading,
+      myMemberInfo: undefined,
+      gmOnlyResourcesUrl: null,
+      lastReadAt: null,
+      refetch: vi.fn()
+    }) as any)
+    vi.mocked(useMessages).mockImplementation(() => ({
+      messages: [],
+      reactions: {},
+      loading: shared.isLoading,
+      error: null,
+      hasMore: false,
+      loadingOlder: false,
+      loadOlder: vi.fn(),
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      retryMessage: vi.fn(),
+      removePendingMessage: vi.fn()
+    }) as any)
+
+    function Harness() {
+      const [isLoading, setIsLoading] = useState(true)
+      shared.isLoading = isLoading
+      return (
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+          <button type="button" onClick={() => setIsLoading(false)}>finish loading</button>
+        </ToastProvider>
+      )
+    }
+
+    render(<Harness />)
+    expect(document.querySelector('.animate-spin')).toBeInTheDocument()
+
+    // A hook-count mismatch between the loading and loaded renders would throw
+    // here (it crashed the whole channel page on every cold load before the fix).
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'finish loading' })) })
+    expect(document.querySelector('.animate-spin')).toBeNull()
+    expect(screen.getByText('Hooked Channel')).toBeInTheDocument()
   })
 
   it('renders an error screen with retry instead of redirecting', () => {

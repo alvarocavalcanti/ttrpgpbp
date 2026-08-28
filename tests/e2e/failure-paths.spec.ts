@@ -7,10 +7,20 @@ async function signUp(page: Page, email: string): Promise<{ success: boolean; er
     if (!client) throw new Error('Supabase client not found on window');
     const { error } = await client.auth.signUp({ email, password });
     return { success: !error, error: error?.message };
-  }, { email, password });
+  }, { email, password: 'Password123!' });
+}
+
+// A fresh session has never seen the changelog, so the What's New dialog
+// overlays the lobby and intercepts clicks. Dismiss it when present.
+async function dismissWhatsNew(page: Page) {
+  const dialog = page.getByRole('dialog', { name: "What's new" });
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole('button', { name: 'Close' }).click();
+  }
 }
 
 async function createChannel(page: Page) {
+  await dismissWhatsNew(page);
   const createChannelFab = page.locator('[data-testid="create-channel-fab"]');
   await expect(createChannelFab).toBeVisible();
   await createChannelFab.click();
@@ -39,19 +49,30 @@ test.describe('Failure paths', () => {
     expect(first.success).toBe(true);
     await page.waitForURL('/');
 
+    // Sign out so the second attempt runs from a fresh, anonymous session.
+    const signOut = await page.evaluate(async () => {
+      // @ts-expect-error - exposed in test/dev
+      const client = window.__supabase;
+      const { error } = await client.auth.signOut();
+      return error?.message ?? null;
+    });
+    expect(signOut).toBeNull();
+    // Land on an anonymous login session deterministically.
+    await page.goto('/login');
+
     // Second sign-up with the same email must fail at the auth boundary and
     // never take the user anywhere else.
     const second = await signUp(page, email);
     expect(second.success).toBe(false);
     expect(second.error).toBeTruthy();
     expect(page.url()).toMatch(/\/login$/);
-    // Lobby never renders for the failed attempt.
     await expect(page.locator('[data-testid="create-channel-fab"]')).not.toBeVisible();
   });
 
   test('create-channel inputs reject keystrokes past their limits', async ({ page }) => {
     await signUp(page, `e2e.limit.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
+    await dismissWhatsNew(page);
 
     await page.locator('[data-testid="create-channel-fab"]').click();
 
@@ -69,7 +90,7 @@ test.describe('Failure paths', () => {
     await page.waitForURL('/');
 
     await page.goto(`/join/00000000-0000-0000-0000-000000000000`);
-    await expect(page.getByText('Channel not found.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Channel Not Found' })).toBeVisible();
   });
 
   test('message composer enforces the length cap and dice quantity clamps to 1', async ({ page }) => {
@@ -86,6 +107,8 @@ test.describe('Failure paths', () => {
     expect(await composer.inputValue()).toHaveLength(4000);
 
     // Dice quantity below 1 is clamped up to 1 (no zero-die or negative rolls).
+    const toggle = page.getByRole('button', { name: 'Toggle options' });
+    if (await toggle.isVisible().catch(() => false)) await toggle.click();
     await page.getByRole('button', { name: /Roll Dice/i }).click();
     const quantity = page.locator('input[type="number"][min="1"]').first();
     await quantity.fill('0');
