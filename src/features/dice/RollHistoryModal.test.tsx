@@ -54,6 +54,19 @@ describe('RollHistoryModal', () => {
     })
   })
 
+  it('renders an error and no rolls when RPC returns invalid row data', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [{ id: 'bad', notation: 123 }], error: null } as any)
+    mockChannel()
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load roll history.')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('No dice rolls yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText('123')).not.toBeInTheDocument()
+  })
+
   it('renders roll history', async () => {
     const mockData = [
       {

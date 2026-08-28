@@ -195,6 +195,42 @@ describe('useMessages', () => {
     expect(reconciled.error).toBeNull()
   })
 
+  it('retries a failed dice roll and replays the roll payload fields', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValueOnce({ data: [{ message_id: 'real-roll-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendDiceRoll('1d20+5', 'parent1', 'warning', 12)).rejects.toThrow('boom')
+    })
+    const pending = result.current.messages.find(m => m.pending)!
+    expect(pending).toBeDefined()
+
+    await act(async () => {
+      await result.current.retryMessage(pending.id)
+    })
+
+    expect(mockRpc).toHaveBeenLastCalledWith('roll_dice', expect.objectContaining({
+      p_notation: '1d20+5',
+      p_reply_to: 'parent1',
+      p_warning: 'warning',
+      p_dc: 12
+    }))
+    const reconciled = result.current.messages.find(m => m.client_request_id === pending.client_request_id)!
+    expect(reconciled.id).toBe('real-roll-id')
+    expect(reconciled.pending).toBe(false)
+    expect(reconciled.error).toBeNull()
+  })
+
   it('marks a message unconfirmed when the RPC returns no id', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
     mockFrom({

@@ -501,6 +501,29 @@ describe('MessageComposer', () => {
     expect(container.querySelector('img[class*="dark:invert"]')).toBeNull()
   })
 
+  it('omits npc_avatar_url when the matched roster NPC has no avatar', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Faceless', avatar_url: null, created_at: '' }] as any
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Faceless' } })
+    // Pick from the roster dropdown: this sets npcAvatarUrl to the roster's
+    // null avatar_url, so resolvedNpcAvatar stays null and the payload omits it.
+    fireEvent.mouseDown(screen.getByRole('button', { name: /Faceless/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Speak as Faceless/i), { target: { value: 'Hello' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'npc',
+        npc_name: 'Faceless',
+        npc_avatar_url: undefined
+      }))
+    })
+  })
+
   it('blocks NPC send without a name', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)

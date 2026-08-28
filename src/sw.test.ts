@@ -3,16 +3,19 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 vi.mock('workbox-precaching', () => ({ precacheAndRoute: vi.fn() }))
 
 interface PushEventLike {
-  data: { json: () => Record<string, unknown> }
+  data: { json: () => Record<string, unknown> } | null
   waitUntil: (p: Promise<unknown>) => void
 }
 
 let pushHandler: (event: PushEventLike) => void
 let messageHandler: ((event: any) => void) | undefined
 
-function dispatchPush(payload: Record<string, unknown>) {
+function dispatchPush(payload: Record<string, unknown> | null, jsonImpl?: () => Record<string, unknown>) {
   const waitUntil = vi.fn()
-  pushHandler({ data: { json: () => payload }, waitUntil })
+  const data = payload === null
+    ? null
+    : { json: jsonImpl ?? (() => payload) }
+  pushHandler({ data, waitUntil })
   return waitUntil
 }
 
@@ -95,6 +98,20 @@ describe('sw push handler badge', () => {
     const waitUntil = dispatchPush({ title: 'Hi', unreadCount: 3 })
     expect(setAppBadge).not.toHaveBeenCalled()
     expect(waitUntil).toHaveBeenCalled()
+  })
+
+  it('ignores a push event with null data', () => {
+    const waitUntil = dispatchPush(null)
+    expect(showNotification).not.toHaveBeenCalled()
+    expect(setAppBadge).not.toHaveBeenCalled()
+    expect(waitUntil).not.toHaveBeenCalled()
+  })
+
+  it('ignores a push event whose data.json() throws', () => {
+    const waitUntil = dispatchPush(null as never, () => { throw new Error('bad json') })
+    expect(showNotification).not.toHaveBeenCalled()
+    expect(setAppBadge).not.toHaveBeenCalled()
+    expect(waitUntil).not.toHaveBeenCalled()
   })
 })
 
