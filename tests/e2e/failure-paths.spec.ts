@@ -1,22 +1,17 @@
 import { test, expect, Page } from '@playwright/test';
+import { dismissWhatsNew } from './helpers';
 
 async function signUp(page: Page, email: string): Promise<{ success: boolean; error?: string }> {
   return page.evaluate(async ({ email, password }) => {
     // @ts-expect-error - exposed in test/dev
     const client = window.__supabase;
     if (!client) throw new Error('Supabase client not found on window');
-    const { error } = await client.auth.signUp({ email, password });
-    return { success: !error, error: error?.message };
+    const { data, error } = await client.auth.signUp({ email, password });
+    // Trust an established session, not just a missing error object: local
+    // Supabase auto-confirms email, so the session exists right away.
+    const success = !error && Boolean(data?.session?.user);
+    return { success, error: error?.message };
   }, { email, password: 'Password123!' });
-}
-
-// A fresh session has never seen the changelog, so the What's New dialog
-// overlays the lobby and intercepts clicks. Dismiss it when present.
-async function dismissWhatsNew(page: Page) {
-  const dialog = page.getByRole('dialog', { name: "What's new" });
-  if (await dialog.isVisible().catch(() => false)) {
-    await dialog.getByRole('button', { name: 'Close' }).click();
-  }
 }
 
 async function createChannel(page: Page) {
@@ -28,6 +23,18 @@ async function createChannel(page: Page) {
   await page.locator('#characterName').fill('Fail GM');
   await page.getByRole('button', { name: /^Create$/ }).click();
   await expect(page).toHaveURL(/\/channel\/.+/);
+}
+
+// Open the composer options panel only when the dice control is still hidden,
+// then open the dice popover. Never toggle the panel shut before the dice.
+async function openDiceRoller(page: Page) {
+  const rollDice = page.getByRole('button', { name: /Roll Dice/i });
+  if (!(await rollDice.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Toggle options' }).click();
+  }
+  await rollDice.click();
+  const popover = page.getByRole('heading', { name: 'Dice Roller' });
+  await expect(popover).toBeVisible();
 }
 
 test.describe('Failure paths', () => {
@@ -107,11 +114,20 @@ test.describe('Failure paths', () => {
     expect(await composer.inputValue()).toHaveLength(4000);
 
     // Dice quantity below 1 is clamped up to 1 (no zero-die or negative rolls).
-    const toggle = page.getByRole('button', { name: 'Toggle options' });
-    if (await toggle.isVisible().catch(() => false)) await toggle.click();
-    await page.getByRole('button', { name: /Roll Dice/i }).click();
+    await openDiceRoller(page);
     const quantity = page.locator('input[type="number"][min="1"]').first();
     await quantity.fill('0');
     expect(await quantity.inputValue()).toBe('1');
+  });
+
+  test('composer accepts exactly the 4000-character cap', async ({ page }) => {
+    await signUp(page, `e2e.limit.${Date.now()}@gmail.com`);
+    await page.waitForURL('/');
+    await createChannel(page);
+
+    const composer = page.getByPlaceholder(/Type a message/);
+    const exactly4000 = 'a'.repeat(4000);
+    await composer.fill(exactly4000);
+    expect(await composer.inputValue()).toHaveLength(4000);
   });
 });

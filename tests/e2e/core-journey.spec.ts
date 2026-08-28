@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dismissWhatsNew } from './helpers';
 
 test.describe('Core Journey', () => {
   test.beforeEach(async ({}) => {
@@ -42,10 +43,7 @@ test.describe('Core Journey', () => {
 
     // A fresh session has never seen the changelog; dismiss the "What's New"
     // dialog so it does not overlay the lobby and block the create button.
-    const whatsNew = page.getByRole('dialog', { name: "What's new" });
-    if (await whatsNew.isVisible().catch(() => false)) {
-      await whatsNew.getByRole('button', { name: 'Close' }).click();
-    }
+    await dismissWhatsNew(page);
 
     const createChannelFab = page.locator('[data-testid="create-channel-fab"]');
     await expect(createChannelFab).toBeVisible();
@@ -71,10 +69,11 @@ test.describe('Core Journey', () => {
     // Verify message appears in feed
     await expect(page.getByText('Hello from E2E test!')).toBeVisible();
 
-    // 7. Roll dice
-    const toggle = page.getByRole('button', { name: 'Toggle options' });
-    if (await toggle.isVisible().catch(() => false)) await toggle.click();
+    // 7. Roll dice — open the options panel only if the dice control is hidden.
     const rollDiceBtn = page.getByRole('button', { name: /Roll Dice/i });
+    if (!(await rollDiceBtn.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: 'Toggle options' }).click();
+    }
     await expect(rollDiceBtn).toBeVisible();
     await rollDiceBtn.click();
 
