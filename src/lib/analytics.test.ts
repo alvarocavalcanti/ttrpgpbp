@@ -34,7 +34,7 @@ describe('analytics', () => {
       expect(window.dataLayer).toBeDefined()
       expect(window.gtag).toBeTypeOf('function')
       expect(window.dataLayer![0]).toEqual(['js', expect.any(Date)])
-      expect(window.dataLayer![1]).toEqual(['config', 'G-TEST123'])
+      expect(window.dataLayer![1]).toEqual(['config', 'G-TEST123', { send_page_view: false }])
     })
 
     it('does not duplicate the script on repeated calls', () => {
@@ -51,7 +51,7 @@ describe('analytics', () => {
       expect(() => trackPageView('/lobby')).not.toThrow()
     })
 
-    it('fires a page_view event with the given path', () => {
+    it('fires a page_view event with a clean absolute location', () => {
       mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
       initAnalytics()
       const gtag = vi.fn()
@@ -59,7 +59,10 @@ describe('analytics', () => {
 
       trackPageView('/channel/abc?q=1')
 
-      expect(gtag).toHaveBeenCalledWith('event', 'page_view', { page_path: '/channel/abc' })
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+        page_path: '/channel/abc',
+        page_location: `${window.location.origin}/channel/abc`,
+      })
     })
 
     it('strips the query string so search terms never leave the device', () => {
@@ -71,8 +74,14 @@ describe('analytics', () => {
       trackPageView('/lobby?search=secret%20dragon')
       trackPageView('/channel/abc?x=1&y=2')
 
-      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', { page_path: '/lobby' })
-      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', { page_path: '/channel/abc' })
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
+        page_path: '/lobby',
+        page_location: `${window.location.origin}/lobby`,
+      })
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
+        page_path: '/channel/abc',
+        page_location: `${window.location.origin}/channel/abc`,
+      })
     })
   })
 })
