@@ -16,6 +16,7 @@ const mockMemberships = [
     character_name: 'Frodo',
     character_avatar_url: null,
     character_sheet_url: null,
+    character_notes: 'secret family name',
     is_away: false,
     is_blocked: false,
     joined_at: '2026-01-02T00:00:00Z',
@@ -74,6 +75,7 @@ describe('buildUserDataExport', () => {
     expect(result.profile).toEqual(mockProfile)
     expect(result.channel_memberships).toHaveLength(1)
     expect(result.channel_memberships[0].channel_name).toBe('The Den')
+    expect(result.channel_memberships[0].character_notes).toBe('secret family name')
     expect(result.messages).toHaveLength(2)
     expect(result.messages[1].whisper_to).toBe('other-user') // authored whisper included
     expect(result.dice_rolls).toEqual(mockDice)

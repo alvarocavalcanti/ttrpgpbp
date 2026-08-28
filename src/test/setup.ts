@@ -2,6 +2,19 @@ import '@testing-library/jest-dom'
 import { beforeAll, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { server } from './mocks/server'
 
+// jsdom cannot navigate (or download); blob-download helpers call
+// anchor.click(), which jsdom turns into an unhandled
+// "Not implemented: navigation" error at teardown. Suppress the default
+// (navigation) while still notifying listeners: dispatch a click whose
+// canceled flag is already set, mirroring what clicking a download anchor does
+// in a real browser. Event-path clicks (react-router <Link> etc.) dispatch
+// through fireEvent/click() and are unaffected.
+HTMLAnchorElement.prototype.click = function click() {
+  const event = new MouseEvent('click', { bubbles: true, cancelable: true, composed: true })
+  event.preventDefault()
+  this.dispatchEvent(event)
+}
+
 // Node >= 25 defines a `localStorage` getter on the global that returns
 // undefined unless `--localstorage-file` is set, shadowing jsdom's working
 // one (vitest sets window === globalThis). Rebinding both storage types to
