@@ -52,26 +52,27 @@ export function useAdminThreads() {
     setHasMore(rows.length === PAGE_SIZE)
   }, [])
 
-  const fetchFirstPage = useCallback(async () => {
+  const fetchFirstPage = useCallback(async (reset: boolean) => {
     setLoading(true)
     setError(null)
     const { data, error: queryError } = await baseQuery().limit(PAGE_SIZE)
     if (queryError) {
       setError(queryError)
     } else {
-      applyNewestPage(data as Record<string, unknown>[], true)
+      applyNewestPage(data as Record<string, unknown>[], reset)
     }
     setLoading(false)
   }, [applyNewestPage])
 
   useEffect(() => {
     if (!user?.id) return
-    void fetchFirstPage()
+    // First load for this user replaces the list; realtime refreshes below merge.
+    void fetchFirstPage(true)
 
     const channel = supabase.channel('admin_threads_list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_threads' }, () => void fetchFirstPage())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_messages' }, () => void fetchFirstPage())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` }, () => void fetchFirstPage())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_threads' }, () => void fetchFirstPage(false))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_messages' }, () => void fetchFirstPage(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` }, () => void fetchFirstPage(false))
       .subscribe()
 
     return () => {
@@ -100,5 +101,9 @@ export function useAdminThreads() {
     setLoading(false)
   }, [loading, hasMore, threads])
 
-  return { threads, loading, hasMore, loadMore, refetch: fetchFirstPage, error }
+  // Retry merges the newest page into what's already loaded, so an error after
+  // loadMore doesn't wipe the older threads the user fetched.
+  const refetch = useCallback(() => void fetchFirstPage(false), [fetchFirstPage])
+
+  return { threads, loading, hasMore, loadMore, refetch, error }
 }

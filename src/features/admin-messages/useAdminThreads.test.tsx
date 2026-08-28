@@ -97,4 +97,33 @@ describe('useAdminThreads', () => {
     expect(result.current.error).toEqual(new Error('boom'))
     expect(result.current.threads).toHaveLength(0)
   })
+
+  it('refetch merges the newest page without dropping loaded older threads', async () => {
+    // First page of 50 fills the page (hasMore true), then loadMore appends an
+    // older thread, then refetch returns a newer page that must merge on top.
+    const firstPage = Array.from({ length: 50 }, (_, i) => row({ id: `t${49 - i}`, last_message_at: '2026-08-01T00:00:00Z' }))
+    const older = row({ id: 'old', last_message_at: '2026-07-31T00:00:00Z' })
+    const newer = row({ id: 'fresh', last_message_at: '2026-08-02T00:00:00Z' })
+    const mockOr = vi.fn()
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: firstPage, error: null })
+      .mockResolvedValueOnce({ data: [newer], error: null })
+    const mockOrLimit = vi.fn().mockResolvedValue({ data: [older], error: null })
+    const chain = { order: vi.fn().mockReturnThis(), or: mockOr, limit: mockLimit }
+    mockOr.mockReturnValue({ limit: mockOrLimit })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue(chain) } as any)
+
+    const { result } = renderHook(() => useAdminThreads())
+    await waitFor(() => expect(result.current.hasMore).toBe(true))
+
+    await act(async () => { await result.current.loadMore() })
+    expect(result.current.threads).toHaveLength(51)
+    expect(result.current.threads[50].id).toBe('old')
+
+    await act(async () => { await result.current.refetch() })
+
+    expect(result.current.threads).toHaveLength(52)
+    expect(result.current.threads[0].id).toBe('fresh')
+    expect(result.current.threads[51].id).toBe('old')
+  })
 })
