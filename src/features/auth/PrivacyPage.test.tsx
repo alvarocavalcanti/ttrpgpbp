@@ -102,7 +102,7 @@ describe('PrivacyPage', () => {
 
     expect(screen.getByText('Sentry')).toBeInTheDocument()
     expect(screen.queryByText('Google Analytics')).not.toBeInTheDocument()
-    expect(screen.getByText(/brief screen recording of the session where the error occurred/)).toBeInTheDocument()
+    expect(screen.getByText(/screen recording of about 1 in 10 sessions/)).toBeInTheDocument()
   })
 
   it('replaces the entry when returning to lobby so back does not re-enter the page', () => {

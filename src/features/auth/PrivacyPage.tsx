@@ -57,7 +57,7 @@ export function PrivacyPage() {
             )}
             {env.VITE_SENTRY_DSN && (
               <li>
-                <span className="font-semibold">Sentry</span> — error reports when something goes wrong, used only to find and fix bugs. These may include a brief screen recording of the session where the error occurred.
+                <span className="font-semibold">Sentry</span> — error reports when something goes wrong, used only to find and fix bugs. We also use browser tracing to understand app performance, and may record a screen recording of about 1 in 10 sessions — and of every session where an error occurs — to diagnose problems.
               </li>
             )}
           </ul>

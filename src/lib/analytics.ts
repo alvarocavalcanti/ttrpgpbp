@@ -37,7 +37,10 @@ export function initAnalytics(): void {
     window.dataLayer!.push(args)
   }
   window.gtag('js', new Date())
-  window.gtag('config', id)
+  // send_page_view is disabled because the automatic page_view fires with the
+  // full page_location (query string included) on initial load — before our
+  // query-stripping applies. RouteTracker fires the manual event instead.
+  window.gtag('config', id, { send_page_view: false })
 }
 
 // Fires a page_view for SPA route changes. Guards against gtag being
@@ -46,5 +49,8 @@ export function initAnalytics(): void {
 // lobby search) never leave the device.
 export function trackPageView(pagePath: string): void {
   const pathname = pagePath.split('?')[0]
-  push('event', 'page_view', { page_path: pathname })
+  push('event', 'page_view', {
+    page_path: pathname,
+    page_location: window.location.origin + pathname,
+  })
 }
