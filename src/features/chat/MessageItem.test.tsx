@@ -460,7 +460,7 @@ describe('MessageItem', () => {
 
     const img = screen.getByRole('img', { name: 'Alt text' })
     // react-markdown hands renderers a `node` prop; the img renderer must not
-    // spread it onto the DOM (the `a` renderer already destructures it).
+    // spread it onto the DOM (the `a` renderer already pulls it off).
     expect(img).not.toHaveAttribute('node')
     expect(container.querySelector('img[node]')).toBeNull()
   })
