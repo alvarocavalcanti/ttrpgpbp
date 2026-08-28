@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { handlePushEvent } from './swPush'
+import { handlePushEvent, PushNotificationDataSchema } from './swPush'
 
 function makeScope(overrides: Partial<Parameters<typeof handlePushEvent>[0]> = {}) {
   const logger = { error: vi.fn() }
@@ -12,6 +12,26 @@ function makeScope(overrides: Partial<Parameters<typeof handlePushEvent>[0]> = {
   const scope = { registration, navigator, logger, ...overrides }
   return { scope, registration, navigator, logger }
 }
+
+describe('PushNotificationDataSchema', () => {
+  it('accepts an optional valid unread count', () => {
+    expect(PushNotificationDataSchema.safeParse({ unreadCount: 0 }).success).toBe(true)
+    expect(PushNotificationDataSchema.safeParse({ unreadCount: Number.MAX_SAFE_INTEGER }).success).toBe(true)
+    expect(PushNotificationDataSchema.safeParse({}).success).toBe(true)
+  })
+
+  it('rejects a negative unread count', () => {
+    expect(PushNotificationDataSchema.safeParse({ unreadCount: -1 }).success).toBe(false)
+  })
+
+  it('rejects a fractional unread count', () => {
+    expect(PushNotificationDataSchema.safeParse({ unreadCount: 1.5 }).success).toBe(false)
+  })
+
+  it('rejects an oversized unread count', () => {
+    expect(PushNotificationDataSchema.safeParse({ unreadCount: Number.MAX_SAFE_INTEGER + 1 }).success).toBe(false)
+  })
+})
 
 describe('handlePushEvent', () => {
   it('shows a notification with defaults when no title is given', async () => {

@@ -222,7 +222,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       }
       return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
     },
-    img: ({ src, alt, ...props }: React.ComponentProps<'img'>) => {
+    img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?: unknown }) => {
       return (
         <SignedImg 
           src={src} 
