@@ -21,7 +21,7 @@ Every row re-verified against code and/or pgTAP, not against the changelog.
 
 | Remediation | Status | Rationale |
 |---|---|---|
-| Server-authoritative dice, atomic roll persistence | [VERIFIED STABLE] | Unchanged from Phase 2; `roll_dice` RPC + idempotency keys; direct `dice_rolls` inserts revoked; pgTAP `20260818140000_mutation_integrity.sql` 10/10. |
+| Server-authoritative dice, atomic roll persistence | [VERIFIED STABLE] | Unchanged from Phase 2; `roll_dice` RPC + idempotency keys; direct `dice_rolls` inserts rejected by RLS (the members INSERT policy was dropped in `20260817144037_backend_command_schema.sql:32`, table remains RLS-enabled with no INSERT policy); pgTAP `20260818140000_mutation_integrity.sql` 10/10 covers RPC/input rules but not direct-insert rejection (its runner grants ALL on all tables, so a grant-level revoke would not be observable there). |
 | Drafts and reliable sending | [VERIFIED STABLE] | Retry now reconciles the RPC-returned message id and clears pending/error (`src/features/chat/useMessages.ts:349-360`); rejected/empty responses surface a Retry error instead of staying pending (`useMessages.ts:414,468`); `removePendingMessage` exported for the Remove action. |
 | Realtime recovery and unread state | [VERIFIED STABLE] | Reconnect catch-up paginates forward from the newest held row in PAGE_SIZE batches (guard 100) — >50 missed inserts recoverable (`useMessages.ts:171-211`); channel-route change clears messages/reactions/error before refetch (`useMessages.ts:102-110`, same pattern in `useChannel.ts`). |
 | Active-player GM control | [VERIFIED STABLE] | `prevent_non_gm_active_player_change` trigger blocks non-GM direct writes, orphan channels included (`20260826120000_fix_rls_authorization_bypasses.sql:37-55`); `set_active_players` GM-only RPC validates membership (`20260825120000_set_active_players.sql`); pgTAP 6/6. |
@@ -55,7 +55,7 @@ All 15 Phase 2 blockers are closed and verified:
 - [x] Pending-send inconsistency → id reconciliation + Retry/Remove
 - [x] GDPR export truncation + retention → paginated (pgTAP `export_completeness` 17/17)
 - [x] Clickjacking → `frame-ancestors 'self'` + `X-Frame-Options: SAMEORIGIN` in `_headers`
-- [x] Runtime payload validation → `typescript/no-explicit-any: error` enforced (tests exempt); Zod schemas for realtime payloads, reactions, RPC responses, forms, env
+- [x] Runtime payload validation → static: `typescript/no-explicit-any: error` enforced (tests exempt); runtime: Zod at the chat message boundaries (`ServerMessageSchema` for fetched + realtime messages and replies, `ReactionRowSchema` for reactions — `src/features/chat/validation.ts`), roll history + roll realtime payloads (`src/features/dice/RollHistoryModal.tsx:7-14`), push service-worker data (`src/lib/swPush.ts:7`), and env (`src/env.ts`). Remaining gaps (P2): form submissions, channel/search responses, and admin-message responses are still unvalidated.
 - [x] Privacy-policy mismatch → GA/Sentry disclosed, search terms and breadcrumbs scrubbed
 - [x] Admin push retry routing → `admin_messages` branch
 
@@ -72,4 +72,4 @@ All 15 Phase 2 blockers are closed and verified:
 
 **GO.**
 
-All P0/P1 blockers from the Phase 2 NO-GO are fixed and verified with code-level and pgTAP evidence. TypeScript, lint, 947 unit tests, coverage thresholds, production build, and from-scratch migration reset all pass; CI is green. Remaining P2 items (E2E harness, bundle splitting, hygiene) are non-blocking; recommend the E2E repair lands before the next feature wave so failure-path regressions stay catchable.
+All P0/P1 blockers from the Phase 2 NO-GO are fixed and verified with code-level and pgTAP evidence. TypeScript, lint, 947 unit tests, coverage thresholds, production build, and from-scratch migration reset all pass; CI is green. Remaining P2 items (E2E harness, bundle splitting, hygiene) are non-blocking; recommend the E2E repair lands before the next feature wave so failure-path regressions stay visible.
