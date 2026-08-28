@@ -92,8 +92,9 @@ describe('ThreadList', () => {
       hasMore: true
     } as any)
 
-    const { container } = render(<ThreadList onSelectThread={vi.fn()} />)
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    const loadMoreButton = screen.getByRole('button', { name: 'Loading...' })
+    expect(loadMoreButton.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
   it('shows thread list when threads exist', () => {
