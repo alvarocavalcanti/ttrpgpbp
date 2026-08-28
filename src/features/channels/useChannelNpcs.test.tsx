@@ -65,6 +65,14 @@ describe('useChannelNpcs', () => {
     expect(result.current.npcs).toEqual([mockNpcRow])
   })
 
+  it('surfaces a fetch error', async () => {
+    mockQuery([], { message: 'boom' })
+    const { result } = renderHook(() => useChannelNpcs('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.error?.message).toBe('boom')
+    expect(result.current.npcs).toEqual([])
+  })
+
   it('returns no NPCs for a missing channelId', () => {
     const { result } = renderHook(() => useChannelNpcs(undefined))
     expect(result.current.loading).toBe(false)

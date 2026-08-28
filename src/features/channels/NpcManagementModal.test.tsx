@@ -150,6 +150,18 @@ describe('NpcManagementModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('shows an error banner and retries on demand', async () => {
+    const refetch = vi.fn()
+    mockHook({ npcs: [], error: new Error('boom'), refetch })
+    render(<ToastProvider><NpcManagementModal channelId="c1" onClose={vi.fn()} onUpdate={vi.fn()} /></ToastProvider>)
+    expect(screen.getByText("Couldn't load your NPCs.")).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    // Failed fetch must not masquerade as an empty roster.
+    expect(screen.queryByText(/No NPCs yet/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Retry'))
+    expect(refetch).toHaveBeenCalled()
+  })
+
   it('shows a loading state', () => {
     mockHook({ loading: true })
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)

@@ -13,6 +13,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   const { isServerAdmin } = useIsServerAdmin()
   const [replyContent, setReplyContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [replyError, setReplyError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   // Set to the container's height before a load-more prepend; the effect that
@@ -47,13 +48,14 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
     e.preventDefault()
     if (!replyContent.trim()) return
     setSubmitting(true)
+    setReplyError(null)
     const { error } = await supabase.from('admin_messages').insert({
       thread_id: thread.id,
       content: replyContent.trim(),
       sender_id: user!.id
     })
     if (error) {
-      alert('Failed to send reply')
+      setReplyError("Couldn't send your reply. Tap Send to retry.")
     } else {
       setReplyContent('')
     }
@@ -133,6 +135,11 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
       </div>
 
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        {replyError && (
+          <div className="mb-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded px-3 py-2" role="alert">
+            {replyError}
+          </div>
+        )}
         <form onSubmit={handleReply} className="flex gap-2">
           <textarea
             value={replyContent}

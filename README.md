@@ -18,7 +18,7 @@ A modern, mobile-friendly Play-by-Post application built for asynchronous tablet
 
 - **Real-time Chat:** Markdown support, distinct Scene breaks (GM-only), whispers, and daily date dividers.
 - **Dice System:** Integrated dice roller and clickable notation parsing (e.g., `2d20kh1`, `STR Check`).
-- **Campaign Management:** Public lobby, private invite links, persistent status bars for initiative/tracking.
+- **Campaign Management:** Invite-only channels via shareable links or passwords, persistent status bars for initiative/tracking.
 - **Push Notifications:** Web Push integration with in-app badging for new messages and active turns.
 - **Mobile First:** Designed to feel like a native chat application (WhatsApp/Telegram style) on mobile viewports.
 
