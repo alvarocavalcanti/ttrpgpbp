@@ -65,14 +65,14 @@ describe('analytics', () => {
       })
     })
 
-    it('strips the query string so search terms never leave the device', () => {
+    it('strips query string and fragment so search terms never leave the device', () => {
       mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
       initAnalytics()
       const gtag = vi.fn()
       window.gtag = gtag
 
       trackPageView('/lobby?search=secret%20dragon')
-      trackPageView('/channel/abc?x=1&y=2')
+      trackPageView('/channel/abc?x=1&y=2#frag')
 
       expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
         page_path: '/lobby',
