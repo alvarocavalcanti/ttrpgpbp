@@ -1,7 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { PrivacyPage } from './PrivacyPage'
+
+const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: '', VITE_SENTRY_DSN: '' }))
+
+vi.mock('../../env', () => ({ env: mockEnv }))
+
+beforeEach(() => {
+  mockEnv.VITE_GA_MEASUREMENT_ID = ''
+  mockEnv.VITE_SENTRY_DSN = ''
+})
 
 function BackProbe() {
   const navigate = useNavigate()
@@ -58,6 +67,42 @@ describe('PrivacyPage', () => {
 
     expect(screen.getByText(/Google API Services User Data Policy/)).toBeInTheDocument()
     expect(screen.getByText(/Limited Use Disclosure/)).toBeInTheDocument()
+  })
+
+  it('does not claim data is shared only with Supabase', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByText(/shared only with our infrastructure provider/)).not.toBeInTheDocument()
+  })
+
+  it('discloses Google Analytics only when configured', () => {
+    mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Google Analytics')).toBeInTheDocument()
+    expect(screen.queryByText('Sentry')).not.toBeInTheDocument()
+    expect(screen.getByText(/never your search terms, messages, or dice rolls/)).toBeInTheDocument()
+  })
+
+  it('discloses Sentry only when configured', () => {
+    mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Sentry')).toBeInTheDocument()
+    expect(screen.queryByText('Google Analytics')).not.toBeInTheDocument()
+    expect(screen.getByText(/brief screen recording of the session where the error occurred/)).toBeInTheDocument()
   })
 
   it('replaces the entry when returning to lobby so back does not re-enter the page', () => {

@@ -41,15 +41,15 @@ export function NotFound() {
 }
 
 // Fires a GA page_view on every SPA route change (initial load is covered by
-// initAnalytics). Mirrors ScrollToTop: trackPath includes search so query
-// changes (e.g. lobby search) are captured too.
+// initAnalytics). Only the pathname is reported; search terms (e.g. lobby
+// search) are excluded for privacy.
 function RouteTracker() {
   const location = useLocation()
-  const { pathname, search } = location
+  const { pathname } = location
 
   useEffect(() => {
-    trackPageView(pathname + search)
-  }, [pathname, search])
+    trackPageView(pathname)
+  }, [pathname])
 
   return null
 }
