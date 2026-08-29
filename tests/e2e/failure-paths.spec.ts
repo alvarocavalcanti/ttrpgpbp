@@ -121,7 +121,7 @@ test.describe('Failure paths', () => {
   });
 
   test('composer accepts exactly the 4000-character cap', async ({ page }) => {
-    await signUp(page, `e2e.limit.${Date.now()}@gmail.com`);
+    await signUp(page, `e2e.cap.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
     await createChannel(page);
 
