@@ -5,12 +5,13 @@ const mockEnv = vi.hoisted(() => ({ VITE_SENTRY_DSN: '' }))
 vi.mock('../env', () => ({ env: mockEnv }))
 vi.mock('@sentry/react', () => ({
   init: vi.fn(),
+  captureException: vi.fn(),
   browserTracingIntegration: vi.fn(),
   replayIntegration: vi.fn(),
 }))
 
 import * as Sentry from '@sentry/react'
-import { initSentry, scrubSentryEvent, scrubUrl } from './sentry'
+import { captureException, initSentry, scrubSentryEvent, scrubUrl } from './sentry'
 
 type FakeEvent = Parameters<typeof scrubSentryEvent>[0]
 
@@ -18,6 +19,7 @@ describe('sentry', () => {
   beforeEach(() => {
     mockEnv.VITE_SENTRY_DSN = ''
     vi.mocked(Sentry.init).mockClear()
+    vi.mocked(Sentry.captureException).mockClear()
   })
 
   describe('scrubUrl', () => {
@@ -55,14 +57,14 @@ describe('sentry', () => {
   })
 
   describe('initSentry', () => {
-    it('no-ops when no DSN is configured', () => {
-      initSentry()
+    it('no-ops when no DSN is configured', async () => {
+      await initSentry()
       expect(Sentry.init).not.toHaveBeenCalled()
     })
 
-    it('initializes with DSN and the URL-scrubbing beforeSend', () => {
+    it('initializes with DSN and the URL-scrubbing beforeSend', async () => {
       mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
-      initSentry()
+      await initSentry()
       expect(Sentry.init).toHaveBeenCalledOnce()
       const config = vi.mocked(Sentry.init).mock.calls[0][0]
       expect(config.dsn).toBe('https://test@ingest.sentry.io/1')
@@ -70,6 +72,20 @@ describe('sentry', () => {
       expect(config.replaysSessionSampleRate).toBe(0.1)
       expect(config.replaysOnErrorSampleRate).toBe(1.0)
       expect(config.beforeSend).toBe(scrubSentryEvent)
+    })
+  })
+
+  describe('captureException', () => {
+    it('no-ops when no DSN is configured', async () => {
+      await captureException(new Error('boom'))
+      expect(Sentry.captureException).not.toHaveBeenCalled()
+    })
+
+    it('forwards the error and extra to Sentry', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      const error = new Error('boom')
+      await captureException(error, { info: 'ctx' })
+      expect(Sentry.captureException).toHaveBeenCalledWith(error, { extra: { info: 'ctx' } })
     })
   })
 })

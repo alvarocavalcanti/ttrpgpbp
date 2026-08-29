@@ -3,6 +3,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { ReactNode } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 
+vi.mock('../lib/sentry', () => ({ captureException: vi.fn() }))
+
+import { captureException } from '../lib/sentry'
+
 function Bomb(): ReactNode {
   throw new Error('kaboom')
 }
@@ -31,6 +35,7 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
     expect(spy).toHaveBeenCalledWith('Uncaught render error:', expect.any(Error), expect.anything())
+    expect(captureException).toHaveBeenCalledWith(expect.any(Error), { extra: expect.anything() })
   })
 
   it('reloads the page from the fallback', () => {
