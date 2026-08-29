@@ -1,4 +1,20 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
+
+// Shell-level env (e.g. direnv's load_dotenv exporting the project `.env`
+// with the remote Supabase URL) takes precedence over Vite's `.env.local`.
+// E2E must always run against local Supabase, so .env.local wins here.
+function loadEnvFile(path: string): Record<string, string> {
+  if (!existsSync(path)) return {};
+  const env: Record<string, string> = {};
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const m = line.match(/^\s*(VITE_[A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+  return env;
+}
+
+const localEnv = loadEnvFile('.env.local');
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -21,5 +37,6 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
+    env: { ...process.env, ...localEnv },
   },
 });
