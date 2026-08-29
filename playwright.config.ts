@@ -36,6 +36,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
+    // If a stale dev server is already on :5173 it gets reused with ITS env —
+    // the .env.local override below never reaches it. Kill it first when E2E
+    // "still fails locally" against the remote project: `lsof -ti :5173 | xargs kill`.
     reuseExistingServer: !process.env.CI,
     env: { ...process.env, ...localEnv },
   },
