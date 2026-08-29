@@ -1,6 +1,19 @@
 import { defineConfig } from 'vitest/config'
+import type { Plugin } from 'rollup'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// vite-plugin-pwa hardcodes `output.inlineDynamicImports` for the service-worker
+// build; rolldown (vite 8) deprecates that in favour of `codeSplitting: false`.
+// Swap it via an outputOptions hook — identical behavior, no deprecation warning.
+const swOutputCompat: Plugin = {
+  name: 'pwa-sw-output-compat',
+  outputOptions(options) {
+    if (!('inlineDynamicImports' in options)) return null
+    const { inlineDynamicImports: _dropped, ...rest } = options
+    return { ...rest, codeSplitting: false } as typeof options
+  },
+}
 
 export default defineConfig({
   plugins: [
@@ -11,7 +24,10 @@ export default defineConfig({
       filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        buildPlugins: {
+          rollup: [swOutputCompat],
+        },
       },
       includeAssets: ['favicon.svg', 'icons.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json', 'help/*.png'],
       manifest: false,

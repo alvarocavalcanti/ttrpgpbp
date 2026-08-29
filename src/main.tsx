@@ -7,7 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAnalytics } from './lib/analytics'
 import { initSentry } from './lib/sentry'
 
-initSentry()
+void initSentry()
 
 registerSW({ immediate: true })
 

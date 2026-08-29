@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/react'
+import type * as SentryTypes from '@sentry/react'
 import { env } from '../env'
 
 // Sentry breadcrumbs and request URLs carry the full page URL, query string
@@ -9,7 +9,7 @@ export function scrubUrl(url: string): string {
   return new URL(url, window.location.origin).pathname
 }
 
-export function scrubSentryEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
+export function scrubSentryEvent(event: SentryTypes.ErrorEvent): SentryTypes.ErrorEvent {
   if (event.request?.url) {
     event.request.url = scrubUrl(event.request.url)
   }
@@ -27,9 +27,12 @@ export function scrubSentryEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
   return event
 }
 
-// No-op when no VITE_SENTRY_DSN is set (local dev / self-hosted instances).
-export function initSentry(): void {
+// @sentry/react is ~100 kB minified; load it behind import() so it never lands
+// in the main chunk. Sentry initializes a beat after first render — fine for
+// error/tracing telemetry (self-hosted instances have no DSN and load nothing).
+export async function initSentry(): Promise<void> {
   if (!env.VITE_SENTRY_DSN) return
+  const Sentry = await import('@sentry/react')
   Sentry.init({
     dsn: env.VITE_SENTRY_DSN,
     integrations: [
@@ -41,4 +44,11 @@ export function initSentry(): void {
     replaysOnErrorSampleRate: 1.0,
     beforeSend: scrubSentryEvent,
   })
+}
+
+// Thin async wrapper so callers (ErrorBoundary) never import Sentry statically.
+export async function captureException(error: unknown, extra?: Record<string, unknown>): Promise<void> {
+  if (!env.VITE_SENTRY_DSN) return
+  const Sentry = await import('@sentry/react')
+  Sentry.captureException(error, { extra })
 }
