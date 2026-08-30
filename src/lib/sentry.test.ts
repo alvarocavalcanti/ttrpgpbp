@@ -87,5 +87,30 @@ describe('sentry', () => {
       await captureException(error, { info: 'ctx' })
       expect(Sentry.captureException).toHaveBeenCalledWith(error, { extra: { info: 'ctx' } })
     })
+
+    it('omits extra entirely when none is given', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      const error = new Error('boom')
+      await captureException(error)
+      expect(Sentry.captureException).toHaveBeenCalledWith(error, undefined)
+    })
+  })
+
+  describe('chunk-load failure resilience', () => {
+    it('initSentry swallows the failed dynamic import instead of rejecting', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      vi.mocked(Sentry.init).mockImplementationOnce(() => {
+        throw new Error('chunk 404')
+      })
+      await expect(initSentry()).resolves.toBeUndefined()
+    })
+
+    it('captureException swallows the failed dynamic import instead of rejecting', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      vi.mocked(Sentry.captureException).mockImplementationOnce(() => {
+        throw new Error('chunk 404')
+      })
+      await expect(captureException(new Error('boom'))).resolves.toBeUndefined()
+    })
   })
 })
