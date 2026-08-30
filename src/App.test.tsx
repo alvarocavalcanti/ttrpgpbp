@@ -292,7 +292,7 @@ describe('App', () => {
 
     await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    fireEvent.click(screen.getByText('About'))
+    fireEvent.click(screen.getByRole('link', { name: 'About' }))
     expect(await screen.findByRole('heading', { name: 'About Role by Post' })).toBeInTheDocument()
     window.history.replaceState({}, '', '/')
   })
@@ -337,7 +337,7 @@ describe('App', () => {
 
     await screen.findByText('Role by Post')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    fireEvent.click(screen.getByText('Server Admin'))
+    fireEvent.click(screen.getByRole('link', { name: 'Server Admin' }))
     expect(await screen.findByText('Users')).toBeInTheDocument()
     expect(screen.getByText('Server Admin')).toBeInTheDocument()
   })
