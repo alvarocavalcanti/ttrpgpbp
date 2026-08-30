@@ -32,23 +32,34 @@ export function scrubSentryEvent(event: SentryTypes.ErrorEvent): SentryTypes.Err
 // error/tracing telemetry (self-hosted instances have no DSN and load nothing).
 export async function initSentry(): Promise<void> {
   if (!env.VITE_SENTRY_DSN) return
-  const Sentry = await import('@sentry/react')
-  Sentry.init({
-    dsn: env.VITE_SENTRY_DSN,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
-    ],
-    tracesSampleRate: 1.0,
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
-    beforeSend: scrubSentryEvent,
-  })
+  try {
+    const Sentry = await import('@sentry/react')
+    Sentry.init({
+      dsn: env.VITE_SENTRY_DSN,
+      integrations: [
+        Sentry.browserTracingIntegration(),
+        Sentry.replayIntegration(),
+      ],
+      tracesSampleRate: 1.0,
+      replaysSessionSampleRate: 0.1,
+      replaysOnErrorSampleRate: 1.0,
+      beforeSend: scrubSentryEvent,
+    })
+  } catch {
+    // best-effort: chunk fetch failed (e.g. stale service worker), skip telemetry
+  }
 }
 
 // Thin async wrapper so callers (ErrorBoundary) never import Sentry statically.
+// Chunk-load failures (stale service worker serving old HTML post-deploy) must
+// never surface as unhandled rejections or break the caller — telemetry is
+// best-effort.
 export async function captureException(error: unknown, extra?: Record<string, unknown>): Promise<void> {
   if (!env.VITE_SENTRY_DSN) return
-  const Sentry = await import('@sentry/react')
-  Sentry.captureException(error, { extra })
+  try {
+    const Sentry = await import('@sentry/react')
+    Sentry.captureException(error, extra ? { extra } : undefined)
+  } catch {
+    // best-effort: chunk fetch failed, nothing we can report to
+  }
 }
