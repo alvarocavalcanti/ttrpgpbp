@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { dismissWhatsNew } from './helpers';
 
 test.describe('Core Journey', () => {
-  test.beforeEach(async ({}) => {
+  test.beforeEach(async () => {
     // Skip if local Supabase is not running (e.g. macOS Docker Desktop issue)
     try {
       const res = await fetch('http://127.0.0.1:54321/auth/v1/health');
