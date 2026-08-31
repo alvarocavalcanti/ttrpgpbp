@@ -38,15 +38,15 @@ Note on stack: the UI is hand-rolled Tailwind components + `@tailwindcss/typogra
 
 ### P1
 
-6. **Channel tools buried 2+ taps deep** — Rolls, Search, Notifications, Safety Tools, NPCs, Active Player, Settings all live in the right-hand sidebar behind the hamburger (`ChannelView.tsx:327-430`). A text-only list with no icons and no grouping; GM items and player items mix. Dice has *two* entry points (composer sheet + none in sidebar), while Rolls history has *one* (sidebar).
+1. **Channel tools buried 2+ taps deep** — Rolls, Search, Notifications, Safety Tools, NPCs, Active Player, Settings all live in the right-hand sidebar behind the hamburger (`ChannelView.tsx:327-430`). A text-only list with no icons and no grouping; GM items and player items mix. Dice has *two* entry points (composer sheet + none in sidebar), while Rolls history has *one* (sidebar).
 
-7. **"Load older messages" is a manual button** (`MessageList.tsx:167-178`) — scroll-to-top infinite loading is the expected pattern on mobile; the button costs a precision tap at the exact top of a long thread.
+2. **"Load older messages" is a manual button** (`MessageList.tsx:167-178`) — scroll-to-top infinite loading is the expected pattern on mobile; the button costs a precision tap at the exact top of a long thread.
 
-8. **Full-screen spinner for every channel open** — `ChannelView.tsx:116-122` blanks the entire view (header included) while *either* channel or messages load. No skeleton, no progressive paint; every navigation feels slower than it is.
+3. **Full-screen spinner for every channel open** — `ChannelView.tsx:116-122` blanks the entire view (header included) while *either* channel or messages load. No skeleton, no progressive paint; every navigation feels slower than it is.
 
-9. **Header search is `w-24` on mobile** (`App.tsx:108`) — 96px for fuzzy channel search, with no way to expand; lobby search and in-channel search are also two different UIs for two different search models.
+4. **Header search is `w-24` on mobile** (`App.tsx:108`) — 96px for fuzzy channel search, with no way to expand; lobby search and in-channel search are also two different UIs for two different search models.
 
-10. **Lobby row badges wrap awkwardly** — channel name (`truncate`), unread chip, GM/Player badge, and "Joined as X" chip share one row that wraps under 400px (`Lobby.tsx:77-114`); "Joined as <20-char name>" can dominate the row.
+5. **Lobby row badges wrap awkwardly** — channel name (`truncate`), unread chip, GM/Player badge, and "Joined as X" chip share one row that wraps under 400px (`Lobby.tsx:77-114`); "Joined as <20-char name>" can dominate the row.
 
 ---
 
@@ -66,26 +66,32 @@ Note on stack: the UI is hand-rolled Tailwind components + `@tailwindcss/typogra
 
 ## 4. Proposed Wireframe / Layout Changes
 
-**Campaign Thread View (mobile)**
+### Campaign Thread View (mobile)
+
 - Merge the hamburger into a single **header row**: back / avatar+name / **search icon** / **dice icon** / menu. Search and Rolls are the two most-used tools and deserve header icons (1 tap) instead of sidebar text items (3 taps).
 - Replace the full-screen loading spinner with **header-first paint + message skeletons** (3 shimmering bubble outlines) — the channel name and status bar render from cached/parallel data.
 - Auto-load older messages on scroll-top (keep the manual button as fallback for the first page only).
 
-**Dice Roller**
+### Dice Roller
+
 - On mobile, render the roller **inline in the BottomSheet** (it already is) but make its popup a second BottomSheet layer (`Menu`-style `popup={isMobile}`), not an anchored `absolute` popup — eliminates the clipping P0 with the component already built.
 - Quick-roll preset row above the form: last 3 notations used in this channel as tappable chips (`2d20kh+4`, `1d8+2`). Roll history data already exists to feed it.
 
-**Message Actions**
+### Message Actions
+
 - Mobile: collapse reply/edit/delete/X-Card/reaction behind a **long-press context menu** (or a single `⋯` button opening a BottomSheet) instead of five always-on 24px icons per message. Desktop keeps hover icons. Removes the densest touch-error zone in the app.
 
-**Ability Check Dialog**
+### Ability Check Dialog
+
 - Replace `window.prompt` with a small BottomSheet: modifier (pre-filled from profile, `clampModifier`-bounded), Adv/Dis toggle (reuse DiceRoller's segmented control), Roll / Cancel. Missing-modifier state shows a **"Set it in your character sheet"** link instead of a warning string.
 
-**Character Sheet Drawer**
+### Character Sheet Drawer
+
 - Promote character identity to a **first-class header element**: tapping your own avatar in the composer opens the Edit Character sheet (name, avatar, modifiers, notes, sheet URL) as a BottomSheet — today it is inside MemberList → your own row, undiscoverable.
 - Empty lobby state: illustration + two explicit paths — *"Create a channel"* (inline button, not just FAB) and *"Paste an invite link to join a game"* input. Explains the invite-only model at the exact moment it is confusing.
 
-**GM/Player Role Separation**
+### GM/Player Role Separation
+
 - Keep conditional rendering (it is already clean), but add **section headers in the sidebar** ("GM Tools" / "Table") so the text list reads as grouped instead of an undifferentiated 10-item stack.
 
 ---
@@ -101,50 +107,53 @@ Note on stack: the UI is hand-rolled Tailwind components + `@tailwindcss/typogra
 
 The initial prompt given to the reviewer, preserved verbatim:
 
-> # Role & Persona
-> You are a Principal UX Designer and Product Strategist specializing in mobile-first web applications, modern component design systems (Tailwind CSS, Shadcn UI), and asynchronous collaborative platforms.
->
-> You are conducting a comprehensive **Product, UX, and Interaction Review** of the repository `alvarocavalcanti/ttrpgpbp` (a mobile-first Play-by-Post TTRPG web application).
->
-> ---
->
-> # Context & Inputs
-> * **Functional Scope:** Read `docs/FEATURES.md` to understand the target product capabilities and player/Game Master workflows.
-> * **Evolution:** Read `docs/CHANGELOG.md` to see recent UI fixes, layout adjustments, and new feature additions.
-> * **Codebase Structure:** Inspect `/src/components`, UI layouts, responsive styling, and interaction patterns.
->
-> ---
->
-> # Evaluation Vectors
->
-> Perform your review through the lens of a **mobile-first, asynchronous gaming experience**:
->
-> ### 1. Feature Architecture & User Journeys
-> * **Onboarding & Campaign Setup:** How smooth is the transition from initial login to joining/creating a campaign and building a character sheet?
-> * **Async Game Loop:** Is the primary interaction loop (reading updates -> rolling dice -> drafting markdown response) fluid? Are primary actions accessible within 1-2 taps on a mobile screen?
-> * **Role Distinction:** How effectively does the UI separate player-facing actions from Game Master tools without cluttering the screen?
->
-> ### 2. Mobile-First Layout & Spatial Hierarchy
-> * **Touch Targets & Thumb Zones:** Are key interactive elements (dice roller, rich text formatters, post submit, character sheet toggles) sized for mobile ergonomics (min 44x44px target sizes)?
-> * **Information Density:** Does the mobile view manage long play-by-post campaign threads gracefully without triggering scroll fatigue or layout shifts?
-> * **PWA & Offline UX:** How clearly does the UI communicate offline state, pending optimistic posts, or connection drops during real-time web socket sync?
->
-> ### 3. Visual Design System & Accessibility (a11y)
-> * **Shadcn / Tailwind Alignment:** Are layout tokens, colors, typography, and spacing used consistently across components?
-> * **Contrast & Legibility:** Is the dark/light atmospheric styling readable across varying ambient mobile lighting conditions?
-> * **Screen Reader & Keyboard Nav:** Are modal dialogs, drawer menus, and popovers properly trapped and labeled for ARIA accessibility?
->
-> ### 4. Micro-Interactions & Feedback Loops
-> * **Optimistic UI & Latency:** Does the UI feel instantaneous when posting or rolling dice, providing clear feedback if a Supabase network request fails?
-> * **Empty & Loading States:** How are empty campaign feeds, character loading skeletons, and connection reconnection banners handled visually?
->
-> ---
->
-> # Review Output Format
->
-> Provide a detailed **UX & Product Design Assessment**:
->
-> 1. **UX Executive Summary:** Overall score (1-10) on mobile usability, aesthetic consistency, and feature completeness.
-> 2. **Top UX Friction Points (P0/P1):** Specific flows where a user is likely to experience frustration, confusion, or visual clutter on mobile.
-> 3. **UI & Layout Optimizations (P2):** Quick wins for typography, micro-spacing, mobile navigation, or responsive drawer/modal improvements.
-> 4. **Proposed Wireframe / Layout Changes:** Bulleted descriptions of alternative layout strategies for high-traffic views (e.g., Campaign Thread View, Dice Roller Bar, Character Sheet Drawer).
+```markdown
+# Role & Persona
+You are a Principal UX Designer and Product Strategist specializing in mobile-first web applications, modern component design systems (Tailwind CSS, Shadcn UI), and asynchronous collaborative platforms.
+
+You are conducting a comprehensive **Product, UX, and Interaction Review** of the repository `alvarocavalcanti/ttrpgpbp` (a mobile-first Play-by-Post TTRPG web application).
+
+---
+
+# Context & Inputs
+* **Functional Scope:** Read `docs/FEATURES.md` to understand the target product capabilities and player/Game Master workflows.
+* **Evolution:** Read `docs/CHANGELOG.md` to see recent UI fixes, layout adjustments, and new feature additions.
+* **Codebase Structure:** Inspect `/src/components`, UI layouts, responsive styling, and interaction patterns.
+
+---
+
+# Evaluation Vectors
+
+Perform your review through the lens of a **mobile-first, asynchronous gaming experience**:
+
+### 1. Feature Architecture & User Journeys
+* **Onboarding & Campaign Setup:** How smooth is the transition from initial login to joining/creating a campaign and building a character sheet?
+* **Async Game Loop:** Is the primary interaction loop (reading updates -> rolling dice -> drafting markdown response) fluid? Are primary actions accessible within 1-2 taps on a mobile screen?
+* **Role Distinction:** How effectively does the UI separate player-facing actions from Game Master tools without cluttering the screen?
+
+### 2. Mobile-First Layout & Spatial Hierarchy
+* **Touch Targets & Thumb Zones:** Are key interactive elements (dice roller, rich text formatters, post submit, character sheet toggles) sized for mobile ergonomics (min 44x44px target sizes)?
+* **Information Density:** Does the mobile view manage long play-by-post campaign threads gracefully without triggering scroll fatigue or layout shifts?
+* **PWA & Offline UX:** How clearly does the UI communicate offline state, pending optimistic posts, or connection drops during real-time web socket sync?
+
+### 3. Visual Design System & Accessibility (a11y)
+* **Shadcn / Tailwind Alignment:** Are layout tokens, colors, typography, and spacing used consistently across components?
+* **Contrast & Legibility:** Is the dark/light atmospheric styling readable across varying ambient mobile lighting conditions?
+* **Screen Reader & Keyboard Nav:** Are modal dialogs, drawer menus, and popovers properly trapped and labeled for ARIA accessibility?
+
+### 4. Micro-Interactions & Feedback Loops
+* **Optimistic UI & Latency:** Does the UI feel instantaneous when posting or rolling dice, providing clear feedback if a Supabase network request fails?
+* **Empty & Loading States:** How are empty campaign feeds, character loading skeletons, and connection reconnection banners handled visually?
+
+---
+
+# Review Output Format
+
+Provide a detailed **UX & Product Design Assessment**:
+
+1. **UX Executive Summary:** Overall score (1-10) on mobile usability, aesthetic consistency, and feature completeness.
+2. **Top UX Friction Points (P0/P1):** Specific flows where a user is likely to experience frustration, confusion, or visual clutter on mobile.
+3. **UI & Layout Optimizations (P2):** Quick wins for typography, micro-spacing, mobile navigation, or responsive drawer/modal improvements.
+4. **Proposed Wireframe / Layout Changes:** Bulleted descriptions of alternative layout strategies for high-traffic views (e.g., Campaign Thread View, Dice Roller Bar, Character Sheet Drawer).
+
+```
