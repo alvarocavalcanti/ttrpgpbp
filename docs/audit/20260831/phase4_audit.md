@@ -21,7 +21,7 @@ Verification run this pass:
 | Images in private channels stay private | [VERIFIED STABLE] | `images` bucket private; member-only SELECT on `{channel_id}/...` paths; `enforce_image_upload_rules` definer trigger re-enforces enable toggle, size cap, `image/*` server-side on every write; pgTAP 7/7. Residual (accepted, in-migration): mimetype is label-only, client re-encodes to JPEG. |
 | Push delivery hardening | [VERIFIED STABLE] | DB-trigger dispatch, 404/410-only subscription cleanup, bounded backoff retry, per-delivery `push_delivery_log` (never message content/push keys); subscription self-repair on foreground + SW rotation relay; whisper routing exclusive to `[whisper_to]` with content stripped. |
 | Realtime connection recovery | [INCOMPLETE] | `subscribeWithRetry` (exp backoff 1s→30s, `src/lib/realtime.ts`) + global status banner are solid; echo-dedup by id, `client_request_id` race solved, cursor-based forward catch-up (PAGE_SIZE batches) recovers >50 missed inserts. But catch-up only forward-fetches `INSERT` (`gt('created_at', cursor)`): missed **UPDATE/DELETE** events during a disconnect never reconcile already-held messages — an edit/deletion made while offline stays stale until full reload. Admin-message channels use bare `.subscribe()` (no retry) and die silently on drop. |
-| Admin/GM communication | [VERIFIED STABLE] | Thread RLS sound (announcements: admin/active-GM; DMs: admin/participant); composite-cursor pagination + indexes; `retry_failed_push_invocations` routes admin retries correctly. Gap (P1): `get_admin_unread_count()` is PUBLIC-executable with no caller guard — any caller reads an arbitrary user's admin-thread unread state. |
+| Admin/GM communication | [INCOMPLETE] | Thread RLS sound (announcements: admin/active-GM; DMs: admin/participant); composite-cursor pagination + indexes; `retry_failed_push_invocations` routes admin retries correctly. Gap (P1): `get_admin_unread_count()` is PUBLIC-executable with no caller guard — any caller reads an arbitrary user's admin-thread unread state (#335). |
 | X-Card (anonymous, GM alert) | [REGRESSION RISK] | `safety_card_events` is in the realtime publication with member-wide SELECT RLS — **every player's websocket receives every X-Card event**; GM-only surfacing is client-side UI. Anonymity holds (no identity stored) but flag events leak to non-GMs. In-migration comment admits the tradeoff. |
 | Private channels, password separation, blocking | [INCOMPLETE] | Separation correct; blocked users excluded from channel access. But `join_channel` compares `password_hash` with no attempt limiting (`20260819140000_join_channel_return_json.sql:54`) — the "throttle failed password attempts" TODO in `20260819130000_abuse_controls.sql:106` was never implemented. Infinite brute-force oracle against channel passwords/invite codes. |
 | NPC messages and roster validation | [VERIFIED STABLE] | GM-only RPC/RLS, roster snapshot validated server-side; past messages keep name/portrait snapshot. |
@@ -36,11 +36,14 @@ Verification run this pass:
 
 **P0: none.**
 
-**P1 (fix before launch):**
+**P1 launch blockers (must land before launch):**
 
 - **[P1] Suspension bypass in command RPCs** — `send_message` (`…44039:120`), `roll_dice` (`…44038:77`), `update_channel_settings` (`20260826120000:93`), `set_active_players` check `is_blocked` but not `is_suspended`. Add `AND NOT is_suspended(v_uid)` to the inline membership checks (SECURITY DEFINER bypasses RLS). ~4-line SQL + pgTAP.
 - **[P1] Unthrottled join oracle** — `join_channel` (`20260819140000:54`) compares `password_hash` with no attempt limiting; the throttle TODO was never implemented. Add per-user/per-channel failure counter (windowed) inside the RPC.
 - **[P1] PUBLIC-executable SECURITY DEFINER helpers** — `is_suspended`, `is_active_gm`, `resolve_mention_user_ids` (membership oracle), and `get_admin_unread_count` (reads arbitrary user's unread state) have no `REVOKE … FROM PUBLIC`. Add `REVOKE` + `auth.uid()` guard on the unread fn.
+
+**P1 follow-up (ship immediately after launch; UX degradation only, no data loss):**
+
 - **[P1] Reconnect catch-up misses UPDATE/DELETE** — `useMessages` forward-fetch only reconciles INSERTs; an edit/deletion made while offline stays stale until reload. Reconcile UPDATE/DELETE in the catch-up window.
 - **[P1] `last_read_at` frozen while channel open** — written once on mount; messages arriving while the user is live-reading never advance it, so the Lobby unread badge re-counts already-read messages. Advance on new-message-while-visible.
 - **[P1] SW lacks offline navigation fallback** — `precacheAndRoute` only; offline deep-link to `/channel/:id` fails. Add `createHandlerBoundToURL('index.html')` + NavigationRoute.
@@ -53,11 +56,11 @@ Verification run this pass:
 - **Precache bloat** — `vite.config.ts` glob `**/*.png` pulls every help screenshot + logo into the SW cache: 58 entries / 3.42 MiB. Scope to used screenshots; ~2.5 MiB mobile savings.
 - **Per-route error boundaries** — single top-level boundary; wrap the 13 lazy routes (`App.tsx:16-31`) with a reusable boundary so a page crash doesn't unmount nav.
 - **Composer double-send path** — composer-resubmit mints a fresh `client_request_id`; route re-send through the pending bubble's existing key so a timeout window can't double-post.
-- **`dice:` href injection** — `[x](dice:<anything>)` passes raw to `roll_dice` (`MessageItem.tsx:143`); validate against `DICE_REGEX` at the click site.
+- **`dice:` input validation** — `[x](dice:<anything>)` passes raw to `roll_dice` (`MessageItem.tsx:143`); the server's regex gate + input caps reject invalid notation, so this is client-side validation/UX (fail early, no misleading "Rolling" bubble), not an injection.
 - **DiceRoller input clamps** — quantity accepts typed `9999`, modifier unclamped; validate at point of input (project rule), not just server-side.
 - **Pin `search_path`** on `handle_new_user` / `handle_new_user_prefs` (Supabase linter `function_search_path_mutable`).
 - **DB hardening** — `roll_dice` notation length cap + DC bounds; `admin_messages` RLS depends on nested-RLS evaluation order (inline the predicate); `gm_id` tamper trigger; `p_invite_code` entropy/format validation; URL scheme validation on map/resources URLs; `abuse_reports.reason` length cap.
-- **Edge-function hygiene** — timing-string secret compares (`crypto.subtle.timingSafeEqual`); `x-card` broadcast (F5) decision.
+- **Edge-function hygiene** — Supabase Edge functions run on Deno: use timing-safe comparison from `jsr:@std/crypto/timing-safe-equal` for the `x-push-secret` / `x-cleanup-secret` header checks (not Node's `crypto.subtle.timingSafeEqual`, which isn't a web API there); `x-card` broadcast (F5) decision.
 - **Fragile frontend patterns** — unguarded `localStorage` in composer (Safari private mode throws); non-null assertions (`user!.id`, `dataLayer!`); postMessage casts unchecked on the SW↔page DB-write path.
 - **Lobby unread staleness** — badge refreshes only on push/visibility/realtime-status transitions; no messages subscription while in Lobby.
 - **Scroll yank** — `visibilitychange→visible` force-jump violates the no-yank rule.
