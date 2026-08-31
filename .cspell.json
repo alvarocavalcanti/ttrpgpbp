@@ -57,6 +57,9 @@
     "Clickjacking",
     "unindexed",
     "unvalidated",
+    "Unthrottled",
+    "visibilitychange",
+    "dedup",
     "Rangeable",
     "SAMEORIGIN"
   ]
