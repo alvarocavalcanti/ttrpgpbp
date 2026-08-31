@@ -272,7 +272,22 @@ export type Database = {
           user_id?: string
           window_start?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "channel_join_failures_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_join_failures_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       channel_members: {
         Row: {
