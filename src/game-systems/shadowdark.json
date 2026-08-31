@@ -3,5 +3,7 @@
   "name": "Shadowdark",
   "attributes": ["STR", "DEX", "CON", "INT", "WIS", "CHA"],
   "minModifier": -4,
-  "maxModifier": 4
+  "maxModifier": 4,
+  "sectionTitle": "Stat Modifiers",
+  "sectionSubTitle": "Shadowdark modifiers range from {min} to {max}"
 }

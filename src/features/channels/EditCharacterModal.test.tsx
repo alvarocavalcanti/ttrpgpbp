@@ -15,7 +15,7 @@ describe('EditCharacterModal', () => {
   it('renders generic modal', () => {
     render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
     expect(screen.getByDisplayValue('Hero')).toBeInTheDocument()
-    expect(screen.queryByText('Attributes (Modifiers)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stat Modifiers')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Notes')).toBeInTheDocument()
   })
 
@@ -30,7 +30,8 @@ describe('EditCharacterModal', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
     render(<EditCharacterModal member={mockMember} gameSystem="shadowdark" onClose={vi.fn()} onUpdate={vi.fn()} />)
-    expect(screen.getByText('Attributes (Modifiers)')).toBeInTheDocument()
+    expect(screen.getByText('Stat Modifiers')).toBeInTheDocument()
+    expect(screen.getByText('Shadowdark modifiers range from -4 to 4')).toBeInTheDocument()
     
     fireEvent.change(screen.getByLabelText('STR'), { target: { value: '3' } })
     fireEvent.click(screen.getByText('Save'))
@@ -42,20 +43,44 @@ describe('EditCharacterModal', () => {
     })
   })
 
-  it('clamps Shadowdark modifiers to [-4, 4]', async () => {
+  it('flags out-of-range input in red and blocks save', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
     render(<EditCharacterModal member={mockMember} gameSystem="shadowdark" onClose={vi.fn()} onUpdate={vi.fn()} />)
-    
-    fireEvent.change(screen.getByLabelText('STR'), { target: { value: '6' } })
-    fireEvent.click(screen.getByText('Save'))
-    
-    await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        attributes: expect.objectContaining({ STR: 4 })
-      }))
-    })
+
+    const strInput = screen.getByLabelText('STR')
+    const subTitle = screen.getByText('Shadowdark modifiers range from -4 to 4')
+    expect(subTitle).not.toHaveClass('text-red-600')
+    expect(strInput).not.toHaveAttribute('aria-invalid', 'true')
+
+    fireEvent.change(strInput, { target: { value: '16' } })
+
+    expect(strInput).toHaveAttribute('aria-invalid', 'true')
+    expect(strInput.className).toContain('border-red-500')
+    expect(subTitle).toHaveClass('text-red-600')
+    expect(screen.getByText('Save')).toBeDisabled()
+
+    fireEvent.change(strInput, { target: { value: '-2' } })
+    expect(strInput).not.toHaveAttribute('aria-invalid', 'true')
+    expect(subTitle).not.toHaveClass('text-red-600')
+    expect(screen.getByText('Save')).toBeEnabled()
+  })
+
+  it('sanitizes legacy garbage values on load', () => {
+    const dirtyMember = {
+      ...mockMember,
+      attributes: { STR: 1e79, DEX: 2.9292, CON: '-3', INT: 'abc', WIS: null },
+    } as any
+
+    render(<EditCharacterModal member={dirtyMember} gameSystem="shadowdark" onClose={vi.fn()} onUpdate={vi.fn()} />)
+
+    // Exponent/float/garbage reset to 0; in-range ints kept.
+    expect(screen.getByLabelText('STR')).not.toHaveValue('1e+79')
+    expect(screen.getByLabelText('DEX')).toHaveValue('0')
+    expect(screen.getByLabelText('INT')).toHaveValue('0')
+    expect(screen.getByLabelText('WIS')).toHaveValue('0')
+    expect(screen.getByLabelText('CON')).toHaveValue('-3')
   })
 
   it('ignores non-integer keystrokes in stat fields', () => {

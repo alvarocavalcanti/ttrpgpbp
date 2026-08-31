@@ -321,7 +321,44 @@ describe('JoinChannel', () => {
     expect(passwordInput).toHaveAttribute('type', 'password')
   })
 
-  it('accepts only integer stat input and joins with clamped modifiers', async () => {
+  it('flags out-of-range stat input in red and blocks joining', async () => {
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce(preview({ game_system: 'shadowdark' }) as any)
+
+    render(
+      <MemoryRouter initialEntries={['/join/123']}>
+        <Routes>
+          <Route path="/join/:id" element={<JoinChannel />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('STR')).toBeInTheDocument()
+    })
+
+    const strInput = screen.getByLabelText('STR')
+    const subTitle = screen.getByText('Shadowdark modifiers range from -4 to 4')
+    // Fields start at 0 — no empty state to validate.
+    expect(strInput).toHaveValue('0')
+
+    // Non-integer keystrokes are ignored.
+    fireEvent.change(strInput, { target: { value: '2.5' } })
+    expect(strInput).toHaveValue('0')
+
+    fireEvent.change(strInput, { target: { value: '6' } })
+    expect(strInput).toHaveAttribute('aria-invalid', 'true')
+    expect(strInput.className).toContain('border-red-500')
+    expect(subTitle).toHaveClass('text-red-600')
+    expect(screen.getByRole('button', { name: 'Join Campaign' })).toBeDisabled()
+
+    fireEvent.change(strInput, { target: { value: '-2' } })
+    expect(strInput).not.toHaveAttribute('aria-invalid', 'true')
+    expect(subTitle).not.toHaveClass('text-red-600')
+    expect(screen.getByRole('button', { name: 'Join Campaign' })).toBeEnabled()
+  })
+
+  it('accepts only integer stat input and joins with sanitized modifiers', async () => {
     const mockJoin = vi.fn().mockResolvedValue({ data: { success: true }, error: null })
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(preview({ game_system: 'shadowdark' }) as any)
@@ -340,21 +377,15 @@ describe('JoinChannel', () => {
       expect(screen.getByLabelText('STR')).toBeInTheDocument()
     })
 
-    const strInput = screen.getByLabelText('STR')
-    // Non-integer keystrokes are ignored.
-    fireEvent.change(strInput, { target: { value: '2.5' } })
-    expect(strInput).toHaveValue('')
-    fireEvent.change(strInput, { target: { value: '6' } })
-    expect(strInput).toHaveValue('6')
+    fireEvent.change(screen.getByLabelText('STR'), { target: { value: '4' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
 
     await waitFor(() => {
-      // Shadowdark clamps modifiers to [-4, 4] client-side; the join RPC re-clamps.
       expect(mockJoin).toHaveBeenCalledWith('join_channel', {
         p_channel_id: '123',
         p_character_name: 'TestUser',
-        p_character_attributes: { STR: 4 },
+        p_character_attributes: { STR: 4, DEX: 0, CON: 0, INT: 0, WIS: 0, CHA: 0 },
         p_invite_code: undefined
       })
       expect(screen.getByTestId('success-redirect')).toBeInTheDocument()
