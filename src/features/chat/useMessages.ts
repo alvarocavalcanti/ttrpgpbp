@@ -99,6 +99,11 @@ export function useMessages(channelId: string | undefined) {
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
+  // High-water mark of server `updated_at` among rows we've fetched. Catch-up
+  // uses it to re-pull rows edited (or soft-deleted) while we were offline, so
+  // reconnect reconciles UPDATEs and not just INSERTs (#336).
+  const updatedCursorRef = useRef<string | null>(null)
+
   useEffect(() => {
     let mounted = true
     // Drop any state from a previous channel (route change keeps this hook
@@ -108,6 +113,7 @@ export function useMessages(channelId: string | undefined) {
     setHasMore(false)
     setError(null)
     setLoading(true)
+    updatedCursorRef.current = null
 
     if (!channelId) {
       setLoading(false)
@@ -138,6 +144,11 @@ export function useMessages(channelId: string | undefined) {
             }
             return merged
           })
+          const maxUpdated = (data || []).reduce<string | null>((max, row) => {
+            const u = (row as { updated_at?: string | null }).updated_at ?? null
+            return u && (!max || u > max) ? u : max
+          }, updatedCursorRef.current)
+          if (maxUpdated) updatedCursorRef.current = maxUpdated
           setHasMore((data || []).length === PAGE_SIZE)
         }
       } catch (err) {
@@ -206,7 +217,70 @@ export function useMessages(channelId: string | undefined) {
           return merged
         })
         cursor = batch[batch.length - 1].created_at
+        const maxUpdated = batch.reduce<string | null>((max, m) => (!max || m.updated_at > max ? m.updated_at : max), updatedCursorRef.current)
+        if (maxUpdated) updatedCursorRef.current = maxUpdated
         if (batch.length < PAGE_SIZE) return
+      }
+    }
+
+    // Re-fetch rows edited (or soft-deleted) since our updated_at high-water
+    // mark and apply them over the held messages. Only ids we already hold are
+    // replaced — genuinely new rows arrive via the INSERT catch-up above, so
+    // edits to older older not-held pages never leak in as phantom messages.
+    // ponytail: hard DELETEs can't be reconciled by refetch (row is gone);
+    // deletes in this app are soft (is_deleted UPDATE), so this covers them.
+    async function reconcileUpdates() {
+      // Explicit annotation: a widened cursor type feeds back into the query
+      // builder's inferred type across loop iterations (TS7022 cycle).
+      const initialCursor = updatedCursorRef.current
+      if (!initialCursor) return
+      let cursor: string = initialCursor
+      for (let guard = 0; guard < 100; guard += 1) {
+        if (!mounted) return
+        const { data, error } = await supabase
+          .from('messages')
+          .select(MESSAGE_SELECT)
+          .eq('channel_id', channelId as string)
+          .gt('updated_at', cursor)
+          .order('updated_at', { ascending: true })
+          .order('id', { ascending: true })
+          .limit(PAGE_SIZE)
+        if (error) {
+          console.error('Error reconciling message updates:', error)
+          return
+        }
+        const rows = data || []
+        if (rows.length === 0) return
+        const batch = rows.map(formatMessage).filter((m): m is Message => m !== null)
+        const nextCursor = rows.reduce<string | null>((max, row) => {
+          const u = (row as { updated_at?: string | null }).updated_at ?? null
+          return u && (!max || u > max) ? u : max
+        }, cursor)
+        if (batch.length > 0 && mounted) {
+          setMessages(prev => {
+            // Only rows we already hold get replaced; edits to older older not-held
+            // pages are skipped (their inserts predate our window) so they
+            // never leak in as phantom messages. New rows are the INSERT
+            // catch-up's job.
+            const heldIds = new Set(prev.map(m => m.id))
+            const applied = batch.filter(m => heldIds.has(m.id))
+            if (applied.length === 0) return prev
+            const byId = new Map(applied.map(m => [m.id, m]))
+            const batchRequestIds = new Set(applied.map(m => m.client_request_id).filter((id): id is string => Boolean(id)))
+            const kept = prev.filter(m =>
+              !byId.has(m.id) &&
+              !(m.pending && m.client_request_id && batchRequestIds.has(m.client_request_id))
+            )
+            const merged = [...kept, ...applied]
+            merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+            return merged
+          })
+        }
+        if (nextCursor) {
+          updatedCursorRef.current = nextCursor
+          cursor = nextCursor
+        }
+        if (rows.length < PAGE_SIZE) return
       }
     }
 
@@ -293,14 +367,14 @@ export function useMessages(channelId: string | undefined) {
           if (firstSubscribe) {
             firstSubscribe = false
           } else {
-            void Promise.all([catchUp(), fetchReactions()])
+            void Promise.all([catchUp().then(reconcileUpdates), fetchReactions()])
           }
         }
       })
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void Promise.all([catchUp(), fetchReactions()])
+        void Promise.all([catchUp().then(reconcileUpdates), fetchReactions()])
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)

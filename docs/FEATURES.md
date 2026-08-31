@@ -121,7 +121,8 @@
 - **Subscription self-repair** — the app reconciles the server's copy of the push subscription on startup and whenever it returns to the foreground, and the service worker relays browser-initiated subscription rotation to the page so the stored endpoint/keys never go stale
 - **Reliable delivery** — transient provider failures are retried with bounded backoff; only confirmed-invalid subscriptions (HTTP 404/410) are removed, and removing one device never affects another. Every delivery is logged to `push_delivery_log` (outcome, user, subscription, error category — never message content or push keys), and failed trigger dispatches can be re-queued via `retry_failed_push_invocations()`
 - **In-app badge** — on by default
-- **Realtime connection recovery** — the app shows when it is offline or reconnecting, keeps loaded chat usable, and catches up on messages, channel changes, rolls, and unread counts after returning
+- **Realtime connection recovery** — the app shows when it is offline or reconnecting, keeps loaded chat usable, and catches up on messages (including edits and deletions), channel changes, rolls, and unread counts after returning
+- **Offline navigation** — opening any app link while offline serves the cached app shell instead of a browser error page
 - **Launcher icon badge** — when the PWA is installed, the home-screen icon shows the total unread count via the App Badging API (iOS 16.4+, desktop); respects the unread-badge preference and is updated in the background when a push arrives. A badge update failure never suppresses the system notification. Android has no badge API and shows a dot automatically only while a notification is active.
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")

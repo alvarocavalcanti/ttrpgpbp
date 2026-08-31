@@ -113,7 +113,10 @@ describe('useMessages', () => {
     const mockCatchLimit = vi.fn()
       .mockResolvedValueOnce({ data: gapPage1, error: null })
       .mockResolvedValueOnce({ data: [gapTail], error: null })
-    const mockCatchOrder = vi.fn().mockReturnValue({ limit: mockCatchLimit })
+    // Self-chaining order: shared by the INSERT catch-up (one .order) and the
+    // UPDATE reconcile (two .order calls) that runs right after it.
+    const mockCatchOrder = vi.fn()
+    mockCatchOrder.mockReturnValue({ order: mockCatchOrder, limit: mockCatchLimit })
     const mockGt = vi.fn().mockReturnValue({ order: mockCatchOrder })
 
     // eq() serves both the initial fetch (.order desc) and the catch-up (.gt -> .order asc).
@@ -138,6 +141,84 @@ describe('useMessages', () => {
     })
     expect(result.current.messages[0].id).toBe('m0')
     expect(result.current.messages[result.current.messages.length - 1].id).toBe('newest')
+  })
+
+  it('reconciles edits and soft-deletes made while offline on reconnect', async () => {
+    const initial = [
+      baseMessage({ id: 'm1', content: 'hello', created_at: '2023-01-01T00:00:00.000Z', updated_at: '2023-01-01T00:00:00.000Z' }),
+      baseMessage({ id: 'm2', content: 'doomed', created_at: '2023-01-01T00:00:01.000Z', updated_at: '2023-01-01T00:00:01.000Z' }),
+    ]
+    // m1 edited while offline; m2 soft-deleted while offline.
+    const updateBatch = [
+      baseMessage({ id: 'm1', content: 'edited', is_edited: true, updated_at: '2023-01-01T01:00:00.000Z' }),
+      baseMessage({ id: 'm2', content: '', is_deleted: true, updated_at: '2023-01-01T01:00:01.000Z' }),
+    ]
+
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
+    const insertLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const insertChain = { order: vi.fn().mockReturnValue({ limit: insertLimit }) }
+    const updateLimit = vi.fn().mockResolvedValue({ data: updateBatch, error: null })
+    const updateOrder = vi.fn()
+    updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
+    const mockGt = vi.fn().mockImplementation((column: string) => (column === 'updated_at' ? { order: updateOrder } : insertChain))
+
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(2)
+    })
+
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+
+    await waitFor(() => {
+      expect(result.current.messages[0].content).toBe('edited')
+    })
+    // Both rows replaced by their server state: m1 carries the edit...
+    expect(result.current.messages[0].is_edited).toBe(true)
+    // ...and m2 shows its soft-deleted state instead of stale content.
+    expect(result.current.messages[1].is_deleted).toBe(true)
+    expect(result.current.messages).toHaveLength(2)
+  })
+
+  it('ignores update-catchup rows for messages it does not hold', async () => {
+    const initial = [baseMessage({ id: 'm1', created_at: '2023-01-01T00:00:00.000Z', updated_at: '2023-01-01T00:00:00.000Z' })]
+    // A row whose created_at predates our window but was edited after our
+    // updated_at cursor: must not leak in as a phantom message.
+    const updateBatch = [baseMessage({ id: 'old-row', content: 'phantom', created_at: '2022-12-31T00:00:00.000Z', updated_at: '2023-01-01T01:00:00.000Z' })]
+
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
+    const insertLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const insertChain = { order: vi.fn().mockReturnValue({ limit: insertLimit }) }
+    const updateLimit = vi.fn().mockResolvedValue({ data: updateBatch, error: null })
+    const updateOrder = vi.fn()
+    updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
+    const mockGt = vi.fn().mockImplementation((column: string) => (column === 'updated_at' ? { order: updateOrder } : insertChain))
+
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(1)
+    })
+
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+
+    expect(result.current.messages).toHaveLength(1)
+    expect(result.current.messages[0].id).toBe('m1')
+    expect(result.current.messages.some(m => m.content === 'phantom')).toBe(false)
   })
 
   it('clears previous channel messages when switching channels', async () => {

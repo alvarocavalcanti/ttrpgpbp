@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { subscribeWithRetry } from '../../lib/realtime'
 import type { Thread } from './types'
 import { useAuth } from '../auth/useAuth'
 
@@ -88,9 +89,20 @@ export function useAdminThreads() {
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_messages' }, () => void fetchFirstPage(false))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` }, () => void fetchFirstPage(false))
-      .subscribe()
+    // subscribeWithRetry resubscribes after a drop and refetches so events
+    // missed while offline are recovered (#336).
+    let firstSubscribe = true
+    const stopRealtime = subscribeWithRetry(channel, 'admin_threads_list', (status) => {
+      if (status !== 'SUBSCRIBED') return
+      if (firstSubscribe) {
+        firstSubscribe = false
+        return
+      }
+      void fetchFirstPage(false)
+    })
 
     return () => {
+      stopRealtime()
       supabase.removeChannel(channel)
     }
   }, [user?.id, fetchFirstPage])

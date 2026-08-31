@@ -224,6 +224,100 @@ describe('useChannel', () => {
     })
   })
 
+  it('advances last_read_at when a message arrives while the channel is visible', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const onRead = vi.fn()
+    renderHook(() => useChannel('c1', onRead))
+
+    await waitFor(() => {
+      expect(onRead).toHaveBeenCalledTimes(1)
+    })
+
+    // A message arrives while the user sits in the channel: the persisted read
+    // mark advances so the Lobby badge won't re-count it.
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+    })
+
+    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+    expect(onRead).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not advance last_read_at from message events while the tab is hidden', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+    })
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+  })
+
   it('handles realtime updates', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
 

@@ -1,6 +1,22 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 
-vi.mock('workbox-precaching', () => ({ precacheAndRoute: vi.fn() }))
+const { registerRoute, createHandlerBoundToURL, NavigationRoute } = vi.hoisted(() => {
+  const registerRoute = vi.fn()
+  const createHandlerBoundToURL = vi.fn().mockReturnValue('index-handler')
+  class NavigationRoute {
+    handler: unknown
+    constructor(handler: unknown) {
+      this.handler = handler
+    }
+  }
+  return { registerRoute, createHandlerBoundToURL, NavigationRoute }
+})
+
+vi.mock('workbox-precaching', () => ({
+  precacheAndRoute: vi.fn(),
+  createHandlerBoundToURL,
+}))
+vi.mock('workbox-routing', () => ({ NavigationRoute, registerRoute }))
 
 interface PushEventLike {
   data: { json: () => Record<string, unknown> } | null
@@ -46,6 +62,17 @@ function dispatchNotificationClick(data: unknown, clients: { url: string; focus?
   notificationClickHandler?.({ notification: { close, data }, waitUntil })
   return { close, waitUntil, matchAll, openWindow }
 }
+
+describe('sw navigation fallback', () => {
+  it('serves the pre-cached app shell for every navigation', async () => {
+    await import('./sw')
+    expect(registerRoute).toHaveBeenCalledTimes(1)
+    const route = registerRoute.mock.calls[0][0]
+    expect(route).toBeInstanceOf(NavigationRoute)
+    expect(route.handler).toBe('index-handler')
+    expect(createHandlerBoundToURL).toHaveBeenCalledWith('index.html')
+  })
+})
 
 describe('sw push handler badge', () => {
   let showNotification: ReturnType<typeof vi.fn>

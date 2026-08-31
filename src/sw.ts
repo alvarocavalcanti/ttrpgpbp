@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute } from 'workbox-precaching'
+import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { handlePushEvent } from './lib/swPush'
 import { PushNotificationDataSchema } from './lib/swPush'
 import type { PushNotificationData } from './lib/swPush'
@@ -7,6 +8,11 @@ import type { PushNotificationData } from './lib/swPush'
 declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST || [])
+
+// SPA navigation fallback: deep links like /channel/:id serve the pre-cached
+// app shell when offline instead of a browser error page (#336). The shell
+// itself renders its own empty/error states for unreachable data.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
 
 // Exact pathname comparison (not substring) so `/channel/c1` can never match
 // `/channel/c10`. Both sides are resolved against the worker origin so a

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { subscribeWithRetry } from '../../lib/realtime'
 import type { Message } from './types'
 
 const PAGE_SIZE = 50
@@ -70,9 +71,20 @@ export function useAdminMessages(threadId: string | undefined) {
 
     const channel = supabase.channel(`admin_messages_${threadId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_messages', filter: `thread_id=eq.${threadId}` }, () => void fetchFirstPage(false, generation))
-      .subscribe()
+    // subscribeWithRetry resubscribes after a drop and refetches so messages
+    // missed while offline are recovered (#336).
+    let firstSubscribe = true
+    const stopRealtime = subscribeWithRetry(channel, `admin_messages_${threadId}`, (status) => {
+      if (status !== 'SUBSCRIBED') return
+      if (firstSubscribe) {
+        firstSubscribe = false
+        return
+      }
+      void fetchFirstPage(false, generation)
+    })
 
     return () => {
+      stopRealtime()
       supabase.removeChannel(channel)
     }
   }, [threadId, fetchFirstPage])
