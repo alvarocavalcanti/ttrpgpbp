@@ -152,8 +152,14 @@ SELECT is(
   1,
   'caller sees own unread count'
 );
+
+-- Switch to a different non-admin caller: querying 219 (who HAS an unread
+-- thread) must return 0 only because of the auth.uid() guard, not because
+-- the target has no visible threads.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000220', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000220","role":"authenticated"}', true);
 SELECT is(
-  get_admin_unread_count('00000000-0000-0000-0000-000000000220'),
+  get_admin_unread_count('00000000-0000-0000-0000-000000000219'),
   0,
   'non-admin cannot read another user''s unread count'
 );
