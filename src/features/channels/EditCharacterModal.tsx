@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
-import { getSystemAttributes, clampModifier, isValidModifierInput } from '../../game-systems'
+import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from '../../game-systems'
 import { MAX_URL_LENGTH } from '../../constants'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
@@ -18,16 +18,26 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
   const [characterSheetUrl, setCharacterSheetUrl] = useState(member.character_sheet_url || '')
   const [characterNotes, setCharacterNotes] = useState(member.character_notes || '')
   const systemAttributes = getSystemAttributes(gameSystem)
+  const modifierLimits = getModifierLimits(gameSystem)
+  const sectionCopy = getModifierSectionCopy(gameSystem)
   const [attributeInputs, setAttributeInputs] = useState<Record<string, string>>(() => {
     const attrs = (member.attributes || {}) as Record<string, unknown>
     const out: Record<string, string> = {}
     for (const attr of systemAttributes) {
-      out[attr] = attrs[attr] != null ? String(attrs[attr]) : '0'
+      out[attr] = sanitizeModifierValue(gameSystem, attrs[attr])
     }
     return out
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Out-of-range input blocks save and flags the field/subtitle in red.
+  const isOutOfRange = (value: string) => {
+    if (!/^-?\d+$/.test(value)) return false
+    const num = parseInt(value, 10)
+    return num < modifierLimits.min || num > modifierLimits.max
+  }
+  const hasInvalidInput = systemAttributes.some(attr => isOutOfRange(attributeInputs[attr] ?? ''))
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,13 +78,6 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
   const handleAttributeChange = (attr: string, value: string) => {
     if (!isValidModifierInput(value)) return
     setAttributeInputs(prev => ({ ...prev, [attr]: value }))
-  }
-
-  const handleAttributeBlur = (attr: string) => {
-    setAttributeInputs(prev => ({
-      ...prev,
-      [attr]: String(clampModifier(gameSystem, /^-?\d+$/.test(prev[attr]) ? parseInt(prev[attr], 10) : 0)),
-    }))
   }
 
   return (
@@ -132,25 +135,32 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
 
               {systemAttributes.length > 0 && (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Attributes (Modifiers)</h4>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{sectionCopy.title ?? 'Attributes (Modifiers)'}</h4>
+                  <p className={`text-xs mb-3 ${hasInvalidInput ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{sectionCopy.subTitle}</p>
                   <div className="grid grid-cols-3 gap-4">
-                    {systemAttributes.map(attr => (
-                      <div key={attr}>
-                        <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          id={attr}
-                          value={attributeInputs[attr]}
-                          onChange={(e) => handleAttributeChange(attr, e.target.value)}
-                          onBlur={() => handleAttributeBlur(attr)}
-                          pattern="-?[0-9]*"
-                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
-                        />
-                      </div>
-                    ))}
+                    {systemAttributes.map(attr => {
+                      const invalid = isOutOfRange(attributeInputs[attr] ?? '')
+                      return (
+                        <div key={attr}>
+                          <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            id={attr}
+                            value={attributeInputs[attr]}
+                            onChange={(e) => handleAttributeChange(attr, e.target.value)}
+                            pattern="-?[0-9]*"
+                            aria-invalid={invalid}
+                            className={`bg-white dark:bg-gray-800 mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border text-center focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                              invalid
+                                ? 'border-red-500 dark:border-red-500 ring-1 ring-red-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Enter your modifiers (e.g. -2, 0, 3), not your base scores.</p>
                 </div>
               )}
 
@@ -171,7 +181,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !characterName.trim()}
+                  disabled={isSubmitting || !characterName.trim() || hasInvalidInput}
                   className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 transition-colors"
                 >
                   {isSubmitting ? 'Saving...' : 'Save'}

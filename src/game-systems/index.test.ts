@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getSystemAttributes, clampModifier, DEFAULT_MODIFIER_LIMITS, isValidModifierInput } from './index'
+import { getSystemAttributes, clampModifier, DEFAULT_MODIFIER_LIMITS, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from './index'
 
 describe('Game Systems', () => {
   it('returns empty array for unknown or generic system', () => {
@@ -59,5 +59,53 @@ describe('isValidModifierInput', () => {
     expect(isValidModifierInput('1-2')).toBe(false)
     expect(isValidModifierInput('--3')).toBe(false)
     expect(isValidModifierInput('+2')).toBe(false)
+  })
+})
+
+describe('getModifierLimits', () => {
+  it('returns system bounds for shadowdark', () => {
+    expect(getModifierLimits('shadowdark')).toEqual({ min: -4, max: 4 })
+  })
+
+  it('falls back to default bounds', () => {
+    expect(getModifierLimits(undefined)).toEqual({ min: -4, max: 5 })
+    expect(getModifierLimits('none')).toEqual({ min: -4, max: 5 })
+  })
+})
+
+describe('getModifierSectionCopy', () => {
+  it('returns section title and interpolated subtitle for shadowdark', () => {
+    expect(getModifierSectionCopy('shadowdark')).toEqual({
+      title: 'Stat Modifiers',
+      subTitle: 'Shadowdark modifiers range from -4 to 4',
+    })
+  })
+
+  it('falls back to generic subtitle when system defines none', () => {
+    expect(getModifierSectionCopy('none')).toEqual({
+      title: undefined,
+      subTitle: 'Modifiers range from -4 to 5',
+    })
+  })
+})
+
+describe('sanitizeModifierValue', () => {
+  it('keeps in-range integers', () => {
+    expect(sanitizeModifierValue('shadowdark', 3)).toBe('3')
+    expect(sanitizeModifierValue('shadowdark', '-2')).toBe('-2')
+    expect(sanitizeModifierValue('shadowdark', 0)).toBe('0')
+  })
+
+  it('clamps out-of-range integers', () => {
+    expect(sanitizeModifierValue('shadowdark', 7)).toBe('4')
+    expect(sanitizeModifierValue('shadowdark', -9)).toBe('-4')
+  })
+
+  it('resets garbage (legacy floats, exponents, text, null) to 0', () => {
+    expect(sanitizeModifierValue('shadowdark', 1e79)).toBe('0')
+    expect(sanitizeModifierValue('shadowdark', 2.9292)).toBe('0')
+    expect(sanitizeModifierValue('shadowdark', 'abc')).toBe('0')
+    expect(sanitizeModifierValue('shadowdark', null)).toBe('0')
+    expect(sanitizeModifierValue('shadowdark', undefined)).toBe('0')
   })
 })

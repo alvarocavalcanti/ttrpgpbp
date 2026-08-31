@@ -6,6 +6,8 @@ export interface GameSystem {
   attributes: string[]
   minModifier?: number
   maxModifier?: number
+  sectionTitle?: string
+  sectionSubTitle?: string
 }
 
 export const GAME_SYSTEMS: Record<string, GameSystem> = {
@@ -36,4 +38,32 @@ export function clampModifier(systemId: string | undefined, value: number): numb
 // the field can never hold a non-numerical value (UX#170).
 export function isValidModifierInput(value: string): boolean {
   return /^-?\d*$/.test(value)
+}
+
+export function getModifierLimits(systemId: string | undefined): { min: number; max: number } {
+  const system = systemId ? GAME_SYSTEMS[systemId] : undefined
+  return {
+    min: system?.minModifier ?? DEFAULT_MODIFIER_LIMITS.min,
+    max: system?.maxModifier ?? DEFAULT_MODIFIER_LIMITS.max,
+  }
+}
+
+// Section copy for the modifier inputs, interpolating the system's limits into
+// its subtitle template ("... range from {min} to {max}"). Falls back to a
+// generic subtitle when the system doesn't define one.
+export function getModifierSectionCopy(systemId: string | undefined): { title?: string; subTitle: string } {
+  const system = systemId ? GAME_SYSTEMS[systemId] : undefined
+  const { min, max } = getModifierLimits(systemId)
+  const subTitle =
+    system?.sectionSubTitle?.replace('{min}', String(min)).replace('{max}', String(max)) ??
+    `Modifiers range from ${min} to ${max}`
+  return { title: system?.sectionTitle, subTitle }
+}
+
+// Sanitize a stored/loaded attribute value into a display string: integers are
+// clamped to the system's bounds, anything else (legacy floats, exponent
+// notation, garbage) resets to '0' (UX#350).
+export function sanitizeModifierValue(systemId: string | undefined, value: unknown): string {
+  const raw = value == null ? '' : String(value)
+  return /^-?\d+$/.test(raw) ? String(clampModifier(systemId, parseInt(raw, 10))) : '0'
 }

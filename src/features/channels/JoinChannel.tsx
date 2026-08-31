@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
 import { toError } from '../../lib/errors'
-import { getSystemAttributes, clampModifier, isValidModifierInput } from '../../game-systems'
+import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy } from '../../game-systems'
 
 interface JoinChannelPreview {
   id: string
@@ -73,8 +73,10 @@ export function JoinChannel() {
       // attributes (clamped to the game system's bounds), and the join system
       // message all commit atomically.
       const numericAttributes: Record<string, number> = {}
-      for (const [attr, raw] of Object.entries(attributes)) {
+      for (const attr of systemAttributes) {
+        const raw = attributes[attr] ?? '0'
         const num = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0
+        // ponytail: silent clamp kept as backstop only — UI blocks save on out-of-range
         numericAttributes[attr] = clampModifier(channel?.game_system, num)
       }
 
@@ -111,6 +113,16 @@ export function JoinChannel() {
   }
 
   const systemAttributes = getSystemAttributes(channel?.game_system)
+  const modifierLimits = getModifierLimits(channel?.game_system)
+  const sectionCopy = getModifierSectionCopy(channel?.game_system)
+
+  // Out-of-range input blocks join and flags the field/subtitle in red.
+  const isOutOfRange = (value: string) => {
+    if (!/^-?\d+$/.test(value)) return false
+    const num = parseInt(value, 10)
+    return num < modifierLimits.min || num > modifierLimits.max
+  }
+  const hasInvalidInput = systemAttributes.some(attr => isOutOfRange(attributes[attr] ?? '0'))
 
   if (loading) {
     return (
@@ -165,24 +177,32 @@ export function JoinChannel() {
 
           {systemAttributes.length > 0 && (
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Attributes (Modifiers) - Optional</h4>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{sectionCopy.title ?? 'Attributes (Modifiers) - Optional'}</h4>
+              <p className={`text-xs mb-3 ${hasInvalidInput ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{sectionCopy.subTitle}</p>
               <div className="grid grid-cols-3 gap-4">
-                {systemAttributes.map(attr => (
-                  <div key={attr}>
-                    <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      id={attr}
-                      value={attributes[attr] ?? ''}
-                      onChange={(e) => handleAttributeChange(attr, e.target.value)}
-                      pattern="-?[0-9]*"
-                      className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border text-center"
-                    />
-                  </div>
-                ))}
+                {systemAttributes.map(attr => {
+                  const invalid = isOutOfRange(attributes[attr] ?? '0')
+                  return (
+                    <div key={attr}>
+                      <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        id={attr}
+                        value={attributes[attr] ?? '0'}
+                        onChange={(e) => handleAttributeChange(attr, e.target.value)}
+                        pattern="-?[0-9]*"
+                        aria-invalid={invalid}
+                        className={`bg-white dark:bg-gray-800 mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border text-center focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                          invalid
+                            ? 'border-red-500 dark:border-red-500 ring-1 ring-red-500'
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                    </div>
+                  )
+                })}
               </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Enter your modifiers (e.g. -2, 0, 3), not your base scores.</p>
             </div>
           )}
 
@@ -236,7 +256,7 @@ export function JoinChannel() {
           <div className="flex flex-col space-y-3 pt-2">
             <button
               type="submit"
-              disabled={isSubmitting || !characterName.trim() || (!!channel?.has_password && !inviteCode && !password)}
+              disabled={isSubmitting || !characterName.trim() || hasInvalidInput || (!!channel?.has_password && !inviteCode && !password)}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? 'Joining...' : 'Join Campaign'}
