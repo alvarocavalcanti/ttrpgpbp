@@ -20,9 +20,9 @@ VALUES
 
 INSERT INTO channels (id, name, gm_id, invite_code)
 VALUES
-  ('00000000-0000-0000-0000-000000000610', 'Export', '00000000-0000-0000-0000-000000000601', 'export307'),
+  ('00000000-0000-0000-0000-000000000610', 'Export', '00000000-0000-0000-0000-000000000601', '307abf12'),
   -- Channel owned by B only; A is not a member, so RLS must hide every row here.
-  ('00000000-0000-0000-0000-000000000611', 'Export B', '00000000-0000-0000-0000-000000000602', 'export307b');
+  ('00000000-0000-0000-0000-000000000611', 'Export B', '00000000-0000-0000-0000-000000000602', '307abf13');
 
 INSERT INTO channel_members (id, channel_id, user_id, character_name, character_notes, last_read_at)
 VALUES

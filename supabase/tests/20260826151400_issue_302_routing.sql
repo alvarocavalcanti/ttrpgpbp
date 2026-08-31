@@ -19,7 +19,7 @@ VALUES
 UPDATE profiles SET server_admin = true WHERE id = '00000000-0000-0000-0000-000000000501';
 
 INSERT INTO channels (id, name, gm_id, invite_code)
-VALUES ('00000000-0000-0000-0000-000000000510', 'Issue 302', '00000000-0000-0000-0000-000000000502', 'issue302');
+VALUES ('00000000-0000-0000-0000-000000000510', 'Issue 302', '00000000-0000-0000-0000-000000000502', '302abf12');
 
 INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
 VALUES

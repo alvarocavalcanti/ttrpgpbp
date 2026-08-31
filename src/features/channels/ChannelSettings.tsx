@@ -142,6 +142,21 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Server rejects non-http(s) URLs; fail early with an inline error.
+    const urls: Array<[string, (msg: string) => void]> = [
+      [mapUrl, setMapError],
+      [resourcesUrl, setResourcesError],
+    ]
+    let urlError: string | null = null
+    for (const [url, setError] of urls) {
+      if (url && !/^https?:\/\//i.test(url)) {
+        urlError = 'Links must start with http:// or https://'
+        setError(urlError)
+      }
+    }
+    if (urlError) return
+
     setIsSubmitting(true)
 
     try {
