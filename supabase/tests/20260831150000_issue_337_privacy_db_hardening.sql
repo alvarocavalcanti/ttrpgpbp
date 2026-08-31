@@ -41,6 +41,10 @@ RETURNS void LANGUAGE sql AS $$
     json_build_object('sub', p_uid::text, 'role', 'authenticated')::text, true);
 $$;
 
+-- The RLS tests below impersonate the authenticated role; grants from other
+-- test files roll back with their transactions, so grant what we need here.
+GRANT SELECT ON public.channels, public.safety_card_events TO authenticated;
+
 -- ===== 1. X-Card: only the GM can SELECT the event stream =====
 INSERT INTO safety_card_events (channel_id) VALUES ('00000000-0000-0000-0000-000000000410');
 
