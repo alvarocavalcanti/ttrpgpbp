@@ -53,6 +53,8 @@ Boundaries: code/commits/PRs written normal.
      git worktree add -b <branch> <worktree-path> origin/main
      ```
 
+     **Then run `npm ci` in the worktree.** Husky's `core.hooksPath` points at the gitignored `.husky/_` shim dir, which `npm install` generates — a fresh worktree without it **silently skips all pre-commit/pre-push hooks** (no error, no lint, no tests). `npm ci` creates both the shims and `node_modules`.
+
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
   4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI (token expensive), unless the user tells otherwise.
