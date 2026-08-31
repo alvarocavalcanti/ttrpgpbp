@@ -58,6 +58,9 @@
     "unindexed",
     "unvalidated",
     "tappable",
+    "Unthrottled",
+    "visibilitychange",
+    "dedup",
     "Rangeable",
     "SAMEORIGIN"
   ]
