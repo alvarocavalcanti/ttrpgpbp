@@ -8,7 +8,7 @@
 - **Display name** — up to 40 characters; optional character sheet links are limited to 500 characters
 - **About** page — creator attribution, donation links, and GitHub project link
 - Per-channel **character name** (max 20 characters) and **avatar**
-- **Character modifiers** — per-game-system attribute modifier fields (e.g. STR/DEX); inputs accept integers only (floats/exponents/stray characters are rejected), start at 0, show the valid range in a subtitle, flag out-of-range values with a red border and block saving until corrected; legacy invalid stored values are reset to 0 when loaded
+- **Character modifiers** — per-game-system attribute modifier fields (e.g. STR/DEX) with −/+ stepper buttons (iOS has no signed numeric keypad, so stepping avoids the keyboard entirely); inputs accept integers only (floats/exponents/stray characters are rejected), start at 0, show the valid range in a subtitle, flag out-of-range values with a red border and block saving until corrected; legacy invalid stored values are reset to 0 when loaded
 - **Character notes** — a plain-text notes field per player (backstory, reminders), shown in the member list
 - Optional **character sheet URL** per user per channel
 - **Server admin flag** (`profiles.server_admin`, managed via DB) — exempts the user from the channel limit; enforced to a single admin

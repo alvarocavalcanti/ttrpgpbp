@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
 import { toError } from '../../lib/errors'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy } from '../../game-systems'
+import { ModifierInput } from '../../components/ModifierInput'
 
 interface JoinChannelPreview {
   id: string
@@ -180,28 +181,18 @@ export function JoinChannel() {
               <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{sectionCopy.title ?? 'Attributes (Modifiers) - Optional'}</h4>
               <p className={`text-xs mb-3 ${hasInvalidInput ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{sectionCopy.subTitle}</p>
               <div className="grid grid-cols-3 gap-4">
-                {systemAttributes.map(attr => {
-                  const invalid = isOutOfRange(attributes[attr] ?? '0')
-                  return (
-                    <div key={attr}>
-                      <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        id={attr}
-                        value={attributes[attr] ?? '0'}
-                        onChange={(e) => handleAttributeChange(attr, e.target.value)}
-                        pattern="-?[0-9]*"
-                        aria-invalid={invalid}
-                        className={`bg-white dark:bg-gray-800 mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border text-center focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
-                          invalid
-                            ? 'border-red-500 dark:border-red-500 ring-1 ring-red-500'
-                            : 'border-gray-300 dark:border-gray-600'
-                        }`}
-                      />
-                    </div>
-                  )
-                })}
+                {systemAttributes.map(attr => (
+                  <div key={attr}>
+                    <label htmlFor={attr} className="block text-xs font-medium text-gray-700 dark:text-gray-300">{attr}</label>
+                    <ModifierInput
+                      attr={attr}
+                      value={attributes[attr] ?? '0'}
+                      onChange={(value) => handleAttributeChange(attr, value)}
+                      min={modifierLimits.min}
+                      max={modifierLimits.max}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
