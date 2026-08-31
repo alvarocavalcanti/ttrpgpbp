@@ -111,6 +111,9 @@ describe('useMessages', () => {
     const mockInitialLimit = vi.fn().mockResolvedValue({ data: [initial], error: null })
     const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
     const mockCatchLimit = vi.fn()
+      // Default serves the UPDATE reconcile pass that runs after the INSERT
+      // catch-up consumed the two once-responses below.
+      .mockResolvedValue({ data: [], error: null })
       .mockResolvedValueOnce({ data: gapPage1, error: null })
       .mockResolvedValueOnce({ data: [gapTail], error: null })
     // Self-chaining order: shared by the INSERT catch-up (one .order) and the

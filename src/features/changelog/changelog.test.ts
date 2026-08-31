@@ -65,7 +65,7 @@ describe('changelog module', () => {
   it('getRecentItems returns the 5 most recent items from the real changelog', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
-    expect(items[0].title).toBe('Private-by-default usage analytics & error reporting')
+    expect(items[0].title).toBe('More reliable reconnects & offline reading')
   })
 
   it('getChangelogHash is a non-empty string', () => {
