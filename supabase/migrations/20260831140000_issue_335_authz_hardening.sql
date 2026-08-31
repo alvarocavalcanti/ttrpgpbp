@@ -509,12 +509,15 @@ GRANT EXECUTE ON FUNCTION update_channel_settings(UUID, TEXT, TEXT, TEXT, TEXT, 
 -- ponytail: flat windowed counter, one row per (user, channel); swap for a
 -- partitioned log if forensics on join abuse ever matter.
 CREATE TABLE public.channel_join_failures (
-  user_id UUID NOT NULL,
-  channel_id UUID NOT NULL,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  channel_id UUID NOT NULL REFERENCES public.channels(id) ON DELETE CASCADE,
   window_start timestamptz NOT NULL DEFAULT now(),
   fail_count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, channel_id)
 );
+-- ponytail: no retention job — rows self-clean on successful join, cascade
+-- away on account/channel deletion, and are bounded by one row per
+-- (user, channel) pair; add a scheduled cleanup only if that ever grows.
 
 ALTER TABLE public.channel_join_failures ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.channel_join_failures FROM anon, authenticated, service_role;
