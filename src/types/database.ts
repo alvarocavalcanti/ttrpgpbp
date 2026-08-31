@@ -253,6 +253,27 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_join_failures: {
+        Row: {
+          channel_id: string
+          fail_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          channel_id: string
+          fail_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          channel_id?: string
+          fail_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       channel_members: {
         Row: {
           attributes: Json
