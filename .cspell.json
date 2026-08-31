@@ -59,6 +59,7 @@
     "unvalidated",
     "tappable",
     "direnv",
+    "pipefail",
     "Unthrottled",
     "visibilitychange",
     "dedup",

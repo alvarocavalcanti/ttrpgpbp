@@ -56,7 +56,18 @@ Boundaries: code/commits/PRs written normal.
      **After creating the worktree, always install dependencies to ensure git hooks are executed and all checks work:**
 
      1. `npm ci` — Husky's `core.hooksPath` points at the gitignored `.husky/_` shim dir, which `npm install` generates. A fresh worktree without it **silently skips all pre-commit/pre-push hooks** (no error, no lint, no tests). `npm ci` creates the shims and `node_modules`.
-     2. `npx supabase status -o env | grep -E "^API_URL=|^ANON_KEY=" | awk -F= '{print $1=="API_URL" ? "VITE_SUPABASE_URL=" $2 : "VITE_SUPABASE_ANON_KEY=" $2}' > .env.local` — without it, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session).
+     2. Generate `.env.local` **fail-closed** — without it, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session). Two traps: Vite gives shell-exported `VITE_*` vars precedence over `.env.local` files, and a naive pipe hides `supabase status` failure (the last command's exit code wins), leaving an empty file that changes nothing:
+
+     ```bash
+     npx supabase start   # status below fails if the stack isn't up
+     set -o pipefail
+     npx supabase status -o env | grep -E "^API_URL=|^ANON_KEY=" \
+       | awk -F= '{print $1=="API_URL" ? "VITE_SUPABASE_URL=" $2 : "VITE_SUPABASE_ANON_KEY=" $2}' \
+       > .env.local
+     grep -q "^VITE_SUPABASE_URL=" .env.local && grep -q "^VITE_SUPABASE_ANON_KEY=" .env.local \
+       || { echo "FATAL: .env.local generation failed — refusing to continue with remote/empty env"; exit 1; }
+     unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY   # drop direnv exports so they can't override local values
+     ```
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 

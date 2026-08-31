@@ -38,7 +38,7 @@ Note on stack: the UI is hand-rolled Tailwind components + `@tailwindcss/typogra
 
 ### P1
 
-1. **Channel tools buried 2+ taps deep** — Rolls, Search, Notifications, Safety Tools, NPCs, Active Player, Settings all live in the right-hand sidebar behind the hamburger (`ChannelView.tsx:327-430`). A text-only list with no icons and no grouping; GM items and player items mix. Dice has *two* entry points (composer sheet + none in sidebar), while Rolls history has *one* (sidebar).
+1. **Channel tools buried 2+ taps deep** — Rolls, Search, Notifications, Safety Tools, NPCs, Active Player, Settings all live in the right-hand sidebar behind the hamburger (`ChannelView.tsx:327-430`). A text-only list with no icons and no grouping; GM items and player items mix. The dice panel lives only in the composer's options sheet (the sidebar has no entry for it), while Rolls *history* has one sidebar item.
 
 2. **"Load older messages" is a manual button** (`MessageList.tsx:167-178`) — scroll-to-top infinite loading is the expected pattern on mobile; the button costs a precision tap at the exact top of a long thread.
 
@@ -53,8 +53,8 @@ Note on stack: the UI is hand-rolled Tailwind components + `@tailwindcss/typogra
 ## 3. UI & Layout Optimizations (P2 — quick wins)
 
 - **Tokenize the palette.** `tailwind.config.js` theme is empty; every component hardcodes `indigo-600 / gray-800 / amber-50 / #fdf6e3`. Define `primary`, `surface`, `parchment` semantic colors so scene/NPC/whisper styling is not a 15-class inline string (`MessageItem.tsx:308` is one 400+ char className).
-- **Raise micro-targets:** message action icons `p-1 w-4` → `p-1.5 w-5` (≈36px) minimum; reaction emoji buttons `p-1` → `p-1.5`. Cheap, mechanical diff.
-- **DiceRoller inputs:** number inputs and select `py-1` → `py-2`; Roll button `py-1.5` → `py-2.5`. Also honor `inputmode="numeric"`.
+- **Raise micro-targets to 44×44px:** message action icons and reaction emoji buttons grow from `p-1 w-4` to a `min-h-11 min-w-11` hit area (44px) with the icon centered — the icon grows to `w-5` for visibility, but the size guarantee comes from `min-*`, not padding. Cheap, mechanical diff.
+- **DiceRoller inputs:** number inputs and select `py-1` → `py-2`; Roll button `py-1.5` → `py-2.5`, all with `min-h-11` so controls meet the 44px floor. Add `inputmode="numeric"` to the **quantity input only** — numeric keyboards often omit the minus key, so the modifier field needs a tested negative-entry path instead (explicit +/− steppers or `type="tel"`), not `inputmode="numeric"`.
 - **Delete confirmation:** replace `confirm()` with the existing toast/dialog pattern — the app already has `ToastContext` and styled modals; native confirm is the one off-brand dialog left.
 - **Send button:** `p-2` + `w-5 h-5` icon ≈ 36px — bump to `p-3`. It is the highest-frequency tap on the platform.
 - **Timestamps `text-gray-400`** on `gray-900` dark bg is ~3.5:1 — below AA for `text-xs`. Use `gray-500` in dark mode.
