@@ -142,6 +142,19 @@ describe('ChannelSettings', () => {
     })
   })
 
+  it('rejects non-http(s) URLs before calling the RPC', () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Map URL'), { target: { value: 'javascript:alert(1)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(mockRpc).not.toHaveBeenCalled()
+    expect(screen.getByText('Links must start with http:// or https://')).toBeInTheDocument()
+  })
+
   it('saves changes with password update', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)

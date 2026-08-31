@@ -14,7 +14,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000304', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue289-outsider@example.com', '', now(), '{}', '{}', now(), now());
 
 INSERT INTO channels (id, name, gm_id, invite_code)
-VALUES ('00000000-0000-0000-0000-000000000305', 'Issue 289', '00000000-0000-0000-0000-000000000301', 'issue289');
+VALUES ('00000000-0000-0000-0000-000000000305', 'Issue 289', '00000000-0000-0000-0000-000000000301', '289abf12');
 
 INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
 VALUES

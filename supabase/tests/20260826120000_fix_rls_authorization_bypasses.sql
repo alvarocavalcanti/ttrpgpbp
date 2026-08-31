@@ -21,8 +21,8 @@ UPDATE profiles SET server_admin = true WHERE id = '00000000-0000-0000-0000-0000
 -- account deletion).
 INSERT INTO channels (id, name, gm_id, invite_code)
 VALUES
-  ('00000000-0000-0000-0000-000000000410', 'Issue 300', '00000000-0000-0000-0000-000000000402', 'issue300'),
-  ('00000000-0000-0000-0000-000000000411', 'Orphan', NULL, 'orphan300');
+  ('00000000-0000-0000-0000-000000000410', 'Issue 300', '00000000-0000-0000-0000-000000000402', '300abf12'),
+  ('00000000-0000-0000-0000-000000000411', 'Orphan', NULL, '300abf13');
 
 INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
 VALUES
