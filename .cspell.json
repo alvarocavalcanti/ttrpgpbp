@@ -58,6 +58,7 @@
     "unindexed",
     "unvalidated",
     "tappable",
+    "direnv",
     "Unthrottled",
     "visibilitychange",
     "dedup",

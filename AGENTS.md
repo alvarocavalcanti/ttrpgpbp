@@ -53,7 +53,9 @@ Boundaries: code/commits/PRs written normal.
      git worktree add -b <branch> <worktree-path> origin/main
      ```
 
-     **Then run `npm ci` in the worktree.** Husky's `core.hooksPath` points at the gitignored `.husky/_` shim dir, which `npm install` generates — a fresh worktree without it **silently skips all pre-commit/pre-push hooks** (no error, no lint, no tests). `npm ci` creates both the shims and `node_modules`.
+     **Then bootstrap the worktree:**
+     1. `npm ci` — Husky's `core.hooksPath` points at the gitignored `.husky/_` shim dir, which `npm install` generates. A fresh worktree without it **silently skips all pre-commit/pre-push hooks** (no error, no lint, no tests).
+     2. `npx supabase status -o env | grep -E "^API_URL=|^ANON_KEY=" | awk -F= '{print $1=="API_URL" ? "VITE_SUPABASE_URL=" $2 : "VITE_SUPABASE_ANON_KEY=" $2}' > .env.local` — without it, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session).
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
