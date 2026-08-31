@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **More reliable reconnects & offline reading** — when your connection returns after a break, messages edited or deleted while you were away now update on their own instead of staying stale, and messages read live in a channel no longer reappear as unread in the Lobby. Opening an app link while offline now loads the app instead of a browser error page. Admin Messages conversations recover on their own after a connection drop too.
 - **Private-by-default usage analytics & error reporting** — when telemetry is enabled, the app sends anonymous page-view statistics so the team can see which screens are used. Only the page address is reported — never search terms, messages, or rolls. When something goes wrong, a diagnostic report (which may include a brief recording of the screen) is sent so bugs can be fixed. The privacy policy in Settings explains exactly what is collected and which services are involved.
 
 ### Added

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { subscribeWithRetry } from '../../lib/realtime'
 import { useAuth } from '../auth/useAuth'
 
 export function useAdminUnread() {
@@ -33,7 +34,17 @@ export function useAdminUnread() {
         { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` },
         () => fetchUnread()
       )
-      .subscribe()
+      // subscribeWithRetry resubscribes after a drop and refetches so the
+      // unread count recovers instead of freezing (#336).
+      let firstSubscribe = true
+      const stopRealtime = subscribeWithRetry(channel, 'admin_comms_unread', (status) => {
+        if (status !== 'SUBSCRIBED') return
+        if (firstSubscribe) {
+          firstSubscribe = false
+          return
+        }
+        fetchUnread()
+      })
 
     // Listen to push messages as a fallback
     function handlePush(event: MessageEvent) {
@@ -47,6 +58,7 @@ export function useAdminUnread() {
 
     return () => {
       mounted = false
+      stopRealtime()
       supabase.removeChannel(channel)
       navigator.serviceWorker?.removeEventListener('message', handlePush)
       document.removeEventListener('visibilitychange', handleVis)

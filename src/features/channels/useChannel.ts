@@ -24,6 +24,9 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   // hiding the divider for messages that were unread when the channel opened.
   const [lastReadAt, setLastReadAt] = useState<string | null>(null)
   const boundaryCapturedRef = useRef(false)
+  // My channel_members row id, set once members load. Lets the messages INSERT
+  // listener below advance last_read_at without re-deriving membership.
+  const myMemberIdRef = useRef<string | null>(null)
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
@@ -39,6 +42,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
     setLoading(true)
     setLastReadAt(null)
     boundaryCapturedRef.current = false
+    myMemberIdRef.current = null
 
     if (!channelId || !user?.id) {
       setLoading(false)
@@ -85,6 +89,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         // Update last_read_at in background if we are a member
         const myMember = formattedMembers.find(m => m.user_id === user?.id)
         if (myMember) {
+          myMemberIdRef.current = myMember.id
           supabase
             .from('channel_members')
             .update({ last_read_at: new Date().toISOString() })
@@ -116,6 +121,28 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         if (mounted) {
           setChannel(prev => prev ? { ...prev, ...payload.new } as Channel : prev)
         }
+      })
+      .on('postgres_changes', {
+        // Messages arriving while the user sits in the channel keep advancing
+        // last_read_at, so the Lobby unread badge doesn't re-count messages
+        // already read live (#336). The "New messages" divider boundary stays
+        // frozen (regression #213) — only the persisted read mark moves.
+        // ponytail: one write per arriving message; debounce only if write
+        // volume ever shows up.
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `channel_id=eq.${channelId}`
+      }, () => {
+        if (!mounted || document.visibilityState !== 'visible' || !myMemberIdRef.current) return
+        supabase
+          .from('channel_members')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('id', myMemberIdRef.current)
+          .then(({ error }) => {
+            if (error) console.error('Failed to update last_read_at', error)
+            else onRead?.()
+          })
       })
       .on('postgres_changes', {
         // '*' so joins (INSERT) and kicks/leaves (DELETE) propagate. A kicked
