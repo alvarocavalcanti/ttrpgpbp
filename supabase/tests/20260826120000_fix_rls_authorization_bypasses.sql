@@ -29,7 +29,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000420', '00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000402', 'GM', now()),
   ('00000000-0000-0000-0000-000000000421', '00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000403', 'P1', now());
 
-SELECT plan(11);
+SELECT plan(12);
 
 -- pgTAP test runner needs explicit grants that Supabase usually provides by default
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
@@ -73,6 +73,19 @@ SELECT throws_ok(
   'is_suspended can only be changed by a server admin',
   'suspended player cannot self-unsuspend'
 );
+
+-- 403 is still suspended at this point (the self-unsuspend above is blocked).
+-- Un-suspend via the admin path so the later sections run as a regular
+-- unsuspended player — set_active_players / whisper checks treat suspended
+-- players as inactive members (#335).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000401', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000401","role":"authenticated"}', true);
+SELECT is(
+  (SELECT is_suspended FROM public.profiles WHERE id = '00000000-0000-0000-0000-000000000403'),
+  true,
+  'player still suspended after blocked self-unsuspend'
+);
+SELECT admin_suspend_user('00000000-0000-0000-0000-000000000403', false);
 
 -- ==========================================
 -- 2. Active-player bypass
