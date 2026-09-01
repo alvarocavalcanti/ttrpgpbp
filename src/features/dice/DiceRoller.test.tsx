@@ -255,7 +255,7 @@ describe('DiceRoller', () => {
   it('keeps the notation rolled while history fetch is in flight', async () => {
     let resolveHistory: (value: unknown) => void = () => {}
     vi.mocked(supabase.rpc).mockImplementation(
-      () => new Promise(resolve => { resolveHistory = resolve })
+      (() => new Promise(resolve => { resolveHistory = resolve })) as any
     )
 
     const mockOnRoll = vi.fn()
