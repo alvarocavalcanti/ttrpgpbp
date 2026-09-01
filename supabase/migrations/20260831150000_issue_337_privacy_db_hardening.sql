@@ -39,7 +39,7 @@ CREATE POLICY "GM can view X-Card events"
   ON safety_card_events FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM channels c
-      WHERE c.id = channel_id AND c.gm_id = auth.uid()
+      WHERE c.id = safety_card_events.channel_id AND c.gm_id = auth.uid()
     )
   );
 
@@ -99,10 +99,11 @@ BEGIN
         v_max_mod := 4;
       END IF;
       -- COALESCE: an aggregate over zero rows returns NULL, which would
-      -- violate the NOT NULL constraint for empty attributes objects.
+      -- violate the NOT NULL constraint. Drop to an empty object so a
+      -- non-numeric-only attributes object is emptied, not preserved.
       SELECT COALESCE(
         jsonb_object_agg(k, LEAST(GREATEST(v::int, v_min_mod), v_max_mod)),
-        NEW.attributes
+        '{}'::jsonb
       )
       INTO NEW.attributes
       FROM jsonb_each_text(NEW.attributes) AS e(k, v)
@@ -366,13 +367,20 @@ BEGIN
     VALUES (p_channel_id, v_uid, 'dice_roll', v_content, p_reply_to, p_dc, v_success, p_client_request_id)
     RETURNING id INTO v_msg_id;
   EXCEPTION WHEN unique_violation THEN
-    -- Concurrent same-key call won the race; replay its row.
+    -- Concurrent same-key call won the race; replay its row. If there is no
+    -- key (or the row vanished), re-raise: never return NULL ids.
+    IF p_client_request_id IS NULL THEN
+      RAISE EXCEPTION 'Concurrent request conflict; please retry.';
+    END IF;
     SELECT m.id, dr.id INTO v_existing_msg, v_existing_roll
     FROM messages m
     JOIN dice_rolls dr ON dr.message_id = m.id
     WHERE m.client_request_id = p_client_request_id
       AND m.channel_id = p_channel_id
       AND m.sender_id = v_uid;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Concurrent request conflict; please retry.';
+    END IF;
     RETURN QUERY SELECT v_existing_msg, v_existing_roll;
     RETURN;
   END;
@@ -541,12 +549,19 @@ BEGIN
     )
     RETURNING id INTO v_msg_id;
   EXCEPTION WHEN unique_violation THEN
-    -- Concurrent same-key call won the race; replay its row.
+    -- Concurrent same-key call won the race; replay its row. If there is no
+    -- key (or the row vanished), re-raise: never return a NULL id.
+    IF p_client_request_id IS NULL THEN
+      RAISE EXCEPTION 'Concurrent request conflict; please retry.';
+    END IF;
     SELECT id INTO v_existing_msg
     FROM messages
     WHERE client_request_id = p_client_request_id
       AND channel_id = p_channel_id
       AND sender_id = v_uid;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Concurrent request conflict; please retry.';
+    END IF;
     RETURN QUERY SELECT v_existing_msg;
     RETURN;
   END;
@@ -667,7 +682,10 @@ CREATE TRIGGER channels_url_scheme
   BEFORE INSERT OR UPDATE ON channels
   FOR EACH ROW EXECUTE FUNCTION enforce_url_scheme();
 
--- abuse_reports.reason: cap length (normalize existing rows first).
+-- abuse_reports.reason: cap length (normalize existing rows first; NOT VALID
+-- avoids a full-table scan under lock, then validate in its own statement).
 UPDATE abuse_reports SET reason = LEFT(reason, 1000) WHERE char_length(reason) > 1000;
 ALTER TABLE abuse_reports
-  ADD CONSTRAINT abuse_reports_reason_length CHECK (char_length(reason) <= 1000);
+  ADD CONSTRAINT abuse_reports_reason_length CHECK (char_length(reason) <= 1000) NOT VALID;
+ALTER TABLE abuse_reports
+  VALIDATE CONSTRAINT abuse_reports_reason_length;
