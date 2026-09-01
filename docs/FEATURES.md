@@ -111,6 +111,8 @@
   - Set quantity
   - Add modifier (+N / -N)
   - Advantage/disadvantage toggle (d20 only)
+  - Quick-roll chips for the last 3 notations used in the channel — tap to re-roll
+  - On phones the roller opens as a bottom sheet (no clipping) with +/− modifier steppers
   - Roll button sends result as dice roll message
 - Roll history available per channel
 
