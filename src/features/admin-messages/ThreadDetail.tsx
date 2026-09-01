@@ -73,7 +73,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   const handleDeleteMsg = async (msgId: string) => {
     setConfirmAction(null)
     await supabase.from('admin_messages').update({ is_deleted: true, content: '' }).eq('id', msgId)
-    refetch()
+    refetch?.()
   }
 
   const title = thread.type === 'announcement' ? thread.subject : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
