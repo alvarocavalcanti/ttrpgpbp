@@ -174,4 +174,45 @@ describe('useAdminMessages', () => {
       expect(result.current.messages.map(m => m.id)).toEqual(['m1'])
     })
   })
+
+  it('drops a superseded fetch result that resolves after a newer fetch', async () => {
+    // Initial fetch hangs; a realtime event starts a newer fetch that returns
+    // first. The slow initial response must be discarded, not overwrite it.
+    let resolveSlow!: (v: { data: unknown[]; error: null }) => void
+    const slow = new Promise<{ data: unknown[]; error: null }>(resolve => { resolveSlow = resolve })
+    const mockOrder = vi.fn()
+    const mockLimit = vi.fn()
+      .mockImplementationOnce(() => slow)
+      .mockResolvedValue({ data: [msg({ id: 'new', content: 'fresh' })], error: null })
+    mockOrder.mockReturnValue({ order: mockOrder, or: vi.fn(), limit: mockLimit })
+    const eq = vi.fn().mockReturnValue({ order: mockOrder })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    let messagesEvent: (() => void) | undefined
+    const on = vi.fn().mockImplementation((_event: any, config: any, callback: any) => {
+      if (config.table === 'admin_messages') messagesEvent = () => callback({ eventType: 'INSERT', new: {} })
+      return { on, subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on } as any)
+
+    const { result } = renderHook(() => useAdminMessages('thread-1'))
+
+    await act(async () => {
+      messagesEvent?.()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(result.current.messages.map(m => m.id)).toEqual(['new'])
+    })
+
+    await act(async () => {
+      resolveSlow({ data: [msg({ id: 'old', content: 'stale' })], error: null })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(result.current.messages.map(m => m.id)).toEqual(['new'])
+    expect(result.current.loading).toBe(false)
+  })
 })

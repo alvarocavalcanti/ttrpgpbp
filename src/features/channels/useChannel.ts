@@ -106,11 +106,13 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         const formattedMembers = await loadMembers()
         if (!mounted) return
 
-        // Mark read in background if we are a member
+        // Mark read in background if we are a member. Only while the tab is
+        // visible: a reconnect completing in a hidden tab must not mark
+        // messages the user isn't looking at as read.
         const myMember = formattedMembers.find(m => m.user_id === user?.id)
         if (myMember) {
           myMemberIdRef.current = myMember.id
-          markRead()
+          if (document.visibilityState === 'visible') markRead()
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
