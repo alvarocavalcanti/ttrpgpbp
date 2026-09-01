@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { MessageItem } from './MessageItem'
+import { MessageItem, MESSAGE_ACTION_SIZING } from './MessageItem'
 
 describe('MessageItem', () => {
   it('renders system message correctly', () => {
@@ -903,14 +903,16 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
     for (const label of ['Reply', 'Edit', 'Delete', 'X-Card']) {
       const btn = screen.getByLabelText(label)
-      expect(btn.className).toContain('p-1.5')
-      expect(btn.querySelector('svg')).toHaveClass('w-5', 'h-5')
+      // Assert the shared sizing contract, not literal utility strings —
+      // the constant documents the touch-target requirement in one place.
+      expect(btn.className).toContain(MESSAGE_ACTION_SIZING.padding)
+      expect(btn.querySelector('svg')).toHaveClass(...MESSAGE_ACTION_SIZING.icon.split(' '))
     }
     // Desktop row is hidden on mobile; the ⋯ button is hidden on desktop.
     const wrapper = screen.getByLabelText('Reply').closest('.hidden') as HTMLElement | null
-    expect(wrapper?.className).toContain('sm:flex')
+    expect(wrapper?.className).toContain(MESSAGE_ACTION_SIZING.desktopRowVisibility)
     const menuBtn = screen.getByLabelText('Message actions')
-    expect(menuBtn.className).toContain('sm:hidden')
+    expect(menuBtn.className).toContain(MESSAGE_ACTION_SIZING.menuButtonVisibility)
   })
 
   it('raises the emoji picker trigger target size', () => {

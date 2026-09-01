@@ -43,4 +43,23 @@ describe('ConfirmDialog', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('focuses the Cancel button on open (safe choice for destructive actions)', () => {
+    render(<ConfirmDialog title="Delete it?" onConfirm={vi.fn()} onClose={vi.fn()} />)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }))
+  })
+
+  it('traps Tab focus inside the dialog', () => {
+    render(<ConfirmDialog title="Delete it?" onConfirm={vi.fn()} onClose={vi.fn()} />)
+    const cancel = screen.getByRole('button', { name: 'Cancel' })
+    const confirm = screen.getByRole('button', { name: 'Delete' })
+
+    // Focus starts on Cancel; Shift+Tab wraps to the last focusable (confirm).
+    fireEvent.keyDown(cancel, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(confirm)
+
+    // Tab from the last focusable wraps back to the first (cancel).
+    fireEvent.keyDown(confirm, { key: 'Tab', shiftKey: false })
+    expect(document.activeElement).toBe(cancel)
+  })
 })
