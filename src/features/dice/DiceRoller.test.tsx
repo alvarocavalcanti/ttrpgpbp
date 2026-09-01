@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DiceRoller, buildNotation } from './DiceRoller'
 import { supabase } from '../../lib/supabase'
@@ -250,5 +250,42 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(screen.queryByRole('dialog', { name: 'Dice Roller' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the notation rolled while history fetch is in flight', async () => {
+    let resolveHistory: (value: unknown) => void = () => {}
+    vi.mocked(supabase.rpc).mockImplementation(
+      () => new Promise(resolve => { resolveHistory = resolve })
+    )
+
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller channelId="c1" onRoll={mockOnRoll} />)
+
+    // Roll while the history response is still pending.
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20')
+
+    // Reopen — local chip present, history still loading.
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    expect(screen.getByRole('button', { name: 'Quick roll 1d20' })).toBeInTheDocument()
+
+    // Now the stale snapshot arrives; it must not evict the local roll.
+    resolveHistory({
+      data: [
+        { id: '1', notation: '2d6+1', created_at: '2026-01-01T00:00:03Z' },
+        { id: '2', notation: '1d8', created_at: '2026-01-01T00:00:02Z' },
+        { id: '3', notation: '1d4', created_at: '2026-01-01T00:00:01Z' }
+      ]
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Quick roll 2d6+1' })).toBeInTheDocument()
+    })
+    // Local notation (rolled after the snapshot) still first.
+    expect(screen.getByRole('button', { name: 'Quick roll 1d20' })).toBeInTheDocument()
+    // Oldest slot filled by history, not evicted entirely.
+    expect(screen.getByRole('button', { name: 'Quick roll 1d8' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Quick roll 1d4' })).not.toBeInTheDocument()
   })
 })

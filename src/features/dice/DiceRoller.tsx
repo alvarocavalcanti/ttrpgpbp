@@ -48,7 +48,16 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           if (!notations.includes(r.notation)) notations.push(r.notation)
           if (notations.length >= 3) break
         }
-        setRecent(notations)
+        // The server snapshot may predate rolls made while it was in flight —
+        // keep the local (newer) entries first and let stale history only fill
+        // the remaining slots.
+        setRecent(prev => {
+          const merged = [...prev]
+          for (const n of notations) {
+            if (!merged.includes(n)) merged.push(n)
+          }
+          return merged.slice(0, 3)
+        })
       })
     return () => { cancelled = true }
   }, [isOpen, channelId])
@@ -75,7 +84,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           max="100"
           value={quantity}
           onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
-          className="bg-white dark:bg-gray-800 w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-2"
+          className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2"
           disabled={diceType === 'd20' && advDis !== 'none'}
         />
         <label htmlFor="dice-type" className="sr-only">Dice type</label>
@@ -86,7 +95,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
             setDiceType(e.target.value)
             if (e.target.value !== 'd20') setAdvDis('none')
           }}
-          className="bg-white dark:bg-gray-800 flex-1 border-gray-300 dark:border-gray-600 rounded text-sm py-2 pl-2 pr-8"
+          className="bg-white dark:bg-gray-800 flex-1 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 pl-2 pr-8"
         >
           <option value="d4">d4</option>
           <option value="d6">d6</option>
@@ -105,7 +114,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           type="button"
           onClick={() => setModifier(m => Math.max(-999, m - 1))}
           aria-label="Decrease modifier"
-          className="w-9 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+          className="min-h-11 min-w-11 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
         >
           −
         </button>
@@ -116,13 +125,13 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           inputMode="numeric"
           value={modifier}
           onChange={(e) => setModifier(Math.min(999, Math.max(-999, parseInt(e.target.value) || 0)))}
-          className="bg-white dark:bg-gray-800 w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
+          className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
         />
         <button
           type="button"
           onClick={() => setModifier(m => Math.min(999, m + 1))}
           aria-label="Increase modifier"
-          className="w-9 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+          className="min-h-11 min-w-11 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
         >
           +
         </button>
@@ -157,7 +166,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
       <button
         type="button"
         onClick={handleRoll}
-        className="w-full flex justify-center py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="w-full flex justify-center min-h-11 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
         Roll
       </button>
