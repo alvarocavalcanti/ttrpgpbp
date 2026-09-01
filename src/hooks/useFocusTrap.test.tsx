@@ -121,6 +121,32 @@ describe('useFocusTrap', () => {
     expect(last).toHaveFocus()
   })
 
+  it('defers to a nested dialog when focus sits inside it', () => {
+    function NestedDialogs() {
+      const outerRef = useRef<HTMLDivElement>(null)
+      const innerRef = useRef<HTMLDivElement>(null)
+      useFocusTrap(outerRef)
+      useFocusTrap(innerRef)
+      return (
+        <div ref={outerRef} role="dialog" data-testid="outer">
+          <button type="button">Outer First</button>
+          <div ref={innerRef} role="dialog" data-testid="inner">
+            <button type="button">Inner First</button>
+            <button type="button">Inner Last</button>
+          </div>
+        </div>
+      )
+    }
+    const { getByRole } = render(<NestedDialogs />)
+    // Simulate the picker having been opened: Shift+Tab from the inner's
+    // first element must wrap within the inner dialog. Without the nested
+    // guard the outer trap re-handles the same event (Inner Last is also the
+    // outer's last focusable) and yanks focus to Outer First.
+    getByRole('button', { name: 'Inner First' }).focus()
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(getByRole('button', { name: 'Inner Last' })).toHaveFocus()
+  })
+
   it('cleans up the keydown listener on unmount', () => {
     const { unmount } = render(<TrapDialog />)
     const spy = vi.spyOn(window, 'removeEventListener')

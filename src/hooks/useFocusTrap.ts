@@ -38,11 +38,17 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>) {
 
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return
+      const active = document.activeElement
+      // Defer to an innermost nested dialog's own trap: when focus sits
+      // inside a nested [role="dialog"] (e.g. IconPicker inside
+      // NpcManagementModal), both traps receive the same Tab event and the
+      // outer one would yank focus out of the inner cycle.
+      const nested = container.querySelector('[role="dialog"]')
+      if (nested && active instanceof HTMLElement && nested.contains(active)) return
       const items = focusables()
       if (items.length === 0) return
       const first = items[0]
       const last = items[items.length - 1]
-      const active = document.activeElement
       const inside = active instanceof HTMLElement && container.contains(active)
       if (e.shiftKey) {
         if (!inside || active === first) {
