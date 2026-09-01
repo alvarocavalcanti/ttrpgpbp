@@ -1,5 +1,14 @@
 const DICE_REGEX = /\b(\d+d\d+(?:(?:kh|kl|dh|dl)\d*)?(?:[+-]\d+)?)\b/gi
 
+// Exact-match dice notation (`3d6kh1+2`) — stricter than DICE_REGEX, which
+// scans whole text. Used to validate `dice:` hrefs at the click site before
+// they reach the roll flow.
+const DICE_NOTATION_REGEX = /^\d{1,3}d\d{1,3}(?:(?:kh|kl|dh|dl)\d{1,3})?(?:[+-]\d{1,4})?$/i
+
+export function isValidDiceNotation(notation: string): boolean {
+  return DICE_NOTATION_REGEX.test(notation)
+}
+
 // Fallback attribute set for channels with no game system (none/generic).
 const GENERIC_CHECK_ATTRIBUTES = [
   'STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA',

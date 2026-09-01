@@ -13,6 +13,7 @@ import { SignedImg } from '../../components/SignedImg'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 import { chipBase, chipIdle, chipActive } from './composerChip'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../../lib/safeStorage'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -45,7 +46,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
   useEffect(() => {
     if (draftKey) {
-      const saved = localStorage.getItem(draftKey)
+      const saved = safeGetItem(draftKey)
       if (saved) setContent(saved)
       else setContent('')
     } else {
@@ -55,8 +56,8 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
   useEffect(() => {
     if (draftKey) {
-      if (content) localStorage.setItem(draftKey, content)
-      else localStorage.removeItem(draftKey)
+      if (content) safeSetItem(draftKey, content)
+      else safeRemoveItem(draftKey)
     }
   }, [content, draftKey])
 
@@ -215,7 +216,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
       await onSendMessage(payload)
       setContent('')
-      if (draftKey) localStorage.removeItem(draftKey)
+      if (draftKey) safeRemoveItem(draftKey)
       setIsScene(false)
       setIsNpc(false)
       setNpcName('')

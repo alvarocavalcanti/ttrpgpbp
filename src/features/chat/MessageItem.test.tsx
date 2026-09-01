@@ -287,6 +287,20 @@ describe('MessageItem', () => {
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
   })
 
+  it('ignores clicks on dice links with invalid notation', async () => {
+    const mockOnRollDice = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: '[x](dice:notadice!)',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'x' }))
+    expect(mockOnRollDice).not.toHaveBeenCalled()
+  })
+
   it('allows editing if author and within 15 min', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
     const msg: any = { 

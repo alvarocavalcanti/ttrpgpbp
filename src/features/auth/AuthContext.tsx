@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
+import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
 import type { Database } from '../../types/database'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('id', userId)
           .single()
 
-        if (mounted) setProfile(data)
+        if (mounted) setProfile(parseRow(ProfileRowSchema, data))
       } catch (err) {
         // Preserve any previously-loaded profile so a transient fetch failure
         // doesn't wipe the UI (UX#16); a later auth event retries it.

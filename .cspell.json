@@ -64,6 +64,9 @@
     "visibilitychange",
     "dedup",
     "Rangeable",
-    "SAMEORIGIN"
+    "SAMEORIGIN",
+    "notadice",
+    "backgrounding",
+    "hrefs"
   ]
 }

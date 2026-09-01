@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest'
-import { linkifyDice } from './parser'
+import { linkifyDice, isValidDiceNotation } from './parser'
+
+describe('isValidDiceNotation', () => {
+  it('accepts the notations linkifyDice produces', () => {
+    expect(isValidDiceNotation('1d20')).toBe(true)
+    expect(isValidDiceNotation('3d6kh1+2')).toBe(true)
+    expect(isValidDiceNotation('4d6dl1-1')).toBe(true)
+    expect(isValidDiceNotation('2d20kh1')).toBe(true)
+  })
+
+  it('rejects hand-crafted href payloads that are not dice notation', () => {
+    expect(isValidDiceNotation('anything')).toBe(false)
+    expect(isValidDiceNotation('1d20; drop table users')).toBe(false)
+    expect(isValidDiceNotation('d20')).toBe(false)
+    expect(isValidDiceNotation('')).toBe(false)
+  })
+})
 
 describe('linkifyDice', () => {
   it('turns dice notation into markdown links', () => {

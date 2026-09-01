@@ -331,8 +331,39 @@ describe('useMessages', () => {
     expect(result.current.messages.some(m => m.id === 'm1')).toBe(false)
   })
 
-  it('reconciles a failed send after a successful retry', async () => {
-    const mockRpc = vi.fn()
+  it('does not mint a second request for an identical in-flight send', async () => {
+    let resolveRpc!: (value: { data: { message_id: string }[] | null, error: null }) => void
+    const mockRpc = vi.fn().mockImplementation(() => new Promise(res => { resolveRpc = res }))
+    mockFrom()
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // First submit stays in flight (the rpc promise is unresolved until the
+    // end of the test); the optimistic pending bubble renders on its own act.
+    let first: Promise<void> = Promise.resolve()
+    await act(async () => {
+      first = result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    // Double-submit while the first request is still in flight reuses the
+    // pending bubble instead of minting a fresh client_request_id.
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    await act(async () => {
+      resolveRpc({ data: [{ message_id: 'real-id' }], error: null })
+      await first
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(result.current.messages.some(m => m.id === 'real-id')).toBe(true)
+  })
+
+  it('reconciles a failed send after a successful retry', async () => {    const mockRpc = vi.fn()
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
     mockFrom({

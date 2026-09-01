@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import { isAuthorizedCleanupRequest, listChannelImages, runCleanup, type ListedObject } from "./logic.ts"
+
+const encoder = new TextEncoder()
+const timingSafeSecretCompare = (provided: string, expected: string) =>
+  timingSafeEqual(encoder.encode(provided), encoder.encode(expected))
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -21,7 +26,7 @@ serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405)
   }
 
-  if (!isAuthorizedCleanupRequest(req, expectedSecret)) {
+  if (!isAuthorizedCleanupRequest(req, expectedSecret, timingSafeSecretCompare)) {
     console.warn("cleanup-images rejected unauthorized request")
     return jsonResponse({ error: "Unauthorized" }, 401)
   }

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
 import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin } from "./filter.ts"
@@ -34,6 +35,14 @@ function json(body: unknown, status: number, req: Request): Response {
     status,
     headers: { ...corsHeaders(req), "Content-Type": "application/json" },
   })
+}
+
+// Constant-time shared-secret comparison (Deno runtime) so header checks do
+// not leak the secret through response-timing analysis.
+function secretsMatch(provided: string | null, expected: string | undefined): boolean {
+  if (!provided || !expected) return false
+  const encoder = new TextEncoder()
+  return timingSafeEqual(encoder.encode(provided), encoder.encode(expected))
 }
 
 // Writes one delivery-outcome row per push so failures are queryable (#191).
@@ -253,7 +262,7 @@ serve(async (req) => {
       (configRows ?? []).map((row: { key: string; value: string }) => [row.key, row.value])
     )
     const internalSecret = config.get("PUSH_INTERNAL_SECRET")
-    if (!internalSecret || req.headers.get("x-push-secret") !== internalSecret) {
+    if (!secretsMatch(req.headers.get("x-push-secret"), internalSecret)) {
       return json({ error: "Unauthorized" }, 401, req)
     }
 

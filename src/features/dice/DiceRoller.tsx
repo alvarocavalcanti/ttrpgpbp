@@ -64,7 +64,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
                 min="1"
                 max="100"
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
                 className="bg-white dark:bg-gray-800 w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
                 disabled={diceType === 'd20' && advDis !== 'none'}
               />
@@ -91,7 +91,7 @@ export function DiceRoller({ onRoll }: DiceRollerProps) {
               <input
                 type="number"
                 value={modifier}
-                onChange={(e) => setModifier(parseInt(e.target.value) || 0)}
+                onChange={(e) => setModifier(Math.min(999, Math.max(-999, parseInt(e.target.value) || 0)))}
                 className="bg-white dark:bg-gray-800 w-16 border-gray-300 dark:border-gray-600 rounded text-sm py-1"
               />
             </div>
