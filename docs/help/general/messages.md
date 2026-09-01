@@ -17,7 +17,8 @@ Messages can contain up to **4,000 characters**, including Markdown. The same li
 ## Editing and deleting
 
 - Messages can be **edited** within 15 minutes of posting. Edited messages are marked "edited".
-- Messages can be **deleted**, and are replaced with a "deleted" marker.
+- Messages can be **deleted**, and are replaced with a "deleted" marker. Deleting asks you to confirm first.
+- On desktop, hover a message to see its actions (reply, edit, delete, X-Card). On mobile, tap the **"⋯"** button next to a message to open the same actions in a bottom sheet.
 
 ## Replies
 
