@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar'
 import { Markdown } from '../../components/Markdown'
 import { useAuth } from '../auth/useAuth'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () => void }) {
   const { messages, loading, hasMore, loadMore, refetch, error } = useAdminMessages(thread.id)
@@ -19,6 +20,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   // Set to the container's height before a load-more prepend; the effect that
   // normally scrolls to the bottom instead restores the viewport on that page.
   const loadMoreHeightRef = useRef<number | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ type: 'thread' } | { type: 'message'; id: string } | null>(null)
 
   useEffect(() => {
     if (!thread.id) return
@@ -63,14 +65,15 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   }
 
   const handleDeleteThread = async () => {
-    if (!confirm('Are you sure you want to delete this entire thread?')) return
+    setConfirmAction(null)
     await supabase.from('admin_threads').delete().eq('id', thread.id)
     onBack()
   }
 
   const handleDeleteMsg = async (msgId: string) => {
-    if (!confirm('Delete this message?')) return
+    setConfirmAction(null)
     await supabase.from('admin_messages').update({ is_deleted: true, content: '' }).eq('id', msgId)
+    refetch()
   }
 
   const title = thread.type === 'announcement' ? thread.subject : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
@@ -86,7 +89,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
           <div className="text-sm text-gray-500">{thread.type === 'announcement' ? 'Announcement' : 'Direct Message'}</div>
         </div>
         {isServerAdmin && (
-          <button type="button" onClick={handleDeleteThread} className="text-red-500 hover:text-red-700 p-2" title="Delete Thread">
+          <button type="button" onClick={() => setConfirmAction({ type: 'thread' })} className="text-red-500 hover:text-red-700 p-2" title="Delete Thread">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </button>
         )}
@@ -123,7 +126,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
                   )}
                 </div>
                 {!msg.is_deleted && (msg.sender_id === user?.id || isServerAdmin) && (
-                  <button type="button" onClick={() => handleDeleteMsg(msg.id)} className="text-xs text-gray-400 hover:text-red-500 mt-1 px-1">
+                  <button type="button" onClick={() => setConfirmAction({ type: 'message', id: msg.id })} className="text-xs text-gray-400 hover:text-red-500 mt-1 px-1">
                     Delete
                   </button>
                 )}
@@ -164,6 +167,24 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
           </button>
         </form>
       </div>
+
+      {confirmAction?.type === 'thread' && (
+        <ConfirmDialog
+          title="Delete this entire thread?"
+          description="All messages in the conversation are removed for both sides."
+          confirmLabel="Delete Thread"
+          onConfirm={handleDeleteThread}
+          onClose={() => setConfirmAction(null)}
+        />
+      )}
+      {confirmAction?.type === 'message' && (
+        <ConfirmDialog
+          title="Delete this message?"
+          confirmLabel="Delete"
+          onConfirm={() => handleDeleteMsg(confirmAction.id)}
+          onClose={() => setConfirmAction(null)}
+        />
+      )}
     </div>
   )
 }

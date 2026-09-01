@@ -10,6 +10,7 @@ import { useSafetyTools } from './useSafetyTools'
 import { useChannelAvatar } from './useChannelAvatar'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { SignedImg } from '../../components/SignedImg'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import {
@@ -40,6 +41,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(gmOnlyResourcesUrlProp || '')
   const [safetyToolsUrl, setSafetyToolsUrl] = useState(channel.safety_tools_url || '')
   const [showSafetyTools, setShowSafetyTools] = useState(false)
+  const [confirmArchive, setConfirmArchive] = useState(false)
   const { safetyTools } = useSafetyTools(channel.id, showSafetyTools)
   const [safetyLines, setSafetyLines] = useState('')
   const [safetyVeils, setSafetyVeils] = useState('')
@@ -238,10 +240,8 @@ setIsSubmitting(true)
   }
 
   const handleArchive = async () => {
-    if (!window.confirm('Are you sure you want to archive this channel? Remember to export the chat history first!')) {
-      return
-    }
-    
+    setConfirmArchive(false)
+
     try {
       setIsSubmitting(true)
       const { error: archiveError } = await supabase
@@ -565,7 +565,7 @@ setIsSubmitting(true)
                   </button>
                   <button
                     type="button"
-                    onClick={handleArchive}
+                    onClick={() => setConfirmArchive(true)}
                     disabled={isSubmitting}
                     className="w-full inline-flex justify-center rounded-md border border-red-300 dark:border-red-700 shadow-sm px-4 py-2 bg-red-50 dark:bg-red-950 text-base font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm disabled:opacity-50 transition-colors"
                   >
@@ -577,6 +577,16 @@ setIsSubmitting(true)
           </div>
         </div>
       </div>
+
+      {confirmArchive && (
+        <ConfirmDialog
+          title="Archive this channel?"
+          description="The channel becomes read-only for everyone. Remember to export the chat history first!"
+          confirmLabel="Archive"
+          onConfirm={handleArchive}
+          onClose={() => setConfirmArchive(false)}
+        />
+      )}
     </div>
   )
 }

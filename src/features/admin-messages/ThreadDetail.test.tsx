@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ThreadDetail } from './ThreadDetail'
 import type { Thread, Message } from './types'
@@ -205,29 +205,27 @@ describe('ThreadDetail', () => {
   })
 
   it('deletes thread on confirm', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const onBack = vi.fn()
     const deleteChain: any = { delete: () => deleteChain, eq: vi.fn().mockResolvedValue({ error: null }) }
     vi.mocked(supabase.from).mockReturnValue(deleteChain)
 
     render(<ThreadDetail thread={mockThread} onBack={onBack} />)
     fireEvent.click(screen.getByTitle('Delete Thread'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this entire thread?' })).getByRole('button', { name: 'Delete Thread' }))
 
     await waitFor(() => {
       expect(onBack).toHaveBeenCalled()
     })
-    vi.spyOn(window, 'confirm').mockRestore()
   })
 
   it('does not delete thread when confirm cancelled', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
     const onBack = vi.fn()
 
     render(<ThreadDetail thread={mockThread} onBack={onBack} />)
     fireEvent.click(screen.getByTitle('Delete Thread'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(onBack).not.toHaveBeenCalled()
-    vi.spyOn(window, 'confirm').mockRestore()
   })
 
   it('shows delete message button for own message', () => {
@@ -237,18 +235,17 @@ describe('ThreadDetail', () => {
   })
 
   it('deletes a message on confirm', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
     const updateChain: any = { update: () => updateChain, eq: vi.fn().mockResolvedValue({ error: null }) }
     vi.mocked(supabase.from).mockReturnValue(updateChain)
 
     render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this message?' })).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => {
       expect(supabase.from).toHaveBeenCalledWith('admin_messages')
     })
-    vi.spyOn(window, 'confirm').mockRestore()
   })
 })
 

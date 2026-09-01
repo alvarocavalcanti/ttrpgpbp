@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { ToastProvider } from '../../contexts/ToastContext'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NpcManagementModal } from './NpcManagementModal'
@@ -96,18 +96,18 @@ describe('NpcManagementModal', () => {
   })
 
   it('deletes an NPC after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
     fireEvent.click(screen.getByLabelText('Delete Goblin King'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete NPC "Goblin King"?' })).getByRole('button', { name: 'Delete' }))
     await waitFor(() => {
       expect(vi.mocked(useChannelNpcs).mock.results[0].value.deleteNpc).toHaveBeenCalledWith('n1')
     })
   })
 
   it('does not delete when confirmation is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
     fireEvent.click(screen.getByLabelText('Delete Goblin King'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(vi.mocked(useChannelNpcs).mock.results[0].value.deleteNpc).not.toHaveBeenCalled()
   })
 

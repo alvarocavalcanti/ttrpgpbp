@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
@@ -272,29 +272,29 @@ describe('ChannelSettings', () => {
   })
 
   it('handles archive channel', async () => {
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
     const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
-    
+
     fireEvent.click(screen.getByText('Archive Channel'))
-    
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Archive this channel?' })).getByRole('button', { name: 'Archive' }))
+
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalledWith({ is_archived: true })
     })
   })
 
   it('handles archive channel error', async () => {
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
     const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: new Error('DB Error') }) })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
-    
+
     fireEvent.click(screen.getByText('Archive Channel'))
-    
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Archive this channel?' })).getByRole('button', { name: 'Archive' }))
+
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith('Failed to archive channel.', 'error')
     })
