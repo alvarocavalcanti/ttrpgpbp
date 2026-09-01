@@ -66,7 +66,8 @@ describe('changelog module', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
     // Most-recent Unreleased "Updated" entry leads the list.
-    expect(items[0].title).toBe('Keyboard-friendly popups')
+    // Most-recent Unreleased "Updated" entry leads the list.
+    expect(items[0].title).toBe('Easier-to-tap message actions')
   })
 
   it('getChangelogHash is a non-empty string', () => {
