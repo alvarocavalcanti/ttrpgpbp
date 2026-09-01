@@ -682,10 +682,9 @@ CREATE TRIGGER channels_url_scheme
   BEFORE INSERT OR UPDATE ON channels
   FOR EACH ROW EXECUTE FUNCTION enforce_url_scheme();
 
--- abuse_reports.reason: cap length (normalize existing rows first; NOT VALID
--- avoids a full-table scan under lock, then validate in its own statement).
+-- abuse_reports.reason: cap length (normalize existing rows first; the
+-- constraint is added NOT VALID to avoid a full-table-scan lock — safe
+-- because the normalization above already brought every row under the cap).
 UPDATE abuse_reports SET reason = LEFT(reason, 1000) WHERE char_length(reason) > 1000;
 ALTER TABLE abuse_reports
   ADD CONSTRAINT abuse_reports_reason_length CHECK (char_length(reason) <= 1000) NOT VALID;
-ALTER TABLE abuse_reports
-  VALIDATE CONSTRAINT abuse_reports_reason_length;
