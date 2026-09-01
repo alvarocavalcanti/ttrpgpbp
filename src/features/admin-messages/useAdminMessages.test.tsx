@@ -131,4 +131,47 @@ describe('useAdminMessages', () => {
 
     expect(result.current.messages.map(m => m.id)).toEqual(['b1'])
   })
+
+  it('refetches when the initial subscription fails and a retry succeeds', async () => {
+    // Initial fetch fails; only the retry-triggered refetch can load messages.
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('db down') })
+      .mockResolvedValue({ data: [msg({ id: 'm1' })], error: null })
+    const mockOrder = vi.fn()
+    const chain = { order: mockOrder, or: vi.fn(), limit: mockLimit }
+    mockOrder.mockReturnValue(chain)
+    const eq = vi.fn().mockReturnValue(chain)
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    let statusCb: ((status: string) => void) | undefined
+    const on = vi.fn().mockReturnThis()
+    vi.mocked(supabase.channel).mockReturnValue({
+      on,
+      subscribe: vi.fn().mockImplementation(cb => { statusCb = cb; return { unsubscribe: vi.fn() } })
+    } as any)
+
+    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(0)
+    })
+
+    vi.useFakeTimers()
+    try {
+      // Initial subscription attempt fails; retry fires after backoff. The
+      // retry's SUBSCRIBED must trigger the catch-up fetch (no fetch was
+      // skipped for the failed first attempt).
+      await act(async () => {
+        statusCb?.('CHANNEL_ERROR')
+        await vi.advanceTimersByTimeAsync(1000)
+        statusCb?.('SUBSCRIBED')
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    await waitFor(() => {
+      expect(result.current.messages.map(m => m.id)).toEqual(['m1'])
+    })
+  })
 })

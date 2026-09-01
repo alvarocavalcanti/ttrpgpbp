@@ -90,11 +90,16 @@ export function useAdminThreads() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_messages' }, () => void fetchFirstPage(false))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_thread_reads', filter: `user_id=eq.${user?.id}` }, () => void fetchFirstPage(false))
     // subscribeWithRetry resubscribes after a drop and refetches so events
-    // missed while offline are recovered (#336).
+    // missed while offline are recovered (#336). A failed initial attempt
+    // makes the first successful retry fetch (nothing was loaded yet).
     let firstSubscribe = true
+    let sawFailure = false
     const stopRealtime = subscribeWithRetry(channel, 'admin_threads_list', (status) => {
-      if (status !== 'SUBSCRIBED') return
-      if (firstSubscribe) {
+      if (status !== 'SUBSCRIBED') {
+        sawFailure = true
+        return
+      }
+      if (firstSubscribe && !sawFailure) {
         firstSubscribe = false
         return
       }

@@ -121,9 +121,11 @@ describe('useMessages', () => {
     const mockCatchOrder = vi.fn()
     mockCatchOrder.mockReturnValue({ order: mockCatchOrder, limit: mockCatchLimit })
     const mockGt = vi.fn().mockReturnValue({ order: mockCatchOrder })
+    const mockOr = vi.fn().mockReturnValue({ order: mockCatchOrder })
 
-    // eq() serves both the initial fetch (.order desc) and the catch-up (.gt -> .order asc).
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt }) }) })
+    // eq() serves the initial fetch (.order desc), the INSERT catch-up
+    // (.gt -> .order asc) and the UPDATE reconcile (.or -> .order asc).
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -160,13 +162,13 @@ describe('useMessages', () => {
     const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
     const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
     const insertLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const insertChain = { order: vi.fn().mockReturnValue({ limit: insertLimit }) }
+    const mockGt = vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: insertLimit }) })
     const updateLimit = vi.fn().mockResolvedValue({ data: updateBatch, error: null })
     const updateOrder = vi.fn()
     updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
-    const mockGt = vi.fn().mockImplementation((column: string) => (column === 'updated_at' ? { order: updateOrder } : insertChain))
+    const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
 
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
@@ -176,9 +178,7 @@ describe('useMessages', () => {
       expect(result.current.messages).toHaveLength(2)
     })
 
-    await act(async () => {
-      emitStatus('SUBSCRIBED')
-    })
+    await act(async () => { emitStatus('SUBSCRIBED'); await new Promise(r => setTimeout(r, 50)) })
 
     await waitFor(() => {
       expect(result.current.messages[0].content).toBe('edited')
@@ -190,8 +190,91 @@ describe('useMessages', () => {
     expect(result.current.messages).toHaveLength(2)
   })
 
-  it('ignores update-catchup rows for messages it does not hold', async () => {
-    const initial = [baseMessage({ id: 'm1', created_at: '2023-01-01T00:00:00.000Z', updated_at: '2023-01-01T00:00:00.000Z' })]
+  it('reconciles an offline edit even when a later offline insert advanced the insert cursor', async () => {
+    const initial = [baseMessage({ id: 'm1', content: 'hello', created_at: '2023-01-01T00:00:00.000Z', updated_at: '2023-01-01T00:00:00.000Z' })]
+    // Inserted while offline, after the edit happened.
+    const inserted = baseMessage({ id: 'm2', created_at: '2023-01-01T02:00:00.000Z', updated_at: '2023-01-01T02:00:00.000Z' })
+    const edited = baseMessage({ id: 'm1', content: 'edited', is_edited: true, updated_at: '2023-01-01T01:00:00.000Z' })
+
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
+    const insertLimit = vi.fn().mockResolvedValue({ data: [inserted], error: null })
+    const mockGt = vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: insertLimit }) })
+    const updateLimit = vi.fn().mockResolvedValue({ data: [edited], error: null })
+    const updateOrder = vi.fn()
+    updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
+    const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
+    // eq() serves the initial fetch (order), the INSERT catch-up (gt) and the
+    // UPDATE reconcile (or with a composite cursor).
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(1)
+    })
+
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2)
+    })
+    // The edit happened before the insert's updated_at, but must still land.
+    expect(result.current.messages[0].id).toBe('m1')
+    expect(result.current.messages[0].content).toBe('edited')
+    expect(result.current.messages[1].id).toBe('m2')
+  })
+
+  it('paginates the update reconcile by (updated_at, id) so a full page sharing one timestamp cannot skip rows', async () => {
+    const held = Array.from({ length: 51 }, (_, i) =>
+      baseMessage({ id: `a${i}`, content: `held ${i}`, created_at: `2023-01-01T00:00:00.${String(i).padStart(3, '0')}Z`, updated_at: '2023-01-01T00:00:00.000Z' }))
+    // 50 edits share one updated_at — a full page.
+    const page1 = Array.from({ length: 50 }, (_, i) =>
+      baseMessage({ id: `a${i}`, content: `edited ${i}`, created_at: held[i].created_at, updated_at: '2023-01-01T01:00:00.000Z' }))
+    // Remainder at the same timestamp: only reachable via the id tie-breaker.
+    const page2 = [baseMessage({ id: 'a50', content: 'edited 50', created_at: held[50].created_at, updated_at: '2023-01-01T01:00:00.000Z' })]
+
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: held, error: null })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
+    const insertLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockGt = vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: insertLimit }) })
+    const updateLimit = vi.fn()
+      .mockResolvedValueOnce({ data: page1, error: null })
+      .mockResolvedValueOnce({ data: page2, error: null })
+    const updateOrder = vi.fn()
+    updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
+    const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(51)
+    })
+
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+
+    await waitFor(() => {
+      expect(result.current.messages[50].content).toBe('edited 50')
+    })
+    // Every held row was refreshed, none dropped or duplicated.
+    expect(result.current.messages).toHaveLength(51)
+    expect(result.current.messages[0].content).toBe('edited 0')
+    // Second page requested with the composite cursor past the first page's
+    // last row.
+    const secondPredicate = mockOr.mock.calls[1]?.[0] as string | undefined
+    expect(secondPredicate).toContain('id.gt.a49')
+  })
+
+  it('ignores update-catchup rows for messages it does not hold', async () => {    const initial = [baseMessage({ id: 'm1', created_at: '2023-01-01T00:00:00.000Z', updated_at: '2023-01-01T00:00:00.000Z' })]
     // A row whose created_at predates our window but was edited after our
     // updated_at cursor: must not leak in as a phantom message.
     const updateBatch = [baseMessage({ id: 'old-row', content: 'phantom', created_at: '2022-12-31T00:00:00.000Z', updated_at: '2023-01-01T01:00:00.000Z' })]
@@ -199,13 +282,13 @@ describe('useMessages', () => {
     const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
     const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
     const insertLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const insertChain = { order: vi.fn().mockReturnValue({ limit: insertLimit }) }
+    const mockGt = vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: insertLimit }) })
     const updateLimit = vi.fn().mockResolvedValue({ data: updateBatch, error: null })
     const updateOrder = vi.fn()
     updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
-    const mockGt = vi.fn().mockImplementation((column: string) => (column === 'updated_at' ? { order: updateOrder } : insertChain))
+    const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
 
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
     const { result } = renderHook(() => useMessages('c1'))
