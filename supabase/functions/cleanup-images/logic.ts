@@ -74,18 +74,8 @@ export async function listChannelImages(
   return images
 }
 
-export type SecretCompare = (provided: string, expected: string) => boolean
-
-// `compare` defaults to strict equality; the Deno entry point (index.ts)
-// injects @std/crypto's timingSafeEqual for a constant-time check. Kept as a
-// parameter so this module stays dependency-free and runnable in vitest.
-export function isAuthorizedCleanupRequest(
-  request: Request,
-  expectedSecret: string | undefined,
-  compare: SecretCompare = (a, b) => a === b,
-): boolean {
-  const provided = request.headers.get('x-cleanup-secret')
-  return Boolean(expectedSecret && provided && compare(provided, expectedSecret))
+export function isAuthorizedCleanupRequest(request: Request, expectedSecret: string | undefined): boolean {
+  return Boolean(expectedSecret && request.headers.get('x-cleanup-secret') === expectedSecret)
 }
 
 export function positiveRetentionDays(value: unknown): number {

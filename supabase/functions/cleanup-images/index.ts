@@ -1,11 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
-import { isAuthorizedCleanupRequest, listChannelImages, runCleanup, type ListedObject } from "./logic.ts"
+import { listChannelImages, runCleanup, type ListedObject } from "./logic.ts"
 
-const encoder = new TextEncoder()
-const timingSafeSecretCompare = (provided: string, expected: string) =>
-  timingSafeEqual(encoder.encode(provided), encoder.encode(expected))
+// Constant-time authorization. Both sides are hashed to a fixed-length
+// SHA-256 digest first: a wrong-length provided secret can neither throw
+// (RangeError on length mismatch) nor act as a length oracle.
+async function isAuthorized(request: Request, expectedSecret: string): Promise<boolean> {
+  const provided = request.headers.get("x-cleanup-secret")
+  if (!provided) return false
+  const encoder = new TextEncoder()
+  const [providedHash, expectedHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(provided)),
+    crypto.subtle.digest("SHA-256", encoder.encode(expectedSecret)),
+  ])
+  try {
+    return timingSafeEqual(new Uint8Array(providedHash), new Uint8Array(expectedHash))
+  } catch {
+    return false
+  }
+}
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -26,7 +40,7 @@ serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405)
   }
 
-  if (!isAuthorizedCleanupRequest(req, expectedSecret, timingSafeSecretCompare)) {
+  if (!(await isAuthorized(req, expectedSecret))) {
     console.warn("cleanup-images rejected unauthorized request")
     return jsonResponse({ error: "Unauthorized" }, 401)
   }

@@ -282,9 +282,15 @@ describe('useChannels', () => {
 
     await act(async () => {
       messagesInsert?.({ new: { channel_id: 'c1' } })
+      // A burst of messages in the debounce window costs one refetch.
+      messagesInsert?.({ new: { channel_id: 'c1' } })
+      messagesInsert?.({ new: { channel_id: 'c1' } })
     })
 
-    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(2))
+    // INSERT schedules a trailing 2s-debounced refetch (one per burst).
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+
+    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(2), { timeout: 4000 })
   })
 
   it('ignores realtime message INSERTs for channels I am not in', async () => {

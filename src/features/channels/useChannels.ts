@@ -94,12 +94,22 @@ export function useChannels() {
     const stopRealtimeStatus = subscribeRealtimeStatus(fetchChannels)
 
     // Keep unread badges live while sitting in the Lobby: a plain messages
-    // INSERT subscription, filtered to my channels, triggers a refetch.
+    // INSERT subscription, filtered client-side to my channels, schedules a
+    // refetch. Trailing 2s debounce so a burst of messages across channels
+    // costs one refetch, not one per message.
+    let unreadRefreshTimer: ReturnType<typeof setTimeout> | undefined
+    const scheduleUnreadRefresh = () => {
+      if (unreadRefreshTimer) return
+      unreadRefreshTimer = setTimeout(() => {
+        unreadRefreshTimer = undefined
+        fetchChannels()
+      }, 2000)
+    }
     const lobbyChannel = supabase
       .channel('lobby-unread')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const channelId = (payload.new as { channel_id?: string } | null)?.channel_id
-        if (channelId && myChannelIdsRef.current.has(channelId)) fetchChannels()
+        if (channelId && myChannelIdsRef.current.has(channelId)) scheduleUnreadRefresh()
       })
     const stopLobbyUnread = subscribeWithRetry(lobbyChannel, 'lobby-unread')
 
@@ -110,6 +120,7 @@ export function useChannels() {
       mounted = false
       stopRealtimeStatus()
       stopLobbyUnread()
+      if (unreadRefreshTimer) clearTimeout(unreadRefreshTimer)
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }

@@ -13,7 +13,14 @@ import { z } from 'zod'
 export function parseRow<T>(schema: z.ZodType<T>, row: unknown): T | null {
   const parsed = schema.safeParse(row)
   if (!parsed.success) {
-    console.error('Malformed row dropped by runtime validation:', parsed.error.issues, row)
+    // Log shape only — rows can carry private content (admin threads,
+    // messages) and must never be dumped whole to the console/log collector.
+    console.error(
+      'Malformed row dropped by runtime validation:',
+      parsed.error.issues,
+      'row keys:',
+      row && typeof row === 'object' ? Object.keys(row) : typeof row,
+    )
     return null
   }
   return parsed.data
