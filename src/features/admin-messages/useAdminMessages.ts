@@ -72,11 +72,18 @@ export function useAdminMessages(threadId: string | undefined) {
     const channel = supabase.channel(`admin_messages_${threadId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_messages', filter: `thread_id=eq.${threadId}` }, () => void fetchFirstPage(false, generation))
     // subscribeWithRetry resubscribes after a drop and refetches so messages
-    // missed while offline are recovered (#336).
+    // missed while offline are recovered (#336). Only a genuinely-first
+    // successful subscription skips the refetch — the initial fetch already
+    // covers it. If the first attempt fails, the first successful retry runs
+    // the fetch (nothing was loaded while the socket was down).
     let firstSubscribe = true
+    let sawFailure = false
     const stopRealtime = subscribeWithRetry(channel, `admin_messages_${threadId}`, (status) => {
-      if (status !== 'SUBSCRIBED') return
-      if (firstSubscribe) {
+      if (status !== 'SUBSCRIBED') {
+        sawFailure = true
+        return
+      }
+      if (firstSubscribe && !sawFailure) {
         firstSubscribe = false
         return
       }

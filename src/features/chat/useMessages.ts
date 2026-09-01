@@ -223,25 +223,30 @@ export function useMessages(channelId: string | undefined) {
       }
     }
 
-    // Re-fetch rows edited (or soft-deleted) since our updated_at high-water
-    // mark and apply them over the held messages. Only ids we already hold are
+    // Re-fetch rows edited (or soft-deleted) since a given updated_at mark and
+    // apply them over the held messages. Only ids we already hold are
     // replaced — genuinely new rows arrive via the INSERT catch-up above, so
-    // edits to older older not-held pages never leak in as phantom messages.
+    // edits to pages we do not hold never leak in as phantom messages.
+    // Callers pass the pre-catch-up cursor so INSERT catch-up advancing the
+    // high-water mark can't hide earlier edits (#336 review).
     // ponytail: hard DELETEs can't be reconciled by refetch (row is gone);
     // deletes in this app are soft (is_deleted UPDATE), so this covers them.
-    async function reconcileUpdates() {
-      // Explicit annotation: a widened cursor type feeds back into the query
-      // builder's inferred type across loop iterations (TS7022 cycle).
-      const initialCursor = updatedCursorRef.current
+    async function reconcileUpdates(fromCursor?: string | null) {
+      const initialCursor = fromCursor ?? updatedCursorRef.current
       if (!initialCursor) return
-      let cursor: string = initialCursor
+      // Composite (updated_at, id) cursor matching the query ordering, so a
+      // full page sharing one timestamp can't skip its remainder.
+      let cursorAt: string = initialCursor
+      let cursorId: string = ''
       for (let guard = 0; guard < 100; guard += 1) {
         if (!mounted) return
         const { data, error } = await supabase
           .from('messages')
           .select(MESSAGE_SELECT)
           .eq('channel_id', channelId as string)
-          .gt('updated_at', cursor)
+          .or(cursorId
+            ? `updated_at.gt.${cursorAt},and(updated_at.eq.${cursorAt},id.gt.${cursorId})`
+            : `updated_at.gt.${cursorAt}`)
           .order('updated_at', { ascending: true })
           .order('id', { ascending: true })
           .limit(PAGE_SIZE)
@@ -252,14 +257,11 @@ export function useMessages(channelId: string | undefined) {
         const rows = data || []
         if (rows.length === 0) return
         const batch = rows.map(formatMessage).filter((m): m is Message => m !== null)
-        const nextCursor = rows.reduce<string | null>((max, row) => {
-          const u = (row as { updated_at?: string | null }).updated_at ?? null
-          return u && (!max || u > max) ? u : max
-        }, cursor)
+        const last = rows[rows.length - 1] as { updated_at: string; id: string }
         if (batch.length > 0 && mounted) {
           setMessages(prev => {
-            // Only rows we already hold get replaced; edits to older older not-held
-            // pages are skipped (their inserts predate our window) so they
+            // Only rows we already hold get replaced; edits to pages we do
+            // not hold are skipped (their inserts predate our window) so they
             // never leak in as phantom messages. New rows are the INSERT
             // catch-up's job.
             const heldIds = new Set(prev.map(m => m.id))
@@ -276,9 +278,10 @@ export function useMessages(channelId: string | undefined) {
             return merged
           })
         }
-        if (nextCursor) {
-          updatedCursorRef.current = nextCursor
-          cursor = nextCursor
+        cursorAt = last.updated_at
+        cursorId = last.id
+        if (last.updated_at > (updatedCursorRef.current ?? '')) {
+          updatedCursorRef.current = last.updated_at
         }
         if (rows.length < PAGE_SIZE) return
       }
@@ -367,14 +370,19 @@ export function useMessages(channelId: string | undefined) {
           if (firstSubscribe) {
             firstSubscribe = false
           } else {
-            void Promise.all([catchUp().then(reconcileUpdates), fetchReactions()])
+            // Snapshot the cursor before catchUp runs: its INSERT batches
+            // advance the high-water mark, and reconcileUpdates must start
+            // from the pre-catch-up mark to still see earlier offline edits.
+            const preCatchUpCursor = updatedCursorRef.current
+            void Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
           }
         }
       })
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void Promise.all([catchUp().then(reconcileUpdates), fetchReactions()])
+        const preCatchUpCursor = updatedCursorRef.current
+        void Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)

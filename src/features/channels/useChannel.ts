@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -27,6 +27,26 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   // My channel_members row id, set once members load. Lets the messages INSERT
   // listener below advance last_read_at without re-deriving membership.
   const myMemberIdRef = useRef<string | null>(null)
+  // Serializes last_read_at writes so two overlapping requests can't complete
+  // out of order and move the timestamp backward (the unread count derives
+  // from last_read_at). Timestamps are generated when the write actually runs,
+  // so the persisted value is monotonic. Single-client ordering is enough —
+  // cross-device races resolve to whichever write lands last, same as before.
+  const readWriteChainRef = useRef<Promise<unknown>>(Promise.resolve())
+
+  const markRead = useCallback(() => {
+    if (!myMemberIdRef.current) return
+    readWriteChainRef.current = readWriteChainRef.current
+      .then(async () => {
+        const { error } = await supabase
+          .from('channel_members')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('id', myMemberIdRef.current as string)
+        if (error) console.error('Failed to update last_read_at', error)
+        else onRead?.()
+      })
+      .catch(() => {})
+  }, [onRead])
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
@@ -86,18 +106,11 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         const formattedMembers = await loadMembers()
         if (!mounted) return
 
-        // Update last_read_at in background if we are a member
+        // Mark read in background if we are a member
         const myMember = formattedMembers.find(m => m.user_id === user?.id)
         if (myMember) {
           myMemberIdRef.current = myMember.id
-          supabase
-            .from('channel_members')
-            .update({ last_read_at: new Date().toISOString() })
-            .eq('id', myMember.id)
-            .then(({ error }) => {
-              if (error) console.error('Failed to update last_read_at', error)
-              else onRead?.()
-            })
+          markRead()
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
@@ -135,14 +148,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         filter: `channel_id=eq.${channelId}`
       }, () => {
         if (!mounted || document.visibilityState !== 'visible' || !myMemberIdRef.current) return
-        supabase
-          .from('channel_members')
-          .update({ last_read_at: new Date().toISOString() })
-          .eq('id', myMemberIdRef.current)
-          .then(({ error }) => {
-            if (error) console.error('Failed to update last_read_at', error)
-            else onRead?.()
-          })
+        markRead()
       })
       .on('postgres_changes', {
         // '*' so joins (INSERT) and kicks/leaves (DELETE) propagate. A kicked

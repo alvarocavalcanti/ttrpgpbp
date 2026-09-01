@@ -1,5 +1,5 @@
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
@@ -30,6 +30,13 @@ describe('useChannel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  // Tests that override visibilityState define it as an own property on the
+  // document instance; deleting it restores the prototype getter for later
+  // suites.
+  afterEach(() => {
+    delete (document as unknown as Record<string, unknown>).visibilityState
   })
 
   it('returns early if no user or no channel id', async () => {
@@ -271,6 +278,70 @@ describe('useChannel', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
     expect(onRead).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps last_read_at monotonic when writes are initiated back to back', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    // First write (initial) hangs; the message INSERT write must queue behind
+    // it instead of racing it.
+    let resolveFirst!: (v: { error: null }) => void
+    const firstWrite = new Promise<{ error: null }>(resolve => { resolveFirst = resolve })
+    const mockEqUpdate = vi.fn()
+      .mockImplementationOnce(() => firstWrite)
+      .mockResolvedValueOnce({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+
+    // Message arrives while the first (slow) write is still in flight.
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+      await Promise.resolve()
+    })
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+
+    // First write completes; only then does the queued write run — with a
+    // later timestamp, so the stored value can never move backward.
+    await act(async () => {
+      resolveFirst({ error: null })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockUpdate).toHaveBeenCalledTimes(2)
+    const [firstTs, secondTs] = mockUpdate.mock.calls.map(c => (c[0] as { last_read_at: string }).last_read_at)
+    expect(new Date(secondTs).getTime()).toBeGreaterThanOrEqual(new Date(firstTs).getTime())
   })
 
   it('does not advance last_read_at from message events while the tab is hidden', async () => {

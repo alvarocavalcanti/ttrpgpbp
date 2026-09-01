@@ -35,11 +35,16 @@ export function useAdminUnread() {
         () => fetchUnread()
       )
       // subscribeWithRetry resubscribes after a drop and refetches so the
-      // unread count recovers instead of freezing (#336).
+      // unread count recovers instead of freezing (#336). A failed initial
+      // attempt makes the first successful retry fetch.
       let firstSubscribe = true
+      let sawFailure = false
       const stopRealtime = subscribeWithRetry(channel, 'admin_comms_unread', (status) => {
-        if (status !== 'SUBSCRIBED') return
-        if (firstSubscribe) {
+        if (status !== 'SUBSCRIBED') {
+          sawFailure = true
+          return
+        }
+        if (firstSubscribe && !sawFailure) {
           firstSubscribe = false
           return
         }

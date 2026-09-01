@@ -6,7 +6,6 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
-- **More reliable reconnects & offline reading** — when your connection returns after a break, messages edited or deleted while you were away now update on their own instead of staying stale, and messages read live in a channel no longer reappear as unread in the Lobby. Opening an app link while offline now loads the app instead of a browser error page. Admin Messages conversations recover on their own after a connection drop too.
 - **Private-by-default usage analytics & error reporting** — when telemetry is enabled, the app sends anonymous page-view statistics so the team can see which screens are used. Only the page address is reported — never search terms, messages, or rolls. When something goes wrong, a diagnostic report (which may include a brief recording of the screen) is sent so bugs can be fixed. The privacy policy in Settings explains exactly what is collected and which services are involved.
 
 ### Added
@@ -44,6 +43,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **More reliable reconnects & offline reading** — when your connection returns after a break, messages edited or deleted while you were away now update on their own instead of staying stale, and messages read live in a channel no longer reappear as unread in the Lobby. Opening an app link while offline now loads the app instead of a browser error page. Admin Messages conversations recover on their own after a connection drop too.
 - **Images in private channels stay private** — images you upload (in a message, as a channel avatar, an NPC portrait, or a map) can now only be seen by people in that channel. Someone who isn't a member, or who is later removed from the channel, can no longer view them. The admin's upload settings (allowed / max size) are also enforced on the server, so they hold no matter how an upload is made.
 - **Dark mode polish** — every screen now reads correctly in dark mode: text you type in editors and input fields stays visible, help pages and search results render cleanly, and the browser toolbar matches your theme.
 - **Push notifications arriving late or not at all** — notifications can now show up reliably after the app refreshes or sits in the background. A failed badge update (e.g. on iOS) no longer blocks the notification itself.
