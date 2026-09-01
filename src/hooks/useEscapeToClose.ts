@@ -30,8 +30,8 @@ export function useEscapeToClose(onClose: () => void) {
 
   useEffect(() => {
     installDispatcher()
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current(e)
+    const handler = () => {
+      onCloseRef.current()
     }
     escapeStack.push(handler)
     return () => {
