@@ -30,9 +30,12 @@ Both GMs and players can use the **Dice Roller Panel**:
 
 - Pick a dice type (d4, d6, d8, d10, d12, d20, d100)
 - Set the quantity
-- Add a modifier (+N / -N)
+- Add a modifier (+N / -N) — on phones, use the − / + steppers
+- Tap a quick-roll chip to repeat one of your last three rolls in the channel
 - Toggle advantage / disadvantage (d20 only)
 - Roll — the result is posted as a dice roll message
+
+On phones the roller opens as a bottom sheet over the composer, so it's easy to reach and never gets cut off at the bottom of the screen.
 
 ## Roll history
 
