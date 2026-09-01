@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { usePushNotifications } from '../auth/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
@@ -15,6 +15,10 @@ vi.mock('../../hooks/useIsServerAdmin', () => ({
 
 vi.mock('./useChannels', () => ({
   useChannels: vi.fn()
+}))
+
+vi.mock('./CreateChannelModal', () => ({
+  CreateChannelModal: vi.fn(() => <div data-testid="create-modal"><h2>Create a New Channel</h2></div>)
 }))
 
 vi.mock('../auth/usePushNotifications', () => ({
@@ -70,6 +74,59 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     expect(screen.getByText("You haven't joined any channels yet.")).toBeInTheDocument()
+  })
+
+  it('empty state offers create-channel and invite-link paths', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    expect(screen.getByTestId('empty-lobby-create')).toBeInTheDocument()
+    expect(screen.getByLabelText('Paste an invite link')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('empty-lobby-create'))
+    expect(screen.getByTestId('create-modal')).toBeInTheDocument()
+  })
+
+  it('empty state rejects an invalid invite link', () => {    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    fireEvent.change(screen.getByLabelText('Paste an invite link'), { target: { value: 'not-a-link' } })
+    fireEvent.submit(screen.getByLabelText('Paste an invite link').closest('form')!)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/invite link/i)
+  })
+
+  it('empty state navigates to the join page from a pasted invite link', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<Lobby />} />
+          <Route path="/join/:id" element={<div data-testid="join-page" />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.change(
+      screen.getByLabelText('Paste an invite link'),
+      { target: { value: 'https://rolebypost.app/join/123e4567-e89b-12d3-a456-426614174000' } }
+    )
+    fireEvent.submit(screen.getByLabelText('Paste an invite link').closest('form')!)
+
+    expect(screen.getByTestId('join-page')).toBeInTheDocument()
   })
 
   it('renders error state when channels fail to load', () => {

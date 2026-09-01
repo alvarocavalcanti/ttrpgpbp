@@ -138,7 +138,7 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByTestId('search-modal')).not.toBeInTheDocument()
   })
 
-  it('renders loading state', () => {
+  it('renders header-first loading state with message skeletons', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: null,
       members: [],
@@ -158,7 +158,142 @@ describe('ChannelView search functionality', () => {
         </MemoryRouter>
       </ToastProvider>
     )
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+
+    // Progressive paint: header (with back link + skeleton name) is present
+    // while loading, plus 3 skeleton message bubbles — no blank screen.
+    expect(screen.getByRole('link', { name: 'Back to Lobby' })).toBeInTheDocument()
+    expect(screen.getByTestId('channel-name-skeleton')).toBeInTheDocument()
+    expect(screen.getByTestId('message-skeletons')).toBeInTheDocument()
+    expect(screen.getByTestId('message-skeletons').children).toHaveLength(3)
+    expect(container.querySelector('.animate-spin')).not.toBeInTheDocument()
+  })
+
+  it('shows the real channel name in the header while only messages are loading', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Cached Channel', gm_id: 'user1', is_archived: false, game_system: 'generic' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      refetch: vi.fn()
+    } as any)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [],
+      reactions: {},
+      loading: true,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByText('Cached Channel')).toBeInTheDocument()
+    expect(screen.getByTestId('message-skeletons')).toBeInTheDocument()
+    expect(screen.queryByTestId('channel-name-skeleton')).not.toBeInTheDocument()
+  })
+
+  it('opens search and roll history from header icon buttons', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search messages' }))
+    expect(screen.getByTestId('search-modal')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Close Search'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Roll history' }))
+    expect(screen.getByRole('dialog', { name: 'Roll History' })).toBeInTheDocument()
+  })
+
+  it('opens the character editor as a bottom sheet from the composer avatar', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'user2', is_archived: false, game_system: 'generic' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero', character_avatar_url: null, character_sheet_url: null, character_notes: null, attributes: {} },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByTestId('composer-character-avatar'))
+    expect(screen.getByRole('dialog', { name: 'Edit Character' })).toBeInTheDocument()
+  })
+
+  it('groups sidebar tools into Table and GM Tools sections for players', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const menu = screen.getByTestId('sidebar-menu')
+    expect(screen.getByText('Table')).toBeInTheDocument()
+    expect(screen.queryByText('GM Tools')).not.toBeInTheDocument()
+    expect(menu).toHaveTextContent('Rolls')
+    expect(menu).toHaveTextContent('Search')
+    expect(menu).not.toHaveTextContent('Settings')
+  })
+
+  it('shows the GM Tools section for the GM', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'user1', is_archived: false, game_system: 'generic' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByText('GM Tools')).toBeInTheDocument()
+    const menu = screen.getByTestId('sidebar-menu')
+    expect(menu).toHaveTextContent('NPCs')
+    expect(menu).toHaveTextContent('Active Player')
+    expect(menu).toHaveTextContent('Settings')
   })
 
   it('does not crash when the loading render transitions to loaded (stable hook order)', () => {
@@ -217,12 +352,13 @@ describe('ChannelView search functionality', () => {
     }
 
     render(<Harness />)
-    expect(document.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(document.querySelector('[data-testid="message-skeletons"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="channel-name-skeleton"]')).not.toBeNull()
 
     // A hook-count mismatch between the loading and loaded renders would throw
     // here (it crashed the whole channel page on every cold load before the fix).
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'finish loading' })) })
-    expect(document.querySelector('.animate-spin')).toBeNull()
+    expect(document.querySelector('[data-testid="message-skeletons"]')).toBeNull()
     expect(screen.getByText('Hooked Channel')).toBeInTheDocument()
   })
 
@@ -523,7 +659,7 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByText('Roll History')).toBeInTheDocument()
   })
 
-  it('renders sidebar menu items in alphabetical order with Members first', () => {
+  it('renders sidebar grouped into Table first, then GM Tools', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel', map_url: 'https://map.com', resources_url: 'https://res.com' },
       members: [],
@@ -550,20 +686,22 @@ describe('ChannelView search functionality', () => {
       .map(el => el.textContent?.trim())
       .filter(Boolean)
 
-    const gmResIdx = items.findIndex(t => t === 'GM Resources')
-    const mapIdx = items.findIndex(t => t === 'Map')
-    const notifIdx = items.findIndex(t => t === 'Notifications')
-    const resIdx = items.findIndex(t => t === 'Resources')
-    const rollsIdx = items.findIndex(t => t === 'Rolls')
-    const searchIdx = items.findIndex(t => t === 'Search')
-    const settingsIdx = items.findIndex(t => t === 'Settings')
-
-    expect(gmResIdx).toBe(0)
-    expect(mapIdx).toBeLessThan(notifIdx)
-    expect(notifIdx).toBeLessThan(resIdx)
-    expect(resIdx).toBeLessThan(rollsIdx)
-    expect(rollsIdx).toBeLessThan(searchIdx)
-    expect(searchIdx).toBeLessThan(settingsIdx)
+    // Table section (everyone) comes first, GM Tools (GM-only) after.
+    expect(items).toEqual([
+      'Map',
+      'Rolls',
+      'Search',
+      'Notifications',
+      'Resources',
+      'Safety Tools',
+      'Help',
+      'GM Resources',
+      'NPCs',
+      'Active Player',
+      'Settings'
+    ])
+    expect(screen.getByText('Table')).toBeInTheDocument()
+    expect(screen.getByText('GM Tools')).toBeInTheDocument()
   })
 
   it('does not show Settings or GM Resources in sidebar for non-GM', () => {

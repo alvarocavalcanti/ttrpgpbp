@@ -11,6 +11,11 @@ type Message = ChatMessage
 // message instead of leaving a gap.
 const SCROLL_BOTTOM_THRESHOLD = 24
 
+// Within this many pixels of the top we auto-load older messages (#346). Only
+// when the list actually overflows — a short first page keeps the manual
+// button, otherwise the initial scrollTop=0 render would chain-load history.
+const AUTO_LOAD_TOP_THRESHOLD = 80
+
 interface MessageListProps {
   messages: Message[]
   isGM: boolean
@@ -41,6 +46,10 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   const contentRef = useRef<HTMLDivElement>(null)
   const newMessagesDividerRef = useRef<HTMLDivElement>(null)
   const atBottomRef = useRef(true)
+
+  // Latest load-older props for the scroll handler (registered once below).
+  const loadOlderStateRef = useRef({ hasMore: false, loadingOlder: false, onLoadOlder })
+  loadOlderStateRef.current = { hasMore: !!hasMore, loadingOlder: !!loadingOlder, onLoadOlder }
 
   // Scroll position bookkeeping: prepending older messages must keep the
   // viewport anchored where the user is, not jump back to the bottom.
@@ -117,6 +126,17 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     const onScroll = () => {
       atBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < SCROLL_BOTTOM_THRESHOLD
       scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
+      // Scroll-to-top auto-load: fetch older messages when the user scrolls
+      // (nearly) to the top of an overflowing list, no click needed.
+      const { hasMore, loadingOlder, onLoadOlder } = loadOlderStateRef.current
+      if (
+        hasMore &&
+        !loadingOlder &&
+        list.scrollHeight > list.clientHeight &&
+        list.scrollTop < AUTO_LOAD_TOP_THRESHOLD
+      ) {
+        onLoadOlder?.()
+      }
     }
     list.addEventListener('scroll', onScroll)
     return () => list.removeEventListener('scroll', onScroll)
@@ -198,6 +218,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             disabled={loadingOlder}
             className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 disabled:opacity-50"
           >
+            {/* Manual fallback for short first pages (no scroll => no auto-load) */}
             {loadingOlder ? 'Loading older messages...' : 'Load older messages'}
           </button>
         </div>

@@ -36,6 +36,7 @@
 - **Private image access** — the image bucket is private. Only members of a channel can view its images (enforced by storage policies and short-lived signed URLs), and the admin's enable/size limits are re-enforced server-side on every upload.
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
+- **Empty lobby onboarding** — with no channels joined, the lobby explains the invite-only model and offers both paths inline: a "Create a channel" button and a "Paste an invite link" field (paste a full invite URL to jump to the join screen, with a clear error for anything else)
 - Channels are **private** and joined via invite link
 - Optional **password** to join (joining is instant)
 - GM can **kick** (remove) or **block** a user (immediately revokes channel access, prevents re-entry, and can be undone via **Unblock**)
@@ -64,6 +65,8 @@
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced).
   - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (server-enforced). The NPC's identity is validated against the channel's roster, so messages always carry a real roster portrait/name. Parchment bubble style, distinct from both regular and scene messages.
 - **Daily Dividers** — chat history is grouped by date visually
+- **Scroll-to-top history loading** — scrolling near the top of an overflowing chat automatically loads older messages; short first pages keep a manual "Load older messages" button
+- **Character identity in the composer** — your character's avatar sits beside the message input; tapping it opens the character editor (name, sheet URL, notes, modifiers) as a bottom sheet
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete)
 - Messages are limited to 4,000 characters. URLs posted as plain text with external link, no previews or embeds
@@ -114,7 +117,7 @@
   - Quick-roll chips for the last 3 notations used in the channel — tap to re-roll
   - On phones the roller opens as a bottom sheet (no clipping) with +/− modifier steppers
   - Roll button sends result as dice roll message
-- Roll history available per channel
+- Roll history available per channel (header dice icon or sidebar item)
 
 ## Notifications
 
@@ -137,7 +140,7 @@
 
 ## Search
 
-- Full-text search within a channel's message history
+- Full-text search within a channel's message history (header magnifier icon or sidebar item)
 
 ## Safety Tools (Lines & Veils / X-Card)
 

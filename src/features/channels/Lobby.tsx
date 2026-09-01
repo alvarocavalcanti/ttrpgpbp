@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { CreateChannelModal } from './CreateChannelModal'
 import { usePushNotifications } from '../auth/usePushNotifications'
@@ -10,11 +10,17 @@ import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { SignedImg } from '../../components/SignedImg'
 import { updateAppBadge } from '../../lib/appBadge'
-import { MAX_CHANNELS_PER_USER } from '../../constants'
+import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
+
+// Invite links point at /join/:channelId; users paste the whole URL.
+const INVITE_LINK_PATTERN = /\/join\/([0-9a-fA-F-]{8,64})/
 
 export function Lobby() {
   const { myChannels, loading, error } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [inviteInput, setInviteInput] = useState('')
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const navigate = useNavigate()
   const { preferences } = usePushNotifications()
   const { user } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
@@ -30,6 +36,17 @@ export function Lobby() {
       return
     }
     setIsCreateModalOpen(true)
+  }
+
+  const handleInviteSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const match = inviteInput.trim().match(INVITE_LINK_PATTERN)
+    if (!match) {
+      setInviteError("That doesn't look like an invite link. Ask your GM for a link that contains /join/.")
+      return
+    }
+    setInviteError(null)
+    navigate(`/join/${match[1]}`)
   }
 
   useEffect(() => {
@@ -65,9 +82,60 @@ export function Lobby() {
         <PermissionBanner />
         <div className="bg-white dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700 md:border-none md:shadow overflow-hidden md:rounded-md">
           {filteredMy.length === 0 ? (
-            <div className="p-6 text-center text-gray-500 dark:text-gray-400 text-sm">
-              {q ? 'No matching channels found.' : "You haven't joined any channels yet."}
-            </div>
+            q ? (
+              <div className="p-6 text-center text-gray-500 dark:text-gray-400 text-sm">
+                No matching channels found.
+              </div>
+            ) : (
+              // First-run empty state: explains the invite-only model and
+              // surfaces both paths (create / join) at the moment of confusion.
+              <div className="p-8 text-center" data-testid="empty-lobby">
+                <svg
+                  className="mx-auto h-16 w-16 text-indigo-200 dark:text-indigo-800"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4v10l8 4 8-4V7zM4 7l8 4m0 0l8-4m-8 4v10" />
+                </svg>
+                <h2 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">You haven&apos;t joined any channels yet.</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                  Start your own game, or ask your GM for an invite link to join theirs.
+                </p>
+                <div className="mt-5 flex flex-col items-center gap-3">
+                  <button
+                    type="button"
+                    data-testid="empty-lobby-create"
+                    onClick={handleCreateClick}
+                    className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Create a channel
+                  </button>
+                  <form className="w-full max-w-sm flex gap-2" onSubmit={handleInviteSubmit}>
+                    <input
+                      type="text"
+                      aria-label="Paste an invite link"
+                      placeholder="Paste an invite link"
+                      maxLength={MAX_URL_LENGTH}
+                      value={inviteInput}
+                      onChange={(e) => {
+                        setInviteInput(e.target.value)
+                        setInviteError(null)
+                      }}
+                      className="flex-1 w-full min-w-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Join
+                    </button>
+                  </form>
+                  {inviteError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>}
+                </div>
+              </div>
+            )
           ) : (
             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredMy.map((channel) => (
@@ -108,8 +176,9 @@ export function Lobby() {
                               Player
                             </p>
                           )}
-                          <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300">
-                            Joined as {channel.member.character_name}
+                          <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 max-w-full min-w-0">
+                            {/* Truncate on narrow screens so a long character name can't dominate the row */}
+                            <span className="truncate max-w-[50vw] sm:max-w-none">Joined as {channel.member.character_name}</span>
                           </p>
                         </div>
                       </div>
