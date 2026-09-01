@@ -325,6 +325,7 @@ describe('MessageList scroll anchoring', () => {
     const setVisibility = (state: string) =>
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
 
+    scrollHeight = 1000
     const msgs: any[] = [
       { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
       { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },

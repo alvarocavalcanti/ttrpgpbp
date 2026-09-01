@@ -7,7 +7,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(14);
+SELECT plan(15);
 
 -- ===== Seed =====
 -- 0301 = GM, 0302 = player, 0303 = suspended player, 0304 = server admin
@@ -99,6 +99,11 @@ SELECT is(
 SELECT lives_ok(
   $$UPDATE channel_secrets SET password_hash = 'pw-rotated' WHERE channel_id = '00000000-0000-0000-0000-000000000310'$$,
   'GM can update channel_secrets for their channel'
+);
+SELECT is(
+  (SELECT password_hash FROM channel_secrets WHERE channel_id = '00000000-0000-0000-0000-000000000310'),
+  'pw-rotated',
+  'GM update actually persisted the new password hash'
 );
 
 -- ===== 6. app_settings write gate (admin only) =====

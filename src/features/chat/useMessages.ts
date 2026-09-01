@@ -448,14 +448,20 @@ export function useMessages(channelId: string | undefined) {
     // Double-send guard: a re-submit while the same payload is still pending
     // (double-click, flaky-network resubmit) would mint a fresh
     // client_request_id and post twice inside the confirmation window. The
-    // pending bubble already carries the in-flight request — reuse it.
-    const duplicate = messages.find(m =>
-      m.pending && !m.error &&
-      m.type === payload.type &&
-      m.content === payload.content &&
-      (m.whisper_to ?? null) === (payload.whisper_to ?? null) &&
-      (m.reply_to ?? null) === (payload.reply_to ?? null)
-    )
+    // pending bubble's pending_payload is the exact request — suppress only a
+    // full-identity match.
+    const duplicate = messages.find(m => {
+      if (!m.pending || m.error) return false
+      const p = m.pending_payload
+      return p?.kind === 'message' &&
+        p.content === payload.content &&
+        p.type === payload.type &&
+        (p.whisper_to ?? null) === (payload.whisper_to ?? null) &&
+        (p.reply_to ?? null) === (payload.reply_to ?? null) &&
+        (p.npc_name ?? null) === (payload.npc_name ?? null) &&
+        (p.npc_avatar_url ?? null) === (payload.npc_avatar_url ?? null) &&
+        JSON.stringify(p.active_player_ids ?? null) === JSON.stringify(payload.active_player_ids ?? null)
+    })
     if (duplicate) return
 
     const clientRequestId = crypto.randomUUID()
@@ -520,8 +526,17 @@ export function useMessages(channelId: string | undefined) {
 
     // Double-send guard: same rationale as sendMessage — a second click on a
     // `dice:` link while the roll bubble is still pending reuses that request
-    // instead of minting a fresh client_request_id.
-    const duplicate = messages.find(m => m.pending && !m.error && m.type === 'dice_roll' && m.content === content)
+    // instead of minting a fresh client_request_id. Full roll identity
+    // (notation, reply target, warning, DC).
+    const duplicate = messages.find(m => {
+      if (!m.pending || m.error) return false
+      const p = m.pending_payload
+      return p?.kind === 'roll' &&
+        p.notation === notation &&
+        (p.replyToId ?? null) === (replyToId ?? null) &&
+        (p.warning ?? null) === (warning ?? null) &&
+        (p.dc ?? null) === (dc ?? null)
+    })
     if (duplicate) return
 
     const optimisticMsg: Message = {

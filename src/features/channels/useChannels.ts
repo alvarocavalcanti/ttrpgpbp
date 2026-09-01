@@ -47,6 +47,14 @@ export function useChannels() {
 
         if (memberError) throw memberError
 
+        // Register my channel ids BEFORE the unread RPC so a message INSERT
+        // racing the delayed RPC is already recognized as unread-eligible.
+        myChannelIdsRef.current = new Set((memberData || []).flatMap(row => {
+          const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
+          const channelId = (channelData as { id?: string } | null)?.id
+          return channelId ? [channelId] : []
+        }))
+
         if (mounted) {
           // One RPC for every channel's unread count instead of a count query
           // per channel (C4).

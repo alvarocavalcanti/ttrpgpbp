@@ -7,6 +7,10 @@ describe('isValidDiceNotation', () => {
     expect(isValidDiceNotation('3d6kh1+2')).toBe(true)
     expect(isValidDiceNotation('4d6dl1-1')).toBe(true)
     expect(isValidDiceNotation('2d20kh1')).toBe(true)
+    // Keep/drop shorthands without a trailing count (regression: linkifyDice
+    // emits these and the click-site gate rejected them).
+    expect(isValidDiceNotation('2d20kh+4')).toBe(true)
+    expect(isValidDiceNotation('4d6dl')).toBe(true)
   })
 
   it('rejects hand-crafted href payloads that are not dice notation', () => {
