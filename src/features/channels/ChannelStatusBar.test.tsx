@@ -137,3 +137,12 @@ describe('ChannelStatusBar', () => {
     })
   })
 })
+
+it('uses a brighter amber focus ring in dark mode while editing', () => {
+  const { container } = render(<ChannelStatusBar channelId="c1" statusText="old" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
+  fireEvent.click(screen.getByText('Edit'))
+  const input = container.querySelector('textarea')!
+  expect(input).toHaveClass('focus:ring-amber-500')
+  expect(input).toHaveClass('dark:focus:ring-amber-400')
+  expect(input).toHaveClass('dark:focus:border-amber-400')
+})

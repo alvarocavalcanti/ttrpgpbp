@@ -263,8 +263,8 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
     }
   }
 
+  // ponytail: touch users lose the shortcut tip; title on send button covers pointer users
   const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
-  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   const optionsContent = (
@@ -668,26 +668,22 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
                 placeholder={isScene ? "Describe the scene..." : isNpc ? (npcName ? `Speak as ${npcName}...` : 'Speak as an NPC...') : whisperTo ? "Type a private whisper..." : "Type a message... (Markdown supported, @ to mention)"}
-                className={`block w-full text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
+                className={`block w-full text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />
             </div>
             <button
               type="submit"
               disabled={isSubmitting || !content.trim()}
-              className="mb-1 p-2 flex-shrink-0 inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
+              className="mb-1 p-3 flex-shrink-0 inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
               aria-label="Send"
+              title={`Send (${isMac ? '⌘' : 'Ctrl'} + Enter)`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </button>
           </div>
-          {!isTouchDevice && (
-            <div className="text-xs text-gray-400 dark:text-gray-500 text-right pr-12">
-              Tip: {isMac ? '⌘' : 'Ctrl'} + Enter to send
-            </div>
-          )}
         </div>
       </form>
     </div>

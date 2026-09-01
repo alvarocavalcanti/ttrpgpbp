@@ -87,7 +87,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                 onChange={(e) => setEditContent(e.target.value)}
                 maxLength={MAX_STATUS_LENGTH}
                 placeholder="Write status, initiative order, or timers here... (Markdown supported)"
-                className="w-full text-gray-900 dark:text-gray-100 border-amber-300 dark:border-amber-700 rounded-md shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white dark:bg-gray-800 p-2"
+                className="w-full text-gray-900 dark:text-gray-100 border-amber-300 dark:border-amber-700 rounded-md shadow-sm focus:ring-amber-500 dark:focus:ring-amber-400 focus:border-amber-500 dark:focus:border-amber-400 sm:text-sm bg-white dark:bg-gray-800 p-2"
                 rows={4}
               />
               {error && <div className="text-red-600 dark:text-red-400 text-xs mt-1">{error}</div>}
