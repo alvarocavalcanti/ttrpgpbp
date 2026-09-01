@@ -91,7 +91,8 @@ describe('Lobby', () => {
     expect(screen.getByTestId('create-modal')).toBeInTheDocument()
   })
 
-  it('empty state rejects an invalid invite link', () => {    vi.mocked(useChannels).mockReturnValue({
+  it('empty state rejects an invalid invite link', () => {
+    vi.mocked(useChannels).mockReturnValue({
       myChannels: [],
       loading: false,
       error: null,
