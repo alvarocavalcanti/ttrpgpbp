@@ -69,6 +69,7 @@
 - **Character identity in the composer** — your character's avatar sits beside the message input; tapping it opens the character editor (name, sheet URL, notes, modifiers) as a bottom sheet
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete). Deleting asks for confirmation inside the app (no browser popup)
+- **In-app confirmations everywhere** — destructive actions (delete message, kick/block/leave channel, delete NPC, archive channel, delete admin thread/message) all confirm with a styled in-app dialog instead of the browser popup
 - **Message actions** — reply/edit/delete/X-Card appear as hover icons on desktop; on mobile they collapse behind a single **"⋯"** button that opens a bottom sheet with large, easy-to-tap actions
 - Messages are limited to 4,000 characters. URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click

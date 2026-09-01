@@ -6,6 +6,7 @@ import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 
 import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -29,6 +30,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   const navigate = useNavigate()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pendingAction, setPendingAction] = useState<{ action: 'block' | 'kick' | 'leave'; memberId: string } | null>(null)
   
   // Close menu on click outside
   useEffect(() => {
@@ -50,55 +52,37 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     onEditMember(member.id)
   }
 
-  const handleBlockMember = async (memberId: string) => {
-    setError(null)
-    const targetMember = members.find(m => m.id === memberId)
-    if (targetMember?.user_id === gmId) {
-      setError('Cannot block the GM.')
+  // Guard-then-confirm: the GM checks run when the menu item is tapped, the
+  // in-app confirmation dialog owns the irreversible step.
+  const requestModeration = (action: 'block' | 'kick' | 'leave', member: ChannelMember) => {
+    if (action !== 'leave' && member.user_id === gmId) {
+      setError(action === 'block' ? 'Cannot block the GM.' : 'Cannot kick the GM.')
       return
     }
-    if (!confirm('Are you sure you want to block this player?')) return
-    
+    setPendingAction({ action, memberId: member.id })
+  }
+
+  const runModeration = async (action: 'block' | 'kick' | 'leave', memberId: string) => {
+    setPendingAction(null)
+    setError(null)
+    if (action === 'leave') {
+      try {
+        const error = await moderateMember(memberId, 'leave')
+        if (error) throw error
+        navigate('/', { replace: true })
+      } catch (err) {
+        console.error('Error leaving channel:', err)
+        setError('Failed to leave channel.')
+      }
+      return
+    }
     try {
-      const error = await moderateMember(memberId, 'block')
+      const error = await moderateMember(memberId, action)
       if (error) throw error
       onUpdate()
     } catch (err) {
-      console.error('Error blocking member:', err)
-      setError('Failed to block member.')
-    }
-  }
-
-  const handleKickMember = async (memberId: string) => {
-    setError(null)
-    const targetMember = members.find(m => m.id === memberId)
-    if (targetMember?.user_id === gmId) {
-      setError('Cannot kick the GM.')
-      return
-    }
-    if (!confirm('Are you sure you want to kick this player?')) return
-    
-    try {
-      const error = await moderateMember(memberId, 'kick')
-      if (error) throw error
-      onUpdate()
-    } catch (err) {
-      console.error('Error kicking member:', err)
-      setError('Failed to kick member.')
-    }
-  }
-
-  const handleLeaveChannel = async (memberId: string) => {
-    setError(null)
-    if (!confirm('Are you sure you want to leave this channel?')) return
-    
-    try {
-      const error = await moderateMember(memberId, 'leave')
-      if (error) throw error
-      navigate('/', { replace: true })
-    } catch (err) {
-      console.error('Error leaving channel:', err)
-      setError('Failed to leave channel.')
+      console.error(`Error ${action === 'block' ? 'blocking' : 'kicking'} member:`, err)
+      setError(action === 'block' ? 'Failed to block member.' : 'Failed to kick member.')
     }
   }
 
@@ -267,14 +251,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                             <>
                               <button
                                 type="button"
-                                onClick={() => { setOpenMenuId(null); handleKickMember(member.id); }}
+                                onClick={() => { setOpenMenuId(null); requestModeration('kick', member); }}
                                 className="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
                                 Kick Player
                               </button>
                               <button
                                 type="button"
-                                onClick={() => { setOpenMenuId(null); handleBlockMember(member.id); }}
+                                onClick={() => { setOpenMenuId(null); requestModeration('block', member); }}
                                 className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
                                 Block Player
@@ -284,7 +268,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {isMe && member.user_id !== gmId && (
                             <button
                               type="button"
-                              onClick={() => { setOpenMenuId(null); handleLeaveChannel(member.id); }}
+                              onClick={() => { setOpenMenuId(null); requestModeration('leave', member); }}
                               className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               Leave Channel
@@ -345,6 +329,28 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           gameSystem={gameSystem}
           onClose={() => onEditMember(null)}
           onUpdate={onUpdate}
+        />
+      )}
+
+      {pendingAction && pendingAction.action !== 'leave' && (
+        <ConfirmDialog
+          title={pendingAction.action === 'block' ? 'Block this player?' : 'Kick this player?'}
+          description={pendingAction.action === 'block'
+            ? 'They will lose access to this channel immediately.'
+            : 'They will be removed from the channel and can rejoin with the invite link.'}
+          confirmLabel={pendingAction.action === 'block' ? 'Block' : 'Kick'}
+          onConfirm={() => runModeration(pendingAction.action, pendingAction.memberId)}
+          onClose={() => setPendingAction(null)}
+        />
+      )}
+
+      {pendingAction?.action === 'leave' && (
+        <ConfirmDialog
+          title="Leave this channel?"
+          description="You will no longer see or receive notifications for this channel. You can rejoin with the invite link."
+          confirmLabel="Leave"
+          onConfirm={() => runModeration('leave', pendingAction.memberId)}
+          onClose={() => setPendingAction(null)}
         />
       )}
     </div>

@@ -8,6 +8,7 @@ import { useImageUpload } from '../../hooks/useImageUpload'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useToast } from '../../contexts/ToastContext'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MAX_NPC_NAME_LENGTH } from '../../constants'
 
 type Npc = Database['public']['Tables']['channel_npcs']['Row']
@@ -37,6 +38,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
   const [newAvatar, setNewAvatar] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [deletingNpc, setDeletingNpc] = useState<Npc | null>(null)
 
   const handleAdd = async () => {
     const name = newName.trim()
@@ -73,7 +75,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
   }
 
   const handleDelete = async (npc: Npc) => {
-    if (!confirm(`Delete NPC "${npc.name}"? Past messages keep their name/portrait.`)) return
+    setDeletingNpc(null)
     const ok = await deleteNpc(npc.id)
     if (ok) {
       addToast(`NPC ${npc.name} deleted.`, 'success')
@@ -221,7 +223,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                       </label>
                       <button
                         type="button"
-                        onClick={() => handleDelete(npc)}
+                        onClick={() => setDeletingNpc(npc)}
                         className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
                         aria-label={`Delete ${npc.name}`}
                       >
@@ -305,6 +307,16 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
             setPickingForId(null)
           }}
           onClose={() => setPickingForId(null)}
+        />
+      )}
+
+      {deletingNpc && (
+        <ConfirmDialog
+          title={`Delete NPC "${deletingNpc.name}"?`}
+          description="Past messages keep their name and portrait."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(deletingNpc)}
+          onClose={() => setDeletingNpc(null)}
         />
       )}
     </div>

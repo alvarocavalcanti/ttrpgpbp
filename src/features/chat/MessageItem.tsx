@@ -5,6 +5,7 @@ import { Markdown } from '../../components/Markdown'
 import { linkifyDice, isValidDiceNotation } from '../dice/parser'
 import { getSystemAttributes, clampModifier, getModifierLimits } from '../../game-systems'
 import { BottomSheet } from '../../components/BottomSheet'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ModifierInput } from '../../components/ModifierInput'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
@@ -400,29 +401,13 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     </BottomSheet>
   ) : null
 
-  const deleteConfirmSheet = confirmDelete ? (
-    <BottomSheet title="Delete message?" onClose={() => setConfirmDelete(false)}>
-      <p className="text-sm text-gray-600 dark:text-gray-400">
-        This removes the message for everyone and can't be undone.
-      </p>
-      <div className="mt-4 flex space-x-2">
-        <button
-          type="button"
-          onClick={() => setConfirmDelete(false)}
-          className="flex-1 flex justify-center py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={runDelete}
-          disabled={isSubmitting}
-          className="flex-1 flex justify-center py-1.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-        >
-          Delete
-        </button>
-      </div>
-    </BottomSheet>
+  const deleteConfirmDialog = confirmDelete ? (
+    <ConfirmDialog
+      title="Delete message?"
+      description="This removes the message for everyone and can't be undone."
+      onConfirm={runDelete}
+      onClose={() => setConfirmDelete(false)}
+    />
   ) : null
 
   const replyBlock = message.reply?.id ? (
@@ -547,7 +532,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           </div>
         )}
         {actionsSheet}
-        {deleteConfirmSheet}
+        {deleteConfirmDialog}
       </div>
     )
   }
@@ -714,7 +699,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         </div>
       )}
       {actionsSheet}
-      {deleteConfirmSheet}
+      {deleteConfirmDialog}
     </div>
   )
 })

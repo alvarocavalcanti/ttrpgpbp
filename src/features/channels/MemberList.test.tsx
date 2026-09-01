@@ -54,7 +54,6 @@ describe('MemberList', () => {
       configurable: true,
       value: { reload: vi.fn() }
     })
-    window.confirm = vi.fn().mockReturnValue(true)
   })
 
   it('renders active and blocked members correctly with GM badge', () => {
@@ -116,8 +115,10 @@ describe('MemberList', () => {
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
-    
-    expect(window.confirm).toHaveBeenCalled()
+
+    // In-app confirmation opens instead of window.confirm
+    expect(screen.getByRole('dialog', { name: 'Block this player?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }))
 
     await waitFor(() => {
       expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
@@ -127,6 +128,20 @@ describe('MemberList', () => {
       })
       expect(mockOnUpdate).toHaveBeenCalled()
     })
+  })
+
+  it('does not block when the confirmation is cancelled', async () => {
+    const mockRpc = vi.fn()
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Block Player'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(mockRpc).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Block this player?' })).not.toBeInTheDocument()
   })
 
   it('allows GM to unblock a player', async () => {
@@ -198,7 +213,8 @@ describe('MemberList', () => {
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }))
+
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
       expect(screen.getByText('Failed to block member.')).toBeInTheDocument()
@@ -216,7 +232,8 @@ describe('MemberList', () => {
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Kick Player'))
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Kick' }))
+
     await waitFor(() => {
       expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
         p_channel_id: 'c1',
@@ -236,7 +253,8 @@ describe('MemberList', () => {
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Leave Channel'))
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }))
+
     await waitFor(() => {
       expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
         p_channel_id: 'c1',
@@ -257,7 +275,8 @@ describe('MemberList', () => {
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Kick Player'))
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Kick' }))
+
     await waitFor(() => {
       expect(screen.getByText('Failed to kick member.')).toBeInTheDocument()
       expect(mockOnUpdate).not.toHaveBeenCalled()
@@ -275,7 +294,8 @@ describe('MemberList', () => {
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Leave Channel'))
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }))
+
     await waitFor(() => {
       expect(screen.getByText('Failed to leave channel.')).toBeInTheDocument()
       expect(mockOnUpdate).not.toHaveBeenCalled()
