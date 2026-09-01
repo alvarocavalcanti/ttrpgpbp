@@ -37,12 +37,21 @@ function json(body: unknown, status: number, req: Request): Response {
   })
 }
 
-// Constant-time shared-secret comparison (Deno runtime) so header checks do
-// not leak the secret through response-timing analysis.
-function secretsMatch(provided: string | null, expected: string | undefined): boolean {
+// Constant-time shared-secret comparison. Both sides are hashed to a
+// fixed-length SHA-256 digest first: a wrong-length provided secret can
+// neither throw (RangeError on length mismatch) nor act as a length oracle.
+async function secretsMatch(provided: string | null, expected: string | undefined): Promise<boolean> {
   if (!provided || !expected) return false
   const encoder = new TextEncoder()
-  return timingSafeEqual(encoder.encode(provided), encoder.encode(expected))
+  const [providedHash, expectedHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(provided)),
+    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
+  ])
+  try {
+    return timingSafeEqual(new Uint8Array(providedHash), new Uint8Array(expectedHash))
+  } catch {
+    return false
+  }
 }
 
 // Writes one delivery-outcome row per push so failures are queryable (#191).
@@ -262,7 +271,7 @@ serve(async (req) => {
       (configRows ?? []).map((row: { key: string; value: string }) => [row.key, row.value])
     )
     const internalSecret = config.get("PUSH_INTERNAL_SECRET")
-    if (!secretsMatch(req.headers.get("x-push-secret"), internalSecret)) {
+    if (!(await secretsMatch(req.headers.get("x-push-secret"), internalSecret))) {
       return json({ error: "Unauthorized" }, 401, req)
     }
 
