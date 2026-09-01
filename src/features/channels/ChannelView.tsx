@@ -55,6 +55,9 @@ export function ChannelView() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
+  // Which member's character sheet is being edited; shared by MemberList and
+  // the chat's check sheet ("Set it in your character sheet" deep link).
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
 
   // Clear highlight after a few seconds
   useEffect(() => {
@@ -266,6 +269,7 @@ export function ChannelView() {
           onXCard={triggerXCard}
           onRetry={retryMessage}
           onRemovePending={removePendingMessage}
+          onEditCharacter={myMemberInfo?.id ? () => setEditingMemberId(myMemberInfo.id) : undefined}
           error={messagesError}
           hasMore={hasMore}
           loadingOlder={loadingOlder}
@@ -323,6 +327,8 @@ export function ChannelView() {
           channelId={channel.id}
           onUpdate={refetch}
           gameSystem={channel.game_system}
+          editingMemberId={editingMemberId}
+          onEditMember={setEditingMemberId}
         />
         <div data-testid="sidebar-menu" className="divide-y divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
           {isGM && gmOnlyResourcesUrl && (

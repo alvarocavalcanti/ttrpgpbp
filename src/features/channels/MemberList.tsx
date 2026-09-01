@@ -19,11 +19,14 @@ interface MemberListProps {
   gameSystem?: string
   channelId: string
   onUpdate: () => void
+  // Editing state is owned by ChannelView so other views (e.g. the check
+  // sheet in chat) can deep-link straight into Edit Character.
+  editingMemberId: string | null
+  onEditMember: (memberId: string) => void
 }
 
-export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, editingMemberId, onEditMember }: MemberListProps) {
   const navigate = useNavigate()
-  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   
@@ -44,7 +47,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   }
 
   const startEditing = (member: ChannelMember) => {
-    setEditingMemberId(member.id)
+    onEditMember(member.id)
   }
 
   const handleBlockMember = async (memberId: string) => {
@@ -340,7 +343,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         <EditCharacterModal
           member={members.find(m => m.id === editingMemberId)!}
           gameSystem={gameSystem}
-          onClose={() => setEditingMemberId(null)}
+          onClose={() => onEditMember(editingMemberId)}
           onUpdate={onUpdate}
         />
       )}

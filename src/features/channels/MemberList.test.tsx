@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemberList } from './MemberList'
@@ -12,6 +13,13 @@ vi.mock('../../lib/supabase', () => ({
 }))
 
 const successInsert = () => vi.fn().mockResolvedValue({ error: null })
+
+// Editing state lives in ChannelView now; tests mirror that with a stateful
+// wrapper so "Edit Character" still opens the modal.
+function StatefulMemberList(props: any) {
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
+  return <MemberList {...props} editingMemberId={editingMemberId} onEditMember={setEditingMemberId} />
+}
 
 describe('MemberList', () => {
   const mockMembers: any[] = [
@@ -50,7 +58,7 @@ describe('MemberList', () => {
   })
 
   it('renders active and blocked members correctly with GM badge', () => {
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     expect(screen.getByText('Players — 2')).toBeInTheDocument()
     expect(screen.getByText('Hero')).toBeInTheDocument()
@@ -68,7 +76,7 @@ describe('MemberList', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: successInsert() } as any)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Edit Character'))
@@ -93,7 +101,7 @@ describe('MemberList', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
@@ -115,7 +123,7 @@ describe('MemberList', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
 
@@ -135,7 +143,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
 
@@ -153,7 +161,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m1'))
     fireEvent.click(screen.getByText('Edit Character'))
@@ -175,7 +183,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
@@ -193,7 +201,7 @@ describe('MemberList', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Kick Player'))
@@ -213,7 +221,7 @@ describe('MemberList', () => {
     const mockRpc = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Leave Channel'))
@@ -234,7 +242,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Kick Player'))
@@ -252,7 +260,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Leave Channel'))
@@ -265,7 +273,7 @@ describe('MemberList', () => {
 
   it('hides kick and block options for GM', () => {
     // Setup where we are isGM but the GM ID is set to another user (edge case/co-GM)
-    render(<MemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     // Open menu for m2 (who is the GM here)
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
@@ -280,7 +288,7 @@ describe('MemberList', () => {
       { id: 'm1', user_id: 'u1', character_name: 'Hero', is_blocked: false, is_away: true, away_message: 'Away until Monday', profile: { display_name: 'Player One' } },
       { id: 'm2', user_id: 'u2', character_name: 'Sidekick', is_blocked: false, is_away: false, away_message: null, profile: { display_name: 'Player Two' } }
     ]
-    render(<MemberList members={members} isGM={true} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={members} isGM={true} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     expect(screen.getByText('AFK')).toBeInTheDocument()
     expect(screen.getByText('Away until Monday')).toBeInTheDocument()
@@ -294,7 +302,7 @@ describe('MemberList', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
@@ -311,7 +319,7 @@ describe('MemberList', () => {
     window.prompt = vi.fn().mockReturnValue('x'.repeat(201))
     const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn() })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
@@ -330,7 +338,7 @@ describe('MemberList', () => {
     const mockOnUpdate = vi.fn()
 
     const members: any[] = mockMembers.map(m => m.id === 'm2' ? { ...m, is_away: true, away_message: 'BRB' } : m)
-    render(<MemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Back (Available)'))
@@ -347,7 +355,7 @@ describe('MemberList', () => {
     const mockUpdate = vi.fn()
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
@@ -366,7 +374,7 @@ describe('MemberList', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
-    render(<MemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
@@ -383,7 +391,7 @@ describe('MemberList', () => {
       { id: 'm1', user_id: 'u1', character_name: 'Hero', character_notes: 'Wary of goblins.', is_blocked: false, profile: { display_name: 'Player One' } },
       { id: 'm2', user_id: 'u2', character_name: 'Sidekick', is_blocked: false, profile: { display_name: 'Player Two' } }
     ]
-    render(<MemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     expect(screen.getByText('Wary of goblins.')).toBeInTheDocument()
   })
