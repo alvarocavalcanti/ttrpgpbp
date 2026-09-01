@@ -44,7 +44,12 @@ export function useChannelNotificationPrefs(channelId: string | undefined, myMem
         if (mounted && data) {
           const parsed = parseRow(ChannelNotificationPrefsSchema, data)
           // Malformed prefs fall back to defaults instead of poisoning state.
-          if (parsed) setPrefs(parsed)
+          if (parsed) {
+            setPrefs(prev => ({
+              ...prev,
+              ...Object.fromEntries(Object.entries(parsed).filter(([, v]) => typeof v === 'boolean')) as Partial<ChannelNotificationPrefs>
+            }))
+          }
         }
       } catch (err) {
         console.error('Error fetching notification prefs:', err)
