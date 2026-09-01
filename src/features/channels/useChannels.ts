@@ -64,9 +64,11 @@ export function useChannels() {
             return {
               ...channel,
               member: member as ChannelMember,
-              unread_count: unreadMap.get(member.channel_id) ?? 0
+              unread_count: unreadMap.get(member.channel_id ?? '') ?? 0
             }
-          }).sort(byRecentActivity) as (Channel & { member: ChannelMember, unread_count?: number })[]
+          }) as (Channel & { member: ChannelMember, unread_count?: number })[]
+
+          formattedMyChannels.sort(byRecentActivity)
 
           if (mounted) setMyChannels(formattedMyChannels)
           myChannelIdsRef.current = new Set(formattedMyChannels.map(c => c.id))

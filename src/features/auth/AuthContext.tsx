@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('id', userId)
           .single()
 
-        if (mounted) setProfile(parseRow(ProfileRowSchema, data))
+        if (mounted) setProfile(parseRow(ProfileRowSchema, data) as Profile | null)
       } catch (err) {
         // Preserve any previously-loaded profile so a transient fetch failure
         // doesn't wipe the UI (UX#16); a later auth event retries it.

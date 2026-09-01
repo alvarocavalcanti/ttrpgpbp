@@ -179,7 +179,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
           if (oldId) setMembers(prev => prev.filter(m => m.id !== oldId))
         } else {
           const next = parseRow(ChannelMemberRowSchema, payload.new)
-          if (next) setMembers(prev => prev.map(m => m.id === next.id ? { ...m, ...next } : m))
+          if (next) setMembers(prev => prev.map(m => m.id === next.id ? { ...m, ...next } as ChannelMember : m))
         }
       })
     const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}`, (status) => {
