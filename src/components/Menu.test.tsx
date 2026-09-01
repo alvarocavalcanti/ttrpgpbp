@@ -102,3 +102,32 @@ describe('Menu', () => {
     expect(onSelect).toHaveBeenCalledWith('u1')
   })
 })
+
+describe('Menu popup/dropdown parity', () => {
+  const labels = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll('[role="menuitemradio"]')).map(b => b.textContent)
+
+  it('lists identical options in dropdown and popup variants', () => {
+    const dropdown = render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    const dropdownLabels = labels(dropdown.container)
+
+    dropdown.unmount()
+    const popup = render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} popup />)
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    expect(labels(popup.container)).toEqual(dropdownLabels)
+  })
+
+  it('supports keyboard selection in both variants', () => {
+    for (const popup of [false, true]) {
+      const onSelect = vi.fn()
+      const { unmount } = render(<Menu label="Whisper" value="" options={options} onSelect={onSelect} popup={popup} />)
+      const trigger = screen.getByRole('button', { name: /Whisper/ })
+      fireEvent.click(trigger)
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+      fireEvent.keyDown(trigger, { key: 'Enter' })
+      expect(onSelect).toHaveBeenCalledWith('u1')
+      unmount()
+    }
+  })
+})

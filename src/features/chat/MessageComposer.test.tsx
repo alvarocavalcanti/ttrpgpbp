@@ -658,7 +658,7 @@ describe('MessageComposer', () => {
     expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    expect(screen.getByPlaceholderText(/Speak as an NPC/i)).toHaveClass('dark:bg-[#2a2620]')
+    expect(screen.getByPlaceholderText(/Speak as an NPC/i)).toHaveClass('dark:bg-parchment-dark')
   })
 
   it('keeps the typed message text visible on dark backgrounds', () => {
@@ -792,4 +792,15 @@ describe('MessageComposer', () => {
     expect(screen.getByLabelText('Edit Whisper: Hero')).toBeInTheDocument()
     expect(screen.getByLabelText('Edit Active: Hero')).toBeInTheDocument()
   })
+})
+
+it('folds the keyboard shortcut into the send button title and drops the floating tip', () => {
+  const { getByRole, queryByText } = render(
+    <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
+  )
+  const send = getByRole('button', { name: /Send/i })
+  expect(send).toHaveAttribute('title', expect.stringMatching(/Enter/))
+  // 44px touch target bump
+  expect(send).toHaveClass('p-3')
+  expect(queryByText(/to send/i)).not.toBeInTheDocument()
 })

@@ -153,7 +153,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                     {npc.avatar_url ? (
                       <Avatar className={`h-10 w-10 rounded-full flex-shrink-0 ${isNpcIconUrl(npc.avatar_url) ? 'dark:invert' : ''}`} src={npc.avatar_url} alt="" referrerPolicy="no-referrer" />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-parchment-border dark:bg-parchment-border-dark flex items-center justify-center text-parchment-ink dark:text-parchment-ink-dark font-serif flex-shrink-0">
                         {npc.name[0]?.toUpperCase() || '?'}
                       </div>
                     )}

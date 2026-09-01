@@ -491,9 +491,9 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
   if (isScene) {
     return (
-      <div ref={itemRef} className={`relative my-6 px-4 py-6 bg-[#fdf6e3] dark:bg-[#2a2620] border-y-2 border-[#e6d0a4] dark:border-[#4a4238] shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      <div ref={itemRef} className={`relative my-6 px-4 py-6 bg-parchment dark:bg-parchment-dark border-y-2 border-parchment-border dark:border-parchment-border-dark shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
-        <div className="max-w-2xl w-full text-center font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose prose-sm sm:prose-base dark:prose-invert prose-p:text-[#5c4a3d] dark:prose-p:text-[#d8cfc0] prose-headings:text-[#4a3b31] dark:prose-headings:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6] prose-em:text-[#5c4a3d] dark:prose-em:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-blockquote:text-[#5c4a3d] dark:prose-blockquote:text-[#d8cfc0] prose-blockquote:border-[#e6d0a4] dark:prose-blockquote:border-[#4a4238] prose-ul:text-[#5c4a3d] dark:prose-ul:text-[#d8cfc0] prose-ol:text-[#5c4a3d] dark:prose-ol:text-[#d8cfc0] max-w-none break-words [&>p:last-child]:bg-[#f4e4c1] dark:[&>p:last-child]:bg-[#3a342a] [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-[#4a3b31] dark:[&>p:last-child]:text-[#ece4d6]">
+        <div className="max-w-2xl w-full text-center font-serif text-parchment-ink dark:text-parchment-ink-dark prose prose-sm sm:prose-base dark:prose-invert prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-headings:text-parchment-ink-strong dark:prose-headings:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark prose-em:text-parchment-ink dark:prose-em:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-blockquote:text-parchment-ink dark:prose-blockquote:text-parchment-ink-dark prose-blockquote:border-parchment-border dark:prose-blockquote:border-parchment-border-dark prose-ul:text-parchment-ink dark:prose-ul:text-parchment-ink-dark prose-ol:text-parchment-ink dark:prose-ol:text-parchment-ink-dark max-w-none break-words [&>p:last-child]:bg-parchment-shade dark:[&>p:last-child]:bg-parchment-shade-dark [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark">
           {isEditing ? (
             <div className="mt-2 text-left">
               <textarea
@@ -607,14 +607,14 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }
 
   return (
-    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-[#fdf6e3] dark:bg-[#2a2620] rounded-lg border border-[#e6d0a4] dark:border-[#4a4238]' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-parchment dark:bg-parchment-dark rounded-lg border border-parchment-border dark:border-parchment-border-dark' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
       {pendingOverlay}
       <div className="flex-shrink-0">
         {isNpc ? (
           message.npc_avatar_url ? (
             <Avatar className={`h-10 w-10 rounded-full flex-shrink-0 ${isNpcIconUrl(message.npc_avatar_url) ? 'dark:invert' : ''}`} src={message.npc_avatar_url} alt="" referrerPolicy="no-referrer" />
           ) : (
-            <div className="h-10 w-10 rounded-full bg-[#e6d0a4] dark:bg-[#4a4238] flex items-center justify-center text-[#5c4a3d] dark:text-[#d8cfc0] font-serif">
+            <div className="h-10 w-10 rounded-full bg-parchment-border dark:bg-parchment-border-dark flex items-center justify-center text-parchment-ink dark:text-parchment-ink-dark font-serif">
               {message.npc_name?.[0]?.toUpperCase() || '?'}
             </div>
           )
@@ -629,10 +629,10 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline space-x-2">
-          <span className={`text-sm font-medium ${isNpc ? 'font-serif text-[#4a3b31] dark:text-[#ece4d6]' : 'text-gray-900 dark:text-gray-100'}`}>
+          <span className={`text-sm font-medium ${isNpc ? 'font-serif text-parchment-ink-strong dark:text-parchment-ink-strong-dark' : 'text-gray-900 dark:text-gray-100'}`}>
             {senderName}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-gray-500 dark:text-gray-500">
             {formatTimestamp(message.created_at)}
           </span>
           {isWhisper && (
@@ -647,7 +647,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-[#5c4a3d] dark:text-[#d8cfc0] prose-a:text-[#4a3b31] dark:prose-a:text-[#ece4d6] prose-strong:text-[#4a3b31] dark:prose-strong:text-[#ece4d6]' : ''}`}>
+        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
             <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
           ) : isEditing ? (

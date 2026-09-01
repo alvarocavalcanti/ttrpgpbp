@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { BottomSheet } from './BottomSheet'
@@ -25,7 +25,6 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
   const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false), open)
-  const listRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(() => setOpen(false))
 
   const selected = options.find(o => o.value === value)
@@ -50,33 +49,32 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
     else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); choose(highlighted) }
   }
 
-  const optionsList = (
-    <div ref={listRef} role="menu" aria-label={label} className="py-1">
-      {options.map((opt, i) => (
-        <button
-          key={opt.value}
-          type="button"
-          role="menuitemradio"
-          aria-checked={opt.value === value}
-          onClick={() => choose(i)}
-          onMouseEnter={() => setHighlighted(i)}
-          className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between gap-2 ${
-            i === highlighted ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
-        >
-          <span className="min-w-0">
-            <span className={`block truncate ${opt.value === value ? 'font-medium text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-gray-100'}`}>{opt.label}</span>
-            {opt.hint && <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">{opt.hint}</span>}
-          </span>
-          {opt.value === value && (
-            <svg className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
-      ))}
-    </div>
-  )
+  // Shared option buttons — rendered inside the BottomSheet (popup) or the
+  // anchored dropdown container, so both variants list identical items.
+  const optionButtons = options.map((opt, i) => (
+    <button
+      key={opt.value}
+      type="button"
+      role="menuitemradio"
+      aria-checked={opt.value === value}
+      onClick={() => choose(i)}
+      onMouseEnter={() => setHighlighted(i)}
+      className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between gap-2 ${
+        i === highlighted ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+      }`}
+    >
+      <span className="min-w-0">
+        <span className={`block truncate ${opt.value === value ? 'font-medium text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-gray-100'}`}>{opt.label}</span>
+        {opt.hint && <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">{opt.hint}</span>}
+      </span>
+      {opt.value === value && (
+        <svg className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      )}
+    </button>
+  ))
+  const optionsMenu = <div role="menu" aria-label={label} className="py-1">{optionButtons}</div>
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -101,38 +99,15 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
       </button>
 
       {open && popup && (
-        <BottomSheet title={label} onClose={() => setOpen(false)}>{optionsList}</BottomSheet>
+        <BottomSheet title={label} onClose={() => setOpen(false)}>{optionsMenu}</BottomSheet>
       )}
       {open && !popup && (
         <div
-          ref={listRef}
           role="menu"
           aria-label={label}
           className="absolute bottom-full mb-2 left-0 w-64 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
         >
-          {options.map((opt, i) => (
-            <button
-              key={opt.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={opt.value === value}
-              onClick={() => choose(i)}
-              onMouseEnter={() => setHighlighted(i)}
-              className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between gap-2 ${
-                i === highlighted ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              <span className="min-w-0">
-                <span className={`block truncate ${opt.value === value ? 'font-medium text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-gray-100'}`}>{opt.label}</span>
-                {opt.hint && <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">{opt.hint}</span>}
-              </span>
-              {opt.value === value && (
-                <svg className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
-          ))}
+          {optionButtons}
         </div>
       )}
     </div>

@@ -929,3 +929,12 @@ describe('MessageItem', () => {
   })
 
 })
+
+it('keeps timestamps readable on dark backgrounds (AA contrast, no gray-400)', () => {
+  const msg: any = { type: 'regular', content: 'hi', created_at: new Date().toISOString(), sender_id: 'u1' }
+  const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const timestamp = Array.from(container.querySelectorAll('span')).find(s => s.className.includes('text-xs') && s.className.includes('gray-500'))
+  expect(timestamp).toBeDefined()
+  expect(timestamp!.className).not.toContain('dark:text-gray-400')
+  expect(timestamp!.className).toContain('dark:text-gray-500')
+})
