@@ -346,7 +346,9 @@ describe('useChannel', () => {
 
   it('does not advance last_read_at from message events while the tab is hidden', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
-    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    // Mount visible so the initial mark-read runs, then go hidden: arriving
+    // message events must not advance the read mark.
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
 
     const mockChannel = { id: 'c1', gm_id: 'u1' }
     const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
@@ -382,8 +384,61 @@ describe('useChannel', () => {
       expect(mockUpdate).toHaveBeenCalledTimes(1)
     })
 
+    // Tab goes hidden before the message arrives.
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
     await act(async () => {
       messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+    })
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not mark read when a reconnect completes while the tab is hidden', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let statusCb: ((status: string) => void) | undefined
+    const mockOn = vi.fn().mockImplementation(() => ({ on: mockOn, subscribe: mockSubscribe }))
+    vi.mocked(supabase.channel).mockImplementation(() => {
+      const on = vi.fn().mockReturnThis()
+      return { on, subscribe: (cb: (status: string) => void) => { statusCb = cb; cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } } }
+    })
+
+    renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+
+    // Tab hidden when the socket drops and the retry reconnects.
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    await act(async () => {
+      statusCb?.('CHANNEL_ERROR')
+      statusCb?.('SUBSCRIBED')
+      await Promise.resolve()
+      await Promise.resolve()
     })
 
     expect(mockUpdate).toHaveBeenCalledTimes(1)

@@ -23,6 +23,10 @@ export function useAdminMessages(threadId: string | undefined) {
   // Bumped on threadId change so a slow in-flight request for an old thread
   // can't overwrite a newer thread's messages when it resolves.
   const generationRef = useRef(0)
+  // Monotonic id per fetchFirstPage invocation: two requests can share a
+  // generation (initial fetch + realtime refresh), and a slow earlier one must
+  // not overwrite a newer one's result.
+  const requestSeqRef = useRef(0)
 
   const baseQuery = () =>
     supabase
@@ -51,10 +55,14 @@ export function useAdminMessages(threadId: string | undefined) {
 
   const fetchFirstPage = useCallback(async (reset: boolean, generation: number) => {
     if (!threadId) return
+    const requestId = ++requestSeqRef.current
     setLoading(true)
     setError(null)
     const { data, error: queryError } = await baseQuery().limit(PAGE_SIZE)
+    // Thread switch discards everything; a superseded request (a newer fetch
+    // started after this one) drops its result without touching state.
     if (generation !== generationRef.current) return
+    if (requestId !== requestSeqRef.current) return
     if (queryError) {
       setError(queryError)
     } else {
