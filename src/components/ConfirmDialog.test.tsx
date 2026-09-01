@@ -35,7 +35,7 @@ describe('ConfirmDialog', () => {
   it('closes via backdrop tap and via Escape', () => {
     const onClose = vi.fn()
     const { rerender } = render(<ConfirmDialog title="Delete it?" onConfirm={vi.fn()} onClose={onClose} />)
-    fireEvent.click(screen.getByRole('dialog', { name: 'Delete it?' }).querySelector('[aria-hidden="true"]') as HTMLElement)
+    fireEvent.click(screen.getByTestId('confirm-backdrop'))
     expect(onClose).toHaveBeenCalledTimes(1)
 
     onClose.mockClear()

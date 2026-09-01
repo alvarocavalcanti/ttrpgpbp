@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
 import { useEscapeToClose } from './useEscapeToClose'
 
 describe('useEscapeToClose', () => {
@@ -51,5 +52,33 @@ describe('useEscapeToClose', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(closeParent).toHaveBeenCalledTimes(1)
     expect(closeChild).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps stack order when the parent re-renders with a new onClose identity', () => {
+    const closeParent = vi.fn()
+    const closeChild = vi.fn()
+
+    // Parent (like ChannelSettings) passes an inline closure whose identity
+    // changes on every render. Re-rendering it while the child dialog is open
+    // must NOT reorder the stack — Escape still reaches the child first.
+    const parent = renderHook(() => {
+      const [, setTick] = useState(0)
+      useEscapeToClose(() => {
+        setTick(t => t + 1)
+        closeParent()
+      })
+    })
+    const child = renderHook(() => useEscapeToClose(closeChild))
+
+    parent.rerender()
+    parent.rerender()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeChild).toHaveBeenCalledTimes(1)
+    expect(closeParent).not.toHaveBeenCalled()
+
+    child.unmount()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeParent).toHaveBeenCalledTimes(1)
   })
 })
