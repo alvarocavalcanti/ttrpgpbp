@@ -64,6 +64,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const { uploading: mapUploading, uploadImage } = useImageUpload(channel.id)
   const [mapError, setMapError] = useState<string | null>(null)
   const [resourcesError, setResourcesError] = useState<string | null>(null)
+  const [safetyToolsError, setSafetyToolsError] = useState<string | null>(null)
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -147,6 +148,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     const urls: Array<[string, (msg: string) => void]> = [
       [mapUrl, setMapError],
       [resourcesUrl, setResourcesError],
+      [safetyToolsUrl, setSafetyToolsError],
     ]
     let urlError: string | null = null
     for (const [url, setError] of urls) {
@@ -522,6 +524,7 @@ setIsSubmitting(true)
                         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                           Shown as a menu item for all players in the sidebar, like the other URL fields.
                         </p>
+                        {safetyToolsError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{safetyToolsError}</p>}
                       </div>
                     </div>
                   )}

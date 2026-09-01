@@ -8,7 +8,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(18);
+SELECT plan(19);
 
 -- ===== Fixture =====
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -43,7 +43,8 @@ $$;
 
 -- The RLS tests below impersonate the authenticated role; grants from other
 -- test files roll back with their transactions, so grant what we need here.
-GRANT SELECT ON public.channels, public.safety_card_events TO authenticated;
+GRANT SELECT, INSERT ON public.safety_card_events TO authenticated;
+GRANT SELECT ON public.channels TO authenticated;
 
 -- ===== 1. X-Card: only the GM can SELECT the event stream =====
 INSERT INTO safety_card_events (channel_id) VALUES ('00000000-0000-0000-0000-000000000410');
@@ -66,12 +67,14 @@ SELECT is(
 );
 RESET ROLE;
 
--- Members can still trigger the X-Card.
+-- Members can still trigger the X-Card (insert evaluated under RLS).
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000411'); -- player B
+SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $$INSERT INTO safety_card_events (channel_id) VALUES ('00000000-0000-0000-0000-000000000410')$$,
   'member can still trigger X-Card'
 );
+RESET ROLE;
 
 -- ===== 2. GM cannot force-add another user =====
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000409'); -- GM
@@ -101,6 +104,20 @@ SELECT is(
      AND user_id = '00000000-0000-0000-0000-000000000410'),
   '{"STR": 5, "WIS": -4}'::jsonb,
   'attributes clamped to -4..5 and non-numeric keys dropped'
+);
+
+-- Non-numeric-only attributes collapse to an empty object.
+UPDATE channel_members
+SET attributes = '{"junk": "abc", "other": "x"}'::jsonb
+WHERE channel_id = '00000000-0000-0000-0000-000000000410'
+  AND user_id = '00000000-0000-0000-0000-000000000410';
+
+SELECT is(
+  (SELECT attributes FROM channel_members
+   WHERE channel_id = '00000000-0000-0000-0000-000000000410'
+     AND user_id = '00000000-0000-0000-0000-000000000410'),
+  '{}'::jsonb,
+  'attributes with only non-numeric values become empty'
 );
 
 -- ===== 4. roll_dice input bounds =====
@@ -150,8 +167,7 @@ SELECT is(
 SELECT throws_ok(
   $$INSERT INTO channels (id, name, gm_id, invite_code)
     VALUES ('00000000-0000-0000-0000-000000000412', 'Bad code', '00000000-0000-0000-0000-000000000409', 'not-hex!')$$,
-  NULL,
-  'invite_code must be 8 hex chars'
+  '23514'
 );
 SELECT lives_ok(
   $$INSERT INTO channels (id, name, gm_id, invite_code)
@@ -176,8 +192,7 @@ SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000410');
 SELECT throws_ok(
   $$INSERT INTO abuse_reports (reporter_id, reported_user_id, reason)
     VALUES ('00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000411', repeat('x', 1001))$$,
-  NULL,
-  'reason over 1000 chars rejected'
+  '23514'
 );
 
 -- ===== 9. mark_admin_thread_read visibility =====
