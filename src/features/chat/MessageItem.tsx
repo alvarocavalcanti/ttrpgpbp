@@ -16,9 +16,9 @@ import { MAX_MESSAGE_LENGTH } from '../../constants'
 type Message = ChatMessage
 
 // Touch-target sizing for message actions (UX audit: minimum ~32-36px targets).
-// Exported so tests assert the shared contract instead of hardcoding utility
-// strings — a sizing tweak updates here and the tests follow automatically.
-export const MESSAGE_ACTION_SIZING = {
+// The touch-target test below asserts these utility strings literally — if the
+// sizing changes, update that test on purpose instead of silently following.
+const MESSAGE_ACTION_SIZING = {
   /** padding on icon buttons and the ⋯ button */
   padding: 'p-1.5',
   /** icon glyph size */
@@ -338,8 +338,8 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     }
   }), [onRollDice, systemAttributes, members, currentUserId, message.id])
 
-// Per-message actions, gated by role/edit-window. Rendered as hover icons on
-// desktop and collapsed behind a single "…" button opening a sheet on mobile,
+  // Per-message actions, gated by role/edit-window. Rendered as hover icons on
+  // desktop and collapsed behind a single "…" button opening a sheet on mobile,
   // so touch users get one large target instead of several tiny ones.
   const actions = useMemo(() => {
     const list: { id: string; label: string; danger?: boolean; onClick: () => void; icon: React.ReactNode }[] = []

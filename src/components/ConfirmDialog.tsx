@@ -22,7 +22,7 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Delete', onC
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label={title}>
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80" aria-hidden="true" onClick={onClose}></div>
+        <div data-testid="confirm-backdrop" className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80" aria-hidden="true" onClick={onClose}></div>
         <div ref={panelRef} className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
           {description && (
