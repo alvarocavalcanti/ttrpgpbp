@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MessageItem } from './MessageItem'
 
@@ -51,7 +51,6 @@ describe('MessageItem', () => {
 
   it('allows the GM author to edit an NPC message within the edit window', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
-    window.confirm = vi.fn().mockReturnValue(true)
     const msg: any = {
       id: 'n1',
       type: 'npc',
@@ -90,14 +89,13 @@ describe('MessageItem', () => {
   it('allows GM to edit and delete a scene message', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
     const mockOnDelete = vi.fn().mockResolvedValue(undefined)
-    window.confirm = vi.fn().mockReturnValue(true)
     const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u1' }
     render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={mockOnEdit} onDelete={mockOnDelete} />)
     expect(screen.getByText('You enter a dark tavern')).toBeInTheDocument()
 
-    // GM can delete
-    const deleteBtn = screen.getByLabelText('Delete')
-    fireEvent.click(deleteBtn)
+    // GM can delete, via the in-app confirmation
+    fireEvent.click(screen.getByLabelText('Delete'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete message?' })).getByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(mockOnDelete).toHaveBeenCalledWith('s1'))
 
     // GM can edit
@@ -330,26 +328,22 @@ describe('MessageItem', () => {
     })
   })
 
-  it('allows delete if GM', () => {
+  it('allows delete if GM', async () => {
     const mockOnDelete = vi.fn()
-    window.confirm = vi.fn().mockReturnValue(true)
-    
-    const msg: any = { 
+
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Bad message',
       created_at: new Date().toISOString(),
       sender_id: 'u2'
     }
-    
-    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={mockOnDelete} />)
-    
-    const buttons = container.querySelectorAll('button')
-    // GM can't edit someone else's, so there is only 1 button (delete)
-    expect(buttons.length).toBe(1)
-    fireEvent.click(buttons[0])
-    
-    expect(mockOnDelete).toHaveBeenCalledWith('m1')
+
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={mockOnDelete} />)
+
+    fireEvent.click(screen.getByLabelText('Delete'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete message?' })).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(mockOnDelete).toHaveBeenCalledWith('m1'))
   })
 
   it('handles edit error gracefully', async () => {
@@ -381,20 +375,20 @@ describe('MessageItem', () => {
   it('handles delete error gracefully', async () => {
     const mockOnDelete = vi.fn().mockRejectedValue(new Error('Delete failed'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    window.confirm = vi.fn().mockReturnValue(true)
-    
-    const msg: any = { 
+
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Bad',
       created_at: new Date().toISOString(),
       sender_id: 'u1'
     }
-    
-    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={mockOnDelete} />)
-    
-    fireEvent.click(container.querySelectorAll('button')[1]) // Delete
-    
+
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={mockOnDelete} />)
+
+    fireEvent.click(screen.getByLabelText('Delete'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete message?' })).getByRole('button', { name: 'Delete' }))
+
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
       expect(screen.getByText('Failed to delete message.')).toBeInTheDocument()
@@ -776,6 +770,137 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.queryByLabelText('X-Card')).not.toBeInTheDocument()
+  })
+
+  it('deletes via in-app confirmation, never window.confirm', () => {
+    const mockOnDelete = vi.fn()
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={mockOnDelete} />)
+    fireEvent.click(screen.getByLabelText('Delete'))
+    expect(confirmSpy).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete message?' })).getByRole('button', { name: 'Delete' }))
+    expect(mockOnDelete).toHaveBeenCalledWith('m1')
+    confirmSpy.mockRestore()
+  })
+
+  it('cancels the delete confirmation without deleting', () => {
+    const mockOnDelete = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={mockOnDelete} />)
+    fireEvent.click(screen.getByLabelText('Delete'))
+    const dialog = screen.getByRole('dialog', { name: 'Delete message?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(mockOnDelete).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Delete message?' })).not.toBeInTheDocument()
+  })
+
+  it('opens the mobile action sheet listing enabled actions for the message author', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Message actions'))
+    const dialog = screen.getByRole('dialog', { name: 'Message actions' })
+    const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
+    expect(items).toEqual(['Reply', 'Edit', 'Delete', 'X-Card'])
+  })
+
+  it('mobile action sheet lists only X-Card for a non-author player', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Message actions'))
+    const dialog = screen.getByRole('dialog', { name: 'Message actions' })
+    const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
+    expect(items).toEqual(['Reply', 'X-Card'])
+  })
+
+  it('mobile action sheet lists Reply, Delete and X-Card for the GM', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Message actions'))
+    const dialog = screen.getByRole('dialog', { name: 'Message actions' })
+    const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
+    expect(items).toEqual(['Reply', 'Delete', 'X-Card'])
+  })
+
+  it('runs the chosen action from the mobile sheet', () => {
+    const mockOnReply = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={mockOnReply} />)
+    fireEvent.click(screen.getByLabelText('Message actions'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Message actions' })).getByRole('button', { name: 'Reply' }))
+    expect(mockOnReply).toHaveBeenCalledWith(msg)
+    // Sheet closes after picking an action.
+    expect(screen.queryByRole('dialog', { name: 'Message actions' })).not.toBeInTheDocument()
+  })
+
+  it('raises micro-target sizes on the desktop action icons', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    for (const label of ['Reply', 'Edit', 'Delete', 'X-Card']) {
+      const btn = screen.getByLabelText(label)
+      expect(btn.className).toContain('p-1.5')
+      expect(btn.querySelector('svg')).toHaveClass('w-5', 'h-5')
+    }
+    // Desktop row is hidden on mobile; the ⋯ button is hidden on desktop.
+    const wrapper = screen.getByLabelText('Reply').closest('.hidden') as HTMLElement | null
+    expect(wrapper?.className).toContain('sm:flex')
+    const menuBtn = screen.getByLabelText('Message actions')
+    expect(menuBtn.className).toContain('sm:hidden')
+  })
+
+  it('raises the emoji picker trigger target size', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} />)
+    const trigger = screen.getByLabelText('Add reaction')
+    expect(trigger.className).toContain('p-1.5')
   })
 
 })
