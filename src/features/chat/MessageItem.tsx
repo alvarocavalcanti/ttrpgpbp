@@ -15,6 +15,20 @@ import { MAX_MESSAGE_LENGTH } from '../../constants'
 
 type Message = ChatMessage
 
+// Touch-target sizing for message actions (UX audit: minimum ~32-36px targets).
+// Exported so tests assert the shared contract instead of hardcoding utility
+// strings — a sizing tweak updates here and the tests follow automatically.
+export const MESSAGE_ACTION_SIZING = {
+  /** padding on icon buttons and the ⋯ button */
+  padding: 'p-1.5',
+  /** icon glyph size */
+  icon: 'w-5 h-5',
+  /** class hiding the ⋯ button on desktop */
+  menuButtonVisibility: 'sm:hidden',
+  /** class hiding the hover-icon row on mobile */
+  desktopRowVisibility: 'hidden sm:flex',
+} as const
+
 interface MessageItemProps {
   message: Message
   currentUserId: string | undefined
@@ -324,34 +338,34 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     }
   }), [onRollDice, systemAttributes, members, currentUserId, message.id])
 
-  // Per-message actions, gated by role/edit-window. Rendered as hover icons on
-  // desktop and collapsed behind a single "…" button opening a sheet on mobile,
+// Per-message actions, gated by role/edit-window. Rendered as hover icons on
+// desktop and collapsed behind a single "…" button opening a sheet on mobile,
   // so touch users get one large target instead of several tiny ones.
   const actions = useMemo(() => {
     const list: { id: string; label: string; danger?: boolean; onClick: () => void; icon: React.ReactNode }[] = []
     if (onReply) {
       list.push({
         id: 'reply', label: 'Reply', onClick: () => onReply(message),
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>,
+        icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>,
       })
     }
     if (canEdit) {
       list.push({
         id: 'edit', label: 'Edit', onClick: () => setIsEditing(true),
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
+        icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
       })
     }
     if (canEdit || isGM) {
       list.push({
         id: 'delete', label: 'Delete', danger: true, onClick: () => setConfirmDelete(true),
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+        icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
       })
     }
     if (onXCard) {
       list.push({
         id: 'x-card', label: 'X-Card', danger: true, onClick: () => onXCard(message.id),
         icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
           </svg>
@@ -362,7 +376,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }, [onReply, canEdit, isGM, onXCard, message])
 
   const actionIconClass = (danger?: boolean) =>
-    `p-1.5 rounded transition-colors text-gray-400 dark:text-gray-500 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`
+    `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`
 
   const actionIcons = actions.map(a => (
     <button key={a.id} type="button" onClick={a.onClick} aria-label={a.label} title={a.label} className={actionIconClass(a.danger)}>
@@ -376,9 +390,9 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       onClick={() => setActionsOpen(true)}
       aria-label="Message actions"
       title="Message actions"
-      className="sm:hidden p-1.5 rounded transition-colors text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+      className={`${MESSAGE_ACTION_SIZING.menuButtonVisibility} ${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400`}
     >
-      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+      <svg className={MESSAGE_ACTION_SIZING.icon} fill="currentColor" viewBox="0 0 24 24">
         <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
       </svg>
     </button>
@@ -527,7 +541,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
         {!message.is_deleted && !message.pending && !isEditing && actions.length > 0 && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
-            <div className="hidden sm:flex items-center gap-1">{actionIcons}</div>
+            <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} items-center gap-1`}>{actionIcons}</div>
             {mobileMenuButton}
           </div>
         )}
@@ -692,7 +706,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
       {!message.is_deleted && !message.pending && !isEditing && actions.length > 0 && (
         <div className="flex-shrink-0">
-          <div className="hidden sm:flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center">
+          <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
             {actionIcons}
           </div>
           {mobileMenuButton}
