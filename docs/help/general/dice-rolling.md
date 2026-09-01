@@ -18,7 +18,7 @@ Advantage / disadvantage rolls show the roll details, for example `Rolled 2d20 w
 
 ## Ability checks
 
-From a message you can trigger an **ability check** (`STR Check`, `DEX Check`, etc.). A small sheet opens with your modifier pre-filled from your character profile, plus an Adv / Dis toggle — tap **Roll** to roll a d20 (or a second d20 kept best / worst with Adv / Dis). If the modifier isn't set in your profile, the sheet shows a **"Set it in your character sheet"** link that opens Edit Character. Rolls made from a message quote the original, so it's clear which request each roll answers.
+From a message you can trigger an **ability check** (`STR Check`, `DEX Check`, etc.). A small sheet opens with your modifier pre-filled from your character profile — you can edit it, and it stays within the game system's allowed range — plus an Adv / Dis toggle. Tap **Roll** to roll a d20 (or a second d20 kept best / worst with Adv / Dis). If the modifier isn't set in your profile, the sheet shows a **"Set it in your character sheet"** link that opens Edit Character. Rolls made from a message quote the original, so it's clear which request each roll answers.
 
 ## DC checks
 

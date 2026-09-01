@@ -96,6 +96,17 @@ describe('MemberList', () => {
     })
   })
 
+  it('closes the edit character modal via Cancel', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Edit Character'))
+    expect(screen.getByDisplayValue('Sidekick')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByDisplayValue('Sidekick')).not.toBeInTheDocument()
+  })
+
   it('allows GM to block player', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)

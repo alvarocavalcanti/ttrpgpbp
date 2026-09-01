@@ -22,7 +22,7 @@ interface MemberListProps {
   // Editing state is owned by ChannelView so other views (e.g. the check
   // sheet in chat) can deep-link straight into Edit Character.
   editingMemberId: string | null
-  onEditMember: (memberId: string) => void
+  onEditMember: (memberId: string | null) => void
 }
 
 export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, editingMemberId, onEditMember }: MemberListProps) {
@@ -343,7 +343,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         <EditCharacterModal
           member={members.find(m => m.id === editingMemberId)!}
           gameSystem={gameSystem}
-          onClose={() => onEditMember(editingMemberId)}
+          onClose={() => onEditMember(null)}
           onUpdate={onUpdate}
         />
       )}
