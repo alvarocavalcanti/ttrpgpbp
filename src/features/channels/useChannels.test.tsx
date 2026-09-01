@@ -11,7 +11,16 @@ vi.mock('../auth/useAuth', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
-    rpc: vi.fn()
+    rpc: vi.fn(),
+    // Lobby unread subscription (issue #338): a resubscribing realtime channel.
+    channel: vi.fn(() => {
+      const chain: any = {
+        on: () => chain,
+        subscribe: () => undefined,
+        unsubscribe: async () => undefined
+      }
+      return chain
+    })
   }
 }))
 
@@ -25,6 +34,20 @@ const createChain = (resolveVal: any) => {
   };
   return chain;
 }
+
+// useChannels now runtime-validates rows (issue #338); fill fixture rows with
+// the full generated column shape the schema requires.
+const validChannel = (over: Record<string, unknown> = {}) => ({
+  gm_id: 'gm-1', is_archived: false, game_system: 'none',
+  created_at: '2023-01-01T00:00:00Z', last_message_at: null, ...over
+})
+const validMember = (over: Record<string, unknown> = {}) => ({
+  is_active_player: false, is_blocked: false, joined_at: '2023-01-01T00:00:00Z',
+  last_read_at: '2023-01-01T00:00:00Z', notify_all_messages: true,
+  notify_gm_messages: true, notify_turn: true, ...over
+})
+const fillRows = (rows: any[]) =>
+  rows.map(r => ({ ...validMember(r), channel: validChannel(r.channel) }))
 
 describe('useChannels', () => {
   beforeEach(() => {
@@ -85,7 +108,7 @@ describe('useChannels', () => {
     }]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
     vi.mocked(supabase.rpc).mockResolvedValue({
@@ -116,7 +139,7 @@ describe('useChannels', () => {
       configurable: true,
     })
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
       return {} as any
     })
     vi.mocked(supabase.rpc)
@@ -141,10 +164,10 @@ describe('useChannels', () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channel_members') return createChain({ data: [{
+      if (table === 'channel_members') return createChain({ data: fillRows([{
         id: 'member-1', channel_id: 'channel-2', user_id: 'user-1', character_name: 'Thor',
         last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'channel-2', name: 'My Channel' }
-      }], error: null }) as any;
+      }]), error: null }) as any;
       return {} as any;
     })
     vi.mocked(supabase.rpc).mockResolvedValue({
@@ -167,7 +190,7 @@ describe('useChannels', () => {
     }]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
@@ -196,7 +219,7 @@ describe('useChannels', () => {
     ]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
@@ -220,7 +243,7 @@ describe('useChannels', () => {
     ]
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'channel_members') return createChain({ data: mockMyChannelsRaw, error: null }) as any;
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
@@ -228,5 +251,74 @@ describe('useChannels', () => {
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.myChannels.map(c => c.id)).toEqual(['c1', 'c2'])
+  })
+
+  it('refetches when a realtime message INSERT lands in one of my channels', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
+    const mockMyChannelsRaw = [{
+      id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Thor',
+      last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'c1', name: 'My Channel' }
+    }]
+    let messagesInsert: ((payload: any) => void) | undefined
+    const channelMock: any = {
+      on: (_event: any, filter: any, cb: any) => {
+        if (filter.table === 'messages') messagesInsert = cb
+        return channelMock
+      },
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn().mockResolvedValue(undefined)
+    }
+    vi.mocked(supabase.channel).mockImplementation(() => channelMock as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
+      return {} as any
+    })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: [{ channel_id: 'c1', unread_count: 1 }], error: null } as any)
+      .mockResolvedValueOnce({ data: [{ channel_id: 'c1', unread_count: 2 }], error: null } as any)
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(1))
+
+    await act(async () => {
+      messagesInsert?.({ new: { channel_id: 'c1' } })
+    })
+
+    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(2))
+  })
+
+  it('ignores realtime message INSERTs for channels I am not in', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
+    const mockMyChannelsRaw = [{
+      id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Thor',
+      last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'c1', name: 'My Channel' }
+    }]
+    let messagesInsert: ((payload: any) => void) | undefined
+    const channelMock: any = {
+      on: (_event: any, filter: any, cb: any) => {
+        if (filter.table === 'messages') messagesInsert = cb
+        return channelMock
+      },
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn().mockResolvedValue(undefined)
+    }
+    vi.mocked(supabase.channel).mockImplementation(() => channelMock as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
+      return {} as any
+    })
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null })
+    vi.mocked(supabase.rpc).mockImplementation(rpc as any)
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const callsBefore = rpc.mock.calls.length
+
+    await act(async () => {
+      messagesInsert?.({ new: { channel_id: 'other-channel' } })
+    })
+
+    expect(rpc.mock.calls.length).toBe(callsBefore)
+    expect(result.current.myChannels).toHaveLength(1)
   })
 })

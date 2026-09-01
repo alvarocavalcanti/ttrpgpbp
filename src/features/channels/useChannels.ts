@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import { subscribeRealtimeStatus } from '../../lib/realtime'
+import { subscribeRealtimeStatus, subscribeWithRetry } from '../../lib/realtime'
+import { ChannelMemberRowSchema, ChannelRowSchema, parseRow } from '../validation/rowSchemas'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
@@ -26,6 +27,9 @@ export function useChannels() {
   const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember, unread_count?: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  // Tracks my channel ids so the lobby messages subscription below can ignore
+  // INSERTs for channels I am not a member of.
+  const myChannelIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let mounted = true
@@ -50,30 +54,22 @@ export function useChannels() {
           if (unreadError) throw unreadError
           const unreadMap = new Map((unreadData || []).map(row => [row.channel_id, row.unread_count]))
 
-          // Format my channels
-          const formattedMyChannels = (memberData || []).map(row => {
+          // Format my channels; malformed rows are dropped rather than
+          // rendered with undefined props (issue #338 runtime validation).
+          const formattedMyChannels = (memberData || []).flatMap(row => {
             const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
-            const memberInfo = {
-              id: row.id,
-              channel_id: row.channel_id,
-              user_id: row.user_id,
-              character_name: row.character_name,
-              character_avatar_url: row.character_avatar_url,
-              character_sheet_url: row.character_sheet_url,
-              is_active_player: row.is_active_player,
-              is_blocked: row.is_blocked,
-              joined_at: row.joined_at,
-              last_read_at: row.last_read_at
-            } as ChannelMember
-
+            const channel = parseRow(ChannelRowSchema, channelData)
+            const member = parseRow(ChannelMemberRowSchema, row)
+            if (!channel || !member) return []
             return {
-              ...channelData,
-              member: memberInfo,
-              unread_count: unreadMap.get(memberInfo.channel_id) ?? 0
+              ...channel,
+              member: member as ChannelMember,
+              unread_count: unreadMap.get(member.channel_id) ?? 0
             }
           }).sort(byRecentActivity) as (Channel & { member: ChannelMember, unread_count?: number })[]
 
           if (mounted) setMyChannels(formattedMyChannels)
+          myChannelIdsRef.current = new Set(formattedMyChannels.map(c => c.id))
         }
       } catch (error) {
         console.error('Error fetching channels:', error)
@@ -95,12 +91,23 @@ export function useChannels() {
 
     const stopRealtimeStatus = subscribeRealtimeStatus(fetchChannels)
 
+    // Keep unread badges live while sitting in the Lobby: a plain messages
+    // INSERT subscription, filtered to my channels, triggers a refetch.
+    const lobbyChannel = supabase
+      .channel('lobby-unread')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const channelId = (payload.new as { channel_id?: string } | null)?.channel_id
+        if (channelId && myChannelIdsRef.current.has(channelId)) fetchChannels()
+      })
+    const stopLobbyUnread = subscribeWithRetry(lobbyChannel, 'lobby-unread')
+
     navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       mounted = false
       stopRealtimeStatus()
+      stopLobbyUnread()
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }

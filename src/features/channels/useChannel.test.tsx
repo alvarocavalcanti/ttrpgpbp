@@ -490,8 +490,9 @@ describe('useChannel', () => {
     import('react').then(React => {
         const { act } = React
         act(() => {
-          channelCallback({ new: { status_text: 'New' } })
-          membersCallback({ new: { id: 'm1', is_active_player: true } })
+          // Realtime UPDATE payloads carry the full row, id included.
+          channelCallback({ new: { id: 'c1', status_text: 'New' } })
+          membersCallback({ new: { id: 'm1', user_id: 'u1', is_active_player: true } })
         })
     })
 

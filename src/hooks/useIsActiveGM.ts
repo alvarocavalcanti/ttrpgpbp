@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../features/auth/useAuth'
+import { RpcBooleanSchema, parseRow } from '../features/validation/rowSchemas'
 
 export function useIsActiveGM() {
   const { user } = useAuth()
@@ -20,7 +21,7 @@ export function useIsActiveGM() {
       
       const { data, error } = await supabase.rpc('is_active_gm', { p_user_id: user.id })
       if (!error && mounted) {
-        setIsActiveGM(data || false)
+        setIsActiveGM(parseRow(RpcBooleanSchema, data) ?? false)
       }
       if (mounted) setLoading(false)
     }

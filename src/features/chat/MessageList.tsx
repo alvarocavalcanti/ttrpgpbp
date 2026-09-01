@@ -138,16 +138,30 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     return () => observer.disconnect()
   }, [])
 
-  // Re-anchor to the oldest unread message (or the bottom) when the app comes
-  // back to the foreground; mobile browsers can drop the scroll position
-  // while the app is not in view.
+  // Restore the scroll position the browser dropped while the app was hidden,
+  // instead of re-anchoring to the unread divider: a return from background
+  // must never yank someone reading history (issue #338). Fresh mounts and
+  // initial load still anchor via the layout effect above.
+  const scrollTopOnHideRef = useRef<number | null>(null)
   useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') scrollToUnread()
+    const onVisibilityChange = () => {
+      const list = listRef.current
+      if (!list) return
+      if (document.visibilityState !== 'visible') {
+        scrollTopOnHideRef.current = list.scrollTop
+        return
+      }
+      const captured = scrollTopOnHideRef.current
+      scrollTopOnHideRef.current = null
+      // Only writes when the browser actually dropped the position (mobile
+      // Safari/virtualized tabs reset it); a preserved position is untouched.
+      if (captured !== null && Math.abs(list.scrollTop - captured) > 1) {
+        list.scrollTop = captured
+      }
     }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [scrollToUnread])
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
 
   if (messages.length === 0) {
     return (

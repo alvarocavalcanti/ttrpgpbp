@@ -93,6 +93,32 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kl1')
   })
 
+  it('clamps quantity to 1-100 at the point of input', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    const quantityInput = screen.getByDisplayValue('1')
+    fireEvent.change(quantityInput, { target: { value: '9999' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('100d20')
+  })
+
+  it('clamps modifier to ±999 at the point of input', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    const inputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(inputs[1], { target: { value: '9999' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+999')
+  })
+
   it('hides advantage controls for non-d20', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
     

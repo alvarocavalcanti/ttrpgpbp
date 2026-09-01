@@ -3,17 +3,21 @@ import { supabase } from '../../lib/supabase'
 import { subscribeWithRetry } from '../../lib/realtime'
 import type { Thread } from './types'
 import { useAuth } from '../auth/useAuth'
+import { AdminThreadRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 const PAGE_SIZE = 50
 
-function formatThread(row: Record<string, unknown>): Thread {
-  const reads = Array.isArray(row.admin_thread_reads) ? row.admin_thread_reads : []
+function formatThread(row: Record<string, unknown>): Thread | null {
+  const parsed = parseRow(AdminThreadRowSchema, row)
+  if (!parsed) return null
+  const reads = Array.isArray(parsed.admin_thread_reads) ? parsed.admin_thread_reads : []
   const myRead = reads[0]?.last_read_at
   return {
     ...row,
-    creator: Array.isArray(row.creator) ? row.creator[0] : row.creator,
-    gm: row.gm ? (Array.isArray(row.gm) ? row.gm[0] : row.gm) : undefined,
-    unread: !myRead || new Date(row.last_message_at as string) > new Date(myRead as string)
+    ...parsed,
+    creator: normalizeProfileRef(parsed.creator),
+    gm: parsed.gm ? normalizeProfileRef(parsed.gm) : undefined,
+    unread: !myRead || new Date(parsed.last_message_at ?? 0) > new Date(myRead)
   } as Thread
 }
 
@@ -47,7 +51,10 @@ export function useAdminThreads() {
   // load); otherwise the newest rows merge by id and older cached rows stay at
   // the tail, so a realtime refresh or Retry keeps pages the user loaded.
   const applyNewestPage = useCallback((rows: Record<string, unknown>[], reset: boolean) => {
-    const page = rows.map(formatThread)
+    const page = rows.flatMap(row => {
+      const thread = formatThread(row)
+      return thread ? [thread] : []
+    })
     setThreads(prev => {
       if (reset) return page
       const pageIds = new Set(page.map(t => t.id))
@@ -123,7 +130,10 @@ export function useAdminThreads() {
     if (queryError) {
       setError(queryError)
     } else {
-      const older = (data as Record<string, unknown>[]).map(formatThread)
+      const older = (data as Record<string, unknown>[]).flatMap(row => {
+        const thread = formatThread(row)
+        return thread ? [thread] : []
+      })
       setThreads(prev => {
         const existing = new Set(prev.map(t => t.id))
         return [...prev, ...older.filter(t => !existing.has(t.id))]

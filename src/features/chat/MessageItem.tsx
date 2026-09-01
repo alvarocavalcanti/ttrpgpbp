@@ -2,7 +2,7 @@ import { Avatar } from '../../components/Avatar';
 import { SignedImg } from '../../components/SignedImg';
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { Markdown } from '../../components/Markdown'
-import { linkifyDice } from '../dice/parser'
+import { linkifyDice, isValidDiceNotation } from '../dice/parser'
 import { getSystemAttributes, clampModifier } from '../../game-systems'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
@@ -147,6 +147,10 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             type="button"
             onClick={(e) => {
               e.preventDefault()
+              // Validate at the click site: a hand-crafted `dice:` href with
+              // invalid notation would otherwise mint a misleading "Rolling"
+              // bubble before the server rejects it.
+              if (!isValidDiceNotation(notation)) return
               onRollDice?.(notation, message.id)
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer border border-indigo-200 dark:border-indigo-800 shadow-sm"

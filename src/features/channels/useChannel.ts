@@ -4,6 +4,7 @@ import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import { subscribeWithRetry } from '../../lib/realtime'
 import { toError } from '../../lib/errors'
+import { ChannelMemberRowSchema, ChannelRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -80,10 +81,15 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
 
       // The join to profiles might return an array if not configured correctly,
       // but our schema links user_id to profiles(id) uniquely.
-      const formattedMembers = (membersResponse.data ?? []).map(m => ({
-        ...m,
-        profile: Array.isArray(m.profile) ? m.profile[0] : m.profile
-      })) as ChannelMember[]
+      const formattedMembers = (membersResponse.data ?? []).flatMap(m => {
+        const member = parseRow(ChannelMemberRowSchema, m)
+        if (!member) return [] // malformed row — drop it, keep the rest usable
+        return [{
+          ...m,
+          ...member,
+          profile: normalizeProfileRef(m.profile)
+        } as ChannelMember]
+      })
 
       if (mounted) {
         // channel_secrets is GM-only (RLS); non-GMs get no row.
@@ -101,7 +107,9 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
       try {
         const channelResponse = await supabase.from('channels').select('*').eq('id', channelId as string).single()
         if (channelResponse.error) throw channelResponse.error
-        if (mounted) setChannel(channelResponse.data)
+        const parsedChannel = parseRow(ChannelRowSchema, channelResponse.data)
+        if (!parsedChannel) throw new Error('Channel data failed validation.')
+        if (mounted) setChannel(parsedChannel as Channel)
 
         const formattedMembers = await loadMembers()
         if (!mounted) return
@@ -134,7 +142,8 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         filter: `id=eq.${channelId}`
       }, (payload) => {
         if (mounted) {
-          setChannel(prev => prev ? { ...prev, ...payload.new } as Channel : prev)
+          const next = parseRow(ChannelRowSchema, payload.new)
+          if (next) setChannel(prev => prev ? { ...prev, ...next } as Channel : prev)
         }
       })
       .on('postgres_changes', {
@@ -169,7 +178,8 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
           const oldId = (payload.old as { id?: string } | null)?.id
           if (oldId) setMembers(prev => prev.filter(m => m.id !== oldId))
         } else {
-          setMembers(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m))
+          const next = parseRow(ChannelMemberRowSchema, payload.new)
+          if (next) setMembers(prev => prev.map(m => m.id === next.id ? { ...m, ...next } : m))
         }
       })
     const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}`, (status) => {

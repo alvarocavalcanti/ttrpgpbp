@@ -2,13 +2,17 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { subscribeWithRetry } from '../../lib/realtime'
 import type { Message } from './types'
+import { AdminMessageRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 const PAGE_SIZE = 50
 
-function formatMessage(row: Record<string, unknown>): Message {
+function formatMessage(row: Record<string, unknown>): Message | null {
+  const parsed = parseRow(AdminMessageRowSchema, row)
+  if (!parsed) return null
   return {
     ...row,
-    sender: Array.isArray(row.sender) ? row.sender[0] : row.sender
+    ...parsed,
+    sender: normalizeProfileRef(parsed.sender)
   } as Message
 }
 
@@ -43,7 +47,10 @@ export function useAdminMessages(threadId: string | undefined) {
   // change); otherwise the newest rows merge by id over the cached list so a
   // realtime refresh or Retry keeps older pages the user already loaded.
   const applyNewestPage = useCallback((rows: Record<string, unknown>[], reset: boolean) => {
-    const fetched = rows.map(formatMessage)
+    const fetched = rows.flatMap(row => {
+      const message = formatMessage(row)
+      return message ? [message] : []
+    })
     setMessages(prev => {
       if (reset) return fetched.reverse()
       const fetchedIds = new Set(fetched.map(m => m.id))
@@ -115,7 +122,10 @@ export function useAdminMessages(threadId: string | undefined) {
     if (queryError) {
       setError(queryError)
     } else {
-      const older = (data as Record<string, unknown>[]).map(formatMessage).reverse()
+      const older = (data as Record<string, unknown>[]).flatMap(row => {
+        const message = formatMessage(row)
+        return message ? [message] : []
+      }).reverse()
       setMessages(prev => {
         const existing = new Set(prev.map(m => m.id))
         return [...older.filter(m => !existing.has(m.id)), ...prev]

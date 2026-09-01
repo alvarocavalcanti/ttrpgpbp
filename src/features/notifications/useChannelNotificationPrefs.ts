@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { toError } from '../../lib/errors'
+import { ChannelNotificationPrefsSchema, parseRow } from '../validation/rowSchemas'
 
 export interface ChannelNotificationPrefs {
   notify_all_messages: boolean
@@ -41,11 +42,9 @@ export function useChannelNotificationPrefs(channelId: string | undefined, myMem
         if (fetchError) throw fetchError
 
         if (mounted && data) {
-          setPrefs({
-            notify_all_messages: data.notify_all_messages,
-            notify_gm_messages: data.notify_gm_messages,
-            notify_turn: data.notify_turn
-          })
+          const parsed = parseRow(ChannelNotificationPrefsSchema, data)
+          // Malformed prefs fall back to defaults instead of poisoning state.
+          if (parsed) setPrefs(parsed)
         }
       } catch (err) {
         console.error('Error fetching notification prefs:', err)

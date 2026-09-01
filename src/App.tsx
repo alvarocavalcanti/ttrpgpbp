@@ -1,6 +1,7 @@
 import { Avatar } from './components/Avatar';
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import type { ReactNode } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { useAuth } from './features/auth/useAuth'
@@ -11,6 +12,7 @@ import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
 import { ScrollToTop } from './components/ScrollToTop'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { trackPageView } from './lib/analytics'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -52,6 +54,15 @@ function RouteTracker() {
   }, [pathname])
 
   return null
+}
+
+// Per-navigation error boundary: a crash inside a lazy route (e.g. ChannelView)
+// shows the fallback but leaves the nav bar and rest of the app intact. The
+// pathname key remounts the boundary on every route change so the fallback
+// never sticks across navigation.
+export function RouteErrorBoundary({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>
 }
 
 function AppNav() {
@@ -245,6 +256,7 @@ export default function App() {
                     <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 }>
+                <RouteErrorBoundary>
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     
@@ -265,7 +277,8 @@ export default function App() {
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </Suspense>
+                </RouteErrorBoundary>
+              </Suspense>
               </main>
             </div>
           </ChangelogProvider>

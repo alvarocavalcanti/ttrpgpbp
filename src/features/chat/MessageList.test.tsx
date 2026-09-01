@@ -293,28 +293,71 @@ describe('MessageList scroll anchoring', () => {
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 300)
   })
 
-  it('scrolls to the oldest unread message when the app returns to the foreground', () => {
-    const msgs: any[] = [
-      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
-      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
-    ]
-    render(
-      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
-    )
-    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+  it('restores the scroll position the browser dropped while hidden', () => {
+    const setVisibility = (state: string) =>
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
 
-    document.dispatchEvent(new Event('visibilitychange'))
-
-    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
-  })
-
-  it('scrolls to the bottom on restore when there are no unread messages', () => {
     scrollHeight = 1000
     const { container } = render(
       <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
     )
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
+
+    // User scrolled up into history before backgrounding.
+    ;(container.firstChild as HTMLElement).scrollTop = 300
+    fireEvent.scroll(container.firstChild as HTMLElement)
+    setVisibility('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    // The browser resets the scroll position while the app is hidden
+    // (mobile Safari behavior).
     ;(container.firstChild as HTMLElement).scrollTop = 0
 
+    setVisibility('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    // Position is restored, not re-anchored to the bottom or divider.
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 300)
+    setVisibility('visible')
+  })
+
+  it('preserves the scroll position on restore while the user is reading history', () => {
+    const setVisibility = (state: string) =>
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
+
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    ;(container.firstChild as HTMLElement).scrollTop = 300
+    fireEvent.scroll(container.firstChild as HTMLElement)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    setVisibility('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    setVisibility('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 300)
+  })
+
+  it('does not scroll again on restore when the position was preserved', () => {
+    const setVisibility = (state: string) =>
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
+
+    scrollHeight = 1000
+    const { container } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    ;(container.firstChild as HTMLElement).scrollTop = 1000
+
+    setVisibility('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    setVisibility('visible')
     document.dispatchEvent(new Event('visibilitychange'))
 
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)

@@ -24,12 +24,14 @@ export default defineConfig({
       filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // No bare `png` here: it would precache every help screenshot
+        // (~3.4 MiB). Help images load from the network on first visit.
+        globPatterns: ['**/*.{js,css,html,ico,svg}'],
         buildPlugins: {
           rollup: [swOutputCompat],
         },
       },
-      includeAssets: ['favicon.svg', 'icons.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json', 'help/*.png'],
+      includeAssets: ['favicon.svg', 'icons.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.json'],
       manifest: false,
     })
   ],

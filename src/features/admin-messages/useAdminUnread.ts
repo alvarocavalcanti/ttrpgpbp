@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { subscribeWithRetry } from '../../lib/realtime'
 import { useAuth } from '../auth/useAuth'
+import { RpcCountSchema, parseRow } from '../validation/rowSchemas'
 
 export function useAdminUnread() {
   const { user } = useAuth()
@@ -15,7 +16,8 @@ export function useAdminUnread() {
       
       const { data, error } = await supabase.rpc('get_admin_unread_count', { p_user_id: user.id })
       if (!error && mounted) {
-        setUnreadCount(data || 0)
+        const count = parseRow(RpcCountSchema, data)
+        setUnreadCount(count ?? 0)
       }
     }
 

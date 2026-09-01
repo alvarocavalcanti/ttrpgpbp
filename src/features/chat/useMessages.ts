@@ -445,6 +445,19 @@ export function useMessages(channelId: string | undefined) {
     if (!channelId || !user) return
     if (payload.content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
 
+    // Double-send guard: a re-submit while the same payload is still pending
+    // (double-click, flaky-network resubmit) would mint a fresh
+    // client_request_id and post twice inside the confirmation window. The
+    // pending bubble already carries the in-flight request — reuse it.
+    const duplicate = messages.find(m =>
+      m.pending && !m.error &&
+      m.type === payload.type &&
+      m.content === payload.content &&
+      (m.whisper_to ?? null) === (payload.whisper_to ?? null) &&
+      (m.reply_to ?? null) === (payload.reply_to ?? null)
+    )
+    if (duplicate) return
+
     const clientRequestId = crypto.randomUUID()
 
     const optimisticMsg: Message = {
@@ -496,7 +509,7 @@ export function useMessages(channelId: string | undefined) {
       // user can retry; client_request_id keeps the retry idempotent.
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Message was not confirmed. Tap retry to resend.' } : m))
     }
-  }, [channelId, user])
+  }, [channelId, user, messages])
 
   const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
     if (!channelId || !user) return
@@ -504,6 +517,12 @@ export function useMessages(channelId: string | undefined) {
 
     const clientRequestId = crypto.randomUUID()
     const content = warning ? `Rolling \`${notation}\`\n\n${warning}` : `Rolling \`${notation}\``
+
+    // Double-send guard: same rationale as sendMessage — a second click on a
+    // `dice:` link while the roll bubble is still pending reuses that request
+    // instead of minting a fresh client_request_id.
+    const duplicate = messages.find(m => m.pending && !m.error && m.type === 'dice_roll' && m.content === content)
+    if (duplicate) return
 
     const optimisticMsg: Message = {
       id: clientRequestId,
@@ -549,7 +568,7 @@ export function useMessages(channelId: string | undefined) {
     } else {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Roll was not confirmed. Tap retry to reroll.' } : m))
     }
-  }, [channelId, user])
+  }, [channelId, user, messages])
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)

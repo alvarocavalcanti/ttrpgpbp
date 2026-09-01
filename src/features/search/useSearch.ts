@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useDebounce } from '../../hooks/useDebounce'
 import { toError } from '../../lib/errors'
+import { SearchMessageRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
@@ -44,10 +45,11 @@ export function useSearch(channelId: string) {
 
         if (searchError) throw searchError
         
-        const normalizedData = (data || []).map(msg => ({
-          ...msg,
-          sender: Array.isArray(msg.sender) ? msg.sender[0] : msg.sender
-        }))
+        const normalizedData = (data || []).flatMap(msg => {
+          const row = parseRow(SearchMessageRowSchema, msg)
+          if (!row) return [] // malformed row — drop it from the results
+          return [{ ...msg, ...row, sender: normalizeProfileRef(msg.sender) } as Message]
+        })
 
         if (mounted) {
           setResults(normalizedData as Message[])
