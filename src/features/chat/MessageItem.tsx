@@ -525,7 +525,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             onClose={() => setCheckDraft(null)}
           />
         )}
-        {actions.length > 0 && (
+        {!message.is_deleted && !message.pending && !isEditing && actions.length > 0 && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             <div className="hidden sm:flex items-center gap-1">{actionIcons}</div>
             {mobileMenuButton}
