@@ -29,4 +29,27 @@ describe('useEscapeToClose', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('only closes the topmost modal when modals are nested', () => {
+    const closeParent = vi.fn()
+    const closeChild = vi.fn()
+    // Parent mounts first (registered first, like ChannelSettings -> ConfirmDialog).
+    const parent = renderHook(() => useEscapeToClose(closeParent))
+    const child = renderHook(() => useEscapeToClose(closeChild))
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeChild).toHaveBeenCalledTimes(1)
+    expect(closeParent).not.toHaveBeenCalled()
+
+    // After the child closes (unmounts), Escape reaches the parent again.
+    child.unmount()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeParent).toHaveBeenCalledTimes(1)
+
+    // And after the parent closes too, neither fires.
+    parent.unmount()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeParent).toHaveBeenCalledTimes(1)
+    expect(closeChild).toHaveBeenCalledTimes(1)
+  })
 })

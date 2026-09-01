@@ -113,6 +113,29 @@ describe('MessageItem', () => {
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
   })
 
+  it('hides scene action row for a deleted scene message, even for the GM', () => {
+    const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u1', is_deleted: true }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Message actions')).not.toBeInTheDocument()
+  })
+
+  it('hides scene action row while a scene message is pending', () => {
+    const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u1', pending: true }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Message actions')).not.toBeInTheDocument()
+  })
+
+  it('hides scene action row while editing', () => {
+    const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u1' }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn().mockResolvedValue(undefined)} onDelete={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Edit'))
+    expect(screen.getByDisplayValue('You enter a dark tavern')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Message actions')).not.toBeInTheDocument()
+  })
+
   it('allows replying to a scene message', () => {
     const mockOnReply = vi.fn()
     const msg: any = { id: 's1', type: 'scene', content: 'You enter a dark tavern', created_at: new Date().toISOString(), sender_id: 'u2' }
