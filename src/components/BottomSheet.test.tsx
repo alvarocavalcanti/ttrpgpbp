@@ -35,4 +35,18 @@ describe('BottomSheet', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('traps focus inside the sheet', () => {
+    render(
+      <BottomSheet title="Options" onClose={vi.fn()}>
+        <button type="button">Only action</button>
+      </BottomSheet>
+    )
+    // Initial focus moves into the sheet (close button is first focusable).
+    expect(screen.getByLabelText('Close options')).toHaveFocus()
+    // Tab from the last focusable wraps back to the first.
+    screen.getByRole('button', { name: 'Only action' }).focus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(screen.getByLabelText('Close options')).toHaveFocus()
+  })
 })

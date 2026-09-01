@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { fetchAllRows } from '../../lib/supabasePagination'
@@ -11,6 +11,7 @@ import { useChannelAvatar } from './useChannelAvatar'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { SignedImg } from '../../components/SignedImg'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import {
   MAX_CHANNEL_NAME_LENGTH,
   MAX_SAFETY_TEXT_LENGTH,
@@ -27,7 +28,9 @@ interface ChannelSettingsProps {
 }
 
 export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUrlProp = null, onClose, onUpdate }: ChannelSettingsProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [name, setName] = useState(channel.name)
@@ -258,7 +261,7 @@ setIsSubmitting(true)
   }
 
   return (
-    <div className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div ref={dialogRef} className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 

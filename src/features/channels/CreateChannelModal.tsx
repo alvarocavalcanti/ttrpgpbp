@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
@@ -8,6 +8,7 @@ import { MAX_CHANNELS_PER_USER, MAX_CHANNEL_NAME_LENGTH } from '../../constants'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface CreateChannelModalProps {
   onClose: () => void
@@ -16,7 +17,9 @@ interface CreateChannelModalProps {
 export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const { user, profile } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const navigate = useNavigate()
   const { value: maxChannels } = useAppSetting<number>('max_channels_per_user', MAX_CHANNELS_PER_USER)
   
@@ -81,7 +84,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   }
 
   return (
-    <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div ref={dialogRef} className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 

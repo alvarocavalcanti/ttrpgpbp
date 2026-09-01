@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { getChannelHelp, type HelpEntry } from './helpContent'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface ChannelHelpModalProps {
   onClose: () => void
@@ -10,7 +11,9 @@ interface ChannelHelpModalProps {
 export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
   const entries = getChannelHelp()
   const [selected, setSelected] = useState<HelpEntry | null>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
 
   const active = selected ?? entries[0]
 
@@ -18,6 +21,7 @@ export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80">
       <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
+        ref={dialogRef}
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="Channel help"

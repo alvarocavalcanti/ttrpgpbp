@@ -1,11 +1,12 @@
 import { Avatar } from '../../components/Avatar';
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Database } from '../../types/database'
 import { useChannelNpcs } from './useChannelNpcs'
 import { IconPicker } from '../chat/IconPicker'
 import { randomNpcIconUrl, isNpcIconUrl } from '../chat/npcIcons'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useToast } from '../../contexts/ToastContext'
 import { MAX_NPC_NAME_LENGTH } from '../../constants'
 
@@ -20,7 +21,9 @@ interface NpcManagementModalProps {
 // GM-only roster management: rename, re-picture, delete, or add NPCs.
 // RLS already restricts channel_npcs writes to the channel GM.
 export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManagementModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const { addToast } = useToast()
   const { npcs, loading, error, refetch, createNpc, renameNpc, repictureNpc, deleteNpc } = useChannelNpcs(channelId)
   const { uploadEnabled, settingsLoading, uploading, uploadImage } = useImageUpload(channelId)
@@ -103,6 +106,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80">
       <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
+        ref={dialogRef}
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="Manage NPCs"
