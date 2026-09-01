@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -423,7 +424,7 @@ describe('useChannel', () => {
     const mockOn = vi.fn().mockImplementation(() => ({ on: mockOn, subscribe: mockSubscribe }))
     vi.mocked(supabase.channel).mockImplementation(() => {
       const on = vi.fn().mockReturnThis()
-      return { on, subscribe: (cb: (status: string) => void) => { statusCb = cb; cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } } }
+      return { on, subscribe: (cb: (status: string) => void) => { statusCb = cb; cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } } } as unknown as RealtimeChannel
     })
 
     renderHook(() => useChannel('c1'))
