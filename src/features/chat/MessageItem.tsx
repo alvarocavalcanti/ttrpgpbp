@@ -3,7 +3,9 @@ import { SignedImg } from '../../components/SignedImg';
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { linkifyDice, isValidDiceNotation } from '../dice/parser'
-import { getSystemAttributes, clampModifier } from '../../game-systems'
+import { getSystemAttributes, clampModifier, getModifierLimits } from '../../game-systems'
+import { BottomSheet } from '../../components/BottomSheet'
+import { ModifierInput } from '../../components/ModifierInput'
 import { EmojiPicker } from './EmojiPicker'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage, Member } from './types'
@@ -29,6 +31,7 @@ interface MessageItemProps {
   onXCard?: (messageId: string) => void
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
+  onEditCharacter?: () => void
 }
 
 function snippet(text: string): string {
@@ -66,11 +69,88 @@ function urlTransform(url: string): string {
   return ''
 }
 
-export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard, onRetry, onRemovePending }: MessageItemProps) {
+type CheckAdvDis = 'adv' | 'dis' | null
+
+interface CheckDraft {
+  ability: string
+  dc: number | null
+  advDis: CheckAdvDis
+  modifier: string
+  missing: boolean
+}
+
+interface CheckSheetProps {
+  draft: CheckDraft
+  gameSystem: string
+  onModifierChange: (value: string) => void
+  onAdvDisChange: (value: CheckAdvDis) => void
+  onEditCharacter?: () => void
+  onRoll: () => void
+  onClose: () => void
+}
+
+// Styled replacement for the old window.prompt flow when tapping an ability
+// check chip: modifier pre-filled from the profile, Adv/Dis toggle, Roll/Cancel.
+function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEditCharacter, onRoll, onClose }: CheckSheetProps) {
+  const limits = getModifierLimits(gameSystem)
+  const segmentBtn = (selected: boolean) =>
+    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+  const advBtn = (selected: boolean) =>
+    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-green-100 dark:bg-green-900 shadow-sm font-medium text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+  const disBtn = (selected: boolean) =>
+    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-red-100 dark:bg-red-900 shadow-sm font-medium text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+
+  return (
+    <BottomSheet title={`Roll ${draft.ability} Check${draft.dc ? ` (DC ${draft.dc})` : ''}`} onClose={onClose}>
+      <label htmlFor="check-modifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Modifier
+      </label>
+      <ModifierInput attr="check-modifier" value={draft.modifier} onChange={onModifierChange} min={limits.min} max={limits.max} />
+      {draft.missing && (
+        <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+          {draft.ability} modifier missing in your character profile.{' '}
+          {onEditCharacter && (
+            <button
+              type="button"
+              onClick={onEditCharacter}
+              className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              Set it in your character sheet
+            </button>
+          )}
+        </p>
+      )}
+      <div className="mt-4 flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-md">
+        <button type="button" onClick={() => onAdvDisChange(null)} className={segmentBtn(draft.advDis === null)}>Normal</button>
+        <button type="button" onClick={() => onAdvDisChange('adv')} className={advBtn(draft.advDis === 'adv')}>Adv</button>
+        <button type="button" onClick={() => onAdvDisChange('dis')} className={disBtn(draft.advDis === 'dis')}>Dis</button>
+      </div>
+      <div className="mt-4 flex space-x-2">
+        <button
+          type="button"
+          onClick={onRoll}
+          className="flex-1 flex justify-center py-1.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Roll
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 flex justify-center py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          Cancel
+        </button>
+      </div>
+    </BottomSheet>
+  )
+}
+
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard, onRetry, onRemovePending, onEditCharacter }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkDraft, setCheckDraft] = useState<CheckDraft | null>(null)
   const itemRef = useRef<HTMLDivElement>(null)
 
   const senderName = message.npc_name || members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
@@ -135,6 +215,27 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     onToggleReaction?.(message.id, emoji)
   }
 
+  // Rolls the pending check from the CheckSheet with the same notation rules
+  // as before: kh1/kl1 for adv/dis, clamped modifier, warning kept out of the
+  // notation when the profile attribute is missing.
+  const rollCheck = () => {
+    if (!checkDraft) return
+    const { ability, dc, advDis, modifier, missing } = checkDraft
+    const parsed = /^-?\d+$/.test(modifier.trim()) ? parseInt(modifier.trim(), 10) : 0
+    const finalModifier = clampModifier(gameSystem, parsed)
+    const sign = finalModifier >= 0 ? '+' : ''
+    const dice = advDis ? `2d20${advDis === 'adv' ? 'kh1' : 'kl1'}` : '1d20'
+    const notation = `${dice}${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
+    const warning = missing ? `*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
+    onRollDice?.(notation, message.id, warning || undefined, dc ?? undefined)
+    setCheckDraft(null)
+  }
+
+  const handleEditCharacter = () => {
+    setCheckDraft(null)
+    onEditCharacter?.()
+  }
+
   // Recreate renderers only when the values the closures capture change, so
   // local re-renders (e.g. editing) don't hand ReactMarkdown a new `components`
   // reference and force a markdown re-parse.
@@ -172,42 +273,22 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             type="button"
             onClick={(e) => {
               e.preventDefault()
-              let finalModifier: number | null = null
-              let isMissingMod = false
-              
-              if (systemAttributes.includes(ability)) {
-                const myMember = members?.find(m => m.user_id === currentUserId)
-                const myAttributes = myMember?.attributes || {}
-                
-                if (typeof myAttributes[ability] === 'number') {
-                  finalModifier = myAttributes[ability]
-                } else {
-                  isMissingMod = true
-                  const modifierStr = window.prompt(`Enter modifier for ${ability} Check (Missing in profile!):`, '0')
-                  if (modifierStr !== null) {
-                    finalModifier = parseInt(modifierStr, 10) || 0
-                  }
-                }
-              } else {
-                const modifierStr = window.prompt(`Enter modifier for ${ability} Check:`, '0')
-                if (modifierStr !== null) {
-                  finalModifier = parseInt(modifierStr, 10) || 0
-                }
-              }
-
-              if (finalModifier !== null) {
-                finalModifier = clampModifier(gameSystem, finalModifier)
-                const sign = finalModifier >= 0 ? '+' : ''
-                // Advantage/disadvantage rolls a second d20 and keeps the best
-                // (kh1) or worst (kl1).
-                const dice = advDis ? `2d20${advDis === 'adv' ? 'kh1' : 'kl1'}` : '1d20'
-                // Keep the explanatory warning out of the notation; the roll
-                // command would reject it. It is passed separately and appended
-                // to the message content by the server.
-                const notation = `${dice}${finalModifier !== 0 ? `${sign}${finalModifier}` : ''}`
-                const warning = isMissingMod ? `*⚠️ Missing ${ability} modifier in character profile. Result may require manual math if not entered correctly.*` : ''
-                onRollDice?.(notation, message.id, warning || undefined, dc ?? undefined)
-              }
+              // Pre-fill the sheet from the profile; a missing (or unknown)
+              // ability attribute falls back to 0 and flags the missing state.
+              const myMember = members?.find(m => m.user_id === currentUserId)
+              const attrValue = systemAttributes.includes(ability)
+                ? myMember?.attributes?.[ability]
+                : undefined
+              // Only flag missing (link + roll warning) when the ability is a
+              // real system attribute that the profile lacks, matching the
+              // old prompt flow's warning behavior.
+              setCheckDraft({
+                ability,
+                dc,
+                advDis,
+                modifier: typeof attrValue === 'number' ? String(attrValue) : '0',
+                missing: systemAttributes.includes(ability) && typeof attrValue !== 'number',
+              })
             }}
             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800 shadow-sm"
             title={`Roll ${ability} Check${dc ? ` (DC ${dc})` : ''}${advDis ? ` with ${advDis === 'adv' ? 'Advantage' : 'Disadvantage'}` : ''}`}
@@ -344,6 +425,17 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}
         </div>
+        {checkDraft && (
+          <CheckSheet
+            draft={checkDraft}
+            gameSystem={gameSystem}
+            onModifierChange={(value) => setCheckDraft(d => d ? { ...d, modifier: value } : d)}
+            onAdvDisChange={(value) => setCheckDraft(d => d ? { ...d, advDis: value } : d)}
+            onEditCharacter={onEditCharacter ? handleEditCharacter : undefined}
+            onRoll={rollCheck}
+            onClose={() => setCheckDraft(null)}
+          />
+        )}
         {!message.is_deleted && !message.pending && !isEditing && (onReply || canEdit || isGM) && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             {onReply && (
@@ -514,6 +606,17 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}
         </div>
+        {checkDraft && (
+          <CheckSheet
+            draft={checkDraft}
+            gameSystem={gameSystem}
+            onModifierChange={(value) => setCheckDraft(d => d ? { ...d, modifier: value } : d)}
+            onAdvDisChange={(value) => setCheckDraft(d => d ? { ...d, advDis: value } : d)}
+            onEditCharacter={onEditCharacter ? handleEditCharacter : undefined}
+            onRoll={rollCheck}
+            onClose={() => setCheckDraft(null)}
+          />
+        )}
 
         {!message.is_deleted && !message.pending && !isEditing && (
           <div className="mt-1 flex items-center gap-0.5">

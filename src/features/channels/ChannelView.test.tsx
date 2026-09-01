@@ -307,7 +307,6 @@ describe('ChannelView search functionality', () => {
       gmOnlyResourcesUrl: null,
       refetch: vi.fn()
     } as any)
-    const promptSpy = vi.spyOn(window, 'prompt')
 
     render(
       <ToastProvider>
@@ -322,11 +321,11 @@ describe('ChannelView search functionality', () => {
     const checkBtn = await screen.findByRole('button', { name: /STR Check/ })
     fireEvent.click(checkBtn)
 
-    // The projected member carries the STR:3 attribute, so the stored modifier
-    // is reused instead of prompting.
-    expect(promptSpy).not.toHaveBeenCalled()
+    // The projected member carries the STR:3 attribute, so the check sheet
+    // pre-fills the modifier from the profile and rolls with it.
+    expect(screen.getByLabelText('Modifier')).toHaveValue('3')
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockSendDiceRoll).toHaveBeenCalledWith('1d20+3', 'msg1', undefined, undefined)
-    promptSpy.mockRestore()
   })
 
   it('shows an archived banner and hides the composer for archived channels', async () => {

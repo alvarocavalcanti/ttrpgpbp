@@ -191,85 +191,88 @@ describe('MessageItem', () => {
 
   it('handles ability checks and sends dice roll', async () => {
     const mockOnRollDice = vi.fn()
-    vi.spyOn(window, 'prompt').mockReturnValue('3') // +3 modifier
 
-    const msg: any = { 
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
-    
+
     const checkBtn = await screen.findByRole('button', { name: 'STR Check' })
     fireEvent.click(checkBtn)
-    
-    expect(window.prompt).toHaveBeenCalledWith('Enter modifier for STR Check:', '0')
+    // Sheet opens with modifier pre-filled to 0; user types +3 and rolls.
+    fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1', undefined, undefined)
   })
 
   it('handles ability checks with negative modifiers', async () => {
     const mockOnRollDice = vi.fn()
-    vi.spyOn(window, 'prompt').mockReturnValue('-2') 
 
-    const msg: any = { 
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Make a DEX Check',
       sender: { display_name: 'GM' }
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
-    
+
     fireEvent.click(screen.getByRole('button', { name: 'DEX Check' }))
+    fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '-2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1', undefined, undefined)
   })
 
   it('handles ability checks with zero modifiers', async () => {
     const mockOnRollDice = vi.fn()
-    vi.spyOn(window, 'prompt').mockReturnValue('0') 
 
-    const msg: any = { 
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     
     fireEvent.click(await screen.findByRole('button', { name: 'STR Check' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined, undefined)
   })
 
-  it('handles ability checks with invalid modifiers', async () => {
+  it('treats non-numeric modifier input as 0', async () => {
     const mockOnRollDice = vi.fn()
-    vi.spyOn(window, 'prompt').mockReturnValue('abc') 
 
-    const msg: any = { 
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
-    
+
     fireEvent.click(await screen.findByRole('button', { name: 'STR Check' }))
+    fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: 'abc' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1', undefined, undefined)
   })
 
-  it('handles ability checks when prompt is cancelled', async () => {
+  it('does not roll when the check sheet is cancelled', async () => {
     const mockOnRollDice = vi.fn()
-    vi.spyOn(window, 'prompt').mockReturnValue(null) // user clicked cancel
 
-    const msg: any = { 
+    const msg: any = {
       id: 'm1',
-      type: 'regular', 
+      type: 'regular',
       content: 'Make a STR Check',
       sender: { display_name: 'GM' }
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
-    
+
     fireEvent.click(await screen.findByRole('button', { name: 'STR Check' }))
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
     expect(mockOnRollDice).not.toHaveBeenCalled()
   })
 
@@ -497,14 +500,17 @@ describe('MessageItem', () => {
   })
 
   it('renders check correctly for Shadowdark missing modifier', async () => {
-    vi.stubGlobal('prompt', vi.fn().mockReturnValue('3'))
     const mockOnRoll = vi.fn()
     const msg = { id: 'm1', type: 'scene', content: '[DEX Check](check:DEX)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} onEditCharacter={vi.fn()} />)
     fireEvent.click(screen.getByText('DEX Check'))
+    // Missing modifier opens the sheet pre-filled to 0 and shows the
+    // character-sheet link.
+    expect(screen.getByText('Set it in your character sheet')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     // Warning stays out of the notation (which the parser must accept) and is
     // passed as a separate third argument.
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+3', 'm1', expect.stringContaining('Missing DEX modifier'), undefined)
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20', 'm1', expect.stringContaining('Missing DEX modifier'), undefined)
   })
 
   it('renders check correctly for Shadowdark with modifier', async () => {
@@ -512,6 +518,9 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 4 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
+    // Sheet pre-fills the modifier from the member profile.
+    expect(screen.getByLabelText('Modifier')).toHaveValue('4')
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined, undefined)
   })
 
@@ -520,6 +529,7 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 7 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+4', 'm1', undefined, undefined)
   })
 
@@ -528,37 +538,62 @@ describe('MessageItem', () => {
     const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: -6 }}]} />)
     fireEvent.click(screen.getByText('STR Check'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20-4', 'm1', undefined, undefined)
   })
 
   it('passes the called-out DC to onRollDice for DC checks', async () => {
-    vi.stubGlobal('prompt', vi.fn().mockReturnValue('2'))
     const mockOnRoll = vi.fn()
     const msg = { id: 'm1', type: 'scene', content: 'Make a DC 12 DEX Check', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { DEX: 2 }}]} />)
     expect(screen.getByText('DEX Check (DC 12)')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'DEX Check (DC 12)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+2', 'm1', undefined, 12)
   })
 
   it('rolls 2d20kh1 when a check carries advantage', async () => {
-    vi.stubGlobal('prompt', vi.fn().mockReturnValue('1'))
     const mockOnRoll = vi.fn()
     const msg = { id: 'm1', type: 'scene', content: 'Make an INT Check with advantage', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} />)
     expect(screen.getByText('INT Check with advantage')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'INT Check with advantage' }))
+    fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kh1+1', 'm1', expect.stringContaining('Missing INT modifier'), undefined)
   })
 
   it('rolls 2d20kl1 and forwards the DC when a DC check carries disadvantage', async () => {
-    vi.stubGlobal('prompt', vi.fn().mockReturnValue('0'))
     const mockOnRoll = vi.fn()
     const msg = { id: 'm1', type: 'scene', content: 'Make a DC 12 DEX Check with disadvantage', created_at: new Date().toISOString(), sender_id: 'u1' } as any
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { DEX: 2 }}]} />)
     expect(screen.getByText('DEX Check (DC 12) with disadvantage')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'DEX Check (DC 12) with disadvantage' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kl1+2', 'm1', undefined, 12)
+  })
+
+  it('switches to advantage from the check sheet and rolls 2d20kh1', async () => {
+    const mockOnRoll = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: { STR: 2 }}]} />)
+    fireEvent.click(screen.getByText('STR Check'))
+    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d20kh1+2', 'm1', undefined, undefined)
+  })
+
+  it('deep-links the missing-modifier state to Edit Character', async () => {
+    const mockOnRoll = vi.fn()
+    const mockOnEditCharacter = vi.fn()
+    const msg = { id: 'm1', type: 'scene', content: '[DEX Check](check:DEX)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRoll} gameSystem="shadowdark" members={[{user_id: 'u1', character_name: 'test', attributes: {}}]} onEditCharacter={mockOnEditCharacter} />)
+    fireEvent.click(screen.getByText('DEX Check'))
+    fireEvent.click(screen.getByText('Set it in your character sheet'))
+    expect(mockOnEditCharacter).toHaveBeenCalled()
+    expect(mockOnRoll).not.toHaveBeenCalled()
+    // Sheet closes after deep-linking.
+    expect(screen.queryByRole('button', { name: 'Roll' })).not.toBeInTheDocument()
   })
 
   it('renders a successful check result in green with a Success badge', () => {

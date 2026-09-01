@@ -16,7 +16,7 @@ interface MessageListProps {
   isGM: boolean
   onEdit: (id: string, newContent: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onRollDice?: (notation: string, replyToId?: string, warning?: string) => void
+  onRollDice?: (notation: string, replyToId?: string, warning?: string, dc?: number | null) => void
   highlightMessageId?: string | null
   members?: Member[]
   gameSystem?: string
@@ -28,13 +28,14 @@ interface MessageListProps {
   onXCard?: (messageId: string) => void
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
+  onEditCharacter?: () => void
   error?: Error | null
   hasMore?: boolean
   loadingOlder?: boolean
   onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, onRetry, onRemovePending, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, onRetry, onRemovePending, onEditCharacter, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -244,10 +245,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               reactions={reactionsByMessage?.[message.id]}
               onToggleReaction={onToggleReaction}
               onReply={onReply}
-                onJumpToMessage={onJumpToMessage}
-                onXCard={onXCard}
-                onRetry={onRetry}
-                onRemovePending={onRemovePending}
+              onJumpToMessage={onJumpToMessage}
+              onXCard={onXCard}
+              onRetry={onRetry}
+              onEditCharacter={onEditCharacter}
+              onRemovePending={onRemovePending}
               />
             </Fragment>
         )
