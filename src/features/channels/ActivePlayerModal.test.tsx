@@ -94,4 +94,13 @@ describe('ActivePlayerModal', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('traps focus inside the dialog', () => {
+    render(<ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={vi.fn()} onSaved={vi.fn()} />)
+    // Initial focus moves into the dialog (close button is first focusable)
+    // and Tab wraps back to it from the last focusable element.
+    expect(screen.getByLabelText('Close active player')).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(screen.getByLabelText('Close active player')).toHaveFocus()
+  })
 })

@@ -3,6 +3,8 @@
     "desync",
     "dismissable",
     "fkey",
+    "focusable",
+    "focusables",
     "frontmatter",
     "grayscale",
     "iconify",

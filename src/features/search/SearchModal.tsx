@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useSearch } from './useSearch'
 import { Markdown } from '../../components/Markdown'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface SearchModalProps {
   channelId: string
@@ -10,18 +12,16 @@ interface SearchModalProps {
 
 export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModalProps) {
   const { searchTerm, setSearchTerm, results, loading, error } = useSearch(channelId)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     // Focus input on mount
     inputRef.current?.focus()
-    
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [onClose])
+  }, [])
+
+  useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
 
   const handleResultClick = (messageId: string) => {
     if (onJumpToMessage) {
@@ -31,7 +31,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div ref={dialogRef} className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 

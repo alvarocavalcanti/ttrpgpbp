@@ -1,4 +1,6 @@
+import { useRef } from 'react'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface BottomSheetProps {
   title: string
@@ -9,10 +11,12 @@ interface BottomSheetProps {
 // Mobile bottom sheet used to surface the composer's extra options without
 // pushing the message input out of view. Closes on backdrop tap or Escape.
 export function BottomSheet({ title, onClose, children }: BottomSheetProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title}>
+    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title}>
       <div
         className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity"
         aria-hidden="true"

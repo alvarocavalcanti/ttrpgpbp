@@ -1,6 +1,8 @@
+import { useRef } from 'react'
 import { useChannelNotificationPrefs } from './useChannelNotificationPrefs'
 import { usePushNotifications } from '../auth/usePushNotifications'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface ChannelNotificationSettingsModalProps {
   channelId: string
@@ -17,13 +19,16 @@ const TOGGLES = [
 export function ChannelNotificationSettingsModal({ channelId, myMemberId, onClose }: ChannelNotificationSettingsModalProps) {
   const { prefs, loading, saving, error, updatePrefs } = useChannelNotificationPrefs(channelId, myMemberId)
   const { isSupported, isConfigured, needsInstall } = usePushNotifications()
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const pushUnavailable = !isConfigured || !isSupported || needsInstall
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80">
       <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
+        ref={dialogRef}
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
         role="dialog"
         aria-label="Channel notification settings"

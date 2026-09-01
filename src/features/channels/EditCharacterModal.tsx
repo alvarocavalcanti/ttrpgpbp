@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
 import { MAX_URL_LENGTH } from '../../constants'
@@ -15,6 +17,9 @@ interface EditCharacterModalProps {
 }
 
 export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: EditCharacterModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const [characterName, setCharacterName] = useState(member.character_name)
   const [characterSheetUrl, setCharacterSheetUrl] = useState(member.character_sheet_url || '')
   const [characterNotes, setCharacterNotes] = useState(member.character_notes || '')
@@ -82,7 +87,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
   }
 
   return (
-    <div className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div ref={dialogRef} className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 

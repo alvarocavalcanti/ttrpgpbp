@@ -1,7 +1,8 @@
 import { Avatar } from '../../components/Avatar'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface SelectableMember {
   id: string
@@ -24,7 +25,9 @@ interface ActivePlayerModalProps {
 // several players at once). The parent passes members already filtered to
 // non-GM, non-blocked rows.
 export function ActivePlayerModal({ channelId, members, currentActiveIds, onClose, onSaved }: ActivePlayerModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const [selected, setSelected] = useState<string[]>(currentActiveIds)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +59,7 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80">
       <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
+        ref={dialogRef}
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="Active Player"

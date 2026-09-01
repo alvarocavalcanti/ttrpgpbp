@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { z } from 'zod'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { subscribeWithRetry } from '../../lib/realtime'
 
 const rollBreakdownSchema = z.object({
@@ -42,7 +43,9 @@ interface RollHistoryModalProps {
 }
 
 export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
   const [rolls, setRolls] = useState<DiceRoll[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -123,7 +126,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
   }, [channelId])
 
   return (
-    <div className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div ref={dialogRef} className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 

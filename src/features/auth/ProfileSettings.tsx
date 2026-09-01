@@ -1,6 +1,8 @@
 import { Avatar } from '../../components/Avatar';
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useAuth } from './useAuth'
 import { supabase } from '../../lib/supabase'
 import { usePushNotifications } from './usePushNotifications'
@@ -326,46 +328,62 @@ export function ProfileSettings() {
         </div>
       </div>
 
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80" aria-hidden="true" onClick={() => setShowDeleteConfirm(false)}></div>
-            <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-              <h3 id="delete-account-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
-                Delete your account?
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                This action is permanent and cannot be undone. Type <span className="font-semibold">DELETE</span> to confirm.
-              </p>
-              <input
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="DELETE"
-                aria-label="Type DELETE to confirm"
-                className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm px-3 py-2 border"
-              />
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleteConfirmText !== 'DELETE' || isDeleting}
-                  className="inline-flex justify-center rounded-md border border-transparent bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-                >
-                  {isDeleting ? 'Deleting...' : 'Permanently Delete'}
-                </button>
-              </div>
-            </div>
+      {showDeleteConfirm && <DeleteConfirmDialog onCancel={() => setShowDeleteConfirm(false)} onConfirm={handleDelete} isDeleting={isDeleting} deleteConfirmText={deleteConfirmText} setDeleteConfirmText={setDeleteConfirmText} />}
+    </div>
+  )
+}
+
+interface DeleteConfirmDialogProps {
+  onCancel: () => void
+  onConfirm: () => void
+  isDeleting: boolean
+  deleteConfirmText: string
+  setDeleteConfirmText: (value: string) => void
+}
+
+function DeleteConfirmDialog({ onCancel, onConfirm, isDeleting, deleteConfirmText, setDeleteConfirmText }: DeleteConfirmDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEscapeToClose(onCancel)
+  useFocusTrap(dialogRef)
+
+  return (
+    <div ref={dialogRef} className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80" aria-hidden="true" onClick={onCancel}></div>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 id="delete-account-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Delete your account?
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            This action is permanent and cannot be undone. Type <span className="font-semibold">DELETE</span> to confirm.
+          </p>
+          <input
+            type="text"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="DELETE"
+            aria-label="Type DELETE to confirm"
+            className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm px-3 py-2 border"
+          />
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+              className="inline-flex justify-center rounded-md border border-transparent bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+            >
+              {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

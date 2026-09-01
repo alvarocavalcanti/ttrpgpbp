@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import type { ChangelogItem } from './changelog'
 
 interface ChangelogModalProps {
@@ -10,12 +12,15 @@ interface ChangelogModalProps {
 }
 
 export function ChangelogModal({ items, onDismiss, onDismissForever, onClose }: ChangelogModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
+  useFocusTrap(dialogRef)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80">
       <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
       <div
+        ref={dialogRef}
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[80vh] overflow-y-auto"
         role="dialog"
         aria-label="What's new"
