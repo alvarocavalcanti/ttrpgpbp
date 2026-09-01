@@ -142,23 +142,28 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   // instead of re-anchoring to the unread divider: a return from background
   // must never yank someone reading history (issue #338). Fresh mounts and
   // initial load still anchor via the layout effect above.
-  const restoreRef = useRef<{ top: number; lastId: string | undefined } | null>(null)
+  const restoreRef = useRef<{ top: number; lastId: string | undefined; atBottom: boolean } | null>(null)
   useEffect(() => {
     const onVisibilityChange = () => {
       const list = listRef.current
       if (!list) return
       if (document.visibilityState !== 'visible') {
-        restoreRef.current = { top: list.scrollTop, lastId: lastIdRef.current }
+        restoreRef.current = { top: list.scrollTop, lastId: lastIdRef.current, atBottom: atBottomRef.current }
         return
       }
       const captured = restoreRef.current
       restoreRef.current = null
+      if (captured === null) return
+      if (captured.atBottom) {
+        // Was pinned to the bottom: stay there even if messages arrived while
+        // hidden (appends shift offsets, so a numeric restore would be off).
+        list.scrollTop = list.scrollHeight
+        return
+      }
       // Only writes when the browser actually dropped the position (mobile
       // Safari/virtualized tabs reset it) AND no messages arrived while hidden
-      // — new content would have shifted the offsets the capture refers to,
-      // and the initial-load anchoring path covers that case instead.
+      // — new content would have shifted the offsets the capture refers to.
       if (
-        captured !== null &&
         captured.lastId === lastIdRef.current &&
         Math.abs(list.scrollTop - captured.top) > 1
       ) {

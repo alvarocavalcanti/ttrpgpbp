@@ -15,8 +15,10 @@ function formatThread(row: Record<string, unknown>): Thread | null {
   return {
     ...row,
     ...parsed,
-    creator: normalizeProfileRef(parsed.creator),
-    gm: parsed.gm ? normalizeProfileRef(parsed.gm) : undefined,
+    // ThreadList reads creator.avatar_url unguarded — a failed join must fall
+    // back to an empty profile, not null.
+    creator: normalizeProfileRef(parsed.creator) ?? { display_name: null, avatar_url: null },
+    gm: parsed.gm ? normalizeProfileRef(parsed.gm) ?? undefined : undefined,
     unread: !myRead || new Date(parsed.last_message_at ?? 0) > new Date(myRead)
   } as Thread
 }

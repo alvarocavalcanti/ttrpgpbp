@@ -293,6 +293,47 @@ describe('useChannels', () => {
     await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(2), { timeout: 4000 })
   })
 
+  it('recognizes an insert that lands between membership resolution and the unread RPC', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
+    const mockMyChannelsRaw = [{
+      id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Thor',
+      last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'c1', name: 'My Channel' }
+    }]
+    let messagesInsert: ((payload: any) => void) | undefined
+    let resolveUnreadRpc!: (value: { data: { channel_id: string, unread_count: number }[], error: null }) => void
+    const channelMock: any = {
+      on: (_event: any, filter: any, cb: any) => {
+        if (filter.table === 'messages') messagesInsert = cb
+        return channelMock
+      },
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn().mockResolvedValue(undefined)
+    }
+    vi.mocked(supabase.channel).mockImplementation(() => channelMock as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
+      return {} as any
+    })
+    // Unread RPC stays pending until after the racing INSERT fires.
+    const rpcPromise = new Promise<{ data: { channel_id: string, unread_count: number }[], error: null }>(res => { resolveUnreadRpc = res })
+    vi.mocked(supabase.rpc).mockReturnValue(rpcPromise as any)
+
+    const { result } = renderHook(() => useChannels())
+    // Wait until the subscription is wired, then race an INSERT against the
+    // still-pending unread RPC — the channel must already be registered.
+    await waitFor(() => expect(messagesInsert).toBeDefined())
+
+    await act(async () => {
+      messagesInsert?.({ new: { channel_id: 'c1' } })
+      resolveUnreadRpc({ data: [{ channel_id: 'c1', unread_count: 1 }], error: null })
+      await rpcPromise
+    })
+
+    // The INSERT above scheduled a debounced refetch that now sees the channel.
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+    expect(result.current.myChannels[0]?.unread_count).toBe(1)
+  })
+
   it('ignores realtime message INSERTs for channels I am not in', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as any)
     const mockMyChannelsRaw = [{
