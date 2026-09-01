@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+// @ts-expect-error — tailwind config is an untyped JS module
 import config from '../tailwind.config.js'
 
 // Token smoke test: guards the semantic palette so component classes can't
