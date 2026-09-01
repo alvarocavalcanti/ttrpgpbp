@@ -150,6 +150,20 @@ describe('NpcManagementModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('Escape with the icon picker open closes only the picker, not the modal', () => {
+    render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
+    fireEvent.click(screen.getByLabelText('Choose portrait for Goblin King'))
+    expect(screen.getByTestId('icon-picker')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    // The picker itself handles this Escape (real IconPicker closes via
+    // useEscapeToClose); simulate it closing, then Escape reaches the modal.
+    fireEvent.click(screen.getByText('Close Picker'))
+    expect(screen.queryByTestId('icon-picker')).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('shows an error banner and retries on demand', async () => {
     const refetch = vi.fn()
     mockHook({ npcs: [], error: new Error('boom'), refetch })

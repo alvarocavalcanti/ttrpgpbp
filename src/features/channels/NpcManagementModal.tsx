@@ -22,7 +22,12 @@ interface NpcManagementModalProps {
 // RLS already restricts channel_npcs writes to the channel GM.
 export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManagementModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  useEscapeToClose(onClose)
+  const [pickingForId, setPickingForId] = useState<string | 'new' | null>(null)
+  // IconPicker nests its own dialog with its own Escape handling — let it
+  // handle Escape first; only close the modal when no picker is open.
+  useEscapeToClose(() => {
+    if (!pickingForId) onClose()
+  })
   useFocusTrap(dialogRef)
   const { addToast } = useToast()
   const { npcs, loading, error, refetch, createNpc, renameNpc, repictureNpc, deleteNpc } = useChannelNpcs(channelId)
@@ -32,7 +37,6 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
   const [newAvatar, setNewAvatar] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
-  const [pickingForId, setPickingForId] = useState<string | 'new' | null>(null)
 
   const handleAdd = async () => {
     const name = newName.trim()
