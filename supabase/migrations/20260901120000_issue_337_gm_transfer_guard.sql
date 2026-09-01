@@ -12,9 +12,13 @@
 -- ==========================================
 -- Trigger: validate gm_id transfers
 -- ==========================================
+-- SECURITY DEFINER: the membership probe must not depend on the caller's
+-- grants on channel_members (revoked for authenticated in production) — the
+-- trigger must fire correctly for every write path.
 CREATE OR REPLACE FUNCTION enforce_gm_transfer_validity()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
@@ -34,7 +38,7 @@ BEGIN
 
   -- Reassignment: the new GM must already be a channel member.
   IF NOT EXISTS (
-    SELECT 1 FROM channel_members m
+    SELECT 1 FROM public.channel_members m
     WHERE m.channel_id = NEW.id AND m.user_id = NEW.gm_id
   ) THEN
     RAISE EXCEPTION 'New GM must be a channel member';
