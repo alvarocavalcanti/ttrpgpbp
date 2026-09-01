@@ -269,7 +269,10 @@ export function ChannelView() {
           onXCard={triggerXCard}
           onRetry={retryMessage}
           onRemovePending={removePendingMessage}
-          onEditCharacter={myMemberInfo?.id ? () => setEditingMemberId(myMemberInfo.id) : undefined}
+          // Open the mobile sidebar with the editor: the modal renders inside
+          // the sidebar, whose translate-x-full transform would otherwise
+          // become the containing block for its fixed positioning.
+          onEditCharacter={myMemberInfo?.id ? () => { setShowMobileSidebar(true); setEditingMemberId(myMemberInfo.id) } : undefined}
           error={messagesError}
           hasMore={hasMore}
           loadingOlder={loadingOlder}
