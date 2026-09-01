@@ -73,6 +73,51 @@ describe('MessageList', () => {
     expect(button).toBeDisabled()
   })
 
+  it('auto-loads older messages when an overflowing list scrolls to the top', () => {
+    const onLoadOlder = vi.fn()
+    const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
+    const { container } = render(
+      <MessageList
+        messages={msgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        hasMore
+        onLoadOlder={onLoadOlder}
+      />
+    )
+
+    const list = container.firstChild as HTMLElement
+    // Simulate an overflowing list scrolled to the top.
+    let scrollTop = 0
+    Object.defineProperty(list, 'scrollTop', { get: () => scrollTop, set: (v) => { scrollTop = v }, configurable: true })
+    Object.defineProperty(list, 'scrollHeight', { value: 2000, configurable: true })
+    Object.defineProperty(list, 'clientHeight', { value: 800, configurable: true })
+
+    fireEvent.scroll(list, { target: { scrollTop: 0 } })
+    expect(onLoadOlder).toHaveBeenCalled()
+  })
+
+  it('does not auto-load on a short first page (manual button stays)', () => {
+    const onLoadOlder = vi.fn()
+    const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
+    const { container } = render(
+      <MessageList
+        messages={msgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        hasMore
+        onLoadOlder={onLoadOlder}
+      />
+    )
+
+    const list = container.firstChild as HTMLElement
+    // Content fits the viewport (jsdom: zero scroll metrics) — no auto-load.
+    fireEvent.scroll(list, { target: { scrollTop: 0 } })
+    expect(onLoadOlder).not.toHaveBeenCalled()
+  })
+
   it('renders list of messages', () => {
     const msgs: any = [
       { id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' },

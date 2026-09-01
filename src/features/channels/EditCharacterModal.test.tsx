@@ -19,6 +19,21 @@ describe('EditCharacterModal', () => {
     expect(screen.getByLabelText('Notes')).toBeInTheDocument()
   })
 
+  it('renders as a bottom sheet when asSheet is set', () => {
+    const onClose = vi.fn()
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={onClose} onUpdate={vi.fn()} asSheet />)
+
+    // BottomSheet wrapper supplies the dialog + title
+    const sheet = screen.getByRole('dialog', { name: 'Edit Character' })
+    expect(sheet).toBeInTheDocument()
+    expect(screen.getByLabelText('Character Name')).toBeInTheDocument()
+    // No duplicate centered-dialog heading
+    expect(screen.getAllByText('Edit Character')).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('limits character name input to 20 characters', () => {
     render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
     expect(screen.getByLabelText('Character Name')).toHaveAttribute('maxlength', '20')

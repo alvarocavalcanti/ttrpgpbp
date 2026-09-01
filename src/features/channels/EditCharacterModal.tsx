@@ -5,6 +5,7 @@ import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
+import { BottomSheet } from '../../components/BottomSheet'
 import { MAX_URL_LENGTH } from '../../constants'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
@@ -14,9 +15,12 @@ interface EditCharacterModalProps {
   gameSystem: string
   onClose: () => void
   onUpdate: () => void
+  // Render as a mobile bottom sheet (composer avatar entry point) instead of
+  // a centered dialog.
+  asSheet?: boolean
 }
 
-export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: EditCharacterModalProps) {
+export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSheet = false }: EditCharacterModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
@@ -86,20 +90,8 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
     setAttributeInputs(prev => ({ ...prev, [attr]: value }))
   }
 
-  return (
-    <div ref={dialogRef} className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
-
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-          <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mb-4" id="modal-title">
-              Edit Character
-            </h3>
-            
-            <form onSubmit={handleSave} className="space-y-4">
+  const form = (
+    <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label htmlFor="charName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Character Name</label>
                 <input
@@ -184,6 +176,29 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate }: Ed
                 </button>
               </div>
             </form>
+  )
+
+  if (asSheet) {
+    return (
+      <BottomSheet title="Edit Character" onClose={onClose}>
+        {form}
+      </BottomSheet>
+    )
+  }
+
+  return (
+    <div ref={dialogRef} className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+
+        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+          <div>
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mb-4" id="modal-title">
+              Edit Character
+            </h3>
+            {form}
           </div>
         </div>
       </div>
