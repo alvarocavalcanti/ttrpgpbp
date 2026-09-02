@@ -160,6 +160,39 @@ describe('Lobby', () => {
     expect(screen.getByText('Joined as Hero')).toBeInTheDocument()
     expect(screen.getByText('5 new')).toBeInTheDocument()
   })
+  it('truncates a long channel name without pushing the unread badge out of the row', () => {
+    // Regression test for #369: the row's name container must allow its
+    // truncate class to shrink, otherwise an 80-char name (the DB max) pushes
+    // the badge and role pills out of the viewport.
+    const longName = 'A'.repeat(80)
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: longName,
+          gm_id: 'gm-1',
+          member: { character_name: 'Hero' },
+          unread_count: 5
+        } as any
+      ],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    const nameEl = screen.getByText(longName)
+    expect(nameEl).toHaveClass('truncate')
+
+    // The flex container holding avatar + name must be shrinkable so the
+    // truncate can engage and the badge/pills stay on screen.
+    const nameContainer = nameEl.parentElement as HTMLElement
+    expect(nameContainer).toHaveClass('min-w-0')
+
+    expect(screen.getByText('5 new')).toBeInTheDocument()
+    expect(screen.getByText('Player')).toBeInTheDocument()
+  })
+
   it('hides unread counts if badge_enabled is false', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       preferences: { badge_enabled: false } as any
