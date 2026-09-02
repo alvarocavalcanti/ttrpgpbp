@@ -14,6 +14,7 @@ vi.mock('../auth/usePushNotifications', () => ({
 
 describe('PermissionBanner', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
     sessionStorage.clear()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
