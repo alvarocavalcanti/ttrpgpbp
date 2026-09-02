@@ -70,6 +70,7 @@ describe('useChannels', () => {
     const { result, rerender } = renderHook(() => useChannels())
     await new Promise(res => setTimeout(res, 20))
     expect(supabase.from).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
 
     // Auth resolves → the fetch fires.
     vi.mocked(supabase.from).mockImplementation((table) => {
@@ -80,7 +81,11 @@ describe('useChannels', () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
     rerender()
 
-    await waitFor(() => expect(supabase.rpc).toHaveBeenCalled())
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(1))
+    // Exactly one channels fetch and one unread RPC once auth has settled.
+    expect(supabase.from).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(supabase.from).mock.calls[0][0]).toBe('channel_members')
+    expect(supabase.rpc).toHaveBeenCalledWith('get_user_channels_unread', { p_user_id: 'user-1' })
     await waitFor(() => expect(result.current.loading).toBe(false))
   })
 
