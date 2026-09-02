@@ -54,4 +54,16 @@ describe('ModifierInput', () => {
     setup()
     expect(screen.getByRole('textbox')).toHaveAttribute('inputmode', 'numeric')
   })
+
+  it('stacks the input above the buttons on mobile and flanks them on sm+', () => {
+    setup()
+    const input = screen.getByRole('textbox')
+    // Mobile: input leads (order-first) and the buttons sit together in a row below.
+    expect(input).toHaveClass('order-first', 'w-full')
+    const buttonRow = screen.getByRole('button', { name: 'Decrease STR' }).closest('div')
+    expect(buttonRow).toHaveClass('flex')
+    // sm+: wrapper dissolves back into the flanking row, minus button leads.
+    expect(buttonRow).toHaveClass('sm:contents')
+    expect(screen.getByRole('button', { name: 'Decrease STR' })).toHaveClass('sm:order-first')
+  })
 })
