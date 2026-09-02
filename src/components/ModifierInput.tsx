@@ -19,16 +19,10 @@ export function ModifierInput({ attr, value, onChange, min, max }: ModifierInput
   const btnClass =
     'shrink-0 w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium leading-none'
 
+  // Stacked on mobile (input full-width, buttons in a row below), flanking
+  // row on sm+ — sm:contents dissolves the button wrapper back into the row.
   return (
-    <div className="flex items-center gap-1 mt-1">
-      <button
-        type="button"
-        aria-label={`Decrease ${attr}`}
-        onClick={() => step(-1)}
-        className={btnClass}
-      >
-        −
-      </button>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1 mt-1">
       <input
         type="text"
         inputMode="numeric"
@@ -37,20 +31,30 @@ export function ModifierInput({ attr, value, onChange, min, max }: ModifierInput
         onChange={(e) => onChange(e.target.value)}
         pattern="-?[0-9]*"
         aria-invalid={invalid}
-        className={`w-full min-w-0 rounded-md shadow-sm sm:text-sm px-1 py-2 border text-center bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+        className={`order-first w-full min-w-0 rounded-md shadow-sm sm:text-sm px-1 py-2 border text-center bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
           invalid
             ? 'border-red-500 dark:border-red-500 ring-1 ring-red-500'
             : 'border-gray-300 dark:border-gray-600'
         }`}
       />
-      <button
-        type="button"
-        aria-label={`Increase ${attr}`}
-        onClick={() => step(1)}
-        className={btnClass}
-      >
-        +
-      </button>
+      <div className="flex gap-1 sm:contents">
+        <button
+          type="button"
+          aria-label={`Decrease ${attr}`}
+          onClick={() => step(-1)}
+          className={`${btnClass} sm:order-first`}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          aria-label={`Increase ${attr}`}
+          onClick={() => step(1)}
+          className={btnClass}
+        >
+          +
+        </button>
+      </div>
     </div>
   )
 }
