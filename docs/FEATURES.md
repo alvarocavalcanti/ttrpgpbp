@@ -36,7 +36,7 @@
 - **Private image access** — the image bucket is private. Only members of a channel can view its images (enforced by storage policies and short-lived signed URLs), and the admin's enable/size limits are re-enforced server-side on every upload.
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
-- **App menu drawer** — the main app menu (Settings, Archived Channels, Help, etc.) slides in as a right-side drawer, opened from the header ☰ button or by swiping in from the right screen edge on touch devices; the channel sidebar supports the same edge swipe on mobile
+- **App menu drawer** — the main app menu (Settings, Archived Channels, Help, etc.) slides in as a right-side drawer, opened from the header ☰ button or by swiping in from the right screen edge on touch devices; the channel sidebar supports the same edge swipe on mobile. Swiping back out (to the right) closes the open drawer or sidebar
 - **Empty lobby onboarding** — with no channels joined, the lobby explains the invite-only model and offers both paths inline: a "Create a channel" button and a "Paste an invite link" field (paste a full invite URL to jump to the join screen, with a clear error for anything else)
 - Channels are **private** and joined via invite link
 - Optional **password** to join (joining is instant)

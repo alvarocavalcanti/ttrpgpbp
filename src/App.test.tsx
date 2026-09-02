@@ -493,20 +493,20 @@ describe('App main menu drawer', () => {
 
     swipe('touchstart', 380)
     swipe('touchend', 260)
-    expect(screen.getByRole('menu', { name: 'Main menu' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('menu', { name: 'Main menu' }).previousSibling as Element)
-    expect(screen.queryByRole('menu', { name: 'Main menu' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('navigation', { name: 'Main menu' }).previousSibling as Element)
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
   it('closes the drawer via the close button', async () => {
     await renderLobby()
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByRole('menu', { name: 'Main menu' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Close menu' }))
-    expect(screen.queryByRole('menu', { name: 'Main menu' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
   it('does not open on swipes that start mid-screen', async () => {
@@ -514,6 +514,6 @@ describe('App main menu drawer', () => {
 
     swipe('touchstart', 100)
     swipe('touchend', -20)
-    expect(screen.queryByRole('menu', { name: 'Main menu' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 })
