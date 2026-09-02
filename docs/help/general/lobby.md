@@ -24,7 +24,7 @@ Use the **Search** box in the header to find a channel quickly.
 
 ## The app menu
 
-Tap the ☰ button in the top-right to open the app menu (Settings, Archived Channels, Help, and more). On a touchscreen you can also swipe in from the right edge of the screen to open it. Inside a channel, the player sidebar opens the same way.
+Tap the ☰ button in the top-right to open the app menu (Settings, Archived Channels, Help, and more). On a touchscreen you can also swipe in from the right edge of the screen to open it, and swipe back out to close it. Inside a channel, the player sidebar opens and closes the same way.
 
 ## Archived channels
 

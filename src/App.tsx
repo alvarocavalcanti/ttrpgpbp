@@ -139,10 +139,9 @@ function AppNav() {
             />
             {/* Right drawer, same layout as the channel sidebar. Rendered
                 conditionally, so only the open transition animates. */}
-            <div
-              role="menu"
+            <nav
               aria-label="Main menu"
-              className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700 shadow-lg animate-slide-in-right"
+              className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700 shadow-lg motion-safe:animate-slide-in-right"
             >
               <div className="flex justify-end p-2 border-b border-gray-100 dark:border-gray-700">
                 <button
@@ -249,7 +248,7 @@ function AppNav() {
             >
               Sign Out
             </button>
-            </div>
+            </nav>
           </>
         )}
       </div>
