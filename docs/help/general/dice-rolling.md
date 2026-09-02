@@ -16,7 +16,7 @@ Write dice notation directly in a message and it becomes **clickable** — anyon
 
 Advantage / disadvantage rolls show the roll details, for example `Rolled 2d20 with DIS [2, 15]: **2**`.
 
-Ability checks and DC checks have their own topic — see **Ability & DC Checks**.
+Ability checks and DC checks have their own topic — see [Ability & DC Checks](/help/ability-checks).
 
 ## Dice Roller Panel
 

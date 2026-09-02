@@ -9,7 +9,7 @@ If the modifier isn't set in your profile, the sheet shows a **"Set it in your c
 
 ## DC checks
 
-A GM can attach a difficulty class to a check, e.g. `Make a DC 12 DEX Check`. The roll then states **Success** or **Failure** — green if the total (die + modifier) meets or beats the DC, red if it falls short.
+A GM can attach a difficulty class to a check, e.g. `Make a DC 12 DEX Check`. The roll then states **Success** or **Failure** — green if the total (die + modifier) meets or beats the DC, red if it falls short. DC checks also support **with advantage** / **with disadvantage**, rolling two d20s and keeping the best / worst before comparing to the DC.
 
 ## Quoting the source
 
