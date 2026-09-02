@@ -1,5 +1,6 @@
 ---
 title: Messages
+screenshot: /help/message-actions.png
 ---
 
 ## Message types
