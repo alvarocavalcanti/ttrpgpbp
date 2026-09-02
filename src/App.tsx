@@ -1,7 +1,8 @@
 import { Avatar } from './components/Avatar';
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
+import { useEdgeSwipe } from './hooks/useEdgeSwipe'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { useAuth } from './features/auth/useAuth'
@@ -74,7 +75,9 @@ function AppNav() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  // Right-edge swipe opens the menu drawer (touch devices); same gesture as
+  // the channel sidebar so both menus behave identically.
+  useEdgeSwipe({ open: menuOpen, onOpen: () => setMenuOpen(true), onClose: () => setMenuOpen(false) })
   // Local input state so URL search params only update once the query settles
   // (M10), instead of on every keystroke.
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
@@ -88,16 +91,6 @@ function AppNav() {
     }
   }, [debouncedSearch, setSearchParams])
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
   if (!user || location.pathname.startsWith('/channel/')) return null
 
   return (
@@ -107,7 +100,7 @@ function AppNav() {
         Role by Post
       </Link>
       
-      <div className="flex items-center flex-shrink-0 gap-2" ref={menuRef}>
+      <div className="flex items-center flex-shrink-0 gap-2">
         {location.pathname === '/' && (
           <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
             <input 
@@ -136,7 +129,31 @@ function AppNav() {
         </button>
 
         {menuOpen && (
-          <div className="absolute right-4 top-14 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-50">
+          <>
+            {/* Backdrop: tap anywhere outside the drawer to close (replaces the
+                old outside-mousedown handler used by the popup menu). */}
+            <div
+              className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 z-40"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden="true"
+            />
+            {/* Right drawer, same layout as the channel sidebar. Rendered
+                conditionally, so only the open transition animates. */}
+            <div
+              role="menu"
+              aria-label="Main menu"
+              className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700 shadow-lg animate-slide-in-right"
+            >
+              <div className="flex justify-end p-2 border-b border-gray-100 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             <Link 
               to="/settings" 
               className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -232,7 +249,8 @@ function AppNav() {
             >
               Sign Out
             </button>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </header>

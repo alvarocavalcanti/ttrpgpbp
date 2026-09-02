@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App'
 import { supabase } from './lib/supabase'
@@ -430,5 +430,90 @@ describe('App', () => {
       expect(window.location.pathname).toBe('/')
     })
     expect(screen.queryByText('Help Topics')).not.toBeInTheDocument()
+  })
+})
+
+describe('App main menu drawer', () => {
+  const swipe = (type: 'touchstart' | 'touchend', x: number, y = 200) => {
+    const event = new Event(type, { bubbles: true }) as unknown as TouchEvent
+    Object.defineProperty(event, 'changedTouches', { value: [{ clientX: x, clientY: y }] })
+    act(() => {
+      window.dispatchEvent(event)
+    })
+  }
+
+  const renderLobby = async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+    await screen.findByText('Role by Post')
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.setItem('changelog:forever', 'true')
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true })
+  })
+
+  it('opens the drawer from a right-edge swipe and closes on backdrop tap', async () => {
+    await renderLobby()
+
+    swipe('touchstart', 380)
+    swipe('touchend', 260)
+    expect(screen.getByRole('menu', { name: 'Main menu' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('menu', { name: 'Main menu' }).previousSibling as Element)
+    expect(screen.queryByRole('menu', { name: 'Main menu' })).not.toBeInTheDocument()
+  })
+
+  it('closes the drawer via the close button', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByRole('menu', { name: 'Main menu' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close menu' }))
+    expect(screen.queryByRole('menu', { name: 'Main menu' })).not.toBeInTheDocument()
+  })
+
+  it('does not open on swipes that start mid-screen', async () => {
+    await renderLobby()
+
+    swipe('touchstart', 100)
+    swipe('touchend', -20)
+    expect(screen.queryByRole('menu', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 })

@@ -22,6 +22,10 @@ Some channels also require a **password** — your GM will share it with the inv
 
 Use the **Search** box in the header to find a channel quickly.
 
+## The app menu
+
+Tap the ☰ button in the top-right to open the app menu (Settings, Archived Channels, Help, and more). On a touchscreen you can also swipe in from the right edge of the screen to open it. Inside a channel, the player sidebar opens the same way.
+
 ## Archived channels
 
 Channels your GM archived move out of the lobby. You can still view them from the **Archived Channels** item in the app menu.
