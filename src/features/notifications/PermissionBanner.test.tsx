@@ -15,6 +15,7 @@ vi.mock('../auth/usePushNotifications', () => ({
 describe('PermissionBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
   })
 
@@ -130,6 +131,71 @@ describe('PermissionBanner', () => {
     render(<PermissionBanner />)
     fireEvent.click(screen.getByLabelText('Dismiss notification banner'))
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('keeps the banner dismissed after unmount and remount (navigation)', () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    const { unmount } = render(<PermissionBanner />)
+    fireEvent.click(screen.getByLabelText('Dismiss notification banner'))
+    unmount()
+
+    render(<PermissionBanner />)
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    expect(sessionStorage.getItem('notifications:banner-dismissed')).toBe('true')
+  })
+
+  it('stays hidden on mount when previously dismissed this session', () => {
+    sessionStorage.setItem('notifications:banner-dismissed', 'true')
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    render(<PermissionBanner />)
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('renders the banner when sessionStorage throws (private mode)', () => {
+    vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    render(<PermissionBanner />)
+    expect(screen.getByRole('region')).toBeInTheDocument()
+    expect(() => fireEvent.click(screen.getByLabelText('Dismiss notification banner'))).not.toThrow()
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('persists dismissal after successfully enabling notifications', async () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(<PermissionBanner />)
+    fireEvent.click(screen.getByText('Enable Notifications'))
+    await waitFor(() => {
+      expect(sessionStorage.getItem('notifications:banner-dismissed')).toBe('true')
+    })
   })
 
   it('shows an error and keeps the banner when subscription fails', async () => {

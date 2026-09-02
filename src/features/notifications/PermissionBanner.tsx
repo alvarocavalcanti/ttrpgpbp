@@ -2,10 +2,31 @@ import { useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { usePushNotifications } from '../auth/usePushNotifications'
 
+const DISMISS_KEY = 'notifications:banner-dismissed'
+
+// sessionStorage keeps the dismissal for the current tab session: navigating
+// away and back no longer resurrects the banner, but it can return next
+// session. Storage can throw (Safari private mode); never let it break render.
+function readDismissed(): boolean {
+  try {
+    return sessionStorage.getItem(DISMISS_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function persistDismissed(): void {
+  try {
+    sessionStorage.setItem(DISMISS_KEY, 'true')
+  } catch {
+    // ignore
+  }
+}
+
 export function PermissionBanner() {
   const { user } = useAuth()
   const { isSupported, needsInstall, isConfigured, permission, isSubscribed, subscribeToPush } = usePushNotifications()
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(readDismissed)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,6 +39,7 @@ export function PermissionBanner() {
     setError(null)
     try {
       await subscribeToPush()
+      persistDismissed()
       setDismissed(true)
     } catch (err) {
       console.error('Failed to enable notifications', err)
@@ -46,7 +68,10 @@ export function PermissionBanner() {
         </button>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            persistDismissed()
+            setDismissed(true)
+          }}
           className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900"
           aria-label="Dismiss notification banner"
         >
