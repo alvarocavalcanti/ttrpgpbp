@@ -930,11 +930,19 @@ describe('MessageItem', () => {
 
 })
 
-it('keeps timestamps readable on dark backgrounds (AA contrast, no gray-400)', () => {
+it('keeps timestamps readable on dark backgrounds (AA contrast)', () => {
   const msg: any = { type: 'regular', content: 'hi', created_at: new Date().toISOString(), sender_id: 'u1' }
   const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
   const timestamp = Array.from(container.querySelectorAll('span')).find(s => s.className.includes('text-xs') && s.className.includes('gray-500'))
   expect(timestamp).toBeDefined()
-  expect(timestamp!.className).not.toContain('dark:text-gray-400')
-  expect(timestamp!.className).toContain('dark:text-gray-500')
+  // gray-500 is 3.11:1 on the dark NPC background — below AA; gray-400 is 5.92:1
+  expect(timestamp!.className).toContain('dark:text-gray-400')
+})
+
+it('styles NPC paragraphs with parchment ink so typography plugin cannot override them', () => {
+  const msg: any = { type: 'npc', content: 'hello', created_at: new Date().toISOString(), sender_id: 'u1', npc_name: 'Vex' }
+  const { container } = render(<MessageItem message={msg} currentUserId="u2" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const content = container.querySelector('.prose')!
+  expect(content.className).toContain('prose-p:text-parchment-ink')
+  expect(content.className).toContain('dark:prose-p:text-parchment-ink-dark')
 })

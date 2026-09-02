@@ -632,7 +632,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           <span className={`text-sm font-medium ${isNpc ? 'font-serif text-parchment-ink-strong dark:text-parchment-ink-strong-dark' : 'text-gray-900 dark:text-gray-100'}`}>
             {senderName}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {formatTimestamp(message.created_at)}
           </span>
           {isWhisper && (
@@ -647,7 +647,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
+        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
             <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
           ) : isEditing ? (
