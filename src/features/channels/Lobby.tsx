@@ -143,7 +143,7 @@ export function Lobby() {
                   <Link to={`/channel/${channel.id}`} className="block hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div className="px-4 py-4 sm:px-6">
                       <div className="flex flex-col space-y-1 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-3 min-w-0">
                           {channel.avatar_url ? (
                             <SignedImg
                               src={channel.avatar_url}

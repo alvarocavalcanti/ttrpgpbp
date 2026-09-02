@@ -102,6 +102,46 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByTestId('search-modal')).not.toBeInTheDocument()
   })
 
+  it('truncates a long channel name without pushing header controls off-screen', () => {
+    // Regression test for #369: the header name container must allow its
+    // truncate class to shrink, otherwise an 80-char name (the DB max) pushes
+    // the header tool buttons out of the viewport.
+    const longName = 'A'.repeat(80)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: longName },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const heading = screen.getByRole('heading', { level: 2, name: longName })
+    expect(heading).toHaveClass('truncate')
+
+    // The flex container holding the back link + name must be shrinkable so
+    // the truncate can engage and the tool buttons stay on screen.
+    const nameContainer = heading.parentElement as HTMLElement
+    expect(nameContainer).toHaveClass('min-w-0')
+
+    // Header controls remain rendered and accessible.
+    expect(screen.getByRole('button', { name: 'Search messages' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Roll history' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Toggle sidebar menu' })).toBeInTheDocument()
+  })
+
   it('toggles help modal', () => {
     render(
       <ToastProvider>
