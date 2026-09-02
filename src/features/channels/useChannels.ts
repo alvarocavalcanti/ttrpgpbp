@@ -23,7 +23,11 @@ function byRecentActivity(a: { last_message_at?: string | null, created_at?: str
 }
 
 export function useChannels() {
-  const { user } = useAuth()
+  // authLoading: don't fire the first channels query while the auth client is
+  // still resolving its session (issue #315) — a fresh sign-up racing session
+  // restore can hit the API with auth.uid() not yet established and turn a
+  // recoverable timing artifact into the lobby's "Failed to load channels".
+  const { user, loading: authLoading } = useAuth()
   const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember, unread_count?: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -35,7 +39,7 @@ export function useChannels() {
     let mounted = true
 
     async function fetchChannels() {
-      if (!user?.id) return
+      if (!user?.id || authLoading) return
 
       try {
         // Fetch my channels (via channel_members)
@@ -132,7 +136,7 @@ export function useChannels() {
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user?.id])
+  }, [user?.id, authLoading])
 
   return { myChannels, loading, error }
 }
