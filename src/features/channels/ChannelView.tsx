@@ -24,6 +24,7 @@ import { SafetyToolsModal } from './SafetyToolsModal'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
 import { useToast } from '../../contexts/ToastContext'
+import { useEdgeSwipe } from '../../hooks/useEdgeSwipe'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
@@ -54,6 +55,9 @@ export function ChannelView() {
   const [showActivePlayer, setShowActivePlayer] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
+  // Right-edge swipe opens/closes the sidebar on touch devices, matching the
+  // lobby menu drawer. Desktop keeps the persistent lg: layout.
+  useEdgeSwipe({ open: showMobileSidebar, onOpen: () => setShowMobileSidebar(true), onClose: () => setShowMobileSidebar(false) })
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
   // Character editor opened from the composer's own avatar (bottom sheet).
@@ -364,6 +368,7 @@ export function ChannelView() {
       {/* Mobile Sidebar Overlay */}
       {showMobileSidebar && (
         <div
+          data-testid="sidebar-overlay"
           role="button"
           tabIndex={0}
           className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 z-20 lg:hidden"

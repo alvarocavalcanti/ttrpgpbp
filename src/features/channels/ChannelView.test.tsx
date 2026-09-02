@@ -1214,4 +1214,74 @@ describe('ChannelView search functionality', () => {
     fireEvent.click(screen.getByTestId('back-probe'))
     expect(screen.getByTestId('back-probe')).toBeInTheDocument()
   })
+
+  describe('edge-swipe sidebar', () => {
+    const swipe = (type: 'touchstart' | 'touchend', x: number, y = 200) => {
+      const event = new Event(type, { bubbles: true }) as unknown as TouchEvent
+      Object.defineProperty(event, 'changedTouches', { value: [{ clientX: x, clientY: y }] })
+      act(() => {
+        window.dispatchEvent(event)
+      })
+    }
+
+    beforeEach(() => {
+      Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true })
+    })
+
+    it('opens the sidebar from a right-edge swipe', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      // Closed: sidebar translated off-screen, no overlay.
+      expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+
+      expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
+    })
+
+    it('closes the sidebar from a rightward swipe', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+      expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
+
+      swipe('touchstart', 100)
+      swipe('touchend', 220)
+      expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
+    })
+
+    it('ignores swipes that start mid-screen', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 100)
+      swipe('touchend', -20)
+      expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
+    })
+  })
 })
