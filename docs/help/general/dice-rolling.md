@@ -16,13 +16,7 @@ Write dice notation directly in a message and it becomes **clickable** — anyon
 
 Advantage / disadvantage rolls show the roll details, for example `Rolled 2d20 with DIS [2, 15]: **2**`.
 
-## Ability checks
-
-From a message you can trigger an **ability check** (`STR Check`, `DEX Check`, etc.). A small sheet opens with your modifier pre-filled from your character profile — you can edit it, and it stays within the game system's allowed range — plus an Adv / Dis toggle. Tap **Roll** to roll a d20 (or a second d20 kept best / worst with Adv / Dis). If the modifier isn't set in your profile, the sheet shows a **"Set it in your character sheet"** link that opens Edit Character. Rolls made from a message quote the original, so it's clear which request each roll answers.
-
-## DC checks
-
-A GM can attach a difficulty class to a check, e.g. `Make a DC 12 DEX Check`. The roll then states **Success** or **Failure** — green if the total (die + modifier) meets or beats the DC, red if it falls short.
+Ability checks and DC checks have their own topic — see **Ability & DC Checks**.
 
 ## Dice Roller Panel
 
