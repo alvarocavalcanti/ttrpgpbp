@@ -31,13 +31,13 @@ export function ModifierInput({ attr, value, onChange, min, max }: ModifierInput
         onChange={(e) => onChange(e.target.value)}
         pattern="-?[0-9]*"
         aria-invalid={invalid}
-        className={`order-first w-full min-w-0 rounded-md shadow-sm sm:text-sm px-1 py-2 border text-center bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+        className={`w-full min-w-0 rounded-md shadow-sm sm:text-sm px-1 py-2 border text-center bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
           invalid
             ? 'border-red-500 dark:border-red-500 ring-1 ring-red-500'
             : 'border-gray-300 dark:border-gray-600'
         }`}
       />
-      <div className="flex gap-1 sm:contents">
+      <div className="flex justify-center gap-1 sm:contents">
         <button
           type="button"
           aria-label={`Decrease ${attr}`}
