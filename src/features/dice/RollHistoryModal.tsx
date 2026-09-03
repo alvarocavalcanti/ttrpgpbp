@@ -37,6 +37,24 @@ type DiceRoll = {
   roller?: { display_name: string | null } | null
 }
 
+// Mirrors the server's crit rule in build_dice_content: a d20 with exactly one
+// kept die whose unmodified result is 20 (Critical Success) or 1 (Critical
+// Failure). For ADV/DIS the kept die is the higher/lower of the rolled pair.
+export function getRollCritical(
+  notation: string,
+  result: number,
+  breakdown: RollBreakdown | undefined
+): 'success' | 'failure' | null {
+  const modifier = breakdown?.modifier ?? 0
+  const keptCount = (breakdown?.rolls?.length ?? 0) - (breakdown?.dropped?.length ?? 0)
+  const sides = Number(notation.match(/d(\d+)/)?.[1])
+  if (keptCount !== 1 || sides !== 20) return null
+  const natural = result - modifier
+  if (natural === 20) return 'success'
+  if (natural === 1) return 'failure'
+  return null
+}
+
 interface RollHistoryModalProps {
   channelId: string
   onClose: () => void
@@ -158,6 +176,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
               <ul className="space-y-4">
                 {rolls.map(roll => {
                   const bd = roll.breakdown
+                  const crit = getRollCritical(roll.notation, roll.result, bd)
                   return (
                     <li key={roll.id} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                       <div className="flex justify-between items-start mb-2">
@@ -172,6 +191,11 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
                         <div className="text-right">
                           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Result</div>
                           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{roll.result}</div>
+                          {crit && (
+                            <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${crit === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
+                              {crit === 'success' ? 'Critical Success' : 'Critical Failure'}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="mt-3 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-2 flex flex-wrap gap-x-4">
