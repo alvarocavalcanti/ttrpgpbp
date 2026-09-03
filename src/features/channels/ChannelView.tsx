@@ -4,7 +4,6 @@ import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
 import { ChannelStatusBar } from './ChannelStatusBar'
 import { MemberList } from './MemberList'
-import { EditCharacterModal } from './EditCharacterModal'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
 import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
@@ -60,8 +59,6 @@ export function ChannelView() {
   useEdgeSwipe({ open: showMobileSidebar, onOpen: () => setShowMobileSidebar(true), onClose: () => setShowMobileSidebar(false) })
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
-  // Character editor opened from the composer's own avatar (bottom sheet).
-  const [showCharacterSheet, setShowCharacterSheet] = useState(false)
   // Which member's character sheet is being edited; shared by MemberList and
   // the chat's check sheet ("Set it in your character sheet" deep link).
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
@@ -357,10 +354,6 @@ export function ChannelView() {
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
             onXCard={() => triggerXCard()}
-            // Tapping your own character avatar opens the editor as a sheet.
-            myCharacterName={myMemberInfo?.character_name}
-            myCharacterAvatarUrl={myMemberInfo?.character_avatar_url ?? null}
-            onOpenCharacterSheet={myMemberInfo ? () => setShowCharacterSheet(true) : undefined}
           />
         )}
       </div>
@@ -517,16 +510,6 @@ export function ChannelView() {
           )}
         </div>
       </div>
-
-      {showCharacterSheet && myMemberInfo && (
-        <EditCharacterModal
-          member={myMemberInfo}
-          gameSystem={channel.game_system}
-          onClose={() => setShowCharacterSheet(false)}
-          onUpdate={refetch}
-          asSheet
-        />
-      )}
 
       {showNotificationSettings && (
         <ChannelNotificationSettingsModal

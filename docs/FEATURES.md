@@ -68,7 +68,6 @@
 - **Narrative serif typography** — scene and NPC text renders in the **Crimson Pro** reading serif (self-hosted, offline-safe). An adjustable **Text size** preference (**Settings → Appearance**, Normal/Large/Extra large) scales the whole app's font, like a browser zoom, per device
 - **Daily Dividers** — chat history is grouped by date visually
 - **Scroll-to-top history loading** — scrolling near the top of an overflowing chat automatically loads older messages; short first pages keep a manual "Load older messages" button
-- **Character identity in the composer** — your character's avatar sits beside the message input; tapping it opens the character editor (name, sheet URL, notes, modifiers) as a bottom sheet
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete). Deleting asks for confirmation inside the app (no browser popup)
 - **In-app confirmations everywhere** — destructive actions (delete message, kick/block/leave channel, delete NPC, archive channel, delete admin thread/message) all confirm with a styled in-app dialog instead of the browser popup
