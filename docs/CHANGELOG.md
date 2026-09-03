@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Cleaner message composer** — the composer row is now neater: the character avatar (which could show as a bare letter) is gone, the "add" button lines up with the send button, and the spacing around it is even. You can still edit your character from the ability-check sheet in a message.
+
 - **Slide-in menus you can swipe open** — the main app menu now slides in from the right edge of the screen (like the channel sidebar), instead of popping up under the ☰ button. On touchscreens, both the app menu and the channel sidebar can also be opened by swiping in from the right edge — and closed by swiping back out.
 - **Easier-to-tap message actions & in-app confirmations** — reply, edit, delete and X-Card are now one large "⋯" button on phones (opening a simple menu), instead of a row of tiny icons. All destructive actions — deleting a message, kicking or blocking a player, leaving a channel, deleting an NPC, archiving a channel — now ask for confirmation inside the app with a clear dialog, so an accidental tap never does something irreversible.
 - **Keyboard-friendly popups** — when you open any popup or panel (settings, rolls, search, safety tools and more), keyboard focus now stays inside it while it's open and returns to where you left off when it closes, so navigating by keyboard or screen reader no longer slips behind the popup.

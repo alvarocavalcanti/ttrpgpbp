@@ -36,14 +36,9 @@ interface MessageComposerProps {
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
   onXCard?: () => void
-  // Own character identity: rendered as a tappable avatar that opens the
-  // character editor (#346).
-  myCharacterName?: string | null
-  myCharacterAvatarUrl?: string | null
-  onOpenCharacterSheet?: () => void
 }
 
-export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard, myCharacterName, myCharacterAvatarUrl, onOpenCharacterSheet }: MessageComposerProps) {
+export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
 
@@ -595,36 +590,13 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="mb-1 p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
+              className="mb-1 p-3 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
               aria-label="Toggle options"
             >
-              <svg className={`w-6 h-6 transform transition-transform ${isExpanded ? 'rotate-45 text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-45 text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
-            {onOpenCharacterSheet && (
-              <button
-                type="button"
-                onClick={onOpenCharacterSheet}
-                aria-label="Edit your character"
-                title={myCharacterName ? `${myCharacterName} — tap to edit your character` : 'Tap to edit your character'}
-                data-testid="composer-character-avatar"
-                className="self-end mb-1 flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {myCharacterAvatarUrl ? (
-                  <SignedImg
-                    src={myCharacterAvatarUrl}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-medium text-indigo-500 dark:text-indigo-400">
-                    {myCharacterName?.[0]?.toUpperCase() || '?'}
-                  </span>
-                )}
-              </button>
-            )}
             <div className="relative flex-1">
               {(showAllMention || matchedMembers.length > 0) && (
                 <div role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">

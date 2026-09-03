@@ -262,32 +262,6 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByRole('dialog', { name: 'Roll History' })).toBeInTheDocument()
   })
 
-  it('opens the character editor as a bottom sheet from the composer avatar', () => {
-    vi.mocked(useChannel).mockReturnValue({
-      channel: { id: 'c1', name: 'Test Channel', gm_id: 'user2', is_archived: false, game_system: 'generic' },
-      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
-      loading: false,
-      error: null,
-      isGM: false,
-      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero', character_avatar_url: null, character_sheet_url: null, character_notes: null, attributes: {} },
-      gmOnlyResourcesUrl: null,
-      refetch: vi.fn()
-    } as any)
-
-    render(
-      <ToastProvider>
-        <MemoryRouter initialEntries={['/channel/c1']}>
-          <Routes>
-            <Route path="/channel/:id" element={<ChannelView />} />
-          </Routes>
-        </MemoryRouter>
-      </ToastProvider>
-    )
-
-    fireEvent.click(screen.getByTestId('composer-character-avatar'))
-    expect(screen.getByRole('dialog', { name: 'Edit Character' })).toBeInTheDocument()
-  })
-
   it('groups sidebar tools into Table and GM Tools sections for players', () => {
     render(
       <ToastProvider>
