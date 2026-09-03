@@ -62,26 +62,26 @@ describe('MessageComposer', () => {
     localStorage.setItem('composer_draft_c1', 'draft for c1')
     localStorage.setItem('composer_draft_c2', 'draft for c2')
 
-    const { getByPlaceholderText, unmount } = render(
+    const { unmount } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
-    const textarea = getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     expect(textarea).toHaveValue('draft for c1')
 
     unmount()
-    const { getByPlaceholderText: getByPlaceholderText2 } = render(
+    render(
       <MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
-    expect(getByPlaceholderText2(/Type a message/i)).toHaveValue('draft for c2')
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('draft for c2')
   })
 
   it('saves draft to localStorage on change and clears on success', async () => {
     const mockOnSendMessage = vi.fn().mockResolvedValue(undefined)
-    const { getByPlaceholderText, getByRole } = render(
+    const { getByRole } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={mockOnSendMessage} />
     )
     
-    const textarea = getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'new draft' } })
     
     expect(localStorage.getItem('composer_draft_c1')).toBe('new draft')
@@ -98,11 +98,11 @@ describe('MessageComposer', () => {
 
   it('retains draft on failure', async () => {
     const mockOnSendMessage = vi.fn().mockRejectedValue(new Error('Network error'))
-    const { getByPlaceholderText, getByRole } = render(
+    const { getByRole } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={mockOnSendMessage} />
     )
     
-    const textarea = getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'failed message' } })
     
     const submitBtn = getByRole('button', { name: /Send/i })
@@ -119,7 +119,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -133,7 +133,7 @@ describe('MessageComposer', () => {
 
   it('caps composed messages at 4000 characters', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
-    expect(screen.getByPlaceholderText(/Type a message/i)).toHaveAttribute('maxLength', '4000')
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveAttribute('maxLength', '4000')
   })
 
   it('allows GM to send scene', async () => {
@@ -142,7 +142,7 @@ describe('MessageComposer', () => {
     
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('Scene Description'))
-    fireEvent.change(screen.getByPlaceholderText(/Describe the scene/i), { target: { value: 'A dark cave.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'A dark cave.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -169,7 +169,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.change(screen.getByPlaceholderText(/Type a private whisper/i), { target: { value: 'psst' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -188,7 +188,7 @@ describe('MessageComposer', () => {
     
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     // Wait for the async submit handler to catch the error
@@ -201,7 +201,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Cmd Enter' } })
     fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
     
@@ -218,7 +218,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn()
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
@@ -229,7 +229,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
 
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Check this: https://example.com/image.png' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
@@ -257,7 +257,7 @@ describe('MessageComposer', () => {
     
     expect(screen.getByText(/Replying to Hero/)).toBeInTheDocument()
     
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'my reply' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'my reply' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -282,7 +282,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @Hero!' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi @Hero!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -325,7 +325,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @He', selectionStart: 5 } })
     
     expect(screen.getByText('Hero')).toBeInTheDocument()
@@ -340,7 +340,7 @@ describe('MessageComposer', () => {
   it('highlights the first mention option by default', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @H', selectionStart: 5 } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
 
     expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
   })
@@ -352,7 +352,7 @@ describe('MessageComposer', () => {
     ]
     render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     fireEvent.keyDown(textarea, { key: 'ArrowDown' })
@@ -372,7 +372,7 @@ describe('MessageComposer', () => {
     ]
     render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     fireEvent.keyDown(textarea, { key: 'ArrowUp' })
@@ -382,7 +382,7 @@ describe('MessageComposer', () => {
   it('navigates @all as the first option for the GM', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     expect(screen.getByRole('option', { name: /All players/ })).toHaveAttribute('aria-selected', 'true')
@@ -395,7 +395,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Everyone @all!' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Everyone @all!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -412,7 +412,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Everyone @all!' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Everyone @all!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -427,7 +427,7 @@ describe('MessageComposer', () => {
   it('shows the @all autocomplete option for the GM and inserts it', async () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @a', selectionStart: 5 } })
 
     expect(screen.getByRole('option', { name: /All players/ })).toBeInTheDocument()
@@ -442,7 +442,7 @@ describe('MessageComposer', () => {
   it('hides the @all autocomplete option for non-GM players', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Hi @a', selectionStart: 5 } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi @a', selectionStart: 5 } })
 
     expect(screen.queryByRole('option', { name: /All players/ })).not.toBeInTheDocument()
   })
@@ -465,7 +465,7 @@ describe('MessageComposer', () => {
     expect(preview).not.toBeNull()
     expect(preview?.getAttribute('src')).toMatch(/^https:\/\/api\.iconify\.design\/game-icons\//)
 
-    fireEvent.change(screen.getByPlaceholderText(/Speak as Goblin King/i), { target: { value: 'Trespassers!' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Trespassers!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -488,7 +488,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'goblin king' } })
-    fireEvent.change(screen.getByPlaceholderText(/Speak as goblin king/i), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -512,7 +512,7 @@ describe('MessageComposer', () => {
     // Pick from the roster dropdown: this sets npcAvatarUrl to the roster's
     // null avatar_url, so resolvedNpcAvatar stays null and the payload omits it.
     fireEvent.mouseDown(screen.getByRole('button', { name: /Faceless/i }))
-    fireEvent.change(screen.getByPlaceholderText(/Speak as Faceless/i), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -530,7 +530,7 @@ describe('MessageComposer', () => {
 
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    fireEvent.change(screen.getByPlaceholderText(/Speak as an NPC/i), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -594,7 +594,7 @@ describe('MessageComposer', () => {
     render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)
 
     fireEvent.click(screen.getByLabelText('Toggle options'))
-    const textarea = screen.getByPlaceholderText(/Type a message/i)
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi ' } })
     fireEvent.change(screen.getByLabelText('Upload Image'), {
       target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
@@ -651,14 +651,14 @@ describe('MessageComposer', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
 
-    const messageInput = screen.getByPlaceholderText(/Type a message/i)
+    const messageInput = screen.getByRole('textbox', { name: 'Message' })
     expect(messageInput).toHaveClass('dark:bg-gray-800')
     expect(messageInput).toHaveClass('text-gray-900')
     expect(messageInput).toHaveClass('dark:text-gray-100')
     expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    expect(screen.getByPlaceholderText(/Speak as an NPC/i)).toHaveClass('dark:bg-parchment-dark')
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveClass('dark:bg-parchment-dark')
   })
 
   it('keeps the typed message text visible on dark backgrounds', () => {
@@ -668,7 +668,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('NPC Name'))
     fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Goblin King' } })
 
-    expect(screen.getByPlaceholderText(/Speak as Goblin King/i)).toHaveClass('dark:text-gray-100')
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveClass('dark:text-gray-100')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('text-gray-900')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('dark:text-gray-100')
   })
@@ -717,7 +717,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.change(screen.getByPlaceholderText(/Type a private whisper/i), { target: { value: 'psst' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -737,7 +737,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.change(screen.getByPlaceholderText(/Type a message/i), { target: { value: 'Go!' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Go!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {

@@ -61,7 +61,7 @@ test.describe('Core Journey', () => {
     await expect(page.getByRole('heading', { name: channelName })).toBeVisible();
 
     // 6. Send a message
-    const messageInput = page.getByPlaceholder(/Type a message.../);
+    const messageInput = page.getByRole('textbox', { name: 'Message' });
     await expect(messageInput).toBeVisible();
     await messageInput.fill('Hello from E2E test!');
     await messageInput.press('Enter');
