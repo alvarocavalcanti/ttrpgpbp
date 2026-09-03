@@ -317,7 +317,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       }
       if (href?.startsWith('user:')) {
         return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium text-xs border border-indigo-100 dark:border-indigo-900">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium text-xs font-sans border border-indigo-100 dark:border-indigo-900">
             {children}
           </span>
         )
@@ -493,7 +493,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     return (
       <div ref={itemRef} className={`relative my-6 px-4 py-6 bg-parchment dark:bg-parchment-dark border-y-2 border-parchment-border dark:border-parchment-border-dark shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
-        <div className="max-w-2xl w-full text-center font-serif text-parchment-ink dark:text-parchment-ink-dark prose prose-narrative dark:prose-invert prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-headings:text-parchment-ink-strong dark:prose-headings:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark prose-em:text-parchment-ink dark:prose-em:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-blockquote:text-parchment-ink dark:prose-blockquote:text-parchment-ink-dark prose-blockquote:border-parchment-border dark:prose-blockquote:border-parchment-border-dark prose-ul:text-parchment-ink dark:prose-ul:text-parchment-ink-dark prose-ol:text-parchment-ink dark:prose-ol:text-parchment-ink-dark max-w-none break-words [&>p:last-child]:bg-parchment-shade dark:[&>p:last-child]:bg-parchment-shade-dark [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark">
+        <div className="max-w-2xl w-full text-center font-serif text-parchment-ink dark:text-parchment-ink-dark prose dark:prose-invert prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-headings:text-parchment-ink-strong dark:prose-headings:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark prose-em:text-parchment-ink dark:prose-em:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-blockquote:text-parchment-ink dark:prose-blockquote:text-parchment-ink-dark prose-blockquote:border-parchment-border dark:prose-blockquote:border-parchment-border-dark prose-ul:text-parchment-ink dark:prose-ul:text-parchment-ink-dark prose-ol:text-parchment-ink dark:prose-ol:text-parchment-ink-dark max-w-none break-words [&>p:last-child]:bg-parchment-shade dark:[&>p:last-child]:bg-parchment-shade-dark [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark">
           {isEditing ? (
             <div className="mt-2 text-left">
               <textarea
@@ -647,7 +647,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif prose-narrative text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
+        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
             <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
           ) : isEditing ? (
