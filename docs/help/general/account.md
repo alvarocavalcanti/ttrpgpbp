@@ -12,7 +12,7 @@ A **sun/moon toggle** in the app header (and on the login page) switches between
 
 ## Text size
 
-Scene and NPC narrative text is set in an easy-reading serif typeface. From **Settings → Appearance → Text size** you can pick **Normal**, **Large**, or **Extra large** to make that text bigger if it's easier on your eyes. Your choice is remembered on this device.
+Scene and NPC narrative text is set in an easy-reading serif typeface. From **Settings → Appearance → Text size** you can pick **Normal**, **Large**, or **Extra large** to scale the size of all app text if it's easier on your eyes. Your choice is remembered on this device.
 
 ## Per-channel character name
 

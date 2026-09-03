@@ -12,9 +12,9 @@ function getInitialTextSize(): TextSize {
   return (SIZES as string[]).includes(saved ?? '') ? (saved as TextSize) : 'normal'
 }
 
-// Drives the `--narrative-scale` knob (see index.css) for the serif scene/NPC
-// text. Persisted per-device, like the theme. Applies `data-text-size` on
-// <html>; the default (normal) needs no attribute, so first paint is unaffected.
+// Scales the whole app's base font size (see index.css: html[data-text-size]).
+// Persisted per-device, like the theme. Applies `data-text-size` on <html>;
+// the default (normal) needs no attribute, so first paint is unaffected.
 export function useTextSize() {
   const [textSize, setTextSize] = useState<TextSize>(getInitialTextSize)
 

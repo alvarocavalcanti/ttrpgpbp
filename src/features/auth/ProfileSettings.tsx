@@ -200,8 +200,7 @@ export function ProfileSettings() {
           <div>
             <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Text size</h4>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Controls the size of scene and NPC narrative text. Pick the size that reads most
-              comfortably for you.
+              Controls the size of all app text. Pick the size that reads most comfortably for you.
             </p>
           </div>
           <div className="mt-4 flex space-x-2" role="group" aria-label="Text size">

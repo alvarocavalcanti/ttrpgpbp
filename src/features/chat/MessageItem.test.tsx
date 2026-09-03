@@ -673,6 +673,20 @@ describe('MessageItem', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
+  it('keeps mention chips sans-serif inside serif narrative text', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'scene',
+      content: '[@Hero](user:u1) is here',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const chip = screen.getByText('@Hero')
+    expect(chip.className).toContain('font-sans')
+    expect(chip.className).not.toContain('font-serif')
+  })
+
   it('renders reply block and jumps to parent on click', () => {
     const mockOnJump = vi.fn()
     const msg: any = {
@@ -945,4 +959,5 @@ it('styles NPC paragraphs with parchment ink so typography plugin cannot overrid
   const content = container.querySelector('.prose')!
   expect(content.className).toContain('prose-p:text-parchment-ink')
   expect(content.className).toContain('dark:prose-p:text-parchment-ink-dark')
+  expect(content.className).toContain('font-serif')
 })

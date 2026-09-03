@@ -65,7 +65,7 @@
   - **Regular** — normal conversation
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced).
   - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (server-enforced). The NPC's identity is validated against the channel's roster, so messages always carry a real roster portrait/name. Parchment bubble style, distinct from both regular and scene messages.
-- **Narrative serif typography** — scene and NPC text renders in the **Crimson Pro** reading serif (self-hosted, offline-safe) at a larger size than chat bubbles, with an adjustable **Text size** preference (**Settings → Appearance**, Normal/Large/Extra large) that scales it per device
+- **Narrative serif typography** — scene and NPC text renders in the **Crimson Pro** reading serif (self-hosted, offline-safe). An adjustable **Text size** preference (**Settings → Appearance**, Normal/Large/Extra large) scales the whole app's font, like a browser zoom, per device
 - **Daily Dividers** — chat history is grouped by date visually
 - **Scroll-to-top history loading** — scrolling near the top of an overflowing chat automatically loads older messages; short first pages keep a manual "Load older messages" button
 - **Character identity in the composer** — your character's avatar sits beside the message input; tapping it opens the character editor (name, sheet URL, notes, modifiers) as a bottom sheet
