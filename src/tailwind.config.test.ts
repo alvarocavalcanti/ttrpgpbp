@@ -6,7 +6,12 @@ import config from '../tailwind.config.js'
 // drift back to ad-hoc hex values. Values must match the originals they
 // replaced (indigo/gray scales, parchment paper tones).
 describe('tailwind design tokens', () => {
-  const colors = (config.theme as { extend: { colors: Record<string, unknown> } }).extend.colors
+  const extend = (config.theme as { extend: { colors: Record<string, unknown>; fontFamily: Record<string, unknown> } }).extend
+  const colors = extend.colors
+
+  it('maps serif to Crimson Pro for narrative text', () => {
+    expect(extend.fontFamily.serif).toContain('"Crimson Pro"')
+  })
 
   it('aliases primary to the indigo scale', () => {
     expect(colors.primary).toMatchObject({ 600: '#4f46e5', 700: '#4338ca' })

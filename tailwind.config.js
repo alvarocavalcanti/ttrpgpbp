@@ -21,6 +21,9 @@ export default {
       animation: {
         'slide-in-right': 'slide-in-right 0.3s ease-in-out',
       },
+      fontFamily: {
+        serif: ['"Crimson Pro"', 'Georgia', 'serif'],
+      },
       colors: {
         primary: colors.indigo,
         surface: colors.gray,
