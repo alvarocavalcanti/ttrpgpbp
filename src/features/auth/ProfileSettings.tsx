@@ -7,12 +7,20 @@ import { useAuth } from './useAuth'
 import { supabase } from '../../lib/supabase'
 import { usePushNotifications } from './usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
+import { useTextSize, type TextSize } from '../../hooks/useTextSize'
 import { buildUserDataExport, downloadJson } from './exportUserData'
 import { MAX_DISPLAY_NAME_LENGTH } from '../../constants'
+
+const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'large', label: 'Large' },
+  { value: 'xlarge', label: 'Extra large' },
+]
 
 export function ProfileSettings() {
   const { user, profile, signOut } = useAuth()
   const { addToast } = useToast()
+  const { textSize, setSize } = useTextSize()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -183,6 +191,36 @@ export function ProfileSettings() {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Appearance</h3>
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Text size</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Controls the size of scene and NPC narrative text. Pick the size that reads most
+              comfortably for you.
+            </p>
+          </div>
+          <div className="mt-4 flex space-x-2" role="group" aria-label="Text size">
+            {TEXT_SIZE_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSize(value)}
+                aria-pressed={textSize === value}
+                className={`inline-flex justify-center rounded-md border py-2 px-4 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                  textSize === value
+                    ? 'border-transparent bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
+                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
