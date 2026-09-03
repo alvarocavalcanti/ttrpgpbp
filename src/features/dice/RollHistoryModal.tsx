@@ -47,7 +47,7 @@ export function getRollCritical(
 ): 'success' | 'failure' | null {
   const modifier = breakdown?.modifier ?? 0
   const keptCount = (breakdown?.rolls?.length ?? 0) - (breakdown?.dropped?.length ?? 0)
-  const sides = Number(notation.match(/d(\d+)/)?.[1])
+  const sides = Number(notation.replace(/\s+/g, '').match(/d(\d+)/)?.[1])
   if (keptCount !== 1 || sides !== 20) return null
   const natural = result - modifier
   if (natural === 20) return 'success'
