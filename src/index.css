@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Text-size setting knob (see useTextSize). Narrative serif scales with it. */
+    --narrative-scale: 1;
+  }
+  html[data-text-size='large'] { --narrative-scale: 1.125; }
+  html[data-text-size='xlarge'] { --narrative-scale: 1.25; }
+
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
   }
@@ -23,5 +30,16 @@
      ring is jarring, so recolor it to the closest surface tone. */
   :is(.dark *) *:focus-visible {
     --tw-ring-offset-color: #1f2937;
+  }
+}
+
+@layer utilities {
+  /* Narrative prose (scene/NPC serif). Base 1rem with a readable line-height;
+     --narrative-scale drives the text-size setting. Applied alongside `prose`. */
+  .prose-narrative p,
+  .prose-narrative li,
+  .prose-narrative blockquote {
+    font-size: calc(1rem * var(--narrative-scale));
+    line-height: 1.75;
   }
 }

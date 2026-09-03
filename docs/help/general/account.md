@@ -10,6 +10,10 @@ Your account has a **display name** (up to 40 characters) and **avatar**, shown 
 
 A **sun/moon toggle** in the app header (and on the login page) switches between light and dark theme. Your choice is remembered; by default the app follows your device's light/dark preference.
 
+## Text size
+
+Scene and NPC narrative text is set in an easy-reading serif typeface. From **Settings → Appearance → Text size** you can pick **Normal**, **Large**, or **Extra large** to make that text bigger if it's easier on your eyes. Your choice is remembered on this device.
+
 ## Per-channel character name
 
 Each channel has its own **character name** (max 20 characters) and avatar, so you can play a different character in each campaign.

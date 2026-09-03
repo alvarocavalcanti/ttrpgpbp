@@ -44,6 +44,8 @@ describe('ProfileSettings', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
+    document.documentElement.removeAttribute('data-text-size')
 
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true, needsInstall: false,
@@ -101,6 +103,32 @@ describe('ProfileSettings', () => {
     expect(screen.getByLabelText('Display Name')).toHaveAttribute('maxLength', '40')
     expect(screen.getByDisplayValue('user@example.com')).toBeDisabled()
     expect(screen.getByRole('img', { name: 'Avatar' })).toHaveAttribute('src', 'https://example.com/avatar.jpg')
+  })
+
+  it('shows a text size control and applies the chosen size to the document', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123' } as any,
+      profile: { id: '123', display_name: 'Test Player', avatar_url: null, created_at: '', is_suspended: false },
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    const group = screen.getByRole('group', { name: 'Text size' })
+    expect(group).toBeInTheDocument()
+
+    const normal = screen.getByRole('button', { name: 'Normal' })
+    expect(normal).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Extra large' }))
+    expect(document.documentElement.getAttribute('data-text-size')).toBe('xlarge')
+    expect(window.localStorage.getItem('rolebypost-text-size')).toBe('xlarge')
+    expect(screen.getByRole('button', { name: 'Extra large' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Normal' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('updates display name on submit and shows success message', async () => {
