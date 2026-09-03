@@ -106,7 +106,7 @@ test.describe('Failure paths', () => {
     await createChannel(page);
 
     // Composer ships the length guard and refuses keystrokes past it.
-    const composer = page.getByPlaceholder(/Type a message/);
+    const composer = page.getByRole('textbox', { name: 'Message' });
     await expect(composer).toHaveAttribute('maxlength', '4000');
     await composer.fill('a'.repeat(3999));
     await composer.press('a');
@@ -125,7 +125,7 @@ test.describe('Failure paths', () => {
     await page.waitForURL('/');
     await createChannel(page);
 
-    const composer = page.getByPlaceholder(/Type a message/);
+    const composer = page.getByRole('textbox', { name: 'Message' });
     const exactly4000 = 'a'.repeat(4000);
     await composer.fill(exactly4000);
     expect(await composer.inputValue()).toHaveLength(4000);
