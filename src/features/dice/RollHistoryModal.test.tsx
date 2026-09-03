@@ -41,6 +41,13 @@ describe('getRollCritical', () => {
     expect(getRollCritical('2d6', 12, { rolls: [6, 6] })).toBeNull()
     expect(getRollCritical('2d20kh2', 20, { rolls: [10, 10] })).toBeNull()
   })
+  it('normalizes whitespace in the notation', () => {
+    expect(getRollCritical('1 d 20 + 5', 25, { rolls: [20], modifier: 5 })).toBe('success')
+    expect(getRollCritical('2 d 20 k h 1', 20, { rolls: [12, 20], dropped: [12] })).toBe('success')
+  })
+  it('caps the kept count at the rolled dice for kh/kl', () => {
+    expect(getRollCritical('1d20kh2', 20, { rolls: [20] })).toBe('success')
+  })
 })
 
 describe('RollHistoryModal', () => {

@@ -21,7 +21,10 @@ SET search_path = public
 AS $$
   WITH parsed AS (
     SELECT
-      (regexp_match(lower(p_notation), '^(\d+)d(\d+)((?:kh|kl|dh|dl)\d*)?(?:[+-]\d+)?$')) AS m
+      -- Normalize whitespace like roll_dice_unchecked does, so spaced
+      -- notation such as "1 d 20 + 5" is still recognized as a d20.
+      (regexp_match(regexp_replace(lower(p_notation), '\s+', '', 'g'),
+        '^(\d+)d(\d+)((?:kh|kl|dh|dl)\d*)?(?:[+-]\d+)?$')) AS m
   ),
   calc AS (
     SELECT
@@ -33,10 +36,12 @@ AS $$
   ),
   kept AS (
     SELECT
+      -- Cap kept/dropped amounts at the rolled count, matching roll_dice_unchecked:
+      -- e.g. 1d20kh2 keeps the single rolled die (kept count 1), not 2.
       CASE
         WHEN keepdrop IS NULL OR keepdrop = '' THEN count
-        WHEN keepdrop ~* '^(kh|kl)' THEN COALESCE(NULLIF(substring(keepdrop FROM 3), '')::INTEGER, 1)
-        ELSE count - COALESCE(NULLIF(substring(keepdrop FROM 3), '')::INTEGER, 1)
+        WHEN keepdrop ~* '^(kh|kl)' THEN LEAST(COALESCE(NULLIF(substring(keepdrop FROM 3), '')::INTEGER, 1), count)
+        ELSE count - LEAST(COALESCE(NULLIF(substring(keepdrop FROM 3), '')::INTEGER, 1), count)
       END AS kept_count,
       sides,
       (p_total - p_modifier) AS natural_die

@@ -7,7 +7,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(14);
+SELECT plan(17);
 
 -- Crit success on a natural 20
 SELECT ok(
@@ -55,6 +55,20 @@ SELECT ok(
 SELECT ok(
   build_dice_content('2d20kh2', '{10,10}', 0, 20) NOT LIKE '%**Critical%',
   'two kept d20 dice summing to 20 shows no critical label'
+);
+-- 1d20kh2 keeps the single rolled die, so a nat 20 still crits
+SELECT ok(
+  build_dice_content('1d20kh2', '{20}', 0, 20) LIKE '%**Critical Success**%',
+  '1d20kh2 keeping its single die on a 20 shows Critical Success'
+);
+-- Spaced notation is normalized before the crit check
+SELECT ok(
+  build_dice_content('1 d 20 + 5', '{20}', 5, 25) LIKE '%**Critical Success**%',
+  'spaced 1 d 20 + 5 with a natural 20 shows Critical Success'
+);
+SELECT ok(
+  build_dice_content('2 d 20 k h 1', '{12,20}', 0, 20) LIKE '%**Critical Success**%',
+  'spaced advantage 2 d 20 k h 1 with a kept 20 shows Critical Success'
 );
 -- Non-d20 rolls never crit
 SELECT ok(
