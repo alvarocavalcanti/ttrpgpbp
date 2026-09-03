@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { RollHistoryModal } from './RollHistoryModal'
+import { RollHistoryModal, getRollCritical } from './RollHistoryModal'
 import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
@@ -15,6 +15,33 @@ vi.mock('../../lib/supabase', () => ({
 function mockChannel() {
   vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }) } as any)
 }
+
+describe('getRollCritical', () => {
+  it('flags a natural 20 as Critical Success', () => {
+    expect(getRollCritical('1d20', 20, { rolls: [20] })).toBe('success')
+  })
+  it('flags a natural 1 as Critical Failure', () => {
+    expect(getRollCritical('1d20', 1, { rolls: [1] })).toBe('failure')
+  })
+  it('uses the unmodified die, ignoring the modifier', () => {
+    expect(getRollCritical('1d20+5', 25, { rolls: [20], modifier: 5 })).toBe('success')
+    expect(getRollCritical('1d20-4', -3, { rolls: [1], modifier: -4 })).toBe('failure')
+  })
+  it('flags advantage/disadvantage via the kept die', () => {
+    expect(getRollCritical('2d20kh1', 20, { rolls: [12, 20], dropped: [12] })).toBe('success')
+    expect(getRollCritical('2d20kl1', 1, { rolls: [20, 1], dropped: [20] })).toBe('failure')
+  })
+  it('returns null for non-crit d20 rolls', () => {
+    expect(getRollCritical('1d20', 15, { rolls: [15] })).toBeNull()
+    expect(getRollCritical('1d20', 13, { rolls: [10], modifier: 3 })).toBeNull()
+    expect(getRollCritical('2d20kh1', 12, { rolls: [12, 5], dropped: [5] })).toBeNull()
+  })
+  it('returns null for non-d20 or multi-kept rolls', () => {
+    expect(getRollCritical('1d6', 6, { rolls: [6] })).toBeNull()
+    expect(getRollCritical('2d6', 12, { rolls: [6, 6] })).toBeNull()
+    expect(getRollCritical('2d20kh2', 20, { rolls: [10, 10] })).toBeNull()
+  })
+})
 
 describe('RollHistoryModal', () => {
   beforeEach(() => {
@@ -91,6 +118,29 @@ describe('RollHistoryModal', () => {
       expect(screen.getByText('23')).toBeInTheDocument()
       expect(screen.getByText(/Rolls:/).parentElement).toHaveTextContent('Rolls: [18]')
       expect(screen.getByText(/Modifier:/).parentElement).toHaveTextContent('Modifier: +5')
+    })
+  })
+
+  it('shows a Critical Success badge for a natural 20', async () => {
+    const mockData = [
+      {
+        id: 'r1',
+        roller_id: 'u1',
+        notation: '1d20',
+        result: 20,
+        breakdown: { rolls: [20], dropped: [], modifier: 0 },
+        created_at: new Date().toISOString(),
+        roller_display_name: 'Hero'
+      }
+    ]
+
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: mockData, error: null } as any)
+    mockChannel()
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Critical Success')).toBeInTheDocument()
     })
   })
 

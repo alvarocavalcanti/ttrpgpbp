@@ -16,6 +16,10 @@ Write dice notation directly in a message and it becomes **clickable** — anyon
 
 Advantage / disadvantage rolls show the roll details, for example `Rolled 2d20 with DIS [2, 15]: **2**`.
 
+## Critical rolls
+
+A d20 that lands on a **20** shows **Critical Success**, and a d20 that lands on a **1** shows **Critical Failure**. This is based on the die itself — a modifier doesn't change it — and it works with advantage and disadvantage too (the kept die decides). The same moments are marked in the roll history.
+
 Ability checks and DC checks have their own topic — see [Ability & DC Checks](/help/ability-checks).
 
 ## Dice Roller Panel
