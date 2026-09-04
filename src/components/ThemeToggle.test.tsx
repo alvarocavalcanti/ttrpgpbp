@@ -1,6 +1,14 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ThemeToggle } from './ThemeToggle'
+
+// ThemeToggle consumes the module-level theme store, so re-import it fresh per
+// test to reset persisted state.
+type ThemeToggleModule = typeof import('./ThemeToggle')
+
+async function freshToggle(): Promise<ThemeToggleModule> {
+  vi.resetModules()
+  return await import('./ThemeToggle')
+}
 
 describe('ThemeToggle', () => {
   beforeEach(() => {
@@ -14,8 +22,9 @@ describe('ThemeToggle', () => {
     })) as any
   })
 
-  it('toggles dark mode on click', () => {
-    render(<ThemeToggle />)
+  it('toggles dark mode on click', async () => {
+    const mod = await freshToggle()
+    render(<mod.ThemeToggle />)
     expect(document.documentElement.classList.contains('dark')).toBe(false)
 
     fireEvent.click(screen.getByLabelText('Switch to dark mode'))
