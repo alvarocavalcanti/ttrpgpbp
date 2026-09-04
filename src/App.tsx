@@ -12,6 +12,7 @@ import { ChangelogProvider, useChangelog } from './features/changelog/useChangel
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
+import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { trackPageView } from './lib/analytics'
@@ -267,6 +268,7 @@ export default function App() {
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
               <AppNav />
               <RealtimeBanner />
+              <PwaUpdateBanner />
               <main className="flex-1 flex flex-col">
                 <Suspense fallback={
                   <div className="flex-1 flex items-center justify-center">

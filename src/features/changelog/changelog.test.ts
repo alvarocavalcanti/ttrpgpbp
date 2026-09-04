@@ -66,7 +66,7 @@ describe('changelog module', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
     // Most-recent Unreleased "Updated" entry leads the list.
-    expect(items[0].title).toBe('Cleaner message composer')
+    expect(items[0].title).toBe('Smoother app updates')
   })
 
   it('getChangelogHash is a non-empty string', () => {

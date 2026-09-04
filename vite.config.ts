@@ -22,7 +22,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectManifest: {
         // No bare `png` here: it would precache every help screenshot
         // (~3.4 MiB). Help images load from the network on first visit.
