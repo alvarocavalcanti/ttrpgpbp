@@ -4,7 +4,8 @@ import { QUICK_EMOJIS } from './emojis'
 interface EmojiPickerProps {
   onPick: (emoji: string) => void
   /** Controlled open state; when provided the trigger button is hidden and the
-   *  picker opens/closes externally (e.g. from a message action). */
+   *  picker opens/closes externally (e.g. from a message action). Requires
+   *  `onOpenChange` so the parent can close it. */
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }
@@ -13,7 +14,9 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isOpen = open ?? internalOpen
   const setOpen = (v: boolean) => {
-    setInternalOpen(v)
+    // In controlled mode the parent owns visibility; keep internal state dead
+    // so a later `open` flip doesn't fight a stale internal write.
+    if (open === undefined) setInternalOpen(v)
     onOpenChange?.(v)
   }
   const containerRef = useRef<HTMLDivElement>(null)
