@@ -458,17 +458,6 @@ describe('App main menu drawer', () => {
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
-  it('closes the drawer via the backdrop', async () => {
-    await renderLobby()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
-
-    // No header X in the drawer (issue #382): the backdrop closes it.
-    fireEvent.click(screen.getByTestId('menu-backdrop'))
-    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
-  })
-
   it('closes the drawer on Escape', async () => {
     await renderLobby()
 

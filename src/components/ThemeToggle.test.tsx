@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ThemeToggle consumes the module-level theme store, so re-import it fresh per
@@ -30,7 +30,6 @@ describe('ThemeToggle', () => {
     fireEvent.click(screen.getByLabelText('Switch to dark mode'))
     expect(document.documentElement.classList.contains('dark')).toBe(true)
 
-    act(() => {})
     fireEvent.click(screen.getByLabelText('Switch to light mode'))
     expect(document.documentElement.classList.contains('dark')).toBe(false)
   })
