@@ -7,14 +7,14 @@ import { useAuth } from './useAuth'
 import { supabase } from '../../lib/supabase'
 import { usePushNotifications } from './usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
-import { useTextSize, type TextSize } from '../../hooks/useTextSize'
+import { useTextSize, TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE, type TextSize } from '../../hooks/useTextSize'
 import { buildUserDataExport, downloadJson } from './exportUserData'
 import { MAX_DISPLAY_NAME_LENGTH } from '../../constants'
 
 const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'large', label: 'Large' },
-  { value: 'xlarge', label: 'Extra large' },
+  { value: TEXT_SIZE_NORMAL, label: 'Normal' },
+  { value: TEXT_SIZE_LARGE, label: 'Large' },
+  { value: TEXT_SIZE_XLARGE, label: 'Extra large' },
 ]
 
 export function ProfileSettings() {
