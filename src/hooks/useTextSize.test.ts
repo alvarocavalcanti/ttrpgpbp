@@ -70,5 +70,16 @@ describe('useTextSize', () => {
       applyStoredTextSize()
       expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
     })
+
+    it('falls back to normal when localStorage access throws', () => {
+      const original = window.localStorage.getItem.bind(window.localStorage)
+      window.localStorage.getItem = () => { throw new Error('denied') }
+      try {
+        applyStoredTextSize()
+        expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
+      } finally {
+        window.localStorage.getItem = original
+      }
+    })
   })
 })

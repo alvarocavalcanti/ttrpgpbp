@@ -8,7 +8,14 @@ const SIZES: TextSize[] = ['normal', 'large', 'xlarge']
 
 function readStoredTextSize(): TextSize {
   if (typeof window === 'undefined') return 'normal'
-  const saved = window.localStorage.getItem(STORAGE_KEY)
+  let saved: string | null = null
+  try {
+    // Web Storage can throw (private mode, storage disabled) — fall back to
+    // normal rather than letting app startup crash.
+    saved = window.localStorage.getItem(STORAGE_KEY)
+  } catch {
+    return 'normal'
+  }
   return (SIZES as string[]).includes(saved ?? '') ? (saved as TextSize) : 'normal'
 }
 
