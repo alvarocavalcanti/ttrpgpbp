@@ -3,7 +3,7 @@ title: Lobby & Joining Channels
 screenshot: /help/lobby-empty.png
 ---
 
-The **lobby** is the first screen after signing in. It lists the private channels you've joined, each with a **GM** or **Player** badge showing your role, plus an unread count when there's something new to read.
+The **lobby** is the first screen after signing in. It lists the private channels you've joined. Each channel shows its **most recent message** (or *No messages yet*), a short timestamp, and a **GM** or **Player** badge, plus an unread count when there's something new to read.
 
 ## Creating a channel
 

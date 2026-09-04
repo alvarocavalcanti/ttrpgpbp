@@ -157,8 +157,45 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     expect(screen.getByText('My Channel')).toBeInTheDocument()
-    expect(screen.getByText('Joined as Hero')).toBeInTheDocument()
+    // No last message yet → placeholder preview.
+    expect(screen.getByText('No messages yet')).toBeInTheDocument()
     expect(screen.getByText('5 new')).toBeInTheDocument()
+  })
+
+  it('shows a short timestamp and a stripped message preview per channel', () => {
+    const today = new Date()
+    const hh = String(today.getHours()).padStart(2, '0')
+    const mi = String(today.getMinutes()).padStart(2, '0')
+
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        // Same-day message → HH:MM; preview has markdown stripped.
+        {
+          id: '1',
+          name: 'Today',
+          last_message_at: today.toISOString(),
+          last_message_preview: 'Roll a **d20** and _win_',
+          member: { character_name: 'Hero' },
+        } as any,
+        // Older message → DD/MM/YYYY.
+        {
+          id: '2',
+          name: 'Old',
+          last_message_at: '2020-05-04T10:00:00Z',
+          last_message_preview: 'The tale begins...',
+          member: { character_name: 'Hero' },
+        } as any,
+      ],
+      loading: false,
+      error: null,
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText(`${hh}:${mi}`)).toBeInTheDocument()
+    expect(screen.getByText('Roll a d20 and win')).toBeInTheDocument()
+    expect(screen.getByText('04/05/2020')).toBeInTheDocument()
+    expect(screen.getByText('The tale begins...')).toBeInTheDocument()
   })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {
     // Regression test for #369: the row's name container must allow its

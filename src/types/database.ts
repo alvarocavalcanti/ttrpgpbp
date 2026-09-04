@@ -464,6 +464,7 @@ export type Database = {
           invite_code: string | null
           is_archived: boolean
           last_message_at: string | null
+          last_message_preview: string | null
           map_url: string | null
           name: string
           resources_url: string | null
@@ -480,6 +481,7 @@ export type Database = {
           invite_code?: string | null
           is_archived?: boolean
           last_message_at?: string | null
+          last_message_preview?: string | null
           map_url?: string | null
           name: string
           resources_url?: string | null
@@ -496,6 +498,7 @@ export type Database = {
           invite_code?: string | null
           is_archived?: boolean
           last_message_at?: string | null
+          last_message_preview?: string | null
           map_url?: string | null
           name?: string
           resources_url?: string | null

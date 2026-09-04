@@ -52,6 +52,7 @@ export const ChannelRowSchema = z.looseObject({
   game_system: z.string().nullish(),
   created_at: z.string().nullish(),
   last_message_at: z.string().nullish(),
+  last_message_preview: z.string().nullish(),
 })
 
 export const ChannelMemberRowSchema = z.looseObject({

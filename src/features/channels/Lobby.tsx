@@ -15,6 +15,30 @@ import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
 // Invite links point at /join/:channelId; users paste the whole URL.
 const INVITE_LINK_PATTERN = /\/join\/([0-9a-fA-F-]{8,64})/
 
+// Short lobby timestamp (WhatsApp-style): HH:MM if the message is from today,
+// DD/MM/YYYY otherwise.
+function channelTimestamp(iso?: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}/${mm}/${d.getFullYear()}`
+}
+
+// Plain-text preview of the most recent message; CSS `truncate` adds the ellipsis.
+function channelPreview(preview?: string | null): string {
+  if (!preview) return 'No messages yet'
+  return preview
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[*_`#>]/g, '')
+    .trim()
+}
+
 export function Lobby() {
   const { myChannels, loading, error } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -141,45 +165,49 @@ export function Lobby() {
               {filteredMy.map((channel) => (
                 <li key={channel.id}>
                   <Link to={`/channel/${channel.id}`} className="block hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex flex-col space-y-1 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div className="flex items-center space-x-3 min-w-0">
-                          {channel.avatar_url ? (
-                            <SignedImg
-                              src={channel.avatar_url}
-                              alt=""
-                              referrerPolicy="no-referrer"
-                              data-testid="channel-avatar"
-                              className="h-10 w-10 rounded-full object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div data-testid="channel-avatar" className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 flex-shrink-0">
-                              {(channel.name[0] || '#').toUpperCase()}
-                            </div>
-                          )}
-                          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
-                            {channel.name}
-                          </p>
-                          {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
-                              {channel.unread_count} new
-                            </span>
-                          ) : null}
+                    <div className="flex items-center px-4 py-1.5 sm:px-6">
+                      {channel.avatar_url ? (
+                        <SignedImg
+                          src={channel.avatar_url}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          data-testid="channel-avatar"
+                          className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div data-testid="channel-avatar" className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 flex-shrink-0">
+                          {(channel.name[0] || '#').toUpperCase()}
                         </div>
-                        <div className="ml-2 flex-shrink-0 flex flex-wrap items-center justify-end gap-2">
+                      )}
+                      <div className="flex-1 min-w-0 ml-3 flex flex-col justify-center">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                              {channel.name}
+                            </span>
+                            {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
+                                {channel.unread_count} new
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                            {channelTimestamp(channel.last_message_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                            {channelPreview(channel.last_message_preview)}
+                          </span>
                           {channel.gm_id === user?.id ? (
-                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
+                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 flex-shrink-0">
                               GM
                             </p>
                           ) : (
-                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 flex-shrink-0">
                               Player
                             </p>
                           )}
-                          <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 max-w-full min-w-0">
-                            {/* Truncate on narrow screens so a long character name can't dominate the row */}
-                            <span className="truncate max-w-[50vw] sm:max-w-none">Joined as {channel.member.character_name}</span>
-                          </p>
                         </div>
                       </div>
                     </div>
