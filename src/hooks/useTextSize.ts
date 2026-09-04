@@ -4,19 +4,23 @@ const STORAGE_KEY = 'rolebypost-text-size'
 
 export type TextSize = 'normal' | 'large' | 'xlarge'
 
-const SIZES: TextSize[] = ['normal', 'large', 'xlarge']
+export const TEXT_SIZE_NORMAL: TextSize = 'normal'
+export const TEXT_SIZE_LARGE: TextSize = 'large'
+export const TEXT_SIZE_XLARGE: TextSize = 'xlarge'
+
+const SIZES: TextSize[] = [TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE]
 
 function readStoredTextSize(): TextSize {
-  if (typeof window === 'undefined') return 'normal'
+  if (typeof window === 'undefined') return TEXT_SIZE_NORMAL
   let saved: string | null = null
   try {
     // Web Storage can throw (private mode, storage disabled) — fall back to
     // normal rather than letting app startup crash.
     saved = window.localStorage.getItem(STORAGE_KEY)
   } catch {
-    return 'normal'
+    return TEXT_SIZE_NORMAL
   }
-  return (SIZES as string[]).includes(saved ?? '') ? (saved as TextSize) : 'normal'
+  return (SIZES as string[]).includes(saved ?? '') ? (saved as TextSize) : TEXT_SIZE_NORMAL
 }
 
 // Applies the persisted text size to <html> synchronously, before first paint.
@@ -26,7 +30,7 @@ export function applyStoredTextSize(): void {
   if (typeof window === 'undefined') return
   const root = document.documentElement
   const size = readStoredTextSize()
-  if (size === 'normal') {
+  if (size === TEXT_SIZE_NORMAL) {
     root.removeAttribute('data-text-size')
   } else {
     root.setAttribute('data-text-size', size)
@@ -41,7 +45,7 @@ export function useTextSize() {
 
   useEffect(() => {
     const root = document.documentElement
-    if (textSize === 'normal') {
+    if (textSize === TEXT_SIZE_NORMAL) {
       root.removeAttribute('data-text-size')
     } else {
       root.setAttribute('data-text-size', textSize)

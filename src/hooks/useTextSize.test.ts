@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useTextSize, applyStoredTextSize } from './useTextSize'
+import { useTextSize, applyStoredTextSize, TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE } from './useTextSize'
+
+const STORAGE_KEY = 'rolebypost-text-size'
 
 describe('useTextSize', () => {
   beforeEach(() => {
@@ -10,52 +12,52 @@ describe('useTextSize', () => {
 
   it('defaults to normal with no attribute and persists it', () => {
     const { result } = renderHook(() => useTextSize())
-    expect(result.current.textSize).toBe('normal')
+    expect(result.current.textSize).toBe(TEXT_SIZE_NORMAL)
     expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
-    expect(window.localStorage.getItem('rolebypost-text-size')).toBe('normal')
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe(TEXT_SIZE_NORMAL)
   })
 
   it('sets the data attribute and persists when a non-default size is chosen', () => {
     const { result } = renderHook(() => useTextSize())
 
-    act(() => result.current.setSize('large'))
-    expect(result.current.textSize).toBe('large')
-    expect(document.documentElement.getAttribute('data-text-size')).toBe('large')
-    expect(window.localStorage.getItem('rolebypost-text-size')).toBe('large')
+    act(() => result.current.setSize(TEXT_SIZE_LARGE))
+    expect(result.current.textSize).toBe(TEXT_SIZE_LARGE)
+    expect(document.documentElement.getAttribute('data-text-size')).toBe(TEXT_SIZE_LARGE)
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe(TEXT_SIZE_LARGE)
   })
 
   it('removes the attribute when returning to normal', () => {
     const { result } = renderHook(() => useTextSize())
 
-    act(() => result.current.setSize('xlarge'))
-    expect(document.documentElement.getAttribute('data-text-size')).toBe('xlarge')
+    act(() => result.current.setSize(TEXT_SIZE_XLARGE))
+    expect(document.documentElement.getAttribute('data-text-size')).toBe(TEXT_SIZE_XLARGE)
 
-    act(() => result.current.setSize('normal'))
+    act(() => result.current.setSize(TEXT_SIZE_NORMAL))
     expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
   })
 
   it('restores a saved size over the default', () => {
-    window.localStorage.setItem('rolebypost-text-size', 'xlarge')
+    window.localStorage.setItem(STORAGE_KEY, TEXT_SIZE_XLARGE)
     const { result } = renderHook(() => useTextSize())
-    expect(result.current.textSize).toBe('xlarge')
+    expect(result.current.textSize).toBe(TEXT_SIZE_XLARGE)
   })
 
   it('ignores an unknown saved value and falls back to normal', () => {
-    window.localStorage.setItem('rolebypost-text-size', 'huge')
+    window.localStorage.setItem(STORAGE_KEY, 'huge')
     const { result } = renderHook(() => useTextSize())
-    expect(result.current.textSize).toBe('normal')
+    expect(result.current.textSize).toBe(TEXT_SIZE_NORMAL)
   })
 
   describe('applyStoredTextSize', () => {
     it('sets the attribute for a saved non-normal size', () => {
-      window.localStorage.setItem('rolebypost-text-size', 'xlarge')
+      window.localStorage.setItem(STORAGE_KEY, TEXT_SIZE_XLARGE)
       applyStoredTextSize()
-      expect(document.documentElement.getAttribute('data-text-size')).toBe('xlarge')
+      expect(document.documentElement.getAttribute('data-text-size')).toBe(TEXT_SIZE_XLARGE)
     })
 
     it('removes the attribute when the saved size is normal', () => {
-      window.localStorage.setItem('rolebypost-text-size', 'normal')
-      document.documentElement.setAttribute('data-text-size', 'large')
+      window.localStorage.setItem(STORAGE_KEY, TEXT_SIZE_NORMAL)
+      document.documentElement.setAttribute('data-text-size', TEXT_SIZE_LARGE)
       applyStoredTextSize()
       expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
     })
@@ -66,7 +68,7 @@ describe('useTextSize', () => {
     })
 
     it('ignores an unknown saved value and leaves the attribute unset', () => {
-      window.localStorage.setItem('rolebypost-text-size', 'huge')
+      window.localStorage.setItem(STORAGE_KEY, 'huge')
       applyStoredTextSize()
       expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
     })
