@@ -5,6 +5,8 @@ screenshot: /help/lobby-empty.png
 
 The **lobby** is the first screen after signing in. It lists the private channels you've joined. Each channel shows its **most recent message** (or *No messages yet*), a short timestamp, and a **GM** or **Player** badge, plus an unread count when there's something new to read.
 
+![The lobby with joined channels, each showing its most recent message](/help/lobby-with-channels.png)
+
 ## Creating a channel
 
 Tap **Create a channel** (+) to start your own game. You'll be the Game Master. There's a limit to how many active channels each player can have — when you reach it, the create button explains why.
