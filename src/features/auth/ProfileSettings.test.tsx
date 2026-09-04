@@ -121,6 +121,14 @@ describe('ProfileSettings', () => {
     const group = screen.getByRole('group', { name: 'Text size' })
     expect(group).toBeInTheDocument()
 
+    // Alignment regression (#382): the row must center its buttons and the
+    // labels must not wrap — "Extra large" wrapping raised the button height
+    // and pushed the other labels to the top.
+    expect(group).toHaveClass('items-center')
+    for (const label of ['Normal', 'Large', 'Extra large']) {
+      expect(screen.getByRole('button', { name: label })).toHaveClass('whitespace-nowrap')
+    }
+
     const normal = screen.getByRole('button', { name: 'Normal' })
     expect(normal).toHaveAttribute('aria-pressed', 'true')
 

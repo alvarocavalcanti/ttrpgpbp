@@ -203,14 +203,14 @@ export function ProfileSettings() {
               Controls the size of all app text. Pick the size that reads most comfortably for you.
             </p>
           </div>
-          <div className="mt-4 flex space-x-2" role="group" aria-label="Text size">
+          <div className="mt-4 flex flex-wrap items-center space-x-2" role="group" aria-label="Text size">
             {TEXT_SIZE_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setSize(value)}
                 aria-pressed={textSize === value}
-                className={`inline-flex justify-center rounded-md border py-2 px-4 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                className={`inline-flex justify-center rounded-md border py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                   textSize === value
                     ? 'border-transparent bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
                     : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700'
