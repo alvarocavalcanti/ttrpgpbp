@@ -18,4 +18,4 @@ The GM can link a shared document (e.g. a Google Doc) as the group's safety refe
 
 ## X-Card
 
-The **X-Card** is a red card-with-X button in the message composer (open the **"+"** options in the composer) and on each message. Pressing it flags the current scene to the GM **anonymously** — the GM sees an instant alert and can handle the scene outside the chat. The presser gets a private confirmation.
+The **X-Card** is a red card-with-X button in the message composer (open the **"+"** options in the composer). Pressing it flags the current scene to the GM **anonymously** — the GM sees an instant alert and can handle the scene outside the chat. The presser gets a private confirmation.

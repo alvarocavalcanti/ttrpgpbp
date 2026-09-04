@@ -137,9 +137,10 @@ describe('ChannelView search functionality', () => {
     expect(nameContainer).toHaveClass('min-w-0')
 
     // Header controls remain rendered and accessible.
-    expect(screen.getByRole('button', { name: 'Search messages' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Roll history' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Toggle sidebar menu' })).toBeInTheDocument()
+    // Search + roll history moved into the sidebar menu (issue #382).
+    expect(screen.queryByRole('button', { name: 'Search messages' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Roll history' })).not.toBeInTheDocument()
   })
 
   it('toggles help modal', () => {
@@ -243,7 +244,7 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByTestId('channel-name-skeleton')).not.toBeInTheDocument()
   })
 
-  it('opens search and roll history from header icon buttons', () => {
+  it('opens search and roll history from the sidebar menu', () => {
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={['/channel/c1']}>
@@ -254,11 +255,11 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Search messages' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(screen.getByTestId('search-modal')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Close Search'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Roll history' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Rolls' }))
     expect(screen.getByRole('dialog', { name: 'Roll History' })).toBeInTheDocument()
   })
 
@@ -1109,7 +1110,7 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/X-Card triggered \(2\)\. Handle the scene outside the chat/)
+    expect(screen.getByRole('alert')).toHaveTextContent(/X-Card triggered \(2\)\./)
     fireEvent.click(screen.getByLabelText('Dismiss X-Card alert'))
     expect(mockDismiss).toHaveBeenCalled()
   })

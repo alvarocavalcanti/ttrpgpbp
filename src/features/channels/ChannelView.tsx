@@ -24,6 +24,7 @@ import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
 import { useToast } from '../../contexts/ToastContext'
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
@@ -57,6 +58,9 @@ export function ChannelView() {
   // Right-edge swipe opens/closes the sidebar on touch devices, matching the
   // lobby menu drawer. Desktop keeps the persistent lg: layout.
   useEdgeSwipe({ open: showMobileSidebar, onOpen: () => setShowMobileSidebar(true), onClose: () => setShowMobileSidebar(false) })
+  // No header X in the drawer (issue #382): close via backdrop tap, edge
+  // swipe, the header toggle, or Escape.
+  useEscapeToClose(() => setShowMobileSidebar(false))
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
   // Which member's character sheet is being edited; shared by MemberList and
@@ -235,36 +239,8 @@ export function ChannelView() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">{channel.name}</h2>
           </div>
 
-          {/* One-tap tools in the header (issue #346): search + roll history */}
+          {/* Tools live in the sidebar menu (issue #382): search + roll history */}
           <div className="flex items-center">
-            <button
-              type="button"
-              aria-label="Search messages"
-              title="Search messages"
-              onClick={() => setShowSearch(true)}
-              className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              aria-label="Roll history"
-              title="Roll history"
-              onClick={() => setShowRollHistory(true)}
-              className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
-                <circle cx="9" cy="9" r="1.4" fill="currentColor" stroke="none" />
-                <circle cx="15" cy="9" r="1.4" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-                <circle cx="9" cy="15" r="1.4" fill="currentColor" stroke="none" />
-                <circle cx="15" cy="15" r="1.4" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
-
             {/* Mobile Sidebar Toggle */}
             <button
               type="button"
@@ -307,7 +283,7 @@ export function ChannelView() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
               </svg>
               <span>
-                X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}. Handle the scene outside the chat.
+                X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}.
               </span>
             </span>
             <button type="button" onClick={dismissAlert} className="text-white hover:text-red-100 p-1" aria-label="Dismiss X-Card alert">
@@ -330,7 +306,6 @@ export function ChannelView() {
           onReply={handleReply}
           onJumpToMessage={handleJumpToMessage}
           lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
-          onXCard={triggerXCard}
           onRetry={retryMessage}
           onRemovePending={removePendingMessage}
           // Open the mobile sidebar with the editor: the modal renders inside
@@ -382,11 +357,6 @@ export function ChannelView() {
         lg:relative lg:translate-x-0
         ${showMobileSidebar ? 'translate-x-0' : 'translate-x-full'}
       `}>
-        <div className="lg:hidden flex justify-end p-2 border-b border-gray-100 dark:border-gray-700">
-          <button type="button" onClick={() => setShowMobileSidebar(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
         <MemberList 
           members={members} 
           isGM={isGM} 

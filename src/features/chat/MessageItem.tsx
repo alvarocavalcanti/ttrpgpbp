@@ -43,7 +43,6 @@ interface MessageItemProps {
   onToggleReaction?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
-  onXCard?: (messageId: string) => void
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
   onEditCharacter?: () => void
@@ -160,13 +159,14 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
   )
 }
 
-export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onXCard, onRetry, onRemovePending, onEditCharacter }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkDraft, setCheckDraft] = useState<CheckDraft | null>(null)
   const [actionsOpen, setActionsOpen] = useState(false)
+  const [reactionsOpen, setReactionsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const itemRef = useRef<HTMLDivElement>(null)
 
@@ -361,19 +361,18 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
       })
     }
-    if (onXCard) {
+    if (onToggleReaction && !message.pending && !isScene && !isSystem && message.type !== 'dice_roll') {
       list.push({
-        id: 'x-card', label: 'X-Card', danger: true, onClick: () => onXCard(message.id),
+        id: 'reactions', label: 'Reactions', onClick: () => setReactionsOpen(true),
         icon: (
-          <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8l8 8M16 8l-8 8" />
+          <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ),
       })
     }
     return list
-  }, [onReply, canEdit, isGM, onXCard, message])
+  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message])
 
   const actionIconClass = (danger?: boolean) =>
     `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`
@@ -457,8 +456,10 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     </div>
   ) : null
 
-  const reactionPicker = onToggleReaction && !message.pending ? (
-    <EmojiPicker onPick={handleToggleReaction} />
+  // Only opened on demand via the "Reactions" message action — no persistent
+  // smiley trigger (issue #382).
+  const reactionPicker = onToggleReaction && !message.pending && reactionsOpen ? (
+    <EmojiPicker open onOpenChange={setReactionsOpen} onPick={handleToggleReaction} />
   ) : null
 
   const pendingOverlay = message.pending && !message.error ? (
@@ -479,7 +480,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
   if (isSystem) {
     return (
-      <div ref={itemRef} className={`relative flex justify-center my-4 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900 rounded-lg p-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      <div ref={itemRef} className={`relative flex justify-center my-1 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900 rounded-lg p-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
         <div className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-3 py-1 rounded-full">
           {message.content}
@@ -491,7 +492,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
   if (isScene) {
     return (
-      <div ref={itemRef} className={`relative my-6 px-4 py-6 bg-parchment dark:bg-parchment-dark border-y-2 border-parchment-border dark:border-parchment-border-dark shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      <div ref={itemRef} className={`relative my-3 px-4 py-6 bg-parchment dark:bg-parchment-dark border-y-2 border-parchment-border dark:border-parchment-border-dark shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
         <div className="max-w-2xl w-full text-center font-serif text-parchment-ink dark:text-parchment-ink-dark prose dark:prose-invert prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-headings:text-parchment-ink-strong dark:prose-headings:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark prose-em:text-parchment-ink dark:prose-em:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-blockquote:text-parchment-ink dark:prose-blockquote:text-parchment-ink-dark prose-blockquote:border-parchment-border dark:prose-blockquote:border-parchment-border-dark prose-ul:text-parchment-ink dark:prose-ul:text-parchment-ink-dark prose-ol:text-parchment-ink dark:prose-ol:text-parchment-ink-dark max-w-none break-words [&>p:last-child]:bg-parchment-shade dark:[&>p:last-child]:bg-parchment-shade-dark [&>p:last-child]:p-4 [&>p:last-child]:mt-6 [&>p:last-child]:rounded-md [&>p:last-child]:shadow-inner [&>p:last-child]:font-bold [&>p:last-child]:italic [&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark">
           {isEditing ? (
@@ -568,7 +569,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       label: 'text-indigo-800 dark:text-indigo-200',
     }
     return (
-      <div ref={itemRef} className={`relative flex items-center space-x-3 my-4 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      <div ref={itemRef} className={`relative flex items-center space-x-3 my-1 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
         <div className={`flex-shrink-0 ${tone.icon} p-2 rounded-full`}>
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -607,7 +608,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }
 
   return (
-    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-4 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-parchment dark:bg-parchment-dark rounded-lg border border-parchment-border dark:border-parchment-border-dark' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-1 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-parchment dark:bg-parchment-dark rounded-lg border border-parchment-border dark:border-parchment-border-dark' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
       {pendingOverlay}
       <div className="flex-shrink-0">
         {isNpc ? (
