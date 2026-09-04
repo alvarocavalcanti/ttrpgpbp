@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { Markdown } from '../../components/Markdown'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import type { ChangelogItem } from './changelog'
@@ -44,7 +45,11 @@ export function ChangelogModal({ items, onDismiss, onDismissForever, onClose }: 
             {items.map((item, index) => (
               <li key={`${item.version}-${item.title}-${index}`} className="border-b border-gray-100 dark:border-gray-700 pb-3 last:border-b-0 last:pb-0">
                 <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">{item.title}</h4>
-                {item.body && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.body}</p>}
+                {item.body && (
+                  <div className="prose prose-sm max-w-none dark:prose-invert mt-1">
+                    <Markdown>{item.body}</Markdown>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
