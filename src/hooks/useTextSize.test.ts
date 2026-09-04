@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useTextSize } from './useTextSize'
+import { useTextSize, applyStoredTextSize } from './useTextSize'
 
 describe('useTextSize', () => {
   beforeEach(() => {
@@ -44,5 +44,31 @@ describe('useTextSize', () => {
     window.localStorage.setItem('rolebypost-text-size', 'huge')
     const { result } = renderHook(() => useTextSize())
     expect(result.current.textSize).toBe('normal')
+  })
+
+  describe('applyStoredTextSize', () => {
+    it('sets the attribute for a saved non-normal size', () => {
+      window.localStorage.setItem('rolebypost-text-size', 'xlarge')
+      applyStoredTextSize()
+      expect(document.documentElement.getAttribute('data-text-size')).toBe('xlarge')
+    })
+
+    it('removes the attribute when the saved size is normal', () => {
+      window.localStorage.setItem('rolebypost-text-size', 'normal')
+      document.documentElement.setAttribute('data-text-size', 'large')
+      applyStoredTextSize()
+      expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
+    })
+
+    it('leaves the attribute unset when nothing is saved', () => {
+      applyStoredTextSize()
+      expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
+    })
+
+    it('ignores an unknown saved value and leaves the attribute unset', () => {
+      window.localStorage.setItem('rolebypost-text-size', 'huge')
+      applyStoredTextSize()
+      expect(document.documentElement.hasAttribute('data-text-size')).toBe(false)
+    })
   })
 })
