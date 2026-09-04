@@ -831,7 +831,7 @@ describe('MessageItem', () => {
     expect(items).toEqual(['Reply', 'Edit', 'Delete', 'Reactions'])
   })
 
-  it('mobile action sheet lists only X-Card for a non-author player', () => {
+  it('mobile action sheet lists only Reply for a non-author player', () => {
     const msg: any = {
       id: 'm1',
       type: 'regular',
@@ -846,7 +846,7 @@ describe('MessageItem', () => {
     expect(items).toEqual(['Reply'])
   })
 
-  it('mobile action sheet lists Reply, Delete and X-Card for the GM', () => {
+  it('mobile action sheet lists Reply and Delete for the GM', () => {
     const msg: any = {
       id: 'm1',
       type: 'regular',
