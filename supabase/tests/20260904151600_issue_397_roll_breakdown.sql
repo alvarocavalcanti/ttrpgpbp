@@ -12,7 +12,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(8);
+SELECT plan(9);
 
 -- Modifier rolls break down into kept dice + modifier = total.
 SELECT is(
@@ -43,6 +43,13 @@ SELECT is(
   build_dice_content('1d20', '{15}', 0, 15),
   'Rolled 1d20: **15**',
   'single no-modifier die stays terse'
+);
+
+-- A modifier roll that also crits breaks down AND keeps the critical label.
+SELECT is(
+  build_dice_content('1d20+5', '{20}', 5, 25),
+  'Rolled 1d20+5: 20 + 5 = **25**' || E'\n\n**Critical Success**',
+  'modifier breakdown combines with the critical success label'
 );
 
 -- Dropped-die rolls (dh/dl) never show a wrong breakdown: the guard compares
