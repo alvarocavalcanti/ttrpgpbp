@@ -203,6 +203,30 @@ describe('sw message handler closes channel notifications', () => {
   })
 })
 
+describe('sw message handler skips waiting on update prompt', () => {
+  let skipWaiting: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    skipWaiting = vi.fn()
+    Object.defineProperty(self, 'skipWaiting', {
+      value: skipWaiting,
+      configurable: true,
+    })
+  })
+
+  it('calls skipWaiting when the page taps the update CTA', () => {
+    const waitUntil = dispatchMessage({ type: 'SKIP_WAITING' })
+    expect(skipWaiting).toHaveBeenCalledTimes(1)
+    expect(waitUntil).not.toHaveBeenCalled()
+  })
+
+  it('ignores other message types without skipping', () => {
+    dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
+    expect(skipWaiting).not.toHaveBeenCalled()
+  })
+})
+
 describe('sw notificationclick focuses the exact channel', () => {
   it('focuses a client whose path matches the notification url', async () => {
     const focus = vi.fn()

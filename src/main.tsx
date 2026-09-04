@@ -1,6 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { registerSW } from 'virtual:pwa-register'
 import '@fontsource/crimson-pro/400.css'
 import '@fontsource/crimson-pro/400-italic.css'
 import '@fontsource/crimson-pro/600.css'
@@ -12,8 +11,6 @@ import { initSentry } from './lib/sentry'
 import { applyStoredTextSize } from './hooks/useTextSize'
 
 void initSentry()
-
-registerSW({ immediate: true })
 
 initAnalytics()
 

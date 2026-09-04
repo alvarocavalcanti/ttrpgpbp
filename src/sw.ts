@@ -106,6 +106,16 @@ self.addEventListener('notificationclick', (event) => {
 // notifications behind.
 self.addEventListener('message', (event) => {
   const data = event.data as { type?: string; channelId?: string }
+
+  // The page asked us to take over when the user chose to update (issue #385):
+  // workbox-window's messageSkipWaiting() sends this after the "New version
+  // available" prompt's CTA is tapped, and without skipWaiting the new worker
+  // stays in the waiting state forever — the cached old shell keeps serving.
+  if (data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+    return
+  }
+
   if (data?.type !== 'CLOSE_CHANNEL_NOTIFICATIONS' || !data.channelId) return
 
   event.waitUntil(

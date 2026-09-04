@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Smoother app updates** — when a new version of the app is available, a small banner appears at the top saying "New version available, reload to update." Tap **Reload** and the app refreshes itself with the fresh version — no more clearing the cache and reloading over and over to catch up after an update.
+
 - **Cleaner message composer** — the composer row is now neater: the character avatar (which could show as a bare letter) is gone, the "add" button lines up with the send button, and the surrounding spacing is even. You can still edit your character from the ability-check sheet in a message.
 
 - **Slide-in menus you can swipe open** — the main app menu now slides in from the right edge of the screen (like the channel sidebar), instead of popping up under the ☰ button. On touchscreens, both the app menu and the channel sidebar can also be opened by swiping in from the right edge — and closed by swiping back out.

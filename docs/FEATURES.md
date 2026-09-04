@@ -132,6 +132,7 @@
 - **In-app badge** — on by default
 - **Realtime connection recovery** — the app shows when it is offline or reconnecting, keeps loaded chat usable, and catches up on messages (including edits and deletions), channel changes, rolls, and unread counts after returning
 - **Offline navigation** — opening any app link while offline serves the cached app shell instead of a browser error page
+- **Manual refresh prompt** — when a new version of the app is published, the app shows a "New version available, reload to update" banner with a **Reload** button instead of silently serving the stale cached copy, so catching up after an update never requires clearing the cache
 - **Launcher icon badge** — when the PWA is installed, the home-screen icon shows the total unread count via the App Badging API (iOS 16.4+, desktop); respects the unread-badge preference and is updated in the background when a push arrives. A badge update failure never suppresses the system notification. Android has no badge API and shows a dot automatically only while a notification is active.
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")
