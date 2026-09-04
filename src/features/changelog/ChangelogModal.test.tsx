@@ -22,6 +22,20 @@ describe('ChangelogModal', () => {
     expect(screen.getByText('Feature Two')).toBeInTheDocument()
   })
 
+  it('renders markdown in item bodies', () => {
+    const mdItems: ChangelogItem[] = [
+      { version: '[Unreleased]', section: 'Updated', title: 'Roll messages show their maths', body: 'a roll like `Rolled 1d20+3: 10 + 3 = **13**` reads the total so you can follow along' },
+    ]
+    render(
+      <MemoryRouter>
+        <ChangelogModal items={mdItems} onDismiss={vi.fn()} onDismissForever={vi.fn()} onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+    const code = screen.getByText('Rolled 1d20+3: 10 + 3 = **13**', { selector: 'code' })
+    expect(code).toBeInTheDocument()
+    expect(code.textContent).toContain('**13**')
+  })
+
   it('links to the full changelog page', () => {
     render(
       <MemoryRouter>
