@@ -102,6 +102,7 @@ Boundaries: code/commits/PRs written normal.
      - No polling, no waiting. Agent exits. GitHub merges when CI passes.
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Test placement**: Verification tests live in the real test suite (`src/**/*.test.ts`), never as throwaway /tmp files. Write them once, keep them, commit them.
+- **Testing strategy**: TDD is preferred, and also keep DAMP vs DRY in mind. For instance, if the SRC uses constants, the TST should use string literals so the tests can break on an accidental change to the constants.
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
 ## UI Best Practices
