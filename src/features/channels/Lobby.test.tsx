@@ -76,6 +76,25 @@ describe('Lobby', () => {
     expect(screen.getByText("You haven't joined any channels yet.")).toBeInTheDocument()
   })
 
+  it('fills remaining viewport space instead of hard-coding a fixed chrome height', () => {
+    // Regression test for #396: the root used min-h-[calc(100vh-73px)], which
+    // assumed the header + banners above <main> are exactly 73px tall. PWA
+    // banners (#385/#387), large text-size, and mobile vh-vs-dvh all make the
+    // real chrome taller, so the forced min-height overflowed the viewport and
+    // the lobby always got a vertical scrollbar. It must now flex to whatever
+    // space the actual chrome leaves behind (no magic number).
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+    })
+
+    const { container } = render(<Lobby />, { wrapper: MemoryRouter })
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveClass('flex-1')
+    expect(root.className).not.toMatch(/min-h-\[calc/)
+  })
+
   it('empty state offers create-channel and invite-link paths', () => {
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [],

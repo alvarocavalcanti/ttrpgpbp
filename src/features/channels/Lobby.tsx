@@ -104,7 +104,7 @@ export function Lobby() {
   const filteredMy = myChannels.filter(c => c.name.toLowerCase().includes(q))
 
   return (
-    <div className="w-full max-w-7xl mx-auto pt-0 pb-8 md:px-6 lg:px-8 relative min-h-[calc(100vh-73px)]">
+    <div className="w-full max-w-7xl mx-auto pt-0 pb-8 md:px-6 lg:px-8 relative flex-1">
       <div className="flex flex-col gap-6">
         <PermissionBanner />
         <div className="bg-white dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700 md:border-none md:shadow overflow-hidden md:rounded-md">
