@@ -321,6 +321,17 @@ describe('MessageComposer', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20')
   })
 
+  it('collapses the options panel after rolling so the roll message is visible', () => {
+    const mockOnRoll = vi.fn()
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} onRollDice={mockOnRoll} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll Dice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    // The options panel (hosting the Roll Dice chip) must be gone.
+    expect(screen.queryByRole('button', { name: 'Roll Dice' })).not.toBeInTheDocument()
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20')
+  })
+
   it('shows mention autocomplete and inserts selected mention', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
