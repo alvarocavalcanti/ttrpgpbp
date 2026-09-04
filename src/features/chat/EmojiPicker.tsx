@@ -1,14 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { QUICK_EMOJIS } from './emojis'
 
-interface EmojiPickerProps {
+interface EmojiPickerBaseProps {
   onPick: (emoji: string) => void
-  /** Controlled open state; when provided the trigger button is hidden and the
-   *  picker opens/closes externally (e.g. from a message action). Requires
-   *  `onOpenChange` so the parent can close it. */
-  open?: boolean
+}
+
+// Uncontrolled: the picker manages its own open state behind the trigger button.
+interface UncontrolledEmojiPickerProps extends EmojiPickerBaseProps {
+  open?: undefined
   onOpenChange?: (open: boolean) => void
 }
+
+// Controlled: the parent owns visibility; the trigger button is hidden and
+// `onOpenChange` is required so the picker can be closed (e.g. from a message
+// action).
+interface ControlledEmojiPickerProps extends EmojiPickerBaseProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export type EmojiPickerProps = UncontrolledEmojiPickerProps | ControlledEmojiPickerProps
 
 export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
   const [internalOpen, setInternalOpen] = useState(false)
