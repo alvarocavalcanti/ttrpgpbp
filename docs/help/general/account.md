@@ -41,3 +41,7 @@ The **Privacy Policy** and **Terms of Service** (linked from the login page foot
 ## About RoleByPost
 
 The **About** item in the app menu links to the creator, donation pages, and RoleByPost's GitHub project.
+
+## Install as an app
+
+On browsers that support it (Chrome, Edge, Android Chrome), a small banner at the top of the screen may offer to **install** Role by Post as an app. Installing adds it to your home screen for one-tap access and lets it keep working offline. Tap **Install** to confirm with your browser's dialog, or **No thanks** to hide the banner for a month. If you've dismissed it and change your mind, you can always install from your browser's menu (Chrome/Edge: the "Install" option).
