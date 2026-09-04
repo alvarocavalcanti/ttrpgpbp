@@ -16,13 +16,16 @@ import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
 const INVITE_LINK_PATTERN = /\/join\/([0-9a-fA-F-]{8,64})/
 
 // Short lobby timestamp (WhatsApp-style): HH:MM if the message is from today,
-// DD/MM/YYYY otherwise.
+// DD/MM/YYYY otherwise. Formatted manually (not locale/time-zone dependent) so
+// the 24-hour HH:MM is stable across browsers.
 function channelTimestamp(iso?: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   const now = new Date()
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    return `${hh}:${mm}`
   }
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
