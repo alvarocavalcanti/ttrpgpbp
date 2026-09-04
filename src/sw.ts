@@ -9,6 +9,14 @@ declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST || [])
 
+// Take control of the page as soon as this worker activates. Without
+// clients.claim() the updated worker skips waiting and activates, but the open
+// page stays under the old worker — workbox-window's `controlling` event (which
+// triggers the update prompt's reload) would never fire (issue #385).
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 // SPA navigation fallback: deep links like /channel/:id serve the pre-cached
 // app shell when offline instead of a browser error page (#336). The shell
 // itself renders its own empty/error states for unreachable data.

@@ -26,6 +26,7 @@ interface PushEventLike {
 let pushHandler: (event: PushEventLike) => void
 let messageHandler: ((event: any) => void) | undefined
 let notificationClickHandler: ((event: any) => void) | undefined
+let activateHandler: ((event: any) => void) | undefined
 
 beforeAll(async () => {
   const origAdd = self.addEventListener.bind(self)
@@ -36,6 +37,7 @@ beforeAll(async () => {
   pushHandler = find('push') as (event: PushEventLike) => void
   messageHandler = find('message') as ((event: any) => void) | undefined
   notificationClickHandler = find('notificationclick') as ((event: any) => void) | undefined
+  activateHandler = find('activate') as ((event: any) => void) | undefined
 })
 
 function dispatchPush(payload: Record<string, unknown> | null, jsonImpl?: () => Record<string, unknown>) {
@@ -224,6 +226,26 @@ describe('sw message handler skips waiting on update prompt', () => {
   it('ignores other message types without skipping', () => {
     dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
     expect(skipWaiting).not.toHaveBeenCalled()
+  })
+})
+
+describe('sw activate handler claims clients', () => {
+  let claim: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    claim = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(self, 'clients', {
+      value: { claim },
+      configurable: true,
+    })
+  })
+
+  it('calls clients.claim() on activation so the new worker controls the page', () => {
+    const waitUntil = vi.fn()
+    activateHandler?.({ waitUntil })
+    expect(claim).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledWith(claim.mock.results[0].value)
   })
 })
 
