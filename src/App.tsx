@@ -144,6 +144,7 @@ function AppNav() {
             {/* Backdrop: tap anywhere outside the drawer to close (replaces the
                 old outside-mousedown handler used by the popup menu). */}
             <div
+              data-testid="menu-backdrop"
               className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 z-40"
               onClick={() => setMenuOpen(false)}
               aria-hidden="true"
@@ -161,20 +162,25 @@ function AppNav() {
             >
               Profile
             </Link>
-            {/* Folded-in header controls on compact screens (issue #382): search + dark mode */}
-            <div className="md:hidden border-t border-gray-100 dark:border-gray-700 my-1"></div>
-            <div className="md:hidden px-4 py-2">
-              <form onSubmit={(e) => e.preventDefault()}>
-                <input
-                  type="text"
-                  aria-label="Search channels in menu"
-                  placeholder="Search channels..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </form>
-            </div>
+            {/* Folded-in header controls on compact screens (issue #382): search + dark
+              mode. Search is lobby-only, matching the header search. */}
+            {location.pathname === '/' && (
+              <>
+                <div className="md:hidden border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                <div className="md:hidden px-4 py-2">
+                  <form onSubmit={(e) => e.preventDefault()}>
+                    <input
+                      type="text"
+                      aria-label="Search channels in menu"
+                      placeholder="Search channels..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </form>
+                </div>
+              </>
+            )}
             <button
               type="button"
               onClick={toggleTheme}

@@ -49,7 +49,7 @@ describe('App', () => {
     expect(await screen.findByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
   })
 
-  it('renders lobby and avatar when authenticated with profile avatar', async () => {
+  it('renders lobby and lists Profile in the menu drawer when authenticated', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },
       error: null,
@@ -87,45 +87,6 @@ describe('App', () => {
     
     expect(await screen.findByText('Role by Post')).toBeInTheDocument()
     expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByText('Profile')).toBeInTheDocument()
-  })
-
-  it('renders placeholder avatar when authenticated without profile avatar', async () => {
-    vi.mocked(supabase.auth.getSession).mockResolvedValue({
-      data: { session: { user: { id: '123', email: 'test@example.com' } } },
-      error: null,
-    } as any)
-
-    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
-    } as any)
-
-    const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: null, avatar_url: null },
-      error: null,
-    })
-    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
-
-    const empty = { data: [], error: null }
-    const listChain = {
-      select: () => listChain,
-      eq: () => listChain,
-      order: () => Promise.resolve(empty),
-      gt: () => Promise.resolve({ count: 0, error: null }),
-      maybeSingle: () => Promise.resolve({ data: null, error: null }),
-      // eslint-disable-next-line unicorn/no-thenable
-      then: (cb: any) => Promise.resolve(empty).then(cb),
-    }
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'profiles') return profileChain as any
-      return listChain as any
-    })
-
-    render(<App />)
-    
-    expect(await screen.findByText('Role by Post')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Profile')).toBeInTheDocument()
   })
@@ -493,7 +454,7 @@ describe('App main menu drawer', () => {
     swipe('touchend', 260)
     expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('navigation', { name: 'Main menu' }).previousSibling as Element)
+    fireEvent.click(screen.getByTestId('menu-backdrop'))
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
@@ -504,7 +465,17 @@ describe('App main menu drawer', () => {
     expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
 
     // No header X in the drawer (issue #382): the backdrop closes it.
-    fireEvent.click(screen.getByRole('navigation', { name: 'Main menu' }).previousSibling as Element)
+    fireEvent.click(screen.getByTestId('menu-backdrop'))
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
+  })
+
+  it('closes the drawer on Escape', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
