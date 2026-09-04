@@ -1,6 +1,10 @@
 {
   "words": [
+    "appinstalled",
+    "beforeinstallprompt",
     "desync",
+    "infobar",
+    "showable",
     "dismissable",
     "fkey",
     "focusable",

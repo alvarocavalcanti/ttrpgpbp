@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Install Role by Post as an app** — when your browser can install the site as a PWA, a small banner at the top of the screen offers to add it to your home screen for one-tap access and offline play. Say "No thanks" and it stays hidden for a month. (Chromium browsers only — iOS Safari and Firefox don't support installing this way.)
 - **Critical rolls call it out** — a d20 that lands on a natural 20 now shows **Critical Success** on the roll, and a natural 1 shows **Critical Failure**. It applies to a single d20 (or the one kept die of an Advantage or Disadvantage roll) — modifiers don't change it — and the roll history marks the same moments.
 - **Character notes in your data export** — the "Download My Data" file now includes the character notes you saved on each channel, so everything you wrote down comes out with the rest of your data.
 - **Security hardening** — players can no longer change who the active player is or suspend accounts unless they hold the right role, and channels without a Game Master are protected from edits. These protections keep every table fair.

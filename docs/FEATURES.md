@@ -134,6 +134,7 @@
 - **Offline navigation** — opening any app link while offline serves the cached app shell instead of a browser error page
 - **Manual refresh prompt** — when a new version of the app is published, the app shows a "New version available, reload to update" banner with a **Reload** button instead of silently serving the stale cached copy, so catching up after an update never requires clearing the cache
 - **Launcher icon badge** — when the PWA is installed, the home-screen icon shows the total unread count via the App Badging API (iOS 16.4+, desktop); respects the unread-badge preference and is updated in the background when a push arrives. A badge update failure never suppresses the system notification. Android has no badge API and shows a dot automatically only while a notification is active.
+- **Install prompt** — on Chromium browsers, a small top-center banner invites the user to install the app as a PWA (one-tap access and offline play) once the browser reports it is installable. Tapping "Install" uses the browser's native install dialog; "No thanks" hides it for 30 days. Not shown on browsers without install support (e.g. iOS Safari, Firefox).
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")
 - **Permission banner** — prompts to enable push notifications on first load

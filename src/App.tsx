@@ -13,6 +13,7 @@ import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
+import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { trackPageView } from './lib/analytics'
@@ -269,6 +270,7 @@ export default function App() {
               <AppNav />
               <RealtimeBanner />
               <PwaUpdateBanner />
+              <PwaInstallBanner />
               <main className="flex-1 flex flex-col">
                 <Suspense fallback={
                   <div className="flex-1 flex items-center justify-center">
