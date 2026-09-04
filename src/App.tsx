@@ -1,8 +1,9 @@
-import { Avatar } from './components/Avatar';
+import { useEdgeSwipe } from './hooks/useEdgeSwipe'
+import { useEscapeToClose } from './hooks/useEscapeToClose'
+import { useTheme } from './hooks/useTheme'
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useState, useEffect, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
-import { useEdgeSwipe } from './hooks/useEdgeSwipe'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { useAuth } from './features/auth/useAuth'
@@ -69,7 +70,8 @@ export function RouteErrorBoundary({ children }: { children: ReactNode }) {
 }
 
 function AppNav() {
-  const { user, profile, signOut } = useAuth()
+  const { user, signOut } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
   const { isServerAdmin } = useIsServerAdmin()
   const { isActiveGM } = useIsActiveGM()
   const adminUnreadCount = useAdminUnread()
@@ -80,6 +82,9 @@ function AppNav() {
   // Right-edge swipe opens the menu drawer (touch devices); same gesture as
   // the channel sidebar so both menus behave identically.
   useEdgeSwipe({ open: menuOpen, onOpen: () => setMenuOpen(true), onClose: () => setMenuOpen(false) })
+  // No header X in the drawer (issue #382): close via backdrop tap, edge
+  // swipe, the hamburger toggle, or Escape.
+  useEscapeToClose(() => setMenuOpen(false))
   // Local input state so URL search params only update once the query settles
   // (M10), instead of on every keystroke.
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
@@ -97,25 +102,29 @@ function AppNav() {
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
-      <Link to="/" replace className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate">
+      <Link to="/" replace className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate min-w-0">
         <img src="/RoleByPost.png" alt="" className="w-8 h-8 rounded" />
         Role by Post
       </Link>
       
       <div className="flex items-center flex-shrink-0 gap-2">
         {location.pathname === '/' && (
-          <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
+          <form className="relative hidden md:block" onSubmit={(e) => e.preventDefault()}>
+            <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" />
+            </svg>
             <input 
               type="text"
               name="q"
+              aria-label="Search channels"
               placeholder="Search..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="bg-white dark:bg-gray-800 w-24 focus:w-48 sm:w-48 transition-[width] duration-150 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-white dark:bg-gray-800 w-10 focus:w-64 xl:w-48 pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-[width] duration-150 placeholder:opacity-0 focus:placeholder:opacity-100 xl:placeholder:opacity-100"
             />
           </form>
         )}
-        <ThemeToggle />
+        <span className="hidden md:inline-flex"><ThemeToggle /></span>
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -145,34 +154,34 @@ function AppNav() {
               aria-label="Main menu"
               className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700 shadow-lg motion-safe:animate-slide-in-right"
             >
-              <div className="flex justify-end p-2 border-b border-gray-100 dark:border-gray-700">
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen(false)}
-                  aria-label="Close menu"
-                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-            <Link 
-              to="/settings" 
-              className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            <Link
+              to="/settings"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => setMenuOpen(false)}
             >
-              <div className="mr-3 flex-shrink-0">
-                {profile?.avatar_url ? (
-                  <Avatar src={profile.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shadow-sm">
-                    <span className="text-xs font-medium">
-                      {profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <span className="truncate">{profile?.display_name || 'Settings'}</span>
+              Profile
             </Link>
+            {/* Folded-in header controls on compact screens (issue #382): search + dark mode */}
+            <div className="md:hidden border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <div className="md:hidden px-4 py-2">
+              <form onSubmit={(e) => e.preventDefault()}>
+                <input
+                  type="text"
+                  aria-label="Search channels in menu"
+                  placeholder="Search channels..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </form>
+            </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="md:hidden block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              {isDark ? 'Light mode' : 'Dark mode'}
+            </button>
             <Link 
               to="/archived" 
               className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"

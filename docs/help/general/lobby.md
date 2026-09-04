@@ -20,11 +20,11 @@ Some channels also require a **password** — your GM will share it with the inv
 
 ## Finding things
 
-Use the **Search** box in the header to find a channel quickly.
+Use the **Search** box in the header to find a channel quickly. On smaller screens the search box and the dark-mode toggle tuck into the app menu instead, so they never crowd the app's title.
 
 ## The app menu
 
-Tap the ☰ button in the top-right to open the app menu (Settings, Archived Channels, Help, and more). On a touchscreen you can also swipe in from the right edge of the screen to open it, and swipe back out to close it. Inside a channel, the player sidebar opens and closes the same way.
+Tap the ☰ button in the top-right to open the app menu (Profile, Archived Channels, Help, and more). On a touchscreen you can also swipe in from the right edge of the screen to open it, and swipe back out to close it. Inside a channel, the player sidebar opens and closes the same way.
 
 ## Archived channels
 

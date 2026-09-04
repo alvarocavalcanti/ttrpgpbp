@@ -88,8 +88,7 @@ describe('App', () => {
     expect(await screen.findByText('Role by Post')).toBeInTheDocument()
     expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByText('Test User')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Avatar' })).toBeInTheDocument()
+    expect(screen.getByText('Profile')).toBeInTheDocument()
   })
 
   it('renders placeholder avatar when authenticated without profile avatar', async () => {
@@ -128,8 +127,7 @@ describe('App', () => {
     
     expect(await screen.findByText('Role by Post')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('T')).toBeInTheDocument() // The placeholder 'T' from email
+    expect(screen.getByText('Profile')).toBeInTheDocument()
   })
 
   it('shows Server Admin menu item only for server admins', async () => {
@@ -499,14 +497,25 @@ describe('App main menu drawer', () => {
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
-  it('closes the drawer via the close button', async () => {
+  it('closes the drawer via the backdrop', async () => {
     await renderLobby()
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close menu' }))
+    // No header X in the drawer (issue #382): the backdrop closes it.
+    fireEvent.click(screen.getByRole('navigation', { name: 'Main menu' }).previousSibling as Element)
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
+  })
+
+  it('folds search and dark mode into the drawer', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByLabelText('Search channels in menu')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Dark mode' })).toBeInTheDocument()
+    // The menu also lists the profile as a plain labeled item now.
+    expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument()
   })
 
   it('does not open on swipes that start mid-screen', async () => {
