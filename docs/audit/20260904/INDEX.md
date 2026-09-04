@@ -13,13 +13,17 @@ Four parallel specialized audits (pillars 1–4) + orchestrator dedupe. Prompts 
 
 **Deduped totals: 1 P0 · 7 P1 · 27 P2 = 35 findings** (2 cross-pillar merges, 1 severity resolution).
 
-## Verification suite (orchestrator, post-audits)
+## Verification suite (orchestrator, post-audits + pre-push hooks on this PR)
 
-- `tsc -p tsconfig.app.json --noEmit`: **passed**
+- `npx tsc -p tsconfig.app.json --noEmit`: **passed** (no errors)
 - `npm run lint` (oxlint): **passed, clean**
 - `vitest run`: **1146 passed / 0 failed**
-- `npm run build`: **passed** (known >500 kB chunk warning, pre-existing)
-- `supabase db reset`: not run (no migration changes in this PR; static-only audits)
+- `npm run test:coverage` (pre-push hook): **1146 passed / 0 failed** — coverage 91.76% statements / 82.49% branches / 87.51% functions / 95% lines (thresholds 80/79/80/80)
+- `npm run build` (`tsc -b && vite build`, pre-push): **passed** — precache 42 entries / 1.5 MiB (phase4's 3.42 MiB bloat closed); known >500 kB chunk warning is pre-existing
+- `npm run lint:md` (markdownlint-cli2): **0 issues** (first run found 30 in the new reports — 24 auto-fixed, 6 fixed by hand: list semantics in the pbp exclusions)
+- `npx cspell` (pre-push): **0 issues** after adding 11 audit words to `.cspell.json`
+- Playwright E2E (`tests/e2e/` core-journey + failure-paths, pre-push): **6 passed / 0 failed** (3.2s) — note: phase3/phase4 recorded the E2E harness as broken locally; it passed green here, so that status is stale (see ARCH-7 in the architecture parent for the remaining CI-gap item)
+- **Not run:** `npx supabase db reset` and pgTAP suites — no SQL changes in this PR; CI's `migrate-check` job covers migrations on merge
 
 ## Prior-audit state (verified by all four pillars)
 
@@ -31,7 +35,7 @@ Every P0/P1 from phase 2–4 audits and the 2026-08-31 UX audit is **closed in c
 
 | # | Finding | Evidence | Source |
 |---|---|---|---|
-| P0-1 | **Whisper content leaks to all channel members via `channels.last_message_preview`** — lobby-preview trigger (shipped 2026-09-04) copies first 120 chars of *every* message incl. whispers onto the member-readable `channels` row (REST + realtime); messages-RLS whisper restriction bypassed; backfill exposed historical whispers. Live on remote. Fix: CASE-null the preview on `whisper_to`, backfill scrub, types regen, pgTAP. | `supabase/migrations/20260904111055_channel_last_message_preview.sql:26` · `20260801101940:65-74` · `Lobby.tsx:203` | arch#P0.1 + sec#P1.1 (merged; severity P0 per arch) |
+| P0-1 | **Whisper content leaks to all channel members via `channels.last_message_preview`** — lobby-preview trigger (shipped 2026-09-04) copies first 120 chars of *every* message incl. whispers onto the member-readable `channels` row (REST + realtime); messages-RLS whisper restriction bypassed; backfill exposed historical whispers. Live on remote. Fix: CASE-null the preview on `whisper_to`, recompute previews from each channel's latest non-whisper message, types regen, pgTAP. | `supabase/migrations/20260904111055_channel_last_message_preview.sql:26` (trigger; `:6-13` backfill) · `supabase/migrations/20260801101940_fix_rls_recursion.sql:42-45,65-74` · `src/features/channels/Lobby.tsx:203` | arch#P0.1 + sec#P1.1 (merged; severity P0 per arch) |
 
 ### P1 (7)
 
@@ -43,7 +47,7 @@ Every P0/P1 from phase 2–4 audits and the 2026-08-31 UX audit is **closed in c
 | P1-4 | Chat hot-path memoization defeated — unstable `onRetry`/`onRollDice` (`messages` dep) + inline `onEditCharacter`; every message event re-renders the whole list and re-parses markdown. | `useMessages.ts:586,668,518` · `ChannelView.tsx:314` | arch#P1.1 [NEW] |
 | P1-5 | Admin-messages mutations in components — swallowed delete errors (failed delete looks successful), non-atomic thread+message create, `alert()`, unvalidated `as Thread` cast. | `ThreadList.tsx:118-162` · `ThreadDetail.tsx:54-77` | arch#P1.2 [OPEN arch#4] |
 | P1-6 | Reconnect/visibility reconcile query lacks `(channel_id, updated_at, id)` index — O(channel history) scan per app-switch, runs on every reconnect + visibilitychange. | `useMessages.ts:243-252,377-385` | arch#P1.3 [NEW] |
-| P1-7 | Native `prompt`/`alert` remnants — AFK away message (`MemberList.tsx:96`), admin suspend reason (`AdminView.tsx:212`), failure alerts in `ProfileSettings.tsx:82` + `ThreadList.tsx:136,149`. Over-limit length checked after prompt, not at input. | `MemberList.tsx:96` · `AdminView.tsx:212` | ux#P1.1 + arch#P2.4 (merged) [OPEN ux#P0.2] |
+| P1-7 | Native `prompt`/`alert` remnants — AFK away message, admin suspend reason, failure alerts in `ProfileSettings` + `ThreadList`. Over-limit length checked after prompt, not at input. | `src/features/channels/MemberList.tsx:96` · `src/features/admin/AdminView.tsx:212` · `src/features/auth/ProfileSettings.tsx:82` · `src/features/admin-messages/ThreadList.tsx:136,149` | ux#P1.1 + arch#P2.4 (merged) [OPEN ux#P0.2] |
 
 ### P2 (27)
 
