@@ -267,7 +267,12 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       <div className="flex flex-wrap items-center gap-3">
         {onRollDice && (
           <div className="shrink-0">
-            <DiceRoller popup={isMobile} channelId={channelId} onRoll={(notation) => replyTo ? onRollDice?.(notation, replyTo.id) : onRollDice?.(notation)} />
+            <DiceRoller popup={isMobile} channelId={channelId} onRoll={(notation) => {
+              // Collapse the options panel so the rolled message is visible.
+              setIsExpanded(false)
+              if (replyTo) onRollDice?.(notation, replyTo.id)
+              else onRollDice?.(notation)
+            }} />
           </div>
         )}
 
