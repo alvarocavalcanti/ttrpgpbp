@@ -30,7 +30,6 @@ interface MessageListProps {
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
   lastReadAt?: string | null
-  onXCard?: (messageId: string) => void
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
   onEditCharacter?: () => void
@@ -40,7 +39,7 @@ interface MessageListProps {
   onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onXCard, onRetry, onRemovePending, onEditCharacter, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onRetry, onRemovePending, onEditCharacter, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -208,7 +207,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   }
 
   return (
-    <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
+    <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 space-y-2">
       <div ref={contentRef}>
       {hasMore && (
         <div className="flex justify-center py-2">
@@ -236,7 +235,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
         return (
           <Fragment key={message.id}>
             {showDivider && (
-              <div data-testid="date-divider" className="flex items-center my-6">
+              <div data-testid="date-divider" className="flex items-center my-3 -mx-2">
                 <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {currentDate}
@@ -245,7 +244,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               </div>
             )}
             {showNewDivider && (
-              <div ref={newMessagesDividerRef} data-testid="new-messages-divider" className="flex items-center my-6">
+              <div ref={newMessagesDividerRef} data-testid="new-messages-divider" className="flex items-center my-3 -mx-2">
                 <div className="flex-grow border-t-2 border-red-400 dark:border-red-500"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider">
                   New messages
@@ -267,7 +266,6 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onToggleReaction={onToggleReaction}
               onReply={onReply}
               onJumpToMessage={onJumpToMessage}
-              onXCard={onXCard}
               onRetry={onRetry}
               onEditCharacter={onEditCharacter}
               onRemovePending={onRemovePending}

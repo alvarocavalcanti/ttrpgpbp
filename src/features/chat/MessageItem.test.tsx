@@ -750,7 +750,7 @@ describe('MessageItem', () => {
       sender_id: 'u1'
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={mockOnToggle} />)
-    fireEvent.click(screen.getByLabelText('Add reaction'))
+    fireEvent.click(screen.getByLabelText('Reactions'))
     fireEvent.click(screen.getByText('👍'))
     expect(mockOnToggle).toHaveBeenCalledWith('m1', '👍')
   })
@@ -769,35 +769,7 @@ describe('MessageItem', () => {
     expect(mockOnReply).toHaveBeenCalledWith(msg)
   })
 
-  it('calls onXCard with the message id when X-Card button clicked on a regular message', () => {
-    const mockOnXCard = vi.fn()
-    const msg: any = {
-      id: 'm1',
-      type: 'regular',
-      content: 'hi',
-      created_at: new Date().toISOString(),
-      sender_id: 'u1'
-    }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onXCard={mockOnXCard} />)
-    fireEvent.click(screen.getByLabelText('X-Card'))
-    expect(mockOnXCard).toHaveBeenCalledWith('m1')
-  })
-
-  it('calls onXCard when X-Card button clicked on a scene message', () => {
-    const mockOnXCard = vi.fn()
-    const msg: any = {
-      id: 's1',
-      type: 'scene',
-      content: 'You enter a dark tavern',
-      created_at: new Date().toISOString(),
-      sender_id: 'u2'
-    }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={mockOnXCard} />)
-    fireEvent.click(screen.getByLabelText('X-Card'))
-    expect(mockOnXCard).toHaveBeenCalledWith('s1')
-  })
-
-  it('hides X-Card button when onXCard not provided', () => {
+  it('does not offer an X-Card message action', () => {
     const msg: any = {
       id: 'm1',
       type: 'regular',
@@ -852,11 +824,11 @@ describe('MessageItem', () => {
       created_at: new Date().toISOString(),
       sender_id: 'u1'
     }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onToggleReaction={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Message actions'))
     const dialog = screen.getByRole('dialog', { name: 'Message actions' })
     const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
-    expect(items).toEqual(['Reply', 'Edit', 'Delete', 'X-Card'])
+    expect(items).toEqual(['Reply', 'Edit', 'Delete', 'Reactions'])
   })
 
   it('mobile action sheet lists only X-Card for a non-author player', () => {
@@ -867,11 +839,11 @@ describe('MessageItem', () => {
       created_at: new Date().toISOString(),
       sender_id: 'u2'
     }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Message actions'))
     const dialog = screen.getByRole('dialog', { name: 'Message actions' })
     const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
-    expect(items).toEqual(['Reply', 'X-Card'])
+    expect(items).toEqual(['Reply'])
   })
 
   it('mobile action sheet lists Reply, Delete and X-Card for the GM', () => {
@@ -882,11 +854,11 @@ describe('MessageItem', () => {
       created_at: new Date().toISOString(),
       sender_id: 'u2'
     }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={true} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Message actions'))
     const dialog = screen.getByRole('dialog', { name: 'Message actions' })
     const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
-    expect(items).toEqual(['Reply', 'Delete', 'X-Card'])
+    expect(items).toEqual(['Reply', 'Delete'])
   })
 
   it('runs the chosen action from the mobile sheet', () => {
@@ -914,8 +886,8 @@ describe('MessageItem', () => {
       created_at: new Date().toISOString(),
       sender_id: 'u1'
     }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onXCard={vi.fn()} />)
-    for (const label of ['Reply', 'Edit', 'Delete', 'X-Card']) {
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
+    for (const label of ['Reply', 'Edit', 'Delete']) {
       const btn = screen.getByLabelText(label)
       // Literal touch-target requirement (UX audit): p-1.5 padding on a
       // w-5 h-5 icon — asserted literally so a sizing regression fails here.
@@ -938,7 +910,7 @@ describe('MessageItem', () => {
       sender_id: 'u1'
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} />)
-    const trigger = screen.getByLabelText('Add reaction')
+    const trigger = screen.getByLabelText('Reactions')
     expect(trigger.className).toContain('p-1.5')
   })
 
