@@ -54,7 +54,7 @@
 
 ## Executive Summary
 
-No rot. The 20260812 structural debts are paid: AuthContext is memoized and deferred, channel_members realtime is `*`-scoped, pagination cursors are composite everywhere, generated types are CI-drift-checked, per-route error boundaries exist, and every phase4 P1 (suspension bypass, join throttle, PUBLIC definer helpers, UPDATE/DELETE catch-up, `last_read_at`, SW offline fallback) is remediated in code. The seams are mostly closed.
+No rot. The 20260812 structural debts are paid: AuthContext is memoized and deferred, channel_members realtime is `*`-scoped, history/admin page cursors are composite everywhere (the realtime INSERT catch-up cursor is intentionally `created_at`-only — see Intentional Exclusions), generated types are CI-drift-checked, per-route error boundaries exist, and every phase4 P1 (suspension bypass, join throttle, PUBLIC definer helpers, UPDATE/DELETE catch-up, `last_read_at`, SW offline fallback) is remediated in code. The seams are mostly closed.
 
 What's left are three things, all fresh or freshly-visible:
 
@@ -82,7 +82,8 @@ Plus one missing index for the new offline-reconcile query, and a short P2 hygie
 **Fix (one migration):**
 
 1. In `set_channel_last_message_at()`: skip the preview write when `new.whisper_to IS NOT NULL` (keep the existing `last_message_at` update; leave `last_message_preview` as-is or write `NULL` — NULL is safest: "someone posted" without content).
-2. Backfill cleanup: `UPDATE channels c SET last_message_preview = NULL WHERE EXISTS (SELECT 1 FROM messages m WHERE m.channel_id = c.id AND m.whisper_to IS NOT NULL AND left(m.content,120) = c.last_message_preview)`.
+2. Backfill cleanup: recompute each channel's preview from its latest non-whisper message — deterministic, and it cannot let an older whisper's prefix clear a newer public preview the way a content-match `EXISTS` cleanup would:
+   `UPDATE channels c SET last_message_preview = (SELECT left(m.content, 120) FROM messages m WHERE m.channel_id = c.id AND m.whisper_to IS NULL ORDER BY m.created_at DESC LIMIT 1);` (NULL when a channel has no public messages — correct.)
 3. Regenerate `src/types/database.ts` (CI drift check will require it) and add a pgTAP case: whisper insert → `last_message_preview IS NULL`.
 
 **Effort:** S (one migration + types regen + one test).
@@ -178,9 +179,9 @@ Tests: extend `MessageItem.test.tsx` with a render-count assertion (parent re-re
 
 **Fix:** Delete `addNpc` + its test cases; delete `src/test/mocks/supabase.ts` or actually migrate a mock-heavy test to it (arch#7's original intent — migrating `App.test.tsx` alone would retire ~27 `as any` casts). XS.
 
-### 4. Native `window.prompt`/`alert` remain at four sites [OPEN `arch#11` / UX P2]
+### 4. Native `window.prompt`/`alert` remain at five sites [OPEN `arch#11` / UX P1]
 
-**Evidence:** `src/features/admin/AdminView.tsx:212` (suspend reason via `prompt`); `src/features/auth/ProfileSettings.tsx:82` (`alert` on push-toggle failure); `src/features/admin-messages/ThreadList.tsx:136,149` (`alert` on create/send failure). The chat path was fixed (`ConfirmDialog` at `MessageItem.tsx:417-424`, `CheckSheet` replacing `prompt`); these four are the residue.
+**Evidence:** `src/features/channels/MemberList.tsx:96` (AFK away message via `prompt` — over-limit length checked after the prompt at `:98-101`); `src/features/admin/AdminView.tsx:212` (suspend reason via `prompt`); `src/features/auth/ProfileSettings.tsx:82` (`alert` on push-toggle failure); `src/features/admin-messages/ThreadList.tsx:136,149` (`alert` on create/send failure). The chat path was fixed (`ConfirmDialog` at `MessageItem.tsx:417-424`, `CheckSheet` replacing `prompt`); these five are the residue. (Merged into audit P1-7 / issue #413 — severity P1 per the UX pillar.)
 
 **Fix:** Suspend reason → a small modal with textarea (pattern exists: `ConfirmDialog`); alerts → `addToast` (used everywhere else). XS.
 
