@@ -38,7 +38,9 @@ export async function initSentry(): Promise<void> {
       dsn: env.VITE_SENTRY_DSN,
       integrations: [
         Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration(),
+        // Session replays capture chat/whisper DOM text; mask every text node
+        // so recordings only show layout/interaction, never conversation.
+        Sentry.replayIntegration({ maskAllText: true }),
       ],
       tracesSampleRate: 1.0,
       replaysSessionSampleRate: 0.1,
