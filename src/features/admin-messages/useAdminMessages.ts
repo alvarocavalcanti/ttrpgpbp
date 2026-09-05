@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { subscribeWithRetry } from '../../lib/realtime'
 import type { Message } from './types'
+import { useAuth } from '../auth/useAuth'
+import { useToast } from '../../contexts/ToastContext'
 import { AdminMessageRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 const PAGE_SIZE = 50
@@ -20,6 +22,8 @@ function formatMessage(row: Record<string, unknown>): Message | null {
 // paginating past PostgREST's 1000-row cap without straddling same-timestamp
 // rows. Display order stays ascending (oldest at top); older pages prepend.
 export function useAdminMessages(threadId: string | undefined) {
+  const { user } = useAuth()
+  const { addToast } = useToast()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
@@ -111,6 +115,16 @@ export function useAdminMessages(threadId: string | undefined) {
     }
   }, [threadId, fetchFirstPage])
 
+  // Mark the thread read whenever it's opened or new messages arrive. The
+  // `.then(() => {}, () => {})` matters: supabase-js v2 RPCs return a lazy
+  // thenable that only fires when subscribed, so `void rpc()` would never
+  // send the request. Read failures are non-critical (spurious unread dot).
+  useEffect(() => {
+    if (!threadId) return
+    supabase.rpc('mark_admin_thread_read', { p_thread_id: threadId })
+      .then(() => {}, () => {})
+  }, [threadId, messages.length])
+
   const loadMore = useCallback(async () => {
     if (loading || !hasMore || messages.length === 0) return
     const oldest = messages[0]
@@ -137,5 +151,30 @@ export function useAdminMessages(threadId: string | undefined) {
 
   const refetch = useCallback(() => void fetchFirstPage(false, generationRef.current), [fetchFirstPage])
 
-  return { messages, loading, hasMore, loadMore, refetch, error }
+  const sendReply = useCallback(async (content: string): Promise<boolean> => {
+    if (!threadId || !user?.id || !content) return false
+    const { error } = await supabase.from('admin_messages').insert({
+      thread_id: threadId,
+      content,
+      sender_id: user.id
+    })
+    if (error) {
+      addToast("Couldn't send your reply. Please try again.", 'error')
+      return false
+    }
+    return true
+  }, [threadId, user?.id, addToast])
+
+  // Soft-delete a message. The list is refetched regardless of the outcome so
+  // a failed delete still reconciles with what the server actually has.
+  const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
+    const { error } = await supabase.from('admin_messages')
+      .update({ is_deleted: true, content: '' })
+      .eq('id', messageId)
+    if (error) addToast("Couldn't delete the message. Please try again.", 'error')
+    refetch()
+    return !error
+  }, [addToast, refetch])
+
+  return { messages, loading, hasMore, loadMore, refetch, error, sendReply, deleteMessage }
 }

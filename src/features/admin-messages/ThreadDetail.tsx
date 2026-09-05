@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Thread } from './types'
 import { useAdminMessages } from './useAdminMessages'
-import { supabase } from '../../lib/supabase'
+import { useAdminThreadActions } from './useAdminThreads'
 import { Avatar } from '../../components/Avatar'
 import { Markdown } from '../../components/Markdown'
 import { useAuth } from '../auth/useAuth'
@@ -9,7 +9,8 @@ import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () => void }) {
-  const { messages, loading, hasMore, loadMore, refetch, error } = useAdminMessages(thread.id)
+  const { messages, loading, hasMore, loadMore, refetch, error, sendReply, deleteMessage } = useAdminMessages(thread.id)
+  const { deleteThread } = useAdminThreadActions()
   const { user } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
   const [replyContent, setReplyContent] = useState('')
@@ -21,12 +22,6 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
   // normally scrolls to the bottom instead restores the viewport on that page.
   const loadMoreHeightRef = useRef<number | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ type: 'thread' } | { type: 'message'; id: string } | null>(null)
-
-  useEffect(() => {
-    if (!thread.id) return
-    supabase.rpc('mark_admin_thread_read', { p_thread_id: thread.id })
-      .then(() => {}, () => {})
-  }, [thread.id, messages.length])
 
   useEffect(() => {
     if (loadMoreHeightRef.current !== null) {
@@ -51,29 +46,27 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
     if (!replyContent.trim()) return
     setSubmitting(true)
     setReplyError(null)
-    const { error } = await supabase.from('admin_messages').insert({
-      thread_id: thread.id,
-      content: replyContent.trim(),
-      sender_id: user!.id
-    })
-    if (error) {
-      setReplyError("Couldn't send your reply. Tap Send to retry.")
-    } else {
+    const ok = await sendReply(replyContent.trim())
+    if (ok) {
       setReplyContent('')
+    } else {
+      setReplyError("Couldn't send your reply. Tap Send to retry.")
     }
     setSubmitting(false)
   }
 
   const handleDeleteThread = async () => {
     setConfirmAction(null)
-    await supabase.from('admin_threads').delete().eq('id', thread.id)
-    onBack()
+    // Navigate back only when the delete actually succeeded; the hook surfaces
+    // a toast on failure so the user isn't shown a thread that still exists.
+    const ok = await deleteThread(thread.id)
+    if (ok) onBack()
   }
 
   const handleDeleteMsg = async (msgId: string) => {
     setConfirmAction(null)
-    await supabase.from('admin_messages').update({ is_deleted: true, content: '' }).eq('id', msgId)
-    refetch?.()
+    // The hook toasts on failure and refetches either way.
+    await deleteMessage(msgId)
   }
 
   const title = thread.type === 'announcement' ? thread.subject : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')

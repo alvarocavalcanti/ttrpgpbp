@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { subscribeWithRetry } from '../../lib/realtime'
 import type { Thread } from './types'
 import { useAuth } from '../auth/useAuth'
+import { useToast } from '../../contexts/ToastContext'
 import { AdminThreadRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 const PAGE_SIZE = 50
@@ -21,6 +22,85 @@ function formatThread(row: Record<string, unknown>): Thread | null {
     gm: parsed.gm ? normalizeProfileRef(parsed.gm) ?? undefined : undefined,
     unread: !myRead || new Date(parsed.last_message_at ?? 0) > new Date(myRead)
   } as Thread
+}
+
+export type CreateThreadInput = {
+  type: 'announcement' | 'dm'
+  subject: string | null
+  content: string
+  // Explicit GM for an admin-started DM; null means "the signed-in user" for
+  // GM-started DMs (or no GM for announcements).
+  gmId: string | null
+}
+
+// Mutation wrappers shared by useAdminThreads (list view) and ThreadDetail
+// (delete-only, must not spin up a second realtime subscription). Toasts on
+// failure and return a success flag / parsed row instead of swallowing errors.
+export function useAdminThreadActions() {
+  const { user } = useAuth()
+  const { addToast } = useToast()
+
+  const createThread = useCallback(async (input: CreateThreadInput): Promise<Thread | null> => {
+    if (!user?.id) {
+      addToast('You need to be signed in.', 'error')
+      return null
+    }
+    const { data: threadRow, error: threadError } = await supabase.from('admin_threads').insert({
+      type: input.type,
+      subject: input.type === 'announcement' ? input.subject : null,
+      gm_id: input.type === 'dm' ? (input.gmId ?? user.id) : null,
+      created_by: user.id
+    }).select().single()
+
+    if (threadError || !threadRow) {
+      addToast("Couldn't start the conversation. Please try again.", 'error')
+      return null
+    }
+    const threadId = (threadRow as { id: string }).id
+
+    const { error: msgError } = await supabase.from('admin_messages').insert({
+      thread_id: threadId,
+      content: input.content,
+      sender_id: user.id
+    })
+    if (msgError) {
+      // Roll back the empty thread so a failed first message can't strand one.
+      await supabase.from('admin_threads').delete().eq('id', threadId)
+      addToast("Couldn't send your message. Nothing was created — please try again.", 'error')
+      return null
+    }
+
+    // Mark the newly created thread as read for the creator so they don't see
+    // it as unread. Non-critical: failure only means a spurious unread dot.
+    const { error: readError } = await supabase.rpc('mark_admin_thread_read', { p_thread_id: threadId })
+    if (readError) console.error('Failed to mark new thread as read:', readError)
+
+    // Fetch the full thread with creator/gm joins and validate it with the
+    // same schema the list reads use (no `as Thread` cast).
+    const { data: fullRow } = await supabase.from('admin_threads')
+      .select(`
+        *,
+        creator:profiles!admin_threads_created_by_fkey(display_name, avatar_url),
+        gm:profiles!admin_threads_gm_id_fkey(display_name, avatar_url),
+        admin_thread_reads!left(last_read_at)
+      `)
+      .eq('id', threadId)
+      .single()
+    // A missing/unparsable row isn't fatal: the thread exists and the list's
+    // realtime refresh will show it; we just can't select it right away.
+    return fullRow ? formatThread(fullRow as Record<string, unknown>) : null
+  }, [user?.id, addToast])
+
+  const deleteThread = useCallback(async (threadId: string): Promise<boolean> => {
+    const { error } = await supabase.from('admin_threads').delete().eq('id', threadId)
+    if (error) {
+      addToast("Couldn't delete the conversation. Please try again.", 'error')
+      return false
+    }
+    return true
+  }, [addToast])
+
+  return { createThread, deleteThread }
 }
 
 // Cursor pagination over (last_message_at, id) so the thread list keeps
@@ -149,5 +229,7 @@ export function useAdminThreads() {
   // loadMore doesn't wipe the older threads the user fetched.
   const refetch = useCallback(() => void fetchFirstPage(false), [fetchFirstPage])
 
-  return { threads, loading, hasMore, loadMore, refetch, error }
+  const { createThread, deleteThread } = useAdminThreadActions()
+
+  return { threads, loading, hasMore, loadMore, refetch, error, createThread, deleteThread }
 }

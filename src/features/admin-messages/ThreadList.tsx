@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { Thread } from './types'
-import { useAdminThreads } from './useAdminThreads'
+import { useAdminThreads, type CreateThreadInput } from './useAdminThreads'
+import { useActiveGms } from './useActiveGms'
 import { Avatar } from '../../components/Avatar'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
-import { supabase } from '../../lib/supabase'
 
 export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void }) {
-  const { threads, loading, hasMore, loadMore, refetch, error } = useAdminThreads()
+  const { threads, loading, hasMore, loadMore, refetch, error, createThread } = useAdminThreads()
   const { isServerAdmin } = useIsServerAdmin()
   const [showNewModal, setShowNewModal] = useState(false)
 
@@ -100,69 +100,36 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
         )}
       </div>
 
-      {showNewModal && <NewThreadModal onClose={() => setShowNewModal(false)} onCreated={onSelectThread} isServerAdmin={isServerAdmin} />}
+      {showNewModal && <NewThreadModal onClose={() => setShowNewModal(false)} onCreated={onSelectThread} isServerAdmin={isServerAdmin} createThread={createThread} />}
     </div>
   )
 }
 
-function NewThreadModal({ onClose, onCreated, isServerAdmin }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean }) {
+function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | null> }) {
   const [type, setType] = useState<'announcement' | 'dm'>(isServerAdmin ? 'announcement' : 'dm')
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState('')
   const [gmId, setGmId] = useState('')
-  const [gms, setGms] = useState<{id: string, display_name: string}[]>([])
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (isServerAdmin) {
-      supabase.rpc('admin_list_active_gms').then(({ data }) => setGms(data || []))
-    }
-  }, [isServerAdmin])
+  const { gms, loading: gmsLoading, error: gmsError, refetch: refetchGms } = useActiveGms(isServerAdmin)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-    
-    // Create thread
-    const currentUserId = (await supabase.auth.getUser()).data.user!.id
-    const { data: threadData, error: threadError } = await supabase.from('admin_threads').insert({
+    const thread = await createThread({
       type,
-      subject: type === 'announcement' ? subject : null,
-      gm_id: type === 'dm' && isServerAdmin ? gmId : (type === 'dm' ? currentUserId : null),
-      created_by: currentUserId
-    }).select().single()
-
-    if (threadError || !threadData) {
-      alert('Failed to create thread')
+      subject,
+      content,
+      gmId: type === 'dm' && isServerAdmin ? gmId : null
+    })
+    // On failure the hook has already surfaced a toast; stay in the modal so
+    // the user can retry without retyping.
+    if (!thread) {
       setSubmitting(false)
       return
     }
-
-    // Create message
-    const { error: msgError } = await supabase.from('admin_messages').insert({
-      thread_id: threadData.id,
-      content,
-      sender_id: (await supabase.auth.getUser()).data.user!.id
-    })
-
-    if (msgError) {
-      alert('Failed to send message')
-    } else {
-      // Mark the newly created thread as read for the creator so they don't see it as unread.
-      // Non-critical: failure only means the creator sees a spurious unread dot temporarily.
-      const { error: readError } = await supabase.rpc('mark_admin_thread_read', { p_thread_id: threadData.id })
-      if (readError) console.error('Failed to mark new thread as read:', readError)
-
-      // Force fetch the full thread with creator details to pass back
-      const { data: fullThread } = await supabase.from('admin_threads').select('*, creator:profiles!admin_threads_created_by_fkey(display_name, avatar_url), gm:profiles!admin_threads_gm_id_fkey(display_name, avatar_url)').eq('id', threadData.id).single()
-      if (fullThread) onCreated({
-        ...fullThread, 
-        creator: Array.isArray(fullThread.creator) ? fullThread.creator[0] : fullThread.creator,
-        gm: fullThread.gm ? (Array.isArray(fullThread.gm) ? fullThread.gm[0] : fullThread.gm) : undefined
-      } as Thread)
-      onClose()
-    }
-    setSubmitting(false)
+    onCreated(thread)
+    onClose()
   }
 
   return (
@@ -194,10 +161,17 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin }: { onClose: () => 
               isServerAdmin && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To GM</label>
-                  <select required value={gmId} onChange={e => setGmId(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
-                    <option value="">Select GM...</option>
-                    {gms.map(g => <option key={g.id} value={g.id}>{g.display_name}</option>)}
-                  </select>
+                  {gmsError ? (
+                    <div className="flex justify-between items-center text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded px-3 py-2">
+                      <span>Couldn't load the GM list.</span>
+                      <button type="button" onClick={() => refetchGms()} className="font-semibold hover:underline">Retry</button>
+                    </div>
+                  ) : (
+                    <select required value={gmId} onChange={e => setGmId(e.target.value)} disabled={gmsLoading} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
+                      <option value="">{gmsLoading ? 'Loading GMs...' : 'Select GM...'}</option>
+                      {gms.map(g => <option key={g.id} value={g.id}>{g.display_name}</option>)}
+                    </select>
+                  )}
                 </div>
               )
             )}

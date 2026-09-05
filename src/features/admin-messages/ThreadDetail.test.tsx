@@ -2,17 +2,10 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ThreadDetail } from './ThreadDetail'
 import type { Thread, Message } from './types'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useAdminMessages } from './useAdminMessages'
-
-vi.mock('../../lib/supabase', () => ({
-  supabase: {
-    rpc: vi.fn(),
-    from: vi.fn()
-  }
-}))
+import { useAdminThreadActions } from './useAdminThreads'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -24,6 +17,10 @@ vi.mock('../../hooks/useIsServerAdmin', () => ({
 
 vi.mock('./useAdminMessages', () => ({
   useAdminMessages: vi.fn()
+}))
+
+vi.mock('./useAdminThreads', () => ({
+  useAdminThreadActions: vi.fn()
 }))
 
 const mockThread: Thread = {
@@ -57,35 +54,15 @@ describe('ThreadDetail', () => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-admin' } } as any)
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
-    vi.mocked(useAdminMessages).mockReturnValue({ messages: [], loading: false } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
-  })
-
-  it('subscribes to mark_admin_thread_read when thread is opened', async () => {
-    const thenable = { then: vi.fn(() => thenable), catch: vi.fn(() => thenable) }
-    vi.mocked(supabase.rpc).mockReturnValue(thenable as any)
-
-    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
-
-    expect(supabase.rpc).toHaveBeenCalledWith('mark_admin_thread_read', { p_thread_id: 'thread-1' })
-    // The supabase-js v2 RPC returns a lazy thenable; it only fires the HTTP
-    // request when subscribed. Asserting `.then` was invoked catches a regression
-    // where the promise is discarded (e.g. `void supabase.rpc(...)`) and never runs.
-    expect(thenable.then).toHaveBeenCalled()
-  })
-
-  it('subscribes to mark_admin_thread_read again when new messages arrive', async () => {
-    const thenable = { then: vi.fn(() => thenable), catch: vi.fn(() => thenable) }
-    vi.mocked(supabase.rpc).mockReturnValue(thenable as any)
-
-    const { rerender } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
-    expect(thenable.then).toHaveBeenCalledTimes(1)
-
-    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
-    rerender(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
-
-    expect(supabase.rpc).toHaveBeenCalledTimes(2)
-    expect(thenable.then).toHaveBeenCalledTimes(2)
+    vi.mocked(useAdminMessages).mockReturnValue({
+      messages: [], loading: false, hasMore: false, loadMore: vi.fn(),
+      refetch: vi.fn(), error: null,
+      sendReply: vi.fn().mockResolvedValue(true),
+      deleteMessage: vi.fn().mockResolvedValue(true)
+    } as any)
+    vi.mocked(useAdminThreadActions).mockReturnValue({
+      createThread: vi.fn(), deleteThread: vi.fn().mockResolvedValue(true)
+    } as any)
   })
 
   it('shows loading state', () => {
@@ -120,7 +97,8 @@ describe('ThreadDetail', () => {
         holder.messages = [olderMsg, mockMessage]
         rerenderFn(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
       }),
-      refetch: vi.fn(), error: null
+      refetch: vi.fn(), error: null,
+      sendReply: vi.fn(), deleteMessage: vi.fn()
     }
     vi.mocked(useAdminMessages).mockReturnValue(holder)
     const { container, rerender } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
@@ -169,9 +147,9 @@ describe('ThreadDetail', () => {
     expect(screen.getByText('GM Bob')).toBeInTheDocument()
   })
 
-  it('sends reply on form submit', async () => {
-    const insertChain: any = { insert: vi.fn().mockResolvedValue({ data: null, error: null }) }
-    vi.mocked(supabase.from).mockReturnValue(insertChain)
+  it('sends reply via the hook and clears the input on success', async () => {
+    const sendReply = vi.fn().mockResolvedValue(true)
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [], loading: false, sendReply } as any)
 
     render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
 
@@ -180,13 +158,16 @@ describe('ThreadDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith('admin_messages')
+      expect(sendReply).toHaveBeenCalledWith('My reply')
+    })
+    await waitFor(() => {
+      expect(textarea).toHaveValue('')
     })
   })
 
   it('shows an inline error on reply failure', async () => {
-    const insertChain: any = { insert: vi.fn().mockResolvedValue({ data: null, error: { message: 'fail' } }) }
-    vi.mocked(supabase.from).mockReturnValue(insertChain)
+    const sendReply = vi.fn().mockResolvedValue(false)
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [], loading: false, sendReply } as any)
 
     render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
 
@@ -199,59 +180,9 @@ describe('ThreadDetail', () => {
     })
   })
 
-  it('shows delete thread button for server admin', () => {
-    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
-    expect(screen.getByTitle('Delete Thread')).toBeInTheDocument()
-  })
-
-  it('deletes thread on confirm', async () => {
-    const onBack = vi.fn()
-    const deleteChain: any = { delete: () => deleteChain, eq: vi.fn().mockResolvedValue({ error: null }) }
-    vi.mocked(supabase.from).mockReturnValue(deleteChain)
-
-    render(<ThreadDetail thread={mockThread} onBack={onBack} />)
-    fireEvent.click(screen.getByTitle('Delete Thread'))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this entire thread?' })).getByRole('button', { name: 'Delete Thread' }))
-
-    await waitFor(() => {
-      expect(onBack).toHaveBeenCalled()
-    })
-  })
-
-  it('does not delete thread when confirm cancelled', async () => {
-    const onBack = vi.fn()
-
-    render(<ThreadDetail thread={mockThread} onBack={onBack} />)
-    fireEvent.click(screen.getByTitle('Delete Thread'))
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-
-    expect(onBack).not.toHaveBeenCalled()
-  })
-
-  it('shows delete message button for own message', () => {
-    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
-    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
-  })
-
-  it('deletes a message on confirm', async () => {
-    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
-    const updateChain: any = { update: () => updateChain, eq: vi.fn().mockResolvedValue({ error: null }) }
-    vi.mocked(supabase.from).mockReturnValue(updateChain)
-
-    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this message?' })).getByRole('button', { name: 'Delete' }))
-
-    await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith('admin_messages')
-    })
-  })
-})
-
   it('sends reply on Enter key (not Shift+Enter)', async () => {
-    const insertChain: any = { insert: vi.fn().mockResolvedValue({ data: null, error: null }) }
-    vi.mocked(supabase.from).mockReturnValue(insertChain)
+    const sendReply = vi.fn().mockResolvedValue(true)
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [], loading: false, sendReply } as any)
 
     render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
 
@@ -260,6 +191,77 @@ describe('ThreadDetail', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
 
     await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith('admin_messages')
+      expect(sendReply).toHaveBeenCalledWith('Quick reply')
     })
   })
+
+  it('shows delete thread button for server admin', () => {
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(screen.getByTitle('Delete Thread')).toBeInTheDocument()
+  })
+
+  it('navigates back after a successful thread delete', async () => {
+    const onBack = vi.fn()
+    const deleteThread = vi.fn().mockResolvedValue(true)
+    vi.mocked(useAdminThreadActions).mockReturnValue({ createThread: vi.fn(), deleteThread } as any)
+
+    render(<ThreadDetail thread={mockThread} onBack={onBack} />)
+    fireEvent.click(screen.getByTitle('Delete Thread'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this entire thread?' })).getByRole('button', { name: 'Delete Thread' }))
+
+    await waitFor(() => {
+      expect(deleteThread).toHaveBeenCalledWith('thread-1')
+      expect(onBack).toHaveBeenCalled()
+    })
+  })
+
+  it('does not navigate back when the thread delete fails', async () => {
+    const onBack = vi.fn()
+    const deleteThread = vi.fn().mockResolvedValue(false)
+    vi.mocked(useAdminThreadActions).mockReturnValue({ createThread: vi.fn(), deleteThread } as any)
+
+    render(<ThreadDetail thread={mockThread} onBack={onBack} />)
+    fireEvent.click(screen.getByTitle('Delete Thread'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this entire thread?' })).getByRole('button', { name: 'Delete Thread' }))
+
+    await waitFor(() => {
+      expect(deleteThread).toHaveBeenCalledWith('thread-1')
+    })
+    // Failed delete must look failed: no navigation, thread stays on screen
+    // (the hook has already surfaced the error toast).
+    expect(onBack).not.toHaveBeenCalled()
+    expect(screen.getByText('Test Announcement')).toBeInTheDocument()
+  })
+
+  it('does not delete thread when confirm cancelled', async () => {
+    const onBack = vi.fn()
+    const deleteThread = vi.fn()
+    vi.mocked(useAdminThreadActions).mockReturnValue({ createThread: vi.fn(), deleteThread } as any)
+
+    render(<ThreadDetail thread={mockThread} onBack={onBack} />)
+    fireEvent.click(screen.getByTitle('Delete Thread'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onBack).not.toHaveBeenCalled()
+    expect(deleteThread).not.toHaveBeenCalled()
+  })
+
+  it('shows delete message button for own message', () => {
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('deletes a message via the hook on confirm', async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(true)
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false, deleteMessage } as any)
+
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this message?' })).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(deleteMessage).toHaveBeenCalledWith('msg-1')
+    })
+  })
+})
