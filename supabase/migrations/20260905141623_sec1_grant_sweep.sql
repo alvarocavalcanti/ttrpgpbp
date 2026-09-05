@@ -16,11 +16,19 @@
 
 -- 1. Blanket strip across the schema: PUBLIC and anon both lose EXECUTE
 -- (PUBLIC would keep anon callable through its implicit membership).
--- authenticated/service_role keep their explicit default grants, so
--- client-facing RPCs and policy helpers keep working.
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
 
--- 2. Server-only helpers: no API role at all.
+-- 2. Normalize the app roles: explicit EXECUTE for authenticated and
+-- service_role on every function in public. Default privileges differ
+-- between environments (long-lived local stacks vs fresh CI clusters), so
+-- the sweep pins the intended baseline instead of relying on them: client
+-- RPCs and policy/RLS helpers keep working for authenticated callers, and
+-- the push pipeline's service_role RPC keeps working.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, service_role;
+
+-- 3. Server-only helpers: no API role at all (granted above, revoked here —
+-- statement order makes the end state deterministic). Their real callers
+-- (SECURITY DEFINER trigger/command functions) run with owner privileges.
 -- Returns push pipeline secrets; fully revoked already in 20260905135533
 -- (issue #407), restated so this sweep is self-contained.
 REVOKE ALL ON FUNCTION public.push_notification_config_value(text)
@@ -34,4 +42,13 @@ REVOKE ALL ON FUNCTION public.retry_failed_push_invocations(integer)
 -- Internal dice-content builder used only by SECURITY DEFINER command
 -- functions running as owner.
 REVOKE ALL ON FUNCTION public.build_dice_content(text, integer[], integer, integer)
+  FROM PUBLIC, anon, authenticated, service_role;
+
+-- Already fully revoked in 20260831140000 (issue_335); restated so the
+-- blanket grant above cannot silently resurrect them.
+REVOKE ALL ON FUNCTION public.is_suspended(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.resolve_mention_user_ids(uuid, text)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.roll_dice_unchecked(uuid, text, uuid, text, integer, uuid)
   FROM PUBLIC, anon, authenticated, service_role;

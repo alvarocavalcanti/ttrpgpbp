@@ -7,7 +7,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(8);
+SELECT plan(10);
 
 SELECT is(
   (SELECT count(*)
@@ -44,6 +44,16 @@ SELECT is(
   has_function_privilege('authenticated', 'public.roll_dice_unchecked(uuid,text,uuid,text,integer,uuid)', 'EXECUTE'),
   false,
   'authenticated cannot call roll_dice_unchecked'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.is_suspended(uuid)', 'EXECUTE'),
+  false,
+  'authenticated cannot call is_suspended'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.resolve_mention_user_ids(uuid,text)', 'EXECUTE'),
+  false,
+  'authenticated cannot call resolve_mention_user_ids'
 );
 
 SELECT is(
