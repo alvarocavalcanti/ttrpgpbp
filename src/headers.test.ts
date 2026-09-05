@@ -41,6 +41,12 @@ describe('Security Headers (public/_headers)', () => {
     // Clickjacking protection: who may embed the app in a frame (#305)
     const frameAncestors = cspLine!.match(/frame-ancestors\s+([^;]+)/)?.[1]?.trim()
     expect(frameAncestors).toBe("'self'")
+
+    // Classic escalation primitives closed (SEC-7, #402): <base> hijack,
+    // off-site form posts, plugin content
+    expect(cspLine).toContain("base-uri 'self'")
+    expect(cspLine).toContain("form-action 'self'")
+    expect(cspLine).toContain("object-src 'none'")
   })
 
   it('sets X-Frame-Options to SAMEORIGIN for legacy browsers', () => {
