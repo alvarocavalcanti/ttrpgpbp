@@ -54,6 +54,15 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSh
     setIsSubmitting(true)
     setError(null)
 
+    // Belt-and-braces match of the DB scheme rule: an explicit scheme must be
+    // http(s). Scheme-less relative paths stay allowed (legacy storage paths).
+    const sheet = characterSheetUrl.trim()
+    if (sheet && /^[a-z][a-z0-9+.-]*:/i.test(sheet) && !/^https?:\/\//i.test(sheet)) {
+      setError('Sheet link must start with http:// or https://.')
+      setIsSubmitting(false)
+      return
+    }
+
     // Persist only integers within the system's modifier bounds. Unknown
     // attribute keys are kept as-is.
     const attributes: Record<string, number> = { ...((member.attributes as Record<string, number>) || {}) }

@@ -200,7 +200,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {member.away_message}
                         </p>
                       )}
-                      {member.character_sheet_url && (
+                      {member.character_sheet_url && /^https?:\/\//i.test(member.character_sheet_url) && (
                         <a 
                           href={member.character_sheet_url}
                           target="_blank"
