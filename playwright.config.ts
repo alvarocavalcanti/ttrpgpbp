@@ -26,6 +26,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    // CI has no other window into the browser; the trace is uploaded with the
+    // failure artifacts so a CI-only channels-load failure can be diagnosed.
+    ...(process.env.CI ? { trace: 'retain-on-failure' as const } : {}),
   },
   projects: [
     {
