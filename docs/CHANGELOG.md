@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Whispers stay private in the lobby** — private messages no longer show up as a channel's preview text in the lobby. The preview now only ever shows what every player at the table can already read.
+
 - **Roll messages show their maths** — a roll like `Rolled 1d20+3` now reads `Rolled 1d20+3: 10 + 3 = **13**` instead of just `13`, so you can see how the total was reached. Multi-die rolls break down too (`Rolled 2d6: 3 + 5 = **8**`), and the dice-roller panel closes after you roll so the result message is immediately visible.
 
 - **Smoother app updates** — when a new version of the app is available, a small banner appears at the top saying "New version available, reload to update." Tap **Reload** and the app refreshes itself with the fresh version — no more clearing the cache and reloading over and over to catch up after an update.
