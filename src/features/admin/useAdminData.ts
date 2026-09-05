@@ -81,11 +81,16 @@ export function useAdminData(isServerAdmin: boolean) {
   // A rejected RPC promise must flow through the same error contract as a
   // resolved-with-error response, otherwise the caller's toast never runs.
   const suspendUser = async (userId: string, suspend: boolean, reason: string) => {
-    const { error: rpcError } = await supabase.rpc('admin_suspend_user', {
-      p_user_id: userId,
-      p_suspend: suspend,
-      p_reason: reason
-    }).catch(e => ({ error: e as { message: string } }))
+    let rpcError: { message: string } | null = null
+    try {
+      rpcError = (await supabase.rpc('admin_suspend_user', {
+        p_user_id: userId,
+        p_suspend: suspend,
+        p_reason: reason
+      })).error
+    } catch (err) {
+      rpcError = err as { message: string }
+    }
     if (rpcError) return rpcError
     setUsers(prev => prev.map(u =>
       u.id === userId ? { ...u, is_suspended: suspend } : u
@@ -95,8 +100,12 @@ export function useAdminData(isServerAdmin: boolean) {
 
   // Claims an orphaned channel for the current admin; list updated in place.
   const claimChannel = async (channelId: string) => {
-    const { error: rpcError } = await supabase.rpc('admin_claim_channel', { p_channel_id: channelId })
-      .catch(e => ({ error: e as { message: string } }))
+    let rpcError: { message: string } | null = null
+    try {
+      rpcError = (await supabase.rpc('admin_claim_channel', { p_channel_id: channelId })).error
+    } catch (err) {
+      rpcError = err as { message: string }
+    }
     if (rpcError) return rpcError
     setChannels(prev => prev.map(c =>
       c.id === channelId ? { ...c, gm_id: user?.id ?? null, gm_display_name: profile?.display_name ?? 'You' } : c

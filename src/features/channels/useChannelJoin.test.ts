@@ -53,7 +53,7 @@ describe('useChannelJoin', () => {
     const secondFetch = new Promise<{ data: any, error: null }>(res => { resolveSecond = res })
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce({ data: [previewRow], error: null } as any)
-      .mockReturnValueOnce(secondFetch)
+      .mockReturnValueOnce(secondFetch as any)
 
     const { result, rerender } = renderHook(({ id }: { id: string | undefined }) => useChannelJoin(id), {
       initialProps: { id: '123' }
