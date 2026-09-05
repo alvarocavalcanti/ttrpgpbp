@@ -33,6 +33,7 @@ describe('useAuth', () => {
       loading: false,
       signInWithGoogle: () => Promise.resolve(),
       signOut: () => Promise.resolve(),
+      refreshProfile: () => Promise.resolve(),
     }
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (

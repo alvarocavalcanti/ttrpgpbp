@@ -2,52 +2,51 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ThreadList } from './ThreadList'
 import { useAdminThreads } from './useAdminThreads'
+import { useActiveGms } from './useActiveGms'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
-import { supabase } from '../../lib/supabase'
+import type { Thread } from './types'
 
 vi.mock('./useAdminThreads', () => ({
   useAdminThreads: vi.fn()
+}))
+
+vi.mock('./useActiveGms', () => ({
+  useActiveGms: vi.fn()
 }))
 
 vi.mock('../../hooks/useIsServerAdmin', () => ({
   useIsServerAdmin: vi.fn()
 }))
 
-vi.mock('../../lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(),
-    rpc: vi.fn(),
-    auth: {
-      getUser: vi.fn()
-    }
-  }
-}))
+const mockThread: Thread = {
+  id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
+  created_by: 'admin-1', last_message_at: new Date().toISOString(),
+  created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  creator: { display_name: 'Admin', avatar_url: null },
+  unread: false
+}
 
-function makeThreadChain(threadId: string) {
-  const chain: any = {
-    insert: () => chain,
-    select: () => chain,
-    eq: () => chain,
-    single: () => Promise.resolve({
-      data: {
-        id: threadId, type: 'announcement', subject: 'Test', gm_id: null,
-        created_by: 'admin-1', last_message_at: new Date().toISOString(),
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-        creator: { display_name: 'Admin', avatar_url: null }
-      },
-      error: null
-    })
-  }
-  return chain
+function mockHookReturn(overrides: Record<string, unknown> = {}) {
+  vi.mocked(useAdminThreads).mockReturnValue({
+    threads: [], loading: false, hasMore: false, loadMore: vi.fn(),
+    refetch: vi.fn(), error: null, createThread: vi.fn(), deleteThread: vi.fn(),
+    ...overrides
+  } as any)
+}
+
+function mockGms(overrides: Record<string, unknown> = {}) {
+  vi.mocked(useActiveGms).mockReturnValue({
+    gms: [], loading: false, error: null, refetch: vi.fn(),
+    ...overrides
+  } as any)
 }
 
 describe('ThreadList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAdminThreads).mockReturnValue({ threads: [], loading: false } as any)
+    mockHookReturn()
+    mockGms()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
-    vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user: { id: 'admin-1' } } } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
   })
 
   it('shows empty state when no threads', () => {
@@ -56,23 +55,14 @@ describe('ThreadList', () => {
   })
 
   it('shows a spinner during initial load', () => {
-    vi.mocked(useAdminThreads).mockReturnValue({ threads: [], loading: true } as any)
+    mockHookReturn({ loading: true })
 
     const { container } = render(<ThreadList onSelectThread={vi.fn()} />)
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
   it('shows an inline spinner while refetching with existing threads', () => {
-    vi.mocked(useAdminThreads).mockReturnValue({
-      threads: [{
-        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
-        created_by: 'admin-1', last_message_at: new Date().toISOString(),
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-        creator: { display_name: 'Admin', avatar_url: null },
-        unread: false
-      }],
-      loading: true
-    } as any)
+    mockHookReturn({ threads: [mockThread], loading: true })
 
     const { container } = render(<ThreadList onSelectThread={vi.fn()} />)
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
@@ -80,17 +70,7 @@ describe('ThreadList', () => {
   })
 
   it('shows a spinner in the load-more button while loading more', () => {
-    vi.mocked(useAdminThreads).mockReturnValue({
-      threads: [{
-        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
-        created_by: 'admin-1', last_message_at: new Date().toISOString(),
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-        creator: { display_name: 'Admin', avatar_url: null },
-        unread: false
-      }],
-      loading: true,
-      hasMore: true
-    } as any)
+    mockHookReturn({ threads: [mockThread], loading: true, hasMore: true })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     const loadMoreButton = screen.getByRole('button', { name: 'Loading...' })
@@ -98,16 +78,7 @@ describe('ThreadList', () => {
   })
 
   it('shows thread list when threads exist', () => {
-    vi.mocked(useAdminThreads).mockReturnValue({
-      threads: [{
-        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
-        created_by: 'admin-1', last_message_at: new Date().toISOString(),
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-        creator: { display_name: 'Admin', avatar_url: null },
-        unread: false
-      }],
-      loading: false
-    } as any)
+    mockHookReturn({ threads: [mockThread] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     expect(screen.getByText('Announcement')).toBeInTheDocument()
@@ -115,18 +86,7 @@ describe('ThreadList', () => {
 
   it('calls loadMore when Load more is clicked', () => {
     const loadMore = vi.fn()
-    vi.mocked(useAdminThreads).mockReturnValue({
-      threads: [{
-        id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
-        created_by: 'admin-1', last_message_at: new Date().toISOString(),
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-        creator: { display_name: 'Admin', avatar_url: null },
-        unread: false
-      }],
-      loading: false,
-      hasMore: true,
-      loadMore
-    } as any)
+    mockHookReturn({ threads: [mockThread], hasMore: true, loadMore })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('Load more'))
@@ -135,12 +95,7 @@ describe('ThreadList', () => {
 
   it('shows error banner and retries via refetch', () => {
     const refetch = vi.fn()
-    vi.mocked(useAdminThreads).mockReturnValue({
-      threads: [],
-      loading: false,
-      error: new Error('boom'),
-      refetch
-    } as any)
+    mockHookReturn({ error: new Error('boom'), refetch })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     expect(screen.getByText("Couldn't load conversations.")).toBeInTheDocument()
@@ -148,23 +103,10 @@ describe('ThreadList', () => {
     expect(refetch).toHaveBeenCalled()
   })
 
-  it('calls mark_admin_thread_read after creating announcement', async () => {
-    const threadId = 'new-thread-id'
+  it('selects the created thread via createThread and closes the modal', async () => {
     const onSelectThread = vi.fn()
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'admin_threads') return makeThreadChain(threadId) as any
-      if (table === 'admin_messages') {
-        const msgChain: any = { insert: () => Promise.resolve({ data: null, error: null }) }
-        return msgChain
-      }
-      return {} as any
-    })
-
-    vi.mocked(supabase.rpc).mockImplementation((fn: string) => {
-      if (fn === 'admin_list_active_gms') return Promise.resolve({ data: [], error: null }) as any
-      return Promise.resolve({ data: null, error: null }) as any
-    })
+    const createThread = vi.fn().mockResolvedValue(mockThread)
+    mockHookReturn({ createThread })
 
     render(<ThreadList onSelectThread={onSelectThread} />)
 
@@ -176,30 +118,22 @@ describe('ThreadList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
-      expect(supabase.rpc).toHaveBeenCalledWith('mark_admin_thread_read', { p_thread_id: threadId })
+      expect(createThread).toHaveBeenCalledWith({
+        type: 'announcement', subject: 'My Announcement', content: 'Hello world', gmId: null
+      })
+    })
+    expect(onSelectThread).toHaveBeenCalledWith(mockThread)
+    await waitFor(() => {
+      expect(screen.queryByText('New Message')).not.toBeInTheDocument()
     })
   })
 
-  it('logs error when mark_admin_thread_read fails after thread creation', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const threadId = 'new-thread-id'
+  it('keeps the modal open without selecting when creation fails (hook toasts)', async () => {
+    const onSelectThread = vi.fn()
+    const createThread = vi.fn().mockResolvedValue(null)
+    mockHookReturn({ createThread })
 
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'admin_threads') return makeThreadChain(threadId) as any
-      if (table === 'admin_messages') {
-        const msgChain: any = { insert: () => Promise.resolve({ data: null, error: null }) }
-        return msgChain
-      }
-      return {} as any
-    })
-
-    vi.mocked(supabase.rpc).mockImplementation((fn: string) => {
-      if (fn === 'admin_list_active_gms') return Promise.resolve({ data: [], error: null }) as any
-      if (fn === 'mark_admin_thread_read') return Promise.resolve({ data: null, error: { message: 'RPC failed' } }) as any
-      return Promise.resolve({ data: null, error: null }) as any
-    })
-
-    render(<ThreadList onSelectThread={vi.fn()} />)
+    render(<ThreadList onSelectThread={onSelectThread} />)
 
     fireEvent.click(screen.getByText('New'))
     await waitFor(() => screen.getByText('New Message'))
@@ -209,59 +143,72 @@ describe('ThreadList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to mark new thread as read:', expect.anything())
+      expect(createThread).toHaveBeenCalled()
     })
+    expect(onSelectThread).not.toHaveBeenCalled()
+    expect(screen.getByText('New Message')).toBeInTheDocument()
+  })
 
-    consoleSpy.mockRestore()
+  it('shows a GM list error with retry in the modal', async () => {
+    const refetchGms = vi.fn()
+    mockGms({ error: new Error('boom'), refetch: refetchGms })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    // The GM picker only exists for DMs.
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
+    expect(screen.getByText("Couldn't load the GM list.")).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Retry'))
+    expect(refetchGms).toHaveBeenCalled()
+  })
+
+  it('shows a loading placeholder in the GM picker while GMs load', async () => {
+    mockGms({ loading: true })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
+    expect(screen.getByText('Loading GMs...')).toBeInTheDocument()
   })
 })
 
 describe('NewThreadModal additional branches', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAdminThreads).mockReturnValue({ threads: [], loading: false } as any)
+    mockHookReturn()
+    mockGms()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
-    vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user: { id: 'admin-1' } } } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
   })
 
-  it('alerts on message insert failure', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    const threadId = 'new-thread-id'
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'admin_threads') return makeThreadChain(threadId) as any
-      if (table === 'admin_messages') {
-        const msgChain: any = { insert: () => Promise.resolve({ data: null, error: { message: 'fail' } }) }
-        return msgChain
-      }
-      return {} as any
-    })
-
-    vi.mocked(supabase.rpc).mockImplementation((fn: string) => {
-      if (fn === 'admin_list_active_gms') return Promise.resolve({ data: [], error: null }) as any
-      return Promise.resolve({ data: null, error: null }) as any
-    })
+  it('passes the selected GM for an admin-started dm', async () => {
+    const createThread = vi.fn().mockResolvedValue(mockThread)
+    mockHookReturn({ createThread })
+    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
     await waitFor(() => screen.getByText('New Message'))
 
-    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'Subj' } })
-    fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: 'Body' } })
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
+    await waitFor(() => screen.getByText('GM Alice'))
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'gm-1' } })
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'Body' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith('Failed to send message')
+      // DMs carry no subject; the modal forwards '' and the hook nulls it.
+      expect(createThread).toHaveBeenCalledWith({
+        type: 'dm', subject: '', content: 'Body', gmId: 'gm-1'
+      })
     })
-    alertSpy.mockRestore()
   })
 
   it('shows GM dropdown when type switched to dm', async () => {
-    vi.mocked(supabase.rpc).mockImplementation((fn: string) => {
-      if (fn === 'admin_list_active_gms') return Promise.resolve({ data: [{ id: 'gm-1', display_name: 'GM Alice' }], error: null }) as any
-      return Promise.resolve({ data: null, error: null }) as any
-    })
+    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
@@ -277,10 +224,9 @@ describe('NewThreadModal additional branches', () => {
 describe('ThreadList non-admin and interaction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAdminThreads).mockReturnValue({ threads: [], loading: false } as any)
+    mockHookReturn()
+    mockGms()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
-    vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user: { id: 'gm-1' } } } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
   })
 
   it('shows Message Admin button for non-admin', () => {
@@ -289,36 +235,16 @@ describe('ThreadList non-admin and interaction', () => {
   })
 
   it('calls onSelectThread when thread is clicked', () => {
-    const thread = {
-      id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
-      created_by: 'admin-1', last_message_at: new Date().toISOString(),
-      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      creator: { display_name: 'Admin', avatar_url: null },
-      unread: false
-    }
-    vi.mocked(useAdminThreads).mockReturnValue({ threads: [thread], loading: false } as any)
+    mockHookReturn({ threads: [mockThread] })
     const onSelectThread = vi.fn()
     render(<ThreadList onSelectThread={onSelectThread} />)
     fireEvent.click(screen.getByText('Announcement'))
-    expect(onSelectThread).toHaveBeenCalledWith(thread)
+    expect(onSelectThread).toHaveBeenCalledWith(mockThread)
   })
 
-  it('alerts on thread creation failure', async () => {
-    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'admin_threads') {
-        const chain: any = {
-          insert: () => chain,
-          select: () => chain,
-          eq: () => chain,
-          single: () => Promise.resolve({ data: null, error: { message: 'fail' } })
-        }
-        return chain as any
-      }
-      return {} as any
-    })
+  it('sends a non-admin dm with gmId null (hook resolves sender as gm)', async () => {
+    const createThread = vi.fn().mockResolvedValue(mockThread)
+    mockHookReturn({ createThread })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('Message Admin'))
@@ -328,18 +254,16 @@ describe('ThreadList non-admin and interaction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith('Failed to create thread')
+      // DMs carry no subject; the modal forwards '' and the hook nulls it.
+      expect(createThread).toHaveBeenCalledWith({
+        type: 'dm', subject: '', content: 'Body text', gmId: null
+      })
     })
-    alertSpy.mockRestore()
   })
 
   it('selects GM from dropdown when type is dm', async () => {
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
-
-    vi.mocked(supabase.rpc).mockImplementation((fn: string) => {
-      if (fn === 'admin_list_active_gms') return Promise.resolve({ data: [{ id: 'gm-1', display_name: 'GM Alice' }], error: null }) as any
-      return Promise.resolve({ data: null, error: null }) as any
-    })
+    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))

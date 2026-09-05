@@ -5,7 +5,7 @@ import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead } from '../../lib/channelRead'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
@@ -22,7 +22,7 @@ vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: { id: 'user1' } })
 }))
 
-vi.mock('../auth/usePushNotifications', () => ({
+vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn()
 }))
 
@@ -1258,5 +1258,50 @@ describe('ChannelView search functionality', () => {
       swipe('touchend', -20)
       expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('ChannelView edit-character deep link (#408)', () => {
+  it('opens the character editor with the viewer member id from a check-link deep link', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', game_system: 'shadowdark' },
+      members: [{ id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero', attributes: {} }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: '[DEX Check](check:DEX)', type: 'scene', sender_id: 'user1', created_at: new Date().toISOString() }],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByText('DEX Check'))
+    fireEvent.click(screen.getByText('Set it in your character sheet'))
+
+    // The editor must open for the viewer's member row (id closed over by the
+    // stable onEditCharacter callback — a regression here silently no-ops or
+    // sets editingMemberId to undefined).
+    expect(screen.getByLabelText('Character Name')).toHaveValue('Hero')
   })
 })

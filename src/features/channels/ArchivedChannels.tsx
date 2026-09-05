@@ -1,56 +1,11 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../auth/useAuth'
-import type { Database } from '../../types/database'
-
-type Channel = Database['public']['Tables']['channels']['Row']
+import { useArchivedChannels } from './useArchivedChannels'
 
 export function ArchivedChannels() {
-  const { user } = useAuth()
-  const [archivedChannels, setArchivedChannels] = useState<Channel[]>([])
-  const [loading, setLoading] = useState(true)
-  const [errorState, setErrorState] = useState<string | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    async function fetchArchived() {
-      if (!user) return
-      try {
-        const { data, error } = await supabase
-          .from('channels')
-          .select('*')
-          .eq('gm_id', user.id)
-          .eq('is_archived', true)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        if (mounted) setArchivedChannels(data || [])
-      } catch (err) {
-        console.error('Error fetching archived channels:', err)
-        if (mounted) setErrorState('Failed to load archived channels.')
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-    fetchArchived()
-    return () => { mounted = false }
-  }, [user])
+  const { archivedChannels, loading, error: errorState, restoreChannel } = useArchivedChannels()
 
   const handleRestore = async (id: string) => {
-    setErrorState(null)
-    try {
-      const { error } = await supabase
-        .from('channels')
-        .update({ is_archived: false })
-        .eq('id', id)
-      
-      if (error) throw error
-      setArchivedChannels(prev => prev.filter(c => c.id !== id))
-    } catch (err) {
-      console.error('Failed to restore channel', err)
-      setErrorState('Failed to restore channel.')
-    }
+    await restoreChannel(id)
   }
 
   if (loading) {
