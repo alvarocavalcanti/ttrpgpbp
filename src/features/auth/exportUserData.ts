@@ -51,12 +51,27 @@ export interface UserDataExport {
     badge_enabled: boolean
     email_enabled: boolean
   } | null
+  abuse_reports: {
+    id: string
+    reported_user_id: string | null
+    reason: string
+    status: string
+    created_at: string
+  }[]
+  admin_messages: {
+    id: string
+    thread_id: string
+    content: string
+    created_at: string
+  }[]
 }
 
 // Right of access / portability. Everything is scoped by RLS to rows the user
 // owns; received whispers are not included (authored whispers are, via
 // messages.sender_id). Channel names come from the nested channels relation,
-// which RLS allows because the user is a member of their own channels.
+// which RLS allows because the user is a member of their own channels. The
+// reporter's own abuse reports are readable back since the reporter read-back
+// policy; authored admin-thread messages are readable via admin_messages RLS.
 export async function buildUserDataExport(userId: string): Promise<UserDataExport> {
   const profile = supabase
     .from('profiles')
@@ -88,14 +103,26 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .select('push_enabled, badge_enabled, email_enabled')
     .eq('user_id', userId)
     .maybeSingle()
+  const abuseReportsQuery = supabase
+    .from('abuse_reports')
+    .select('id, reported_user_id, reason, status, created_at')
+    .eq('reporter_id', userId)
+    .order('id', { ascending: true })
+  const adminMessagesQuery = supabase
+    .from('admin_messages')
+    .select('id, thread_id, content, created_at')
+    .eq('sender_id', userId)
+    .order('id', { ascending: true })
 
-  const [profileResult, memberships, messages, diceRolls, reactions, prefsResult] = await Promise.all([
+  const [profileResult, memberships, messages, diceRolls, reactions, prefsResult, abuseReports, adminMessages] = await Promise.all([
     profile,
     fetchAllRows(membershipsQuery),
     fetchAllRows(messagesQuery),
     fetchAllRows(diceRollsQuery),
     fetchAllRows(reactionsQuery),
     prefs,
+    fetchAllRows(abuseReportsQuery),
+    fetchAllRows(adminMessagesQuery),
   ])
 
   for (const result of [profileResult, prefsResult]) {
@@ -120,6 +147,14 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     dice_rolls: diceRolls,
     reactions,
     notification_preferences: prefsResult.data ?? null,
+    abuse_reports: abuseReports.map(r => ({
+      id: r.id,
+      reported_user_id: r.reported_user_id,
+      reason: r.reason,
+      status: r.status,
+      created_at: r.created_at,
+    })),
+    admin_messages: adminMessages,
   }
 }
 
