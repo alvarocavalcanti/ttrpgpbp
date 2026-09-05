@@ -36,7 +36,6 @@ describe('NpcManagementModal', () => {
       npcs: baseNpcs,
       loading: false,
       refetch: vi.fn(),
-      addNpc: vi.fn(),
       createNpc: vi.fn().mockResolvedValue(true),
       renameNpc: vi.fn().mockResolvedValue(true),
       repictureNpc: vi.fn().mockResolvedValue(true),

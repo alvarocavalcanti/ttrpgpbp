@@ -1,31 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
-import { useAuth } from '../auth/useAuth'
+import { useAdminData, type AdminUser } from './useAdminData'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
-
-type AdminUser = {
-  id: string
-  display_name: string | null
-  email: string | null
-  channel_count: number
-  created_at: string
-  is_suspended: boolean
-}
-
-type AdminChannel = {
-  id: string
-  name: string
-  game_system: string
-  gm_id: string | null
-  member_count: number
-  created_at: string
-  last_message_at: string | null
-  gm_display_name: string | null
-}
 
 type Tab = 'users' | 'channels' | 'settings'
 
@@ -79,14 +58,8 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
 
 export function AdminView() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
   const { addToast } = useToast()
   const [tab, setTab] = useState<Tab>('users')
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [channels, setChannels] = useState<AdminChannel[]>([])
-  const [storageBytes, setStorageBytes] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [channelLimit, setChannelLimit] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const { value: maxChannels, loading: settingsLoading } = useAppSetting<number>('max_channels_per_user', 10)
@@ -99,6 +72,8 @@ export function AdminView() {
   const [isSavingImages, setIsSavingImages] = useState(false)
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
+
+  const { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings } = useAdminData(isServerAdmin)
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
@@ -115,43 +90,6 @@ export function AdminView() {
     setImageRetention(String(imageRetentionDays))
   }, [isServerAdmin, adminLoading, maxChannels, imageUploadingEnabled, imageMaxSizeMb, imageRetentionDays, navigate])
 
-  useEffect(() => {
-    if (!isServerAdmin) return
-    let mounted = true
-
-    async function fetchData() {
-      setLoading(true)
-      setError(null)
-      try {
-        const [
-          { data: userData, error: userError },
-          { data: channelData, error: channelError },
-          { data: storageData, error: storageError }
-        ] = await Promise.all([
-          supabase.rpc('admin_list_users'),
-          supabase.rpc('admin_list_channels'),
-          supabase.rpc('admin_get_image_storage_bytes'),
-        ])
-        if (userError) throw userError
-        if (channelError) throw channelError
-        if (storageError) throw storageError
-        if (mounted) {
-          setUsers((userData as AdminUser[]) || [])
-          setChannels((channelData as AdminChannel[]) || [])
-          setStorageBytes(storageData || 0)
-        }
-      } catch (err) {
-        console.error('Error fetching admin data:', err)
-        if (mounted) setError('Failed to load admin data.')
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    fetchData()
-    return () => { mounted = false }
-  }, [isServerAdmin])
-
   if (adminLoading) return null
   if (!isServerAdmin) return null
 
@@ -163,10 +101,8 @@ export function AdminView() {
     }
     setIsSaving(true)
     try {
-      const { error } = await supabase
-        .from('app_settings')
-        .upsert({ key: 'max_channels_per_user', value }, { onConflict: 'key' })
-      if (error) throw error
+      const upsertError = await upsertSettings([{ key: 'max_channels_per_user', value }])
+      if (upsertError) throw upsertError
       addToast('Channel limit updated. Existing members are kept in their channels.', 'success')
     } catch (err) {
       console.error('Error saving channel limit:', err)
@@ -189,14 +125,12 @@ export function AdminView() {
     }
     setIsSavingImages(true)
     try {
-      const { error } = await supabase
-        .from('app_settings')
-        .upsert([
-          { key: 'image_uploading_enabled', value: imageUploadEnabled },
-          { key: 'image_max_size_mb', value: mb },
-          { key: 'image_retention_days', value: retention },
-        ], { onConflict: 'key' })
-      if (error) throw error
+      const upsertError = await upsertSettings([
+        { key: 'image_uploading_enabled', value: imageUploadEnabled },
+        { key: 'image_max_size_mb', value: mb },
+        { key: 'image_retention_days', value: retention },
+      ])
+      if (upsertError) throw upsertError
       addToast('Image upload settings updated.', 'success')
     } catch (err) {
       console.error('Error saving image settings:', err)
@@ -217,36 +151,23 @@ export function AdminView() {
       return
     }
 
-    try {
-      const { error } = await supabase.rpc('admin_suspend_user', {
-        p_user_id: targetUser.id,
-        p_suspend: !targetUser.is_suspended,
-        p_reason: reason || 'No reason provided'
-      })
-      if (error) throw error
-      
-      setUsers(prev => prev.map(u => 
-        u.id === targetUser.id ? { ...u, is_suspended: !targetUser.is_suspended } : u
-      ))
-      addToast(`User ${action.toLowerCase()}ed successfully.`, 'success')
-    } catch (err) {
-      console.error(`Error ${action.toLowerCase()}ing user:`, err)
+    const rpcError = await suspendUser(targetUser.id, !targetUser.is_suspended, reason || 'No reason provided')
+    if (rpcError) {
+      console.error(`Error ${action.toLowerCase()}ing user:`, rpcError)
       addToast(`Failed to ${action.toLowerCase()} user.`, 'error')
+      return
     }
+    addToast(`User ${action.toLowerCase()}ed successfully.`, 'success')
   }
 
   const handleClaimChannel = async (channelId: string) => {
-    try {
-      const { error } = await supabase.rpc('admin_claim_channel', { p_channel_id: channelId })
-      if (error) throw error
-      setChannels(prev => prev.map(c =>
-        c.id === channelId ? { ...c, gm_id: user?.id ?? null, gm_display_name: profile?.display_name ?? 'You' } : c
-      ))
-      addToast('Channel claimed. You are now the GM.', 'success')
-    } catch (err) {
-      console.error('Error claiming channel:', err)
+    const rpcError = await claimChannel(channelId)
+    if (rpcError) {
+      console.error('Error claiming channel:', rpcError)
       addToast('Failed to claim channel.', 'error')
+      return
     }
+    addToast('Channel claimed. You are now the GM.', 'success')
   }
 
   const tabs: { id: Tab; label: string }[] = [

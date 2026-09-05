@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissWhatsNew } from './helpers';
+import { dismissWhatsNew, seedAndSignIn } from './helpers';
 
 test.describe('Core Journey', () => {
   test.beforeEach(async () => {
@@ -15,28 +15,16 @@ test.describe('Core Journey', () => {
   });
 
   test('sign-in, create channel, send message, and roll dice', async ({ page }) => {
-    // Generate unique email to avoid collisions but keep it standard-looking
+    // Unique, standard-looking email; the user is seeded server-side via the
+    // Admin API, then signed in — no client-side sign-up involved.
     const email = `test.e2e.${Date.now()}@gmail.com`;
-    const password = 'Password123!';
 
-    // 1. Go to login page
+    // 1. Go to login page and verify the OAuth entry point renders
     await page.goto('/login');
     await expect(page.getByRole('button', { name: /Sign in with Google/i })).toBeVisible();
 
-    // 2. Programmatically sign up via window.__supabase
-    const signUpResult = await page.evaluate(async ({ email, password }) => {
-      // @ts-expect-error - exposed in test/dev
-      const client = window.__supabase;
-      if (!client) throw new Error('Supabase client not found on window');
-      
-      const { error } = await client.auth.signUp({
-        email,
-        password,
-      });
-      return { success: !error, error: error?.message };
-    }, { email, password });
-
-    expect(signUpResult.success).toBe(true);
+    // 2. Seed the user via the Admin API and sign in
+    await seedAndSignIn(page, email);
 
     // 3. Wait for redirect to Lobby (/)
     await page.waitForURL('/');

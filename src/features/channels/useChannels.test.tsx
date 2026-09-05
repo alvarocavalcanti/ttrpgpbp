@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useChannels } from './useChannels'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
+import { reportRealtimeStatus, clearRealtimeStatus } from '../../lib/realtime'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -359,6 +360,42 @@ describe('useChannels', () => {
     // The INSERT above scheduled a debounced refetch that now sees the channel.
     await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
     expect(result.current.myChannels[0]?.unread_count).toBe(1)
+  })
+
+  it('debounces realtime status flaps into a single refetch (ARCH-6)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const mockMyChannelsRaw = [{
+      id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Thor',
+      last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'c1', name: 'My Channel' }
+    }]
+
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
+      return {} as any
+    })
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null })
+    vi.mocked(supabase.rpc).mockImplementation(rpc as any)
+
+    const { result, unmount } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const fetchesAfterLoad = rpc.mock.calls.length
+
+    // A rapid flap storm: drop, retry, recover — each used to refetch the
+    // lobby on its own.
+    act(() => {
+      reportRealtimeStatus('flap-test', 'CHANNEL_ERROR')
+      reportRealtimeStatus('flap-test', 'CHANNEL_ERROR')
+      reportRealtimeStatus('flap-test', 'SUBSCRIBED')
+    })
+
+    // No immediate refetch — scheduled through the trailing 2s debounce.
+    expect(rpc.mock.calls.length).toBe(fetchesAfterLoad)
+
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+
+    expect(rpc.mock.calls.length).toBe(fetchesAfterLoad + 1)
+    unmount()
+    clearRealtimeStatus('flap-test')
   })
 
   it('ignores realtime message INSERTs for channels I am not in', async () => {

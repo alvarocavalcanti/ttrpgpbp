@@ -17,6 +17,7 @@ interface AuthContextType {
   error: Error | null
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -127,9 +128,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }, [])
 
+  // Re-fetches the signed-in user's profile so direct profile writes (e.g. the
+  // display-name save in ProfileSettings) are reflected in context state
+  // without waiting for an auth event (ARCH-4).
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, created_at, is_suspended')
+        .eq('id', user.id)
+        .single()
+      if (fetchError) throw fetchError
+      setProfile(parseRow(ProfileRowSchema, data) as Profile | null)
+    } catch (err) {
+      // Keep the previously-loaded profile so a transient failure doesn't
+      // wipe the UI (mirrors fetchProfile's resilience, UX#16).
+      console.error('Error refreshing profile:', err)
+    }
+  }, [user?.id])
+
   const value = useMemo(
-    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut }),
-    [session, user, profile, loading, error, signInWithGoogle, signOut]
+    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile }),
+    [session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile]
   )
 
   return (

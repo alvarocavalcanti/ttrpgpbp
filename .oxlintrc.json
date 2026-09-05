@@ -21,6 +21,25 @@
       "rules": {
         "typescript/no-explicit-any": "off"
       }
+    },
+    {
+      "files": [
+        "src/features/channels/JoinChannel.tsx",
+        "src/features/channels/CreateChannelModal.tsx",
+        "src/features/channels/MemberList.tsx",
+        "src/features/channels/ActivePlayerModal.tsx",
+        "src/features/channels/ArchivedChannels.tsx",
+        "src/features/dice/RollHistoryModal.tsx",
+        "src/features/admin/AdminView.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["**/lib/supabase", "**/lib/supabase.*"],
+            "message": "Queries live in hooks (issue #403 ARCH-1) — use the feature's hook instead of importing the Supabase client."
+          }]
+        }]
+      }
     }
   ]
 }

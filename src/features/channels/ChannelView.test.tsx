@@ -5,7 +5,7 @@ import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead } from '../../lib/channelRead'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
@@ -22,7 +22,7 @@ vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ user: { id: 'user1' } })
 }))
 
-vi.mock('../auth/usePushNotifications', () => ({
+vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn()
 }))
 

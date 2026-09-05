@@ -28,6 +28,7 @@ function TestComponent() {
       <div data-testid="error">{context.error ? 'error' : 'no-error'}</div>
       <button type="button" onClick={context.signInWithGoogle}>Sign In</button>
       <button type="button" onClick={context.signOut}>Sign Out</button>
+      <button type="button" onClick={() => void context.refreshProfile()}>Refresh Profile</button>
     </div>
   )
 }
@@ -396,6 +397,82 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('error')).toHaveTextContent('no-error')
       expect(screen.getByTestId('profile')).toHaveTextContent('Recovered')
     })
+  })
+
+  it('refreshProfile re-fetches the profile so context state reflects edits', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(screen.getByTestId('profile')).toHaveTextContent('Test User')
+
+    // The saved edit lands in the DB, then the app re-reads the profile.
+    mockSingle.mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Updated Name' },
+      error: null,
+    })
+    fireEvent.click(screen.getByText('Refresh Profile'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile')).toHaveTextContent('Updated Name')
+    })
+    expect(supabase.from).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the previous profile when refreshProfile fails', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(screen.getByTestId('profile')).toHaveTextContent('Test User')
+
+    mockSingle.mockRejectedValue(new Error('DB error'))
+    fireEvent.click(screen.getByText('Refresh Profile'))
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith('Error refreshing profile:', expect.any(Error))
+    })
+    expect(screen.getByTestId('profile')).toHaveTextContent('Test User')
   })
 
   it('calls signOut when signOut is clicked', async () => {

@@ -1,19 +1,21 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CreateChannelModal } from './CreateChannelModal'
-import { supabase } from '../../lib/supabase'
+import { useCreateChannel } from './useCreateChannel'
 import { useAuth } from '../auth/useAuth'
-import { MemoryRouter } from 'react-router-dom'
+import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 
-vi.mock('../../lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(),
-    rpc: vi.fn()
-  }
+vi.mock('./useCreateChannel', () => ({
+  useCreateChannel: vi.fn()
 }))
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
+}))
+
+vi.mock('../../hooks/useIsServerAdmin', () => ({
+  useIsServerAdmin: vi.fn()
 }))
 
 vi.mock('../../lib/crypto', () => ({
@@ -25,6 +27,10 @@ vi.mock('../../hooks/useAppSetting', () => ({
 }))
 
 describe('CreateChannelModal', () => {
+  const mockOnClose = vi.fn()
+  const mockCountMyChannels = vi.fn()
+  const mockCreateChannel = vi.fn()
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useAuth).mockReturnValue({
@@ -34,59 +40,49 @@ describe('CreateChannelModal', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
-      signOut: vi.fn()
-    })
-    
+      signOut: vi.fn(),
+      refreshProfile: vi.fn()
+    } as any)
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false } as any)
+    mockCountMyChannels.mockResolvedValue(0)
+    mockCreateChannel.mockResolvedValue('c1')
+    vi.mocked(useCreateChannel).mockReturnValue({ countMyChannels: mockCountMyChannels, createChannel: mockCreateChannel })
+
     // Polyfill crypto.randomUUID
     Object.defineProperty(window, 'crypto', {
       value: { randomUUID: () => '12345678-abcd' },
       configurable: true
     })
-
-    // Admin gating reads the is_server_admin RPC; non-admin by default so the
-    // channel-cap pre-check runs. create_channel mocks override per test.
-    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
-      return Promise.resolve({ data: null, error: null })
-    }) as any)
   })
 
-  it('caps channel names at 80 characters', () => {
-    render(
+  function renderModal(onClose = mockOnClose) {
+    return render(
       <MemoryRouter>
-        <CreateChannelModal onClose={vi.fn()} />
+        <CreateChannelModal onClose={onClose} />
       </MemoryRouter>
     )
+  }
 
+  it('caps channel names at 80 characters', () => {
+    renderModal()
     expect(screen.getByLabelText('Channel Name')).toHaveAttribute('maxLength', '80')
   })
 
-  it('creates channel atomically via create_channel RPC with password', async () => {
-    const mockOnClose = vi.fn()
-
-    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
-    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'c1', error: null } as any)
-
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={mockOnClose} />
-      </MemoryRouter>
-    )
+  it('creates channel atomically via the hook with password', async () => {
+    renderModal()
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
     fireEvent.change(screen.getByLabelText('Password (Optional)'), { target: { value: 'secret' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
-      expect(supabase.rpc).toHaveBeenCalledWith('create_channel', {
-        p_name: 'New Game',
-        p_game_system: 'none',
-        p_invite_code: '12345678',
-        p_character_name: 'GM',
-        p_password_hash: 'hashed_password',
-        p_password_salt: 'salt_value'
+      expect(mockCreateChannel).toHaveBeenCalledWith({
+        name: 'New Game',
+        gameSystem: 'none',
+        inviteCode: '12345678',
+        characterName: 'GM',
+        passwordHash: 'hashed_password',
+        passwordSalt: 'salt_value'
       })
 
       expect(mockOnClose).toHaveBeenCalled()
@@ -94,30 +90,19 @@ describe('CreateChannelModal', () => {
   })
 
   it('creates channel without password', async () => {
-    const mockOnClose = vi.fn()
-
-    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
-    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'c1', error: null } as any)
-
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={mockOnClose} />
-      </MemoryRouter>
-    )
+    renderModal()
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
-      expect(supabase.rpc).toHaveBeenCalledWith('create_channel', {
-        p_name: 'New Game',
-        p_game_system: 'none',
-        p_invite_code: '12345678',
-        p_character_name: 'GM',
-        p_password_hash: undefined,
-        p_password_salt: undefined
+      expect(mockCreateChannel).toHaveBeenCalledWith({
+        name: 'New Game',
+        gameSystem: 'none',
+        inviteCode: '12345678',
+        characterName: 'GM',
+        passwordHash: undefined,
+        passwordSalt: undefined
       })
 
       expect(mockOnClose).toHaveBeenCalled()
@@ -125,19 +110,10 @@ describe('CreateChannelModal', () => {
   })
 
   it('handles creation error from the RPC', async () => {
-    const mockOnClose = vi.fn()
-
-    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
-    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('RPC failed') } as any)
+    mockCreateChannel.mockRejectedValue(new Error('RPC failed'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={mockOnClose} />
-      </MemoryRouter>
-    )
+    renderModal()
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
@@ -149,17 +125,10 @@ describe('CreateChannelModal', () => {
   })
 
   it('handles creation error when the RPC returns no channel id', async () => {
-    const mockCountEq = vi.fn().mockResolvedValue({ count: 0 })
-    const mockCountSelect = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockCountEq }) })
-    vi.mocked(supabase.from).mockReturnValue({ select: mockCountSelect } as any)
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+    mockCreateChannel.mockRejectedValue(new Error('Failed to create channel'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={vi.fn()} />
-      </MemoryRouter>
-    )
+    renderModal()
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
@@ -170,71 +139,55 @@ describe('CreateChannelModal', () => {
   })
 
   it('blocks creation at channel cap without calling the RPC', async () => {
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'channel_members') {
-        return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 10 }) }) }) } as any
-      }
-      return {} as any
-    })
+    mockCountMyChannels.mockResolvedValue(10)
 
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={vi.fn()} />
-      </MemoryRouter>
-    )
+    renderModal()
 
     fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
       expect(screen.getByText(/Channel limit reached/)).toBeInTheDocument()
-      // Admin-gating RPC may fire, but the create must not.
-      expect(supabase.rpc).not.toHaveBeenCalledWith('create_channel', expect.anything())
+      expect(mockCreateChannel).not.toHaveBeenCalled()
+    })
+  })
+
+  it('skips the channel-cap pre-check for server admins', async () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false } as any)
+
+    renderModal()
+
+    fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(mockCountMyChannels).not.toHaveBeenCalled()
+      expect(mockCreateChannel).toHaveBeenCalled()
     })
   })
 
   it('closes on cancel', () => {
-    const mockOnClose = vi.fn()
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={mockOnClose} />
-      </MemoryRouter>
-    )
-
+    renderModal()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(mockOnClose).toHaveBeenCalled()
   })
 
   it('closes on Escape', () => {
-    const mockOnClose = vi.fn()
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={mockOnClose} />
-      </MemoryRouter>
-    )
-
+    renderModal()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(mockOnClose).toHaveBeenCalled()
   })
 
   it('toggles password visibility', () => {
-    render(
-      <MemoryRouter>
-        <CreateChannelModal onClose={vi.fn()} />
-      </MemoryRouter>
-    )
+    renderModal()
 
     const passwordInput = screen.getByLabelText('Password (Optional)')
     expect(passwordInput).toHaveAttribute('type', 'password')
 
-    const toggleBtn = screen.getByRole('button', { name: 'Show password' })
-    fireEvent.click(toggleBtn)
-
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }))
     expect(passwordInput).toHaveAttribute('type', 'text')
-    
-    const hideBtn = screen.getByRole('button', { name: 'Hide password' })
-    fireEvent.click(hideBtn)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Hide password' }))
     expect(passwordInput).toHaveAttribute('type', 'password')
   })
 })

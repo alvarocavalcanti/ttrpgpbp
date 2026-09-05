@@ -5,7 +5,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useAuth } from './useAuth'
 import { supabase } from '../../lib/supabase'
-import { usePushNotifications } from './usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { useTextSize, TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE, type TextSize } from '../../hooks/useTextSize'
 import { buildUserDataExport, downloadJson } from './exportUserData'
@@ -18,7 +18,7 @@ const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
 ]
 
 export function ProfileSettings() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const { addToast } = useToast()
   const { textSize, setSize } = useTextSize()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
@@ -60,6 +60,10 @@ export function ProfileSettings() {
         .eq('id', user.id)
 
       if (error) throw error
+
+      // Re-sync the context profile so other consumers (e.g. the lobby header)
+      // see the new display name immediately (ARCH-4).
+      await refreshProfile()
 
       addToast('Profile updated successfully.', 'success')
     } catch (error) {

@@ -4,7 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProfileSettings } from './ProfileSettings'
 import { useAuth } from './useAuth'
-import { usePushNotifications } from './usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
 import { buildUserDataExport, downloadJson } from './exportUserData'
@@ -13,7 +13,7 @@ vi.mock('./useAuth', () => ({
   useAuth: vi.fn(),
 }))
 
-vi.mock('./usePushNotifications', () => ({
+vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn(),
 }))
 
@@ -74,6 +74,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     const { container } = renderWithRouter(<ProfileSettings />)
@@ -95,6 +96,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -114,6 +116,7 @@ describe('ProfileSettings', () => {
       session: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -140,6 +143,7 @@ describe('ProfileSettings', () => {
   })
 
   it('updates display name on submit and shows success message', async () => {
+    const mockRefreshProfile = vi.fn()
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       error: null,
@@ -154,6 +158,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: mockRefreshProfile,
     })
 
     const mockEq = vi.fn().mockResolvedValue({ error: null })
@@ -172,6 +177,8 @@ describe('ProfileSettings', () => {
     expect(mockEq).toHaveBeenCalledWith('id', '123')
 
     await waitFor(() => {
+      // Context profile is re-synced after a successful save (ARCH-4).
+      expect(mockRefreshProfile).toHaveBeenCalled()
       expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Profile updated successfully.', 'success')
     })
   })
@@ -191,6 +198,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     const mockEq = vi.fn().mockResolvedValue({ error: new Error('Database error') })
@@ -217,6 +225,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -238,6 +247,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     const { rerender } = renderWithRouter(<ProfileSettings />)
@@ -275,6 +285,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -306,6 +317,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -336,6 +348,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -366,6 +379,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(buildUserDataExport).mockResolvedValue({ exported_at: 'x' } as any)
@@ -391,6 +405,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(buildUserDataExport).mockRejectedValue(new Error('boom'))
@@ -415,6 +430,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -442,6 +458,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: mockSignOut,
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: null, error: null } as any)
@@ -468,6 +485,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: null, error: new Error('down') } as any)
@@ -495,6 +513,7 @@ describe('ProfileSettings', () => {
 
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)

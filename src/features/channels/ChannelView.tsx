@@ -10,7 +10,7 @@ import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
 import type { ChatMessage, Member } from '../chat/types'
 import { useAuth } from '../auth/useAuth'
 import { SignedImg } from '../../components/SignedImg'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead } from '../../lib/channelRead'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'

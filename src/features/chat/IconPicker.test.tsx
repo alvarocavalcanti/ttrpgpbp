@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { IconPicker } from './IconPicker'
 import { npcIconUrl } from './npcIcons'
@@ -41,6 +41,30 @@ describe('IconPicker', () => {
       expect(screen.getByRole('button', { name: 'dragon-head' })).toBeInTheDocument()
     })
     vi.unstubAllGlobals()
+  })
+
+  it('debounces search so rapid keystrokes fire one request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ icons: ['dragon-head'] }) })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.useFakeTimers()
+    try {
+      render(<IconPicker onPick={vi.fn()} onClose={vi.fn()} />)
+
+      const input = screen.getByLabelText('Search icons')
+      fireEvent.change(input, { target: { value: 'dr' } })
+      fireEvent.change(input, { target: { value: 'dra' } })
+      fireEvent.change(input, { target: { value: 'dragon' } })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300)
+      })
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('query=dragon'), expect.anything())
+    } finally {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('closes on Escape', () => {

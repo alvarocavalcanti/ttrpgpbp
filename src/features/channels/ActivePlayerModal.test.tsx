@@ -1,11 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ActivePlayerModal } from './ActivePlayerModal'
-import { supabase } from '../../lib/supabase'
+import { useActivePlayers } from './useActivePlayers'
 
-vi.mock('../../lib/supabase', () => ({
-  supabase: { rpc: vi.fn() }
+vi.mock('./useActivePlayers', () => ({
+  useActivePlayers: vi.fn()
 }))
+
+const mockSetActivePlayers = vi.fn().mockResolvedValue(null)
 
 describe('ActivePlayerModal', () => {
   const members: any[] = [
@@ -14,7 +16,9 @@ describe('ActivePlayerModal', () => {
   ]
 
   beforeEach(() => {
-    vi.mocked(supabase.rpc).mockReset()
+    vi.clearAllMocks()
+    mockSetActivePlayers.mockResolvedValue(null)
+    vi.mocked(useActivePlayers).mockReturnValue({ setActivePlayers: mockSetActivePlayers } as any)
   })
 
   it('renders members with character and display names', () => {
@@ -32,7 +36,6 @@ describe('ActivePlayerModal', () => {
   })
 
   it('toggles selection and saves the new active players via the RPC', async () => {
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
     const onSaved = vi.fn()
     const onClose = vi.fn()
     render(<ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={onClose} onSaved={onSaved} />)
@@ -42,17 +45,14 @@ describe('ActivePlayerModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save/i }))
 
     await waitFor(() => {
-      expect(supabase.rpc).toHaveBeenCalledWith('set_active_players', {
-        p_channel_id: 'c1',
-        p_active_player_ids: ['u1', 'u2'],
-      })
+      expect(mockSetActivePlayers).toHaveBeenCalledWith('c1', ['u1', 'u2'])
       expect(onSaved).toHaveBeenCalled()
       expect(onClose).toHaveBeenCalled()
     })
   })
 
   it('shows an error and keeps the modal open when the RPC returns an error', async () => {
-    vi.mocked(supabase.rpc).mockResolvedValue({ error: new Error('denied') } as any)
+    mockSetActivePlayers.mockResolvedValue(new Error('denied'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const onClose = vi.fn()
     render(<ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={onClose} onSaved={vi.fn()} />)
@@ -66,9 +66,9 @@ describe('ActivePlayerModal', () => {
   })
 
   it('retries the save from the error state', async () => {
-    vi.mocked(supabase.rpc)
-      .mockResolvedValueOnce({ error: new Error('denied') } as any)
-      .mockResolvedValueOnce({ error: null } as any)
+    mockSetActivePlayers
+      .mockResolvedValueOnce(new Error('denied'))
+      .mockResolvedValueOnce(null)
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const onSaved = vi.fn()
     render(<ActivePlayerModal channelId="c1" members={members} currentActiveIds={['u1']} onClose={vi.fn()} onSaved={onSaved} />)
@@ -79,7 +79,7 @@ describe('ActivePlayerModal', () => {
 
     await waitFor(() => {
       expect(onSaved).toHaveBeenCalled()
-      expect(supabase.rpc).toHaveBeenCalledTimes(2)
+      expect(mockSetActivePlayers).toHaveBeenCalledTimes(2)
     })
   })
 

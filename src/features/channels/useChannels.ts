@@ -103,12 +103,9 @@ export function useChannels() {
       if (document.visibilityState === 'visible') fetchChannels()
     }
 
-    const stopRealtimeStatus = subscribeRealtimeStatus(fetchChannels)
-
-    // Keep unread badges live while sitting in the Lobby: a plain messages
-    // INSERT subscription, filtered client-side to my channels, schedules a
-    // refetch. Trailing 2s debounce so a burst of messages across channels
-    // costs one refetch, not one per message.
+    // Trailing 2s debounce so bursts cost one refetch, not one per event.
+    // Realtime status flaps (offline/reconnect cycles) route through it too:
+    // a flap storm used to refetch the whole lobby per transition (ARCH-6).
     let unreadRefreshTimer: ReturnType<typeof setTimeout> | undefined
     const scheduleUnreadRefresh = () => {
       if (unreadRefreshTimer) return
@@ -117,6 +114,12 @@ export function useChannels() {
         fetchChannels()
       }, 2000)
     }
+
+    const stopRealtimeStatus = subscribeRealtimeStatus(scheduleUnreadRefresh)
+
+    // Keep unread badges live while sitting in the Lobby: a plain messages
+    // INSERT subscription, filtered client-side to my channels, schedules a
+    // refetch.
     const lobbyChannel = supabase
       .channel('lobby-unread')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
