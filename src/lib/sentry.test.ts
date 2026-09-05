@@ -73,6 +73,12 @@ describe('sentry', () => {
       expect(config.replaysOnErrorSampleRate).toBe(1.0)
       expect(config.beforeSend).toBe(scrubSentryEvent)
     })
+
+    it('masks all text in session replays', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      await initSentry()
+      expect(Sentry.replayIntegration).toHaveBeenCalledWith({ maskAllText: true })
+    })
   })
 
   describe('captureException', () => {
