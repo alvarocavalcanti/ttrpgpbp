@@ -337,6 +337,27 @@ describe('useAdminThreads mutations', () => {
     expect(created).toBeNull()
     expect(mocks.threadDeleteEq).toHaveBeenCalledWith('id', 't-new')
     expect(document.body.textContent).toContain("Couldn't send your message")
+    expect(document.body.textContent).not.toContain('empty conversation may remain')
+  })
+
+  it('warns about the stranded thread when the rollback itself fails', async () => {
+    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1' }
+    mockFrom({
+      insertSingle: { data: bare, error: null },
+      msgError: { message: 'send failed' },
+      deleteError: { message: 'rollback failed' }
+    })
+
+    const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createThread({ type: 'announcement', subject: 'Hi', content: 'Body', gmId: null })
+    })
+
+    expect(created).toBeNull()
+    expect(document.body.textContent).toContain('empty conversation may remain')
   })
 
   it('returns the parsed thread from the full-row fetch for validation', async () => {

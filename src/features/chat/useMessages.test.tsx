@@ -103,6 +103,34 @@ describe('useMessages', () => {
     expect(callbacks['message_reactions']).toBeDefined()
   })
 
+  it('keeps send callbacks stable across incoming messages', async () => {
+    // Regression test for the memoized MessageItem hot path: if `messages`
+    // creeps back into the callback deps, every incoming event rebuilds
+    // sendMessage/sendDiceRoll/retryMessage and defeats React.memo upstream.
+    const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    const fetchedRow = baseMessage({ id: 'm2', sender_id: 'u2', sender: [{ display_name: 'Orc' }] })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: vi.fn().mockResolvedValue({ data: fetchedRow, error: null }) }) }) })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const before = {
+      send: result.current.sendMessage,
+      dice: result.current.sendDiceRoll,
+      retry: result.current.retryMessage,
+    }
+
+    await act(async () => {
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'm2', sender_id: 'u2' }) })
+    })
+    expect(result.current.messages).toHaveLength(1)
+    expect(result.current.sendMessage).toBe(before.send)
+    expect(result.current.sendDiceRoll).toBe(before.dice)
+    expect(result.current.retryMessage).toBe(before.retry)
+  })
+
   it('recovers a multi-page message gap on reconnect via cursor catch-up', async () => {
     const initial = baseMessage({ id: 'm0', created_at: '2023-01-01T00:00:00.000Z' })
     const gapPage1 = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `g${i}`, created_at: `2023-01-01T00:00:00.${String(i + 1).padStart(3, '0')}Z` }))

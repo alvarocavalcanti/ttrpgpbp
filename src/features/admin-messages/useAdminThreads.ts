@@ -65,8 +65,16 @@ export function useAdminThreadActions() {
     })
     if (msgError) {
       // Roll back the empty thread so a failed first message can't strand one.
-      await supabase.from('admin_threads').delete().eq('id', threadId)
-      addToast("Couldn't send your message. Nothing was created — please try again.", 'error')
+      const { error: rollbackError } = await supabase
+        .from('admin_threads')
+        .delete()
+        .eq('id', threadId)
+      addToast(
+        rollbackError
+          ? "Couldn't send your message. An empty conversation may remain — you can delete it from the list."
+          : "Couldn't send your message. Nothing was created — please try again.",
+        'error'
+      )
       return null
     }
 
