@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin} from './filter.ts'
+import {describe, it, expect } from 'vitest'
+import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementGmTargets} from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -543,5 +543,38 @@ describe('isAllowedOrigin', () => {
 
   it('an empty env list falls back to the defaults', () => {
     expect(isAllowedOrigin('https://rolebypost.com', [])).toBe(true)
+  })
+})
+
+describe('resolveAnnouncementGmTargets', () => {
+  it('drops suspended GMs and dedupes multi-channel GMs', () => {
+    const gms = [
+      { gm_id: 'gm1' },
+      { gm_id: 'gm2' },
+      { gm_id: 'gm2' }, // GM of two channels — one push only
+      { gm_id: 'gm3' },
+      { gm_id: null }, // unclaimed channel
+    ]
+    const profiles = [
+      { id: 'gm1', is_suspended: false },
+      { id: 'gm2', is_suspended: true }, // suspended — no announcement push
+      { id: 'gm3', is_suspended: false },
+    ]
+
+    expect(resolveAnnouncementGmTargets(gms, profiles)).toEqual(['gm1', 'gm3'])
+  })
+
+  it('returns every GM when no profile is suspended', () => {
+    const gms = [{ gm_id: 'gm1' }, { gm_id: 'gm2' }]
+    const profiles = [
+      { id: 'gm1', is_suspended: false },
+      { id: 'gm2', is_suspended: false },
+    ]
+
+    expect(resolveAnnouncementGmTargets(gms, profiles)).toEqual(['gm1', 'gm2'])
+  })
+
+  it('returns nothing for empty channel list', () => {
+    expect(resolveAnnouncementGmTargets([], [{ id: 'gm1', is_suspended: false }])).toEqual([])
   })
 })
