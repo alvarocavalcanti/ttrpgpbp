@@ -1,9 +1,8 @@
 -- Issue #402 / SEC-1: class fix for the "REVOKE … FROM PUBLIC is not enough"
--- pattern. Supabase's default privileges grant EXECUTE on every new function
--- to anon/authenticated/service_role explicitly, so every bare
--- `REVOKE … FROM PUBLIC` in earlier migrations still left anon/authenticated
--- EXECUTE in place (the trap documented and partially fixed in issue_335,
--- and completed for push_notification_config_value in #407).
+-- pattern. Supabase's default privileges (and PUBLIC membership) leave
+-- EXECUTE reachable by anon on functions whose only revoke was
+-- `… FROM PUBLIC`; and default grants vary between long-lived local stacks
+-- and fresh CI clusters. This sweep pins one deterministic baseline.
 --
 -- Sweep:
 --   1. anon loses EXECUTE on every function in public. There are no anon RLS
