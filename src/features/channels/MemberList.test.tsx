@@ -4,7 +4,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemberList } from './MemberList'
 import { supabase } from '../../lib/supabase'
+import { useMemberModeration } from './useMemberModeration'
 
+// EditCharacterModal still owns its own data layer, so the supabase mock
+// stays; MemberList's moderation/away calls now go through the hook mock.
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
@@ -12,7 +15,14 @@ vi.mock('../../lib/supabase', () => ({
   }
 }))
 
+vi.mock('./useMemberModeration', () => ({
+  useMemberModeration: vi.fn()
+}))
+
 const successInsert = () => vi.fn().mockResolvedValue({ error: null })
+
+const mockModerateMember = vi.fn()
+const mockSetAway = vi.fn()
 
 // Editing state lives in ChannelView now; tests mirror that with a stateful
 // wrapper so "Edit Character" still opens the modal.
@@ -54,6 +64,12 @@ describe('MemberList', () => {
       configurable: true,
       value: { reload: vi.fn() }
     })
+    mockModerateMember.mockResolvedValue(null)
+    mockSetAway.mockResolvedValue(null)
+    vi.mocked(useMemberModeration).mockReturnValue({
+      moderateMember: mockModerateMember,
+      setAway: mockSetAway
+    } as any)
   })
 
   it('renders active and blocked members correctly with GM badge', () => {
@@ -115,8 +131,6 @@ describe('MemberList', () => {
   })
 
   it('allows GM to block player', async () => {
-    const mockRpc = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
     render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -129,32 +143,24 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Block' }))
 
     await waitFor(() => {
-      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
-        p_channel_id: 'c1',
-        p_member_id: 'm2',
-        p_action: 'block'
-      })
+      expect(mockModerateMember).toHaveBeenCalledWith('c1', 'm2', 'block')
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
   it('does not block when the confirmation is cancelled', async () => {
-    const mockRpc = vi.fn()
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
-
     render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Block Player'))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockModerateMember).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: 'Block this player?' })).not.toBeInTheDocument()
   })
 
   it('allows GM to unblock a player', async () => {
-    const mockRpc = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockModerateMember.mockResolvedValue(null)
     const mockOnUpdate = vi.fn()
 
     render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -162,18 +168,13 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
 
     await waitFor(() => {
-      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
-        p_channel_id: 'c1',
-        p_member_id: 'm3',
-        p_action: 'unblock'
-      })
+      expect(mockModerateMember).toHaveBeenCalledWith('c1', 'm3', 'unblock')
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
   it('handles unblock member error', async () => {
-    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockModerateMember.mockResolvedValue(new Error('DB Error'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -212,8 +213,7 @@ describe('MemberList', () => {
   })
 
   it('handles block member error', async () => {
-    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockModerateMember.mockResolvedValue(new Error('DB Error'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -232,8 +232,6 @@ describe('MemberList', () => {
 
   it('allows GM to kick player', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockRpc = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     const mockOnUpdate = vi.fn()
 
     render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -243,20 +241,13 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Kick' }))
 
     await waitFor(() => {
-      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
-        p_channel_id: 'c1',
-        p_member_id: 'm2',
-        p_action: 'kick'
-      })
+      expect(mockModerateMember).toHaveBeenCalledWith('c1', 'm2', 'kick')
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
   it('allows player to leave channel', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockRpc = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
-
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
     
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
@@ -264,18 +255,13 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }))
 
     await waitFor(() => {
-      expect(mockRpc).toHaveBeenCalledWith('moderate_member', {
-        p_channel_id: 'c1',
-        p_member_id: 'm2',
-        p_action: 'leave'
-      })
+      expect(mockModerateMember).toHaveBeenCalledWith('c1', 'm2', 'leave')
     })
   })
 
   it('handles kick member error', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('err') })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockModerateMember.mockResolvedValue(new Error('err'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -293,8 +279,7 @@ describe('MemberList', () => {
 
   it('handles leave channel error', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
-    const mockRpc = vi.fn().mockResolvedValue({ error: new Error('err') })
-    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockModerateMember.mockResolvedValue(new Error('err'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -336,9 +321,6 @@ describe('MemberList', () => {
 
   it('allows marking self as away with an away message', async () => {
     window.prompt = vi.fn().mockReturnValue('Back on Thursday')
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -348,16 +330,13 @@ describe('MemberList', () => {
 
     await waitFor(() => {
       expect(window.prompt).toHaveBeenCalled()
-      expect(mockUpdate).toHaveBeenCalledWith({ is_away: true, away_message: 'Back on Thursday' })
-      expect(mockEq).toHaveBeenCalledWith('id', 'm2')
+      expect(mockSetAway).toHaveBeenCalledWith('m2', true, 'Back on Thursday')
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
   it('rejects away messages over 200 characters', async () => {
     window.prompt = vi.fn().mockReturnValue('x'.repeat(201))
-    const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn() })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
@@ -365,15 +344,12 @@ describe('MemberList', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Away message is limited to 200 characters.')).toBeInTheDocument()
-      expect(mockUpdate).not.toHaveBeenCalled()
+      expect(mockSetAway).not.toHaveBeenCalled()
     })
   })
 
   it('allows marking self as back (clears away)', async () => {
     window.prompt = vi.fn()
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
     const mockOnUpdate = vi.fn()
 
     const members: any[] = mockMembers.map(m => m.id === 'm2' ? { ...m, is_away: true, away_message: 'BRB' } : m)
@@ -384,15 +360,13 @@ describe('MemberList', () => {
 
     await waitFor(() => {
       expect(window.prompt).not.toHaveBeenCalled()
-      expect(mockUpdate).toHaveBeenCalledWith({ is_away: false, away_message: null })
+      expect(mockSetAway).toHaveBeenCalledWith('m2', false, null)
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
   it('cancels away marking when prompt dismissed', async () => {
     window.prompt = vi.fn().mockReturnValue(null)
-    const mockUpdate = vi.fn()
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
@@ -401,15 +375,13 @@ describe('MemberList', () => {
 
     await waitFor(() => {
       expect(window.prompt).toHaveBeenCalled()
-      expect(mockUpdate).not.toHaveBeenCalled()
+      expect(mockSetAway).not.toHaveBeenCalled()
     })
   })
 
   it('handles toggle away error', async () => {
     window.prompt = vi.fn().mockReturnValue('')
-    const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    mockSetAway.mockResolvedValue(new Error('DB Error'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
 
@@ -419,7 +391,7 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ is_away: true, away_message: null })
+      expect(mockSetAway).toHaveBeenCalledWith('m2', true, null)
       expect(screen.getByText('Failed to update away status.')).toBeInTheDocument()
       expect(mockOnUpdate).not.toHaveBeenCalled()
     })

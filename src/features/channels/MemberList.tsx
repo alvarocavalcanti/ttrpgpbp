@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 
 import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { useMemberModeration } from './useMemberModeration'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -39,14 +39,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     return () => document.removeEventListener('click', handleClick)
   }, [])
   
-  const moderateMember = async (memberId: string, action: 'block' | 'unblock' | 'kick' | 'leave') => {
-    const { error } = await supabase.rpc('moderate_member', {
-      p_channel_id: channelId,
-      p_member_id: memberId,
-      p_action: action
-    })
-    return error
-  }
+  const { moderateMember, setAway } = useMemberModeration()
 
   const startEditing = (member: ChannelMember) => {
     onEditMember(member.id)
@@ -67,7 +60,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     setError(null)
     if (action === 'leave') {
       try {
-        const error = await moderateMember(memberId, 'leave')
+        const error = await moderateMember(channelId, memberId, 'leave')
         if (error) throw error
         navigate('/', { replace: true })
       } catch (err) {
@@ -77,7 +70,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       return
     }
     try {
-      const error = await moderateMember(memberId, action)
+      const error = await moderateMember(channelId, memberId, action)
       if (error) throw error
       onUpdate()
     } catch (err) {
@@ -101,10 +94,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         }
         awayMessage = entered.trim() || null
       }
-      const { error } = await supabase
-        .from('channel_members')
-        .update({ is_away: !targetMember.is_away, away_message: awayMessage })
-        .eq('id', memberId)
+      const error = await setAway(memberId, !targetMember.is_away, awayMessage)
 
       if (error) throw error
       onUpdate()
@@ -117,7 +107,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   const handleUnblockMember = async (memberId: string) => {
     setError(null)
     try {
-      const error = await moderateMember(memberId, 'unblock')
+      const error = await moderateMember(channelId, memberId, 'unblock')
       if (error) throw error
       onUpdate()
     } catch (err) {

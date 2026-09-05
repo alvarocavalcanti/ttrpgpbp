@@ -2,13 +2,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { PermissionBanner } from './PermissionBanner'
 import { useAuth } from '../auth/useAuth'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
 }))
 
-vi.mock('../auth/usePushNotifications', () => ({
+vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn()
 }))
 

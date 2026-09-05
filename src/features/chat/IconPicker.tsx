@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { CURATED_NPC_ICONS, npcIconUrl } from './npcIcons'
+import { useDebounce } from '../../hooks/useDebounce'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 
@@ -16,6 +17,8 @@ interface IconifySearchResult {
 // on network failure or empty results.
 export function IconPicker({ onPick, onClose }: IconPickerProps) {
   const [query, setQuery] = useState('')
+  // Debounced so typing doesn't fire an Iconify request per keystroke (ARCH-2).
+  const debouncedQuery = useDebounce(query, 300)
   const [icons, setIcons] = useState<string[]>([...CURATED_NPC_ICONS])
   const [loading, setLoading] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -24,24 +27,25 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
   useFocusTrap(dialogRef)
 
   useEffect(() => {
-    if (!query.trim()) {
+    const trimmed = debouncedQuery.trim()
+    if (!trimmed) {
       setIcons([...CURATED_NPC_ICONS])
       setLoading(false)
       return
     }
     const controller = new AbortController()
     setLoading(true)
-    fetch(`https://api.iconify.design/search?query=${encodeURIComponent(query.trim())}&prefix=game-icons&limit=48`, { signal: controller.signal })
+    fetch(`https://api.iconify.design/search?query=${encodeURIComponent(trimmed)}&prefix=game-icons&limit=48`, { signal: controller.signal })
       .then(res => res.json())
       .then((data: IconifySearchResult) => {
         setIcons(data.icons || [])
       })
       .catch(() => {
         // Fall back to curated subset on failure.
-        setIcons(CURATED_NPC_ICONS.filter(n => n.includes(query.trim().toLowerCase().replace(/\s+/g, '-'))))
+        setIcons(CURATED_NPC_ICONS.filter(n => n.includes(trimmed.toLowerCase().replace(/\s+/g, '-'))))
       })      .finally(() => setLoading(false))
     return () => controller.abort()
-  }, [query])
+  }, [debouncedQuery])
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Choose NPC portrait">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/useAuth'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 
 const DISMISS_KEY = 'notifications:banner-dismissed'
 

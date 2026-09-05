@@ -79,20 +79,6 @@ describe('useChannelNpcs', () => {
     expect(result.current.npcs).toEqual([])
   })
 
-  it('adds a new NPC and dedupes by name', async () => {
-    mockQuery([])
-    const { result } = renderHook(() => useChannelNpcs('c1'))
-    await waitFor(() => expect(result.current.loading).toBe(false))
-
-    act(() => {
-      result.current.addNpc(mockNpcRow)
-      result.current.addNpc({ ...mockNpcRow, name: 'goblin king' })
-      result.current.addNpc({ id: 'n2', channel_id: 'c1', name: 'Dragon', avatar_url: 'https://x/b.png', created_at: '' })
-    })
-
-    expect(result.current.npcs.map(n => n.name)).toEqual(['Dragon', 'Goblin King'])
-  })
-
   it('creates an NPC with an upsert that ignores duplicates', async () => {
     mockQuery([])
     const { result } = renderHook(() => useChannelNpcs('c1'))

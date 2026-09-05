@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
@@ -9,6 +8,7 @@ import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useCreateChannel } from './useCreateChannel'
 
 interface CreateChannelModalProps {
   onClose: () => void
@@ -32,6 +32,8 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { countMyChannels, createChannel } = useCreateChannel()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -40,15 +42,9 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
     setError(null)
 
     try {
-      // Pre-check the channel cap so we don't leave an orphaned channel row
-      // when the create_channel RPC rejects the insert.
       if (!isServerAdmin) {
-        const { count } = await supabase
-          .from('channel_members')
-          .select('*, channel:channels!inner(id)', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('channel.is_archived', false)
-        if ((count || 0) >= maxChannels) {
+        const count = await countMyChannels(user.id)
+        if (count >= maxChannels) {
           setError(`Channel limit reached (${maxChannels} max). Contact the server admin.`)
           setIsSubmitting(false)
           return
@@ -58,19 +54,14 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
       const hashedPassword = password ? await hashPassword(password) : null
       const inviteCode = crypto.randomUUID().split('-')[0] // Simple 8-char invite code
 
-      // Single transactional RPC: channel + secrets + GM membership either all
-      // commit or all roll back, so a partial failure can't orphan a channel.
-      const { data: channelId, error: rpcError } = await supabase.rpc('create_channel', {
-        p_name: name,
-        p_game_system: gameSystem,
-        p_invite_code: inviteCode,
-        p_character_name: characterName,
-        p_password_hash: hashedPassword?.hash ?? undefined,
-        p_password_salt: hashedPassword?.salt ?? undefined
+      const channelId = await createChannel({
+        name,
+        gameSystem,
+        inviteCode,
+        characterName,
+        passwordHash: hashedPassword?.hash ?? undefined,
+        passwordSalt: hashedPassword?.salt ?? undefined
       })
-
-      if (rpcError) throw rpcError
-      if (!channelId) throw new Error('Failed to create channel')
 
       onClose()
       navigate(`/channel/${channelId}`)

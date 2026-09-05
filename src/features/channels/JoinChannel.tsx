@@ -1,18 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
 import { toError } from '../../lib/errors'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
-
-interface JoinChannelPreview {
-  id: string
-  name: string
-  game_system: string
-  has_password: boolean
-}
+import { useChannelJoin } from './useChannelJoin'
 
 export function JoinChannel() {
   const { id } = useParams<{ id: string }>()
@@ -22,40 +15,24 @@ export function JoinChannel() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   
-  const [channel, setChannel] = useState<JoinChannelPreview | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { channel, loading, error: previewError, getChannelSalt, joinChannel } = useChannelJoin(id)
   
   const [characterName, setCharacterName] = useState(profile?.display_name || '')
   const [attributes, setAttributes] = useState<Record<string, string>>({})
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
+  // A failed preview lookup reads as "not found" unless an invite link is
+  // carrying the join (the preview may legitimately be hidden).
   useEffect(() => {
-    async function fetchChannel() {
-      if (!id) return
-      try {
-        const { data, error } = await supabase.rpc('get_join_channel_preview', { p_channel_id: id })
-        if (error) throw error
-        const preview = Array.isArray(data) && data.length > 0 ? data[0] : null
-        setChannel(preview)
-      } catch (err) {
-        console.error('Error fetching channel to join:', err)
-        if (!inviteCode) {
-          setError('Channel not found.')
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchChannel()
-  }, [id])
+    if (previewError && !inviteCode) setError('Channel not found.')
+  }, [previewError, inviteCode])
 
   const derivePasswordHash = async (password: string, channelId: string): Promise<string> => {
-    const { data: salt, error: saltError } = await supabase.rpc('get_channel_salt', { p_channel_id: channelId })
-    if (saltError) throw saltError
-    if (typeof salt === 'string' && salt) return hashPasswordWithSalt(password, salt)
+    const salt = await getChannelSalt(channelId)
+    if (salt) return hashPasswordWithSalt(password, salt)
     // Legacy pre-salt channel (stored SHA-256 hash): keep verifying via SHA-256.
     return hashPasswordLegacy(password)
   }
@@ -81,17 +58,13 @@ export function JoinChannel() {
         numericAttributes[attr] = clampModifier(channel?.game_system, num)
       }
 
-      const { data, error: rpcError } = await supabase.rpc('join_channel', {
-        p_channel_id: id,
-        p_character_name: characterName,
-        p_password_hash: passwordHash,
-        p_invite_code: inviteCode || undefined,
-        p_character_attributes: numericAttributes
+      const result = await joinChannel({
+        characterName,
+        passwordHash,
+        inviteCode: inviteCode || undefined,
+        characterAttributes: numericAttributes
       })
 
-      if (rpcError) throw rpcError
-
-      const result = data as { success: boolean; error?: string } | null;
       if (result && !result.success) {
         throw new Error(result.error || 'Failed to join channel.')
       }

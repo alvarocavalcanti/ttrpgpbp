@@ -360,7 +360,7 @@ describe('AdminView', () => {
 
     await waitFor(() => {
       expect(mockUpsert).toHaveBeenCalledWith(
-        { key: 'max_channels_per_user', value: 15 },
+        [{ key: 'max_channels_per_user', value: 15 }],
         { onConflict: 'key' }
       )
       expect(addToast).toHaveBeenCalledWith('Channel limit updated. Existing members are kept in their channels.', 'success')

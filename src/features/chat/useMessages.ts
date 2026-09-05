@@ -450,7 +450,10 @@ export function useMessages(channelId: string | undefined) {
     // client_request_id and post twice inside the confirmation window. The
     // pending bubble's pending_payload is the exact request — suppress only a
     // full-identity match.
-    const duplicate = messages.find(m => {
+    // Read pending state through messagesRef (not the `messages` closure) so
+    // the callback identity stays stable across message events — an unstable
+    // identity would defeat React.memo on every MessageItem (#408).
+    const duplicate = messagesRef.current.find(m => {
       if (!m.pending || m.error) return false
       const p = m.pending_payload
       return p?.kind === 'message' &&
@@ -515,7 +518,7 @@ export function useMessages(channelId: string | undefined) {
       // user can retry; client_request_id keeps the retry idempotent.
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Message was not confirmed. Tap retry to resend.' } : m))
     }
-  }, [channelId, user, messages])
+  }, [channelId, user])
 
   const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
     if (!channelId || !user) return
@@ -528,7 +531,7 @@ export function useMessages(channelId: string | undefined) {
     // `dice:` link while the roll bubble is still pending reuses that request
     // instead of minting a fresh client_request_id. Full roll identity
     // (notation, reply target, warning, DC).
-    const duplicate = messages.find(m => {
+    const duplicate = messagesRef.current.find(m => {
       if (!m.pending || m.error) return false
       const p = m.pending_payload
       return p?.kind === 'roll' &&
@@ -583,7 +586,7 @@ export function useMessages(channelId: string | undefined) {
     } else {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Roll was not confirmed. Tap retry to reroll.' } : m))
     }
-  }, [channelId, user, messages])
+  }, [channelId, user])
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
@@ -625,7 +628,7 @@ export function useMessages(channelId: string | undefined) {
   }, [])
 
   const retryMessage = useCallback(async (id: string) => {
-    const msg = messages.find(m => m.id === id)
+    const msg = messagesRef.current.find(m => m.id === id)
     if (!msg || !msg.pending || !msg.pending_payload) return
 
     setMessages(prev => prev.map(m => m.id === id ? { ...m, error: null } : m))
@@ -665,7 +668,7 @@ export function useMessages(channelId: string | undefined) {
         applyRpcResult(msg.client_request_id ?? id, data)
       }
     }
-  }, [messages, channelId, applyRpcResult])
+  }, [channelId, applyRpcResult])
 
   return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
 }

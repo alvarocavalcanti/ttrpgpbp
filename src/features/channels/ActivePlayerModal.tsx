@@ -1,8 +1,8 @@
 import { Avatar } from '../../components/Avatar'
 import { useRef, useState } from 'react'
-import { supabase } from '../../lib/supabase'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useActivePlayers } from './useActivePlayers'
 
 interface SelectableMember {
   id: string
@@ -32,6 +32,8 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { setActivePlayers } = useActivePlayers()
+
   const toggle = (userId: string) => {
     setSelected(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId])
   }
@@ -40,10 +42,7 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
     setIsSaving(true)
     setError(null)
     try {
-      const { error: rpcError } = await supabase.rpc('set_active_players', {
-        p_channel_id: channelId,
-        p_active_player_ids: selected,
-      })
+      const rpcError = await setActivePlayers(channelId, selected)
       if (rpcError) throw rpcError
       onSaved()
       onClose()

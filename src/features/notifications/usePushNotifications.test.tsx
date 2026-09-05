@@ -2,10 +2,10 @@ import { env } from "../../env"
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { usePushNotifications } from './usePushNotifications'
-import { useAuth } from './useAuth'
+import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
 
-vi.mock('./useAuth', () => ({
+vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
 }))
 

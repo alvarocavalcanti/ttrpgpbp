@@ -27,6 +27,7 @@ describe('ProtectedRoute', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     const { container } = render(
@@ -47,6 +48,7 @@ describe('ProtectedRoute', () => {
       error: new Error('Session error'),
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -73,6 +75,7 @@ describe('ProtectedRoute', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -100,6 +103,7 @@ describe('ProtectedRoute', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -126,6 +130,7 @@ describe('ProtectedRoute', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -152,6 +157,7 @@ describe('ProtectedRoute', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -178,6 +184,7 @@ describe('ProtectedRoute', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(

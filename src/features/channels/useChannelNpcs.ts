@@ -41,12 +41,6 @@ export function useChannelNpcs(channelId: string | undefined) {
     void fetchNpcs(mounted)
   }, [fetchNpcs])
 
-  const addNpc = useCallback((npc: Npc) => {
-    setNpcs(prev => prev.some(n => n.name.toLowerCase() === npc.name.toLowerCase())
-      ? prev
-      : [...prev, npc].sort((a, b) => a.name.localeCompare(b.name)))
-  }, [])
-
   // Creates (or reuses, on a name collision) an NPC and refreshes the roster.
   const createNpc = useCallback(async (name: string, avatarUrl: string): Promise<boolean> => {
     if (!channelId) return false
@@ -105,5 +99,5 @@ export function useChannelNpcs(channelId: string | undefined) {
     return true
   }, [refetch])
 
-  return { npcs, loading, error, refetch, addNpc, createNpc, renameNpc, repictureNpc, deleteNpc }
+  return { npcs, loading, error, refetch, createNpc, renameNpc, repictureNpc, deleteNpc }
 }

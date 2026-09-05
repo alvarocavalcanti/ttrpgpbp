@@ -1,20 +1,7 @@
-import { test, expect, Page } from '@playwright/test';
-import { dismissWhatsNew } from './helpers';
+import { test, expect } from '@playwright/test';
+import { dismissWhatsNew, seedUser, seedAndSignIn, signIn } from './helpers';
 
-async function signUp(page: Page, email: string): Promise<{ success: boolean; error?: string }> {
-  return page.evaluate(async ({ email, password }) => {
-    // @ts-expect-error - exposed in test/dev
-    const client = window.__supabase;
-    if (!client) throw new Error('Supabase client not found on window');
-    const { data, error } = await client.auth.signUp({ email, password });
-    // Trust an established session, not just a missing error object: local
-    // Supabase auto-confirms email, so the session exists right away.
-    const success = !error && Boolean(data?.session?.user);
-    return { success, error: error?.message };
-  }, { email, password: 'Password123!' });
-}
-
-async function createChannel(page: Page) {
+async function createChannel(page: import('@playwright/test').Page) {
   await dismissWhatsNew(page);
   const createChannelFab = page.locator('[data-testid="create-channel-fab"]');
   await expect(createChannelFab).toBeVisible();
@@ -27,7 +14,7 @@ async function createChannel(page: Page) {
 
 // Open the composer options panel only when the dice control is still hidden,
 // then open the dice popover. Never toggle the panel shut before the dice.
-async function openDiceRoller(page: Page) {
+async function openDiceRoller(page: import('@playwright/test').Page) {
   const rollDice = page.getByRole('button', { name: /Roll Dice/i });
   if (!(await rollDice.isVisible().catch(() => false))) {
     await page.getByRole('button', { name: 'Toggle options' }).click();
@@ -50,34 +37,31 @@ test.describe('Failure paths', () => {
     await page.goto('/login');
   });
 
-  test('duplicate-email sign-up surfaces the error and does not redirect', async ({ page }) => {
+  test('duplicate-email seeding is rejected at the auth boundary and the UI does not move', async ({ page }) => {
     const email = `e2e.dup.${Date.now()}@gmail.com`;
-    const first = await signUp(page, email);
-    expect(first.success).toBe(true);
-    await page.waitForURL('/');
+    const first = await seedUser(email);
+    expect(first.ok).toBe(true);
 
-    // Sign out so the second attempt runs from a fresh, anonymous session.
-    const signOut = await page.evaluate(async () => {
-      // @ts-expect-error - exposed in test/dev
-      const client = window.__supabase;
-      const { error } = await client.auth.signOut();
-      return error?.message ?? null;
-    });
-    expect(signOut).toBeNull();
-    // Land on an anonymous login session deterministically.
-    await page.goto('/login');
-
-    // Second sign-up with the same email must fail at the auth boundary and
-    // never take the user anywhere else.
-    const second = await signUp(page, email);
-    expect(second.success).toBe(false);
+    // The second registration with the same email is refused by the auth
+    // boundary (Admin API reports the duplicate)...
+    const second = await seedUser(email);
+    expect(second.ok).toBe(false);
     expect(second.error).toBeTruthy();
+
+    // ...and no session exists, so the UI stays on the login page.
+    await expect(page.getByRole('button', { name: /Sign in with Google/i })).toBeVisible();
+    expect(page.url()).toMatch(/\/login$/);
+    await expect(page.locator('[data-testid="create-channel-fab"]')).not.toBeVisible();
+
+    // A wrong password against the seeded user fails the same way: no
+    // redirect, no lobby UI.
+    await signIn(page, email, 'WrongPassword123!').catch(() => {});
     expect(page.url()).toMatch(/\/login$/);
     await expect(page.locator('[data-testid="create-channel-fab"]')).not.toBeVisible();
   });
 
   test('create-channel inputs reject keystrokes past their limits', async ({ page }) => {
-    await signUp(page, `e2e.limit.${Date.now()}@gmail.com`);
+    await seedAndSignIn(page, `e2e.limit.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
     await dismissWhatsNew(page);
 
@@ -93,7 +77,7 @@ test.describe('Failure paths', () => {
   });
 
   test('joining an unknown channel shows an error instead of crashing', async ({ page }) => {
-    await signUp(page, `e2e.join.${Date.now()}@gmail.com`);
+    await seedAndSignIn(page, `e2e.join.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
 
     await page.goto(`/join/00000000-0000-0000-0000-000000000000`);
@@ -101,7 +85,7 @@ test.describe('Failure paths', () => {
   });
 
   test('message composer enforces the length cap and dice quantity clamps to 1', async ({ page }) => {
-    await signUp(page, `e2e.chan.${Date.now()}@gmail.com`);
+    await seedAndSignIn(page, `e2e.chan.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
     await createChannel(page);
 
@@ -121,7 +105,7 @@ test.describe('Failure paths', () => {
   });
 
   test('composer accepts exactly the 4000-character cap', async ({ page }) => {
-    await signUp(page, `e2e.cap.${Date.now()}@gmail.com`);
+    await seedAndSignIn(page, `e2e.cap.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
     await createChannel(page);
 
@@ -130,4 +114,4 @@ test.describe('Failure paths', () => {
     await composer.fill(exactly4000);
     expect(await composer.inputValue()).toHaveLength(4000);
   });
-});
+})

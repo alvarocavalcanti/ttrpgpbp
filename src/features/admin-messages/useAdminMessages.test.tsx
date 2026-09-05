@@ -1,15 +1,27 @@
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { ReactNode } from 'react'
 import { useAdminMessages } from './useAdminMessages'
+import { ToastProvider } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../auth/useAuth'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
     channel: vi.fn(),
-    removeChannel: vi.fn()
+    removeChannel: vi.fn(),
+    rpc: vi.fn()
   }
 }))
+
+vi.mock('../auth/useAuth', () => ({
+  useAuth: vi.fn()
+}))
+
+function toastWrapper({ children }: { children: ReactNode }) {
+  return <ToastProvider>{children}</ToastProvider>
+}
 
 const msg = (over: Record<string, unknown> = {}) => ({
   id: 'm1',
@@ -40,6 +52,8 @@ function makeChain({ limitData, limitError, orData, orError }: { limitData?: any
 describe('useAdminMessages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
     vi.mocked(supabase.channel).mockReturnValue({
       on: vi.fn().mockReturnThis(),
       subscribe: vi.fn()
@@ -51,7 +65,7 @@ describe('useAdminMessages', () => {
     const eq = vi.fn().mockReturnValue(chain)
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
 
-    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.messages.map(m => m.id)).toEqual(['m1', 'm2'])
@@ -65,7 +79,7 @@ describe('useAdminMessages', () => {
     const eq = vi.fn().mockReturnValue(chain)
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
 
-    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
     await waitFor(() => expect(result.current.hasMore).toBe(true))
 
     await act(async () => { await result.current.loadMore() })
@@ -80,7 +94,7 @@ describe('useAdminMessages', () => {
     const eq = vi.fn().mockReturnValue(chain)
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
 
-    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.error).toEqual(new Error('boom'))
@@ -93,7 +107,7 @@ describe('useAdminMessages', () => {
     const eq = vi.fn().mockReturnValue(chain)
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
 
-    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
     await waitFor(() => expect(result.current.hasMore).toBe(true))
 
     await act(async () => { await result.current.loadMore() })
@@ -122,7 +136,7 @@ describe('useAdminMessages', () => {
       })
     } as any)
 
-    const { result, rerender } = renderHook((tid: string) => useAdminMessages(tid), { initialProps: 'a' })
+    const { result, rerender } = renderHook((tid: string) => useAdminMessages(tid), { initialProps: 'a', wrapper: toastWrapper })
     rerender('b')
     await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['b1']))
 
@@ -150,7 +164,7 @@ describe('useAdminMessages', () => {
       subscribe: vi.fn().mockImplementation(cb => { statusCb = cb; return { unsubscribe: vi.fn() } })
     } as any)
 
-    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.messages).toHaveLength(0)
@@ -195,7 +209,7 @@ describe('useAdminMessages', () => {
     })
     vi.mocked(supabase.channel).mockReturnValue({ on } as any)
 
-    const { result } = renderHook(() => useAdminMessages('thread-1'))
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
 
     await act(async () => {
       messagesEvent?.()
@@ -214,5 +228,127 @@ describe('useAdminMessages', () => {
 
     expect(result.current.messages.map(m => m.id)).toEqual(['new'])
     expect(result.current.loading).toBe(false)
+  })
+
+  it('marks the thread read on open and again when messages arrive', async () => {
+    const thenable = { then: vi.fn(() => thenable), catch: vi.fn(() => thenable) }
+    vi.mocked(supabase.rpc).mockReturnValue(thenable as any)
+    const { chain } = makeChain({ limitData: [msg({ id: 'm1' })] })
+    const eq = vi.fn().mockReturnValue(chain)
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) } as any)
+
+    renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
+
+    // The supabase-js v2 RPC returns a lazy thenable; asserting `.then` was
+    // invoked catches a regression where the promise is discarded and the
+    // request never fires.
+    await waitFor(() => expect(thenable.then).toHaveBeenCalled())
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_admin_thread_read', { p_thread_id: 'thread-1' })
+    await waitFor(() => expect(thenable.then).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('useAdminMessages mutations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    vi.mocked(supabase.channel).mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn()
+    } as any)
+  })
+
+  // Wires supabase.from for both the message read (select -> eq -> order ->
+  // order -> limit) and the mutation paths (insert, update -> eq).
+  function mockFrom({ insertError = null, updateError = null }: { insertError?: unknown, updateError?: unknown } = {}) {
+    const insert = vi.fn().mockResolvedValue({ data: null, error: insertError })
+    const updateEq = vi.fn().mockResolvedValue({ data: null, error: updateError })
+    const limit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const select = vi.fn(() => ({
+      eq: () => ({ order: () => ({ order: () => ({ limit }) }) })
+    }))
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'admin_messages') return { select, insert, update: () => ({ eq: updateEq }) } as any
+      return {} as any
+    })
+    return { insert, updateEq, limit }
+  }
+
+  it('sends a reply as the signed-in user', async () => {
+    const mocks = mockFrom()
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let ok = false
+    await act(async () => {
+      ok = await result.current.sendReply('my reply')
+    })
+
+    expect(ok).toBe(true)
+    expect(mocks.insert).toHaveBeenCalledWith({
+      thread_id: 'thread-1', content: 'my reply', sender_id: 'u1'
+    })
+    expect(document.body.textContent).not.toContain("Couldn't send your reply")
+  })
+
+  it('toasts and reports failure when a reply insert fails', async () => {
+    mockFrom({ insertError: { message: 'fail' } })
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let ok = true
+    await act(async () => {
+      ok = await result.current.sendReply('my reply')
+    })
+
+    expect(ok).toBe(false)
+    expect(document.body.textContent).toContain("Couldn't send your reply")
+  })
+
+  it('refuses to reply without a signed-in user', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any)
+    const mocks = mockFrom()
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
+
+    let ok = true
+    await act(async () => {
+      ok = await result.current.sendReply('my reply')
+    })
+
+    expect(ok).toBe(false)
+    expect(mocks.insert).not.toHaveBeenCalled()
+  })
+
+  it('soft-deletes a message and refetches', async () => {
+    const mocks = mockFrom()
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(mocks.limit).toHaveBeenCalledTimes(1)
+
+    let ok = false
+    await act(async () => {
+      ok = await result.current.deleteMessage('m1')
+    })
+
+    expect(ok).toBe(true)
+    expect(mocks.updateEq).toHaveBeenCalledWith('id', 'm1')
+    expect(mocks.limit).toHaveBeenCalledTimes(2)
+  })
+
+  it('toasts and still refetches when a message delete fails', async () => {
+    const mocks = mockFrom({ updateError: { message: 'fail' } })
+    const { result } = renderHook(() => useAdminMessages('thread-1'), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(mocks.limit).toHaveBeenCalledTimes(1)
+
+    let ok = true
+    await act(async () => {
+      ok = await result.current.deleteMessage('m1')
+    })
+
+    expect(ok).toBe(false)
+    expect(document.body.textContent).toContain("Couldn't delete the message")
+    // Refetch happens regardless so the view reconciles with the server.
+    expect(mocks.limit).toHaveBeenCalledTimes(2)
   })
 })

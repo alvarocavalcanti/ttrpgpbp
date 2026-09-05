@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useChannelNotificationPrefs } from './useChannelNotificationPrefs'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 

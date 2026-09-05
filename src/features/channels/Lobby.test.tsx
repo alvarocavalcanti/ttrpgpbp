@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
@@ -21,7 +21,7 @@ vi.mock('./CreateChannelModal', () => ({
   CreateChannelModal: vi.fn(() => <div data-testid="create-modal"><h2>Create a New Channel</h2></div>)
 }))
 
-vi.mock('../auth/usePushNotifications', () => ({
+vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn()
 }))
 

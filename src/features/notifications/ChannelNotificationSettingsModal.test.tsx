@@ -2,13 +2,13 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChannelNotificationSettingsModal } from './ChannelNotificationSettingsModal'
 import { useChannelNotificationPrefs } from './useChannelNotificationPrefs'
-import { usePushNotifications } from '../auth/usePushNotifications'
+import { usePushNotifications } from '../notifications/usePushNotifications'
 
 vi.mock('./useChannelNotificationPrefs', () => ({
   useChannelNotificationPrefs: vi.fn()
 }))
 
-vi.mock('../auth/usePushNotifications', () => ({
+vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn()
 }))
 

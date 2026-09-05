@@ -22,6 +22,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     const { container } = render(
@@ -42,6 +43,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -63,6 +65,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -88,6 +91,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -113,6 +117,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -138,6 +143,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -162,6 +168,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -188,6 +195,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     render(
@@ -212,6 +220,7 @@ describe('LoginPage', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
+      refreshProfile: vi.fn(),
     })
 
     const { container } = render(
