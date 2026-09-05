@@ -124,6 +124,16 @@ export function ChannelView() {
     attributes: (m.attributes as Record<string, number> | null) ?? undefined
   })), [members])
 
+  // Stable callback identity so MessageItem's React.memo isn't defeated on
+  // every ChannelView render (#408). Keyed on myMemberInfo?.id so the identity
+  // only changes when the viewer's member row changes; MessageItem invokes it
+  // with no arguments, so the member id is closed over here.
+  const handleEditCharacter = useCallback(() => {
+    if (!myMemberInfo?.id) return
+    setShowMobileSidebar(true)
+    setEditingMemberId(myMemberInfo.id)
+  }, [myMemberInfo?.id])
+
   // Progressive paint (#346): header first (skeleton name while the channel
   // itself loads) plus skeleton message bubbles, instead of a full-screen
   // spinner that blanks everything including the header.
@@ -311,7 +321,7 @@ export function ChannelView() {
           // Open the mobile sidebar with the editor: the modal renders inside
           // the sidebar, whose translate-x-full transform would otherwise
           // become the containing block for its fixed positioning.
-          onEditCharacter={myMemberInfo?.id ? () => { setShowMobileSidebar(true); setEditingMemberId(myMemberInfo.id) } : undefined}
+          onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
           error={messagesError}
           hasMore={hasMore}
           loadingOlder={loadingOlder}
