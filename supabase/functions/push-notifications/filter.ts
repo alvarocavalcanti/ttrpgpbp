@@ -218,3 +218,15 @@ export function isAllowedOrigin(origin: string, envList?: string[]): boolean {
   if (allowed.includes(origin)) return true
   return origin.endsWith('.ttrpgpbp.pages.dev')
 }
+
+// Announcement push recipients: the distinct GMs of non-archived channels,
+// minus suspended GMs (is_active_gm parity — suspended GMs can no longer read
+// those channels, and their badge counts would drift). Pure: no IO, so it
+// runs in vitest.
+export function resolveAnnouncementGmTargets(
+  gms: Array<{ gm_id: string | null }>,
+  profiles: Array<{ id: string; is_suspended: boolean }>,
+): string[] {
+  const suspended = new Set(profiles.filter(p => p.is_suspended).map(p => p.id))
+  return [...new Set(gms.map(g => g.gm_id).filter((id): id is string => !!id && !suspended.has(id)))]
+}

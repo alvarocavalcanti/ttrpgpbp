@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementGmTargets } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
 import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
 import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription } from "./validation.ts"
@@ -219,7 +219,15 @@ async function buildAdminMessageEvent(
       .select("gm_id")
       .neq("gm_id", null)
       .eq("is_archived", false)
-    adminTargetUserIds = [...new Set((gms ?? []).map(r => r.gm_id))]
+    const gmIds = [...new Set((gms ?? []).map(r => r.gm_id))]
+    // Suspended GMs can no longer read their channels (is_active_gm parity).
+    const { data: gmProfiles } = gmIds.length > 0
+      ? await serviceClient
+          .from("profiles")
+          .select("id, is_suspended")
+          .in("id", gmIds)
+      : { data: [] }
+    adminTargetUserIds = resolveAnnouncementGmTargets(gms ?? [], gmProfiles ?? [])
   } else {
     const { data: admin } = await serviceClient
       .from("profiles")
