@@ -1210,6 +1210,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      url_scheme_allowed: { Args: { p_url: string }; Returns: boolean }
     }
     Enums: {
       admin_thread_type: "announcement" | "dm"

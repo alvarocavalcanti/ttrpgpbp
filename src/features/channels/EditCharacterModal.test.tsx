@@ -138,4 +138,34 @@ describe('EditCharacterModal', () => {
       }))
     })
   })
+
+  it('blocks saving an explicit non-http(s) sheet scheme with an inline error', async () => {
+    const mockUpdate = vi.fn()
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Sheet URL'), { target: { value: 'javascript:alert(1)' } })
+    fireEvent.click(screen.getByText('Save'))
+
+    expect(await screen.findByText('Sheet link must start with http:// or https://.')).toBeInTheDocument()
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('saves an https sheet url', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Sheet URL'), { target: { value: 'https://example.com/sheet' } })
+    fireEvent.click(screen.getByText('Save'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        character_sheet_url: 'https://example.com/sheet'
+      }))
+    })
+  })
 })

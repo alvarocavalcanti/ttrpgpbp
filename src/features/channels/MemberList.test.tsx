@@ -58,7 +58,7 @@ describe('MemberList', () => {
 
   it('renders active and blocked members correctly with GM badge', () => {
     render(<StatefulMemberList members={mockMembers} isGM={true}  gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
-    
+
     expect(screen.getByText('Players — 2')).toBeInTheDocument()
     expect(screen.getByText('Hero')).toBeInTheDocument()
     expect(screen.getByText('Player One')).toBeInTheDocument()
@@ -67,6 +67,14 @@ describe('MemberList', () => {
 
     expect(screen.getByText('Blocked — 1')).toBeInTheDocument()
     expect(screen.getByText('Villain')).toBeInTheDocument()
+  })
+
+  it('does not render a Sheet link for exotic-scheme URLs (defense in depth)', () => {
+    const hostile = [{ ...mockMembers[0], id: 'm9', user_id: 'u9', character_sheet_url: 'javascript:alert(1)' }]
+    render(<StatefulMemberList members={hostile} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText('Hero')).toBeInTheDocument()
+    expect(screen.queryByText('Sheet')).not.toBeInTheDocument()
   })
 
   it('allows editing own character', async () => {
