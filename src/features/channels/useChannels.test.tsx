@@ -362,7 +362,7 @@ describe('useChannels', () => {
     expect(result.current.myChannels[0]?.unread_count).toBe(1)
   })
 
-  it('debounces realtime status flaps into a single refetch (ARCH-6)', async () => {
+  it('throttles realtime status flaps into a single refetch (ARCH-6)', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
     const mockMyChannelsRaw = [{
       id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Thor',
@@ -388,7 +388,7 @@ describe('useChannels', () => {
       reportRealtimeStatus('flap-test', 'SUBSCRIBED')
     })
 
-    // No immediate refetch — scheduled through the trailing 2s debounce.
+    // No immediate refetch — throttled to one per 2s window.
     expect(rpc.mock.calls.length).toBe(fetchesAfterLoad)
 
     await act(async () => { await new Promise(res => setTimeout(res, 2100)) })

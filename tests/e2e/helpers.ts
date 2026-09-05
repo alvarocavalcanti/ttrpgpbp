@@ -35,7 +35,10 @@ const localEnv = loadEnvFile('.env.local');
 // fall back to the .env.local URL. The service-role key itself is never
 // committed — it must be exported by the caller (fail closed, never guess).
 const unquote = (v: string | undefined) => v?.replace(/^["']|["']$/g, '') ?? '';
-const supabaseUrl = unquote(process.env.SUPABASE_URL) || unquote(process.env.VITE_SUPABASE_URL) || unquote(localEnv.VITE_SUPABASE_URL);
+// SUPABASE_URL (CI) first; otherwise .env.local only — a shell-exported
+// VITE_SUPABASE_URL (e.g. direnv pointing at the remote project) must never
+// redirect seeding away from the local stack.
+const supabaseUrl = unquote(process.env.SUPABASE_URL) || unquote(localEnv.VITE_SUPABASE_URL);
 const serviceRoleKey = unquote(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export const TEST_PASSWORD = 'Password123!';

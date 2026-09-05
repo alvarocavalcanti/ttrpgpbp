@@ -16,7 +16,21 @@ export function useArchivedChannels() {
   useEffect(() => {
     let mounted = true
     async function fetchArchived() {
-      if (!user) return
+      if (!user) {
+        // Auth settled with no user (sign-out): reach a terminal state instead
+        // of spinning forever; also drops a previous user's rows on switch.
+        if (mounted) {
+          setArchivedChannels([])
+          setError(null)
+          setLoading(false)
+        }
+        return
+      }
+      // New identity: stale rows/errors from the previous user must not
+      // outlive the fetch that replaces them.
+      setArchivedChannels([])
+      setError(null)
+      setLoading(true)
       try {
         const { data, error: fetchError } = await supabase
           .from('channels')

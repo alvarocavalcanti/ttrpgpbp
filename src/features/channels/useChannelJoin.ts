@@ -16,6 +16,11 @@ export function useChannelJoin(channelId: string | undefined) {
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
+    // A changed channelId must not inherit the previous channel's preview:
+    // JoinChannel applies its password/rules while the new request is pending.
+    setChannel(null)
+    setError(null)
+    setLoading(true)
     let mounted = true
     async function fetchPreview() {
       if (!channelId) {

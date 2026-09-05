@@ -54,10 +54,16 @@ export function useAdminData(isServerAdmin: boolean) {
         if (userError) throw userError
         if (channelError) throw channelError
         if (storageError) throw storageError
+        // RPC payloads aren't runtime-validated; malformed data would crash
+        // AdminView's useSort during render, so treat it as a load error
+        // instead of trusting the cast.
+        if (!Array.isArray(userData) || !Array.isArray(channelData)) {
+          throw new Error('Malformed admin data payload.')
+        }
         if (mounted) {
-          setUsers((userData as AdminUser[]) || [])
-          setChannels((channelData as AdminChannel[]) || [])
-          setStorageBytes(storageData || 0)
+          setUsers((userData as AdminUser[]).filter(u => u != null))
+          setChannels((channelData as AdminChannel[]).filter(c => c != null))
+          setStorageBytes(typeof storageData === 'number' ? storageData : 0)
         }
       } catch (err) {
         console.error('Error fetching admin data:', err)
@@ -72,12 +78,14 @@ export function useAdminData(isServerAdmin: boolean) {
   }, [isServerAdmin])
 
   // Suspends/un-suspends a user; on success the list is updated in place.
+  // A rejected RPC promise must flow through the same error contract as a
+  // resolved-with-error response, otherwise the caller's toast never runs.
   const suspendUser = async (userId: string, suspend: boolean, reason: string) => {
     const { error: rpcError } = await supabase.rpc('admin_suspend_user', {
       p_user_id: userId,
       p_suspend: suspend,
       p_reason: reason
-    })
+    }).catch(e => ({ error: e as { message: string } }))
     if (rpcError) return rpcError
     setUsers(prev => prev.map(u =>
       u.id === userId ? { ...u, is_suspended: suspend } : u
@@ -88,6 +96,7 @@ export function useAdminData(isServerAdmin: boolean) {
   // Claims an orphaned channel for the current admin; list updated in place.
   const claimChannel = async (channelId: string) => {
     const { error: rpcError } = await supabase.rpc('admin_claim_channel', { p_channel_id: channelId })
+      .catch(e => ({ error: e as { message: string } }))
     if (rpcError) return rpcError
     setChannels(prev => prev.map(c =>
       c.id === channelId ? { ...c, gm_id: user?.id ?? null, gm_display_name: profile?.display_name ?? 'You' } : c

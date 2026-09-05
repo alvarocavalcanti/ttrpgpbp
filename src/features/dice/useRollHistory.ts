@@ -95,6 +95,9 @@ export function useRollHistory(channelId: string) {
           .eq('id', parsed.data.roller_id)
           .single()
 
+        // The await above can outlive this effect (channel switch): a roll
+        // from the old channel must not prepend into the new one's state.
+        if (!mounted) return
         const newRoll: DiceRoll = { ...parsed.data, roller_display_name: null, roller: data }
         setRolls(prev => prev.some(roll => roll.id === newRoll.id)
           ? prev

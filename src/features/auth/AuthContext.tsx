@@ -133,13 +133,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // without waiting for an auth event (ARCH-4).
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return
+    const userId = user.id
     try {
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, created_at, is_suspended')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single()
       if (fetchError) throw fetchError
+      // An in-flight refresh must not outlive its identity: sign-out clears
+      // the ref, an account switch points it at the new id — either way the
+      // stale response would otherwise overwrite the newer profile state.
+      if (lastFetchedUserId.current !== userId) return
       setProfile(parseRow(ProfileRowSchema, data) as Profile | null)
     } catch (err) {
       // Keep the previously-loaded profile so a transient failure doesn't

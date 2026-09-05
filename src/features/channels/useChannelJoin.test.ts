@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useChannelJoin } from './useChannelJoin'
 import { supabase } from '../../lib/supabase'
@@ -45,6 +45,33 @@ describe('useChannelJoin', () => {
     const { result } = renderHook(() => useChannelJoin(undefined))
     expect(result.current.loading).toBe(false)
     expect(supabase.rpc).not.toHaveBeenCalled()
+  })
+
+  it('clears the previous preview and reloads when the channel id changes', async () => {
+    const secondPreview = { id: '456', name: 'Second Channel', game_system: 'none', has_password: true }
+    let resolveSecond!: (v: { data: any, error: null }) => void
+    const secondFetch = new Promise<{ data: any, error: null }>(res => { resolveSecond = res })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: [previewRow], error: null } as any)
+      .mockReturnValueOnce(secondFetch)
+
+    const { result, rerender } = renderHook(({ id }: { id: string | undefined }) => useChannelJoin(id), {
+      initialProps: { id: '123' }
+    })
+    await waitFor(() => expect(result.current.channel).toEqual(previewRow))
+
+    rerender({ id: '456' })
+
+    // The stale channel's preview must not leak into the new one.
+    expect(result.current.channel).toBeNull()
+    expect(result.current.loading).toBe(true)
+
+    await act(async () => {
+      resolveSecond({ data: [secondPreview], error: null })
+    })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.channel).toEqual(secondPreview)
   })
 
   it('getChannelSalt resolves the salt for salted channels', async () => {

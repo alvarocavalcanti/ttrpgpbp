@@ -4,6 +4,7 @@ import { ThreadList } from './ThreadList'
 import { useAdminThreads } from './useAdminThreads'
 import { useActiveGms } from './useActiveGms'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { useToast } from '../../contexts/ToastContext'
 import type { Thread } from './types'
 
 vi.mock('./useAdminThreads', () => ({
@@ -16,6 +17,10 @@ vi.mock('./useActiveGms', () => ({
 
 vi.mock('../../hooks/useIsServerAdmin', () => ({
   useIsServerAdmin: vi.fn()
+}))
+
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: vi.fn().mockReturnValue({ addToast: vi.fn(), removeToast: vi.fn() }),
 }))
 
 const mockThread: Thread = {
@@ -217,6 +222,69 @@ describe('NewThreadModal additional branches', () => {
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
     await waitFor(() => {
       expect(screen.getByText('GM Alice')).toBeInTheDocument()
+    })
+  })
+
+  it('disables Send for an admin dm while the GM list errored', async () => {
+    mockGms({ error: new Error('boom') })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load the GM list.")).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('enables Send for an admin dm once a GM is selected and the list loaded', async () => {
+    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
+    await waitFor(() => screen.getByText('GM Alice'))
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'gm-1' } })
+    expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled()
+  })
+
+  it('enables Send for an announcement even while the GM list errored', async () => {
+    mockGms({ error: new Error('boom') })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    // Announcements never need the GM picker, so its error must not block.
+    expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled()
+  })
+
+  it('toasts and closes without selecting when creation commits but the full row is unavailable', async () => {
+    const onSelectThread = vi.fn()
+    const createThread = vi.fn().mockResolvedValue('committed')
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    mockHookReturn({ createThread })
+
+    render(<ThreadList onSelectThread={onSelectThread} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'My Announcement' } })
+    fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: 'Hello world' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('Message sent. The conversation will appear in the list.', 'success')
+    })
+    expect(onSelectThread).not.toHaveBeenCalled()
+    // Modal closed: no duplicate resubmission possible.
+    await waitFor(() => {
+      expect(screen.queryByText('New Message')).not.toBeInTheDocument()
     })
   })
 })

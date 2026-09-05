@@ -4,6 +4,7 @@ import { useAdminThreads, type CreateThreadInput } from './useAdminThreads'
 import { useActiveGms } from './useActiveGms'
 import { Avatar } from '../../components/Avatar'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { useToast } from '../../contexts/ToastContext'
 
 export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void }) {
   const { threads, loading, hasMore, loadMore, refetch, error, createThread } = useAdminThreads()
@@ -105,12 +106,13 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
   )
 }
 
-function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | null> }) {
+function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | 'committed' | null> }) {
   const [type, setType] = useState<'announcement' | 'dm'>(isServerAdmin ? 'announcement' : 'dm')
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState('')
   const [gmId, setGmId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const { addToast } = useToast()
   const { gms, loading: gmsLoading, error: gmsError, refetch: refetchGms } = useActiveGms(isServerAdmin)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,6 +128,13 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { o
     // the user can retry without retyping.
     if (!thread) {
       setSubmitting(false)
+      return
+    }
+    if (thread === 'committed') {
+      // The conversation exists (the list refreshes via realtime) but its
+      // full row isn't available to select right away.
+      addToast('Message sent. The conversation will appear in the list.', 'success')
+      onClose()
       return
     }
     onCreated(thread)
@@ -184,7 +193,11 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { o
           
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={submitting} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={submitting || (type === 'dm' && isServerAdmin && (!!gmsError || !gmId))}
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+            >
               {submitting ? 'Sending...' : 'Send'}
             </button>
           </div>

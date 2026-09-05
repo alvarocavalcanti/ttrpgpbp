@@ -59,12 +59,82 @@ describe('useAdminData', () => {
     expect(supabase.rpc).not.toHaveBeenCalled()
   })
 
+  it('surfaces a load error instead of crashing on a non-array payload', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: { users: [] }, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.error).toBe('Failed to load admin data.')
+    expect(result.current.users).toEqual([])
+  })
+
+  it('filters null entries out of the users and channels arrays', async () => {
+    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
+    const channels = [{ id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice' }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: [null, ...users], error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [null, ...channels], error: null })
+      return Promise.resolve({ data: 2048, error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.users).toEqual(users)
+    expect(result.current.channels).toEqual(channels)
+  })
+
+  it('suspendUser catches a rejected RPC and returns the error', async () => {
+    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_suspend_user') return Promise.reject(new Error('boom'))
+      // The load validates payloads as arrays; a null fallback would fail it.
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.users).toHaveLength(1))
+
+    await act(async () => {
+      const err = await result.current.suspendUser('u1', true, 'Spamming')
+      expect(err).toBeInstanceOf(Error)
+      expect((err as Error).message).toBe('boom')
+    })
+    expect(result.current.users[0].is_suspended).toBe(false)
+  })
+
+  it('claimChannel catches a rejected RPC and returns the error', async () => {
+    const channels = [{ id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '', last_message_at: null, gm_display_name: null }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_claim_channel') return Promise.reject(new Error('boom'))
+      // The load validates payloads as arrays; a null fallback would fail it.
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.channels).toHaveLength(1))
+
+    await act(async () => {
+      const err = await result.current.claimChannel('c2')
+      expect(err).toBeInstanceOf(Error)
+      expect((err as Error).message).toBe('boom')
+    })
+    expect(result.current.channels[0].gm_id).toBeNull()
+  })
+
   it('suspendUser calls the RPC and flips the user in place', async () => {
     const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_suspend_user') return Promise.resolve({ data: null, error: null })
-      return Promise.resolve({ data: null, error: null })
+      // The load validates payloads as arrays; a null fallback would fail it.
+      return Promise.resolve({ data: [], error: null })
     }) as any)
 
     const { result } = renderHook(() => useAdminData(true))
@@ -86,7 +156,8 @@ describe('useAdminData', () => {
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_suspend_user') return Promise.resolve({ data: null, error: new Error('nope') })
-      return Promise.resolve({ data: null, error: null })
+      // The load validates payloads as arrays; a null fallback would fail it.
+      return Promise.resolve({ data: [], error: null })
     }) as any)
 
     const { result } = renderHook(() => useAdminData(true))
@@ -104,7 +175,8 @@ describe('useAdminData', () => {
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
       if (fn === 'admin_claim_channel') return Promise.resolve({ data: null, error: null })
-      return Promise.resolve({ data: null, error: null })
+      // The load validates payloads as arrays; a null fallback would fail it.
+      return Promise.resolve({ data: [], error: null })
     }) as any)
 
     const { result } = renderHook(() => useAdminData(true))
@@ -123,7 +195,8 @@ describe('useAdminData', () => {
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
       if (fn === 'admin_claim_channel') return Promise.resolve({ data: null, error: new Error('nope') })
-      return Promise.resolve({ data: null, error: null })
+      // The load validates payloads as arrays; a null fallback would fail it.
+      return Promise.resolve({ data: [], error: null })
     }) as any)
 
     const { result } = renderHook(() => useAdminData(true))

@@ -40,7 +40,10 @@ export function useAdminThreadActions() {
   const { user } = useAuth()
   const { addToast } = useToast()
 
-  const createThread = useCallback(async (input: CreateThreadInput): Promise<Thread | null> => {
+  // Returns the created Thread, 'committed' when the thread+message were
+  // created but the full row couldn't be fetched/validated (the list's
+  // realtime refresh shows it), or null when nothing was created.
+  const createThread = useCallback(async (input: CreateThreadInput): Promise<Thread | 'committed' | null> => {
     if (!user?.id) {
       addToast('You need to be signed in.', 'error')
       return null
@@ -96,7 +99,10 @@ export function useAdminThreadActions() {
       .single()
     // A missing/unparsable row isn't fatal: the thread exists and the list's
     // realtime refresh will show it; we just can't select it right away.
-    return fullRow ? formatThread(fullRow as Record<string, unknown>) : null
+    // Distinguish this committed-but-unavailable case from failure so the
+    // modal closes instead of inviting a duplicate submission.
+    if (!fullRow) return 'committed'
+    return formatThread(fullRow as Record<string, unknown>)
   }, [user?.id, addToast])
 
   const deleteThread = useCallback(async (threadId: string): Promise<boolean> => {

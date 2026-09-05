@@ -103,9 +103,11 @@ export function useChannels() {
       if (document.visibilityState === 'visible') fetchChannels()
     }
 
-    // Trailing 2s debounce so bursts cost one refetch, not one per event.
-    // Realtime status flaps (offline/reconnect cycles) route through it too:
-    // a flap storm used to refetch the whole lobby per transition (ARCH-6).
+    // Leading-edge throttle (one fetch per 2s window) so bursts cost one
+    // refetch, not one per event, while a sustained flap storm still refreshes
+    // periodically instead of waiting for quiet (a trailing debounce would
+    // delay the refresh indefinitely). Realtime status flaps (offline/
+    // reconnect cycles) route through it too (ARCH-6).
     let unreadRefreshTimer: ReturnType<typeof setTimeout> | undefined
     const scheduleUnreadRefresh = () => {
       if (unreadRefreshTimer) return

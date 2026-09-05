@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthProvider, AuthContext } from './AuthContext'
 import { useContext } from 'react'
@@ -439,8 +439,56 @@ describe('AuthContext', () => {
     expect(supabase.from).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps the previous profile when refreshProfile fails', async () => {
+  it('drops a stale refreshProfile response after sign-out while it is pending', async () => {
+    let authCallback: any = null
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+
+    let resolveSlow!: (v: { data: unknown; error: null }) => void
+    const slow = new Promise<{ data: unknown; error: null }>(res => { resolveSlow = res })
+    const mockSingle = vi.fn()
+      .mockResolvedValueOnce({ data: { id: 'user-123', display_name: 'Test User' }, error: null })
+      .mockReturnValueOnce(slow)
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(screen.getByTestId('profile')).toHaveTextContent('Test User')
+
+    // The refresh is still in flight when the user signs out.
+    fireEvent.click(screen.getByText('Refresh Profile'))
+    await waitFor(() => expect(mockSingle).toHaveBeenCalledTimes(2))
+
+    act(() => { authCallback('SIGNED_OUT', null) })
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('no-user')
+      expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
+    })
+
+    // The stale response must not resurrect the signed-out profile.
+    await act(async () => {
+      resolveSlow({ data: { id: 'user-123', display_name: 'Stale Name' }, error: null })
+    })
+
+    expect(screen.getByTestId('user')).toHaveTextContent('no-user')
+    expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
+  })
+
+  it('keeps the previous profile when refreshProfile fails', async () => {    vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-123' } } },
       error: null,
     } as any)

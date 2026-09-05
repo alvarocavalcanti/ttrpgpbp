@@ -377,6 +377,23 @@ describe('useAdminThreads mutations', () => {
     expect(created).toBeNull()
   })
 
+  it("returns 'committed' when the full-row fetch comes back empty", async () => {
+    // The thread and message were created (the list's realtime refresh shows
+    // them), so a missing full row must not read as a failed submission.
+    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1' }
+    mockFrom({ insertSingle: { data: bare, error: null }, fullSingle: { data: null, error: null } })
+
+    const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createThread({ type: 'announcement', subject: 'Hi', content: 'Body', gmId: null })
+    })
+
+    expect(created).toBe('committed')
+  })
+
   it('refuses to create without a signed-in user', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: null } as any)
     const mocks = mockFrom()

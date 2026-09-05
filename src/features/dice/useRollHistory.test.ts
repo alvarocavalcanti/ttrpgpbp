@@ -182,5 +182,58 @@ describe('useRollHistory', () => {
     await waitFor(() => expect(result.current.rolls).toHaveLength(2))
     expect(supabase.rpc).toHaveBeenCalledTimes(2)
   })
+
+  it('drops a realtime roll from the old channel whose profile resolves after a switch', async () => {
+    const newChannelRoll = validRoll({ id: 'r-new', created_at: '2026-01-03T00:00:00.000Z' })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: [], error: null } as any)
+      .mockResolvedValueOnce({ data: [newChannelRoll], error: null } as any)
+
+    // The old channel's realtime roll gets stuck fetching its profile.
+    let resolveProfile!: (v: { data: unknown, error: null }) => void
+    const slowProfile = new Promise<{ data: unknown, error: null }>(res => { resolveProfile = res })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockReturnValue(slowProfile)
+        })
+      })
+    } as any)
+
+    const onMock = vi.fn()
+    mockChannel(onMock)
+
+    const { result, rerender } = renderHook(({ id }: { id: string }) => useRollHistory(id), {
+      initialProps: { id: 'c1' }
+    })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // A roll lands on the old channel; its profile fetch hangs. Fire without
+    // awaiting — the callback suspends on the deferred profile promise.
+    const oldInsertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')![2] as any
+    void oldInsertCb({
+      new: {
+        id: 'r-old',
+        roller_id: 'u1',
+        notation: '1d20',
+        result: 9,
+        breakdown: { rolls: [9] },
+        created_at: '2026-01-02T00:00:00.000Z'
+      }
+    })
+
+    // Channel switch unmounts the old effect while the profile fetch pends.
+    rerender({ id: 'c2' })
+    await waitFor(() => {
+      expect(result.current.rolls.map(r => r.id)).toEqual(['r-new'])
+    })
+
+    await act(async () => {
+      resolveProfile({ data: { display_name: 'Old Channel Roller' }, error: null })
+    })
+
+    // The stale roll must not prepend into the new channel's history.
+    expect(result.current.rolls.map(r => r.id)).toEqual(['r-new'])
+  })
 })
 
