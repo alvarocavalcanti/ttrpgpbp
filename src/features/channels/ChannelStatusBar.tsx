@@ -143,7 +143,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors"
+              className="relative text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors after:content-[''] after:absolute after:-inset-2.5"
               title={isExpanded ? "Collapse Status" : "Expand Status"}
             >
               <svg 

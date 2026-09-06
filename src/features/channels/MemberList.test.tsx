@@ -93,6 +93,14 @@ describe('MemberList', () => {
     expect(screen.queryByText('Sheet')).not.toBeInTheDocument()
   })
 
+  it('sizes the member kebab to the 44px touch target', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    // Literal touch-target requirement (UX-1): 44px kebab (p-3 on a 20px
+    // glyph), asserted literally so a sizing regression fails here.
+    expect(screen.getByTestId('menu-btn-m1')).toHaveClass('p-3')
+  })
+
   it('allows editing own character', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })

@@ -107,12 +107,14 @@ interface CheckSheetProps {
 // check chip: modifier pre-filled from the profile, Adv/Dis toggle, Roll/Cancel.
 function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEditCharacter, onRoll, onClose }: CheckSheetProps) {
   const limits = getModifierLimits(gameSystem)
+  // Hit-area expansion (UX-1): 44px touch targets without blowing up the
+  // segment visuals — the pseudo-element pads the tappable region only.
   const segmentBtn = (selected: boolean) =>
-    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+    `relative flex-1 text-xs py-1 rounded transition-colors after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5 ${selected ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
   const advBtn = (selected: boolean) =>
-    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-green-100 dark:bg-green-900 shadow-sm font-medium text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+    `relative flex-1 text-xs py-1 rounded transition-colors after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5 ${selected ? 'bg-green-100 dark:bg-green-900 shadow-sm font-medium text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
   const disBtn = (selected: boolean) =>
-    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-red-100 dark:bg-red-900 shadow-sm font-medium text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+    `relative flex-1 text-xs py-1 rounded transition-colors after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5 ${selected ? 'bg-red-100 dark:bg-red-900 shadow-sm font-medium text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
 
   return (
     <BottomSheet title={`Roll ${draft.ability} Check${draft.dc ? ` (DC ${draft.dc})` : ''}`} onClose={onClose}>
@@ -143,14 +145,14 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
         <button
           type="button"
           onClick={onRoll}
-          className="flex-1 flex justify-center py-1.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="flex-1 flex justify-center py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           Roll
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 flex justify-center py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+          className="flex-1 flex justify-center py-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
         >
           Cancel
         </button>
@@ -446,7 +448,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           key={r.emoji}
           type="button"
           onClick={() => handleToggleReaction(r.emoji)}
-          className={`px-1.5 py-0.5 rounded-full text-xs border transition-colors ${r.hasReacted ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          className={`relative px-1.5 py-0.5 rounded-full text-xs border transition-colors after:content-[''] after:absolute after:inset-x-1 after:-inset-y-3 ${r.hasReacted ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
           aria-label={`Reaction ${r.emoji}, ${r.count}`}
         >
           <span className="mr-0.5">{r.emoji}</span>

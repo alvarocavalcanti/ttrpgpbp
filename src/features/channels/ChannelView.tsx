@@ -335,7 +335,7 @@ export function ChannelView() {
                 X-Card triggered{alertCount > 1 ? ` (${alertCount})` : ''}.
               </span>
             </span>
-            <button type="button" onClick={dismissAlert} className="text-white hover:text-red-100 p-1" aria-label="Dismiss X-Card alert">
+            <button type="button" onClick={dismissAlert} className="relative text-white hover:text-red-100 p-1 after:content-[''] after:absolute after:-inset-2.5" aria-label="Dismiss X-Card alert">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>

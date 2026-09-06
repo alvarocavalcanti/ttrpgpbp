@@ -59,5 +59,14 @@ describe('EmojiPicker', () => {
       expect(onPick).toHaveBeenCalledWith('🔥')
       expect(onOpenChange).toHaveBeenCalledWith(false)
     })
+
+    it('sizes grid cells to the 44px touch target', () => {
+      render(<EmojiPicker onPick={vi.fn()} open onOpenChange={vi.fn()} />)
+      for (const cell of [screen.getByText('👍').closest('button'), screen.getByText('🎲').closest('button')]) {
+        // Literal touch-target requirement (UX-1): 44px tall cells, asserted
+        // literally so a sizing regression fails here.
+        expect(cell).toHaveClass('h-11')
+      }
+    })
   })
 })

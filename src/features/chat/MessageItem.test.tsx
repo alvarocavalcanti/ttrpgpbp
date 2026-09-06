@@ -914,6 +914,38 @@ describe('MessageItem', () => {
     expect(trigger.className).toContain('p-1.5')
   })
 
+  it('expands reaction chips to a 44px touch target', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} reactions={[{ emoji: '👍', count: 2, hasReacted: true }]} />)
+    const chip = screen.getByRole('button', { name: /Reaction 👍, 2/ })
+    // Literal touch-target requirement (UX-1): ~24px pill expanded to 44px
+    // via invisible pseudo padding — asserted literally so a sizing
+    // regression fails here.
+    expect(chip.className).toContain("after:content-['']")
+    expect(chip.className).toContain('after:-inset-y-3')
+  })
+
+  it('expands CheckSheet buttons to 44px touch targets', () => {
+    const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={vi.fn()} gameSystem="shadowdark" members={[{ user_id: 'u1', character_name: 'test', attributes: { STR: 1 } }]} />)
+    fireEvent.click(screen.getByText('STR Check'))
+    // Literal touch-target requirement (UX-1): segments get invisible
+    // pseudo padding, Roll/Cancel grow to py-3 (44px tall).
+    for (const name of ['Normal', 'Adv', 'Dis']) {
+      const segment = screen.getByRole('button', { name })
+      expect(segment.className).toContain("after:content-['']")
+      expect(segment.className).toContain('after:-inset-y-2.5')
+    }
+    expect(screen.getByRole('button', { name: 'Roll' }).className).toContain('py-3')
+    expect(screen.getByRole('button', { name: 'Cancel' }).className).toContain('py-3')
+  })
+
 })
 
 it('keeps timestamps readable on dark backgrounds (AA contrast)', () => {

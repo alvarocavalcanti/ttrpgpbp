@@ -1111,7 +1111,11 @@ describe('ChannelView search functionality', () => {
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent(/X-Card triggered \(2\)\./)
-    fireEvent.click(screen.getByLabelText('Dismiss X-Card alert'))
+    const dismiss = screen.getByLabelText('Dismiss X-Card alert')
+    // Literal touch-target requirement (UX-1): 24px ✕ expanded to 44px via
+    // invisible pseudo padding.
+    expect(dismiss.className).toContain('after:-inset-2.5')
+    fireEvent.click(dismiss)
     expect(mockDismiss).toHaveBeenCalled()
   })
 

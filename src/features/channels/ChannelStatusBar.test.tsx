@@ -67,7 +67,11 @@ describe('ChannelStatusBar', () => {
   it('shows the chevron only when the status text overflows', () => {
     setOverflow(100, 30)
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="A very long status line that would overflow the single line clamp." activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
-    expect(container.querySelector('button[title="Expand Status"]')).toBeInTheDocument()
+    const chevron = container.querySelector('button[title="Expand Status"]')!
+    expect(chevron).toBeInTheDocument()
+    // Literal touch-target requirement (UX-1): 24px chevron expanded to 44px
+    // via invisible pseudo padding.
+    expect(chevron.className).toContain('after:-inset-2.5')
   })
 
   it('applies dark-mode prose variants to the status markdown', () => {

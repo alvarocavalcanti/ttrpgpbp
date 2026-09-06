@@ -59,7 +59,7 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
         </button>
       )}
       {isOpen && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-8 gap-1 w-64">
+        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-4 gap-1 w-64">
           {QUICK_EMOJIS.map(emoji => (
             <button
               key={emoji}
@@ -68,7 +68,7 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
                 setOpen(false)
                 onPick(emoji)
               }}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1.5 text-lg leading-none"
+              className="hover:bg-gray-100 dark:hover:bg-gray-700 rounded flex h-11 w-full items-center justify-center text-lg leading-none"
             >
               {emoji}
             </button>
