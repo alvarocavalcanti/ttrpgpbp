@@ -66,7 +66,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   const [npcAvatarUrl, setNpcAvatarUrl] = useState<string | null>(null)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
-  const [activePlayerIds, setActivePlayerIds] = useState<string[] | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
@@ -206,7 +205,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
         content: mentionContent,
         type: isNpc ? 'npc' : isScene ? 'scene' : 'regular',
         whisper_to: whisperTo || undefined,
-        active_player_ids: isGM ? activePlayerIds : undefined,
       }
       if (isNpc) {
         payload.npc_name = npcName.trim()
@@ -222,7 +220,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       setNpcName('')
       setNpcAvatarUrl(null)
       setWhisperTo('')
-      setActivePlayerIds(undefined)
       setMentionState(null)
       onCancelReply?.()
     } catch (err) {
@@ -346,29 +343,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {isGM && (
-          <Menu
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            }
-            label="Active Player"
-            value={activePlayerIds === undefined ? '' : activePlayerIds.length === 0 ? 'clear' : activePlayerIds[0]}
-            popup={isMobile}
-            onSelect={(val) => {
-              if (val === '') setActivePlayerIds(undefined)
-              else if (val === 'clear') setActivePlayerIds([])
-              else setActivePlayerIds([val])
-            }}
-            options={[
-              { value: '', label: 'No change' },
-              { value: 'clear', label: 'Clear Active Player' },
-              ...members.map(m => ({ value: m.user_id, label: m.character_name, hint: m.profile?.display_name || undefined })),
-            ]}
-          />
-        )}
-
         {!isScene && (
           <Menu
             icon={
@@ -392,12 +366,9 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   )
 
   // Collapsed-state indicator bar: a small chip per active option so the GM
-  // sees what's queued (scene/NPC/whisper/active player) without opening the
-  // options panel. Clicking a chip reopens the panel.
+  // sees what's queued (scene/NPC/whisper) without opening the options
+  // panel. Clicking a chip reopens the panel.
   const whisperMember = whisperTo ? members.find(m => m.user_id === whisperTo) : undefined
-  const activePlayerName = isGM && activePlayerIds?.length
-    ? members.find(m => m.user_id === activePlayerIds[0])?.character_name
-    : undefined
   const indicatorChips: { key: string; label: string; icon: React.ReactNode }[] = []
   if (isScene) {
     indicatorChips.push({
@@ -429,17 +400,6 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-      ),
-    })
-  }
-  if (activePlayerName) {
-    indicatorChips.push({
-      key: 'active',
-      label: `Active: ${activePlayerName}`,
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
     })

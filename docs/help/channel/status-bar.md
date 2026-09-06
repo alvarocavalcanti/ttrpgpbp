@@ -13,4 +13,4 @@ The **Channel Status Bar** sits at the top of the channel and keeps the group's 
 
 ## Who can edit
 
-The **GM** edits the status bar at any time. The GM can also set the active player(s) from the channel sidebar's **Active Player** item, or while composing a message — either way it updates the status and notifies the active player.
+The **GM** edits the status bar at any time. The GM can also set the active player(s) from the channel sidebar's **Active Player** item — check one or more players, then save; either way it updates the status and notifies the active player(s).
