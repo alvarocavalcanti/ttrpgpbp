@@ -41,8 +41,28 @@ export function ChannelView() {
     void notifyChannelRead(id, user.id, preferences?.badge_enabled !== false)
   }, [id, user?.id, preferences?.badge_enabled])
 
-  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage } = useMessages(id)
+  // History-first read-mark (#412). The ref is the call-time gate handed to
+  // useChannel (stable identity, so the realtime INSERT closure always reads
+  // fresh state); the state exists so history loading can re-trigger the
+  // deferred read-mark below. A failed messages fetch keeps the gate closed:
+  // the channel must not be marked read for posts the player never saw.
+  const messagesLoadedRef = useRef(false)
+  const [messagesLoaded, setMessagesLoaded] = useState(false)
+  const handleMessagesLoaded = useCallback(() => {
+    if (messagesLoadedRef.current) return
+    messagesLoadedRef.current = true
+    setMessagesLoaded(true)
+  }, [])
+  const canMarkRead = useCallback(() => messagesLoadedRef.current, [])
+  // Switching channels re-gates: the new channel's history must load before
+  // its read mark advances.
+  useEffect(() => {
+    messagesLoadedRef.current = false
+    setMessagesLoaded(false)
+  }, [id])
+
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, markRead, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead, canMarkRead)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
@@ -84,6 +104,16 @@ export function ChannelView() {
       setShowMobileSidebar(false)
     }
   }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer])
+
+  // Deferred read-mark (#412): the mount-time markRead in useChannel is gated
+  // off until history loads; this fires it once the gate opens (tab visible).
+  // Later member refetches re-run it harmlessly — writes are serialized and
+  // the persisted value is monotonic.
+  useEffect(() => {
+    if (!messagesLoaded || !myMemberInfo?.id) return
+    if (document.visibilityState !== 'visible') return
+    markRead()
+  }, [messagesLoaded, myMemberInfo?.id, markRead])
 
   const handleJumpToMessage = useCallback((messageId: string) => {
     setHighlightMessageId(messageId)
@@ -280,8 +310,17 @@ export function ChannelView() {
         />
 
         {messagesError && (
-          <div className="px-4 py-2 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm" role="alert">
-            Failed to load messages. Refresh the page to try again.
+          <div className="px-4 py-2 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm flex items-center justify-between gap-3" role="alert">
+            <span>{messagesRetrying ? 'Retrying…' : 'Failed to load messages. Try again.'}</span>
+            <button
+              type="button"
+              onClick={refreshMessages}
+              disabled={messagesRetrying}
+              aria-label="Retry loading messages"
+              className="flex-shrink-0 rounded-md border border-red-300 dark:border-red-700 px-2 py-1 font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 disabled:opacity-50"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -318,6 +357,7 @@ export function ChannelView() {
           lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
           onRetry={retryMessage}
           onRemovePending={removePendingMessage}
+          onRetryLoad={refreshMessages}
           // Open the mobile sidebar with the editor: the modal renders inside
           // the sidebar, whose translate-x-full transform would otherwise
           // become the containing block for its fixed positioning.

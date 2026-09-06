@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
@@ -1303,5 +1303,163 @@ describe('ChannelView edit-character deep link (#408)', () => {
     // stable onEditCharacter callback — a regression here silently no-ops or
     // sets editingMemberId to undefined).
     expect(screen.getByLabelText('Character Name')).toHaveValue('Hero')
+  })
+})
+
+describe('ChannelView history-gated read-mark (#412)', () => {
+  const renderView = () =>
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+  beforeEach(() => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn()
+    } as any)
+  })
+
+  afterEach(() => {
+    // Tests overriding visibilityState define it as an own property; delete
+    // restores the jsdom prototype getter for later suites.
+    delete (document as unknown as Record<string, unknown>).visibilityState
+  })
+
+  const baseChannelMock = (overrides: Record<string, unknown> = {}) => ({
+    channel: { id: 'c1', name: 'Test Channel' },
+    members: [{ id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+    loading: false,
+    error: null,
+    isGM: false,
+    myMemberInfo: { id: 'm1', user_id: 'user1' },
+    gmOnlyResourcesUrl: null,
+    lastReadAt: null,
+    markRead: vi.fn(),
+    refetch: vi.fn(),
+    ...overrides
+  })
+
+  const baseMessagesMock = (overrides: Record<string, unknown> = {}) => ({
+    messages: [],
+    reactions: {},
+    loading: false,
+    error: null,
+    hasMore: false,
+    loadingOlder: false,
+    retrying: false,
+    sendMessage: vi.fn(),
+    editMessage: vi.fn(),
+    deleteMessage: vi.fn(),
+    sendDiceRoll: vi.fn(),
+    addReaction: vi.fn(),
+    removeReaction: vi.fn(),
+    retryMessage: vi.fn(),
+    removePendingMessage: vi.fn(),
+    refresh: vi.fn().mockResolvedValue(undefined),
+    loadOlder: vi.fn(),
+    ...overrides
+  })
+
+  it('opens the read-mark gate only after useMessages reports a successful load', () => {
+    let onLoadedArg: (() => void) | undefined
+    let gateArg: (() => boolean) | undefined
+    vi.mocked(useChannel).mockImplementation(((_id: unknown, _onRead: unknown, canMarkRead: () => boolean) => {
+      gateArg = canMarkRead
+      return baseChannelMock()
+    }) as any)
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+      onLoadedArg = onLoaded
+      return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
+    }) as any)
+
+    renderView()
+
+    expect(typeof onLoadedArg).toBe('function')
+    expect(typeof gateArg).toBe('function')
+    expect(gateArg?.()).toBe(false)
+
+    // History loads: the shared gate opens for useChannel's read-mark paths.
+    act(() => { onLoadedArg?.() })
+    expect(gateArg?.()).toBe(true)
+  })
+
+  it('fires the deferred read-mark once history loads', () => {
+    let onLoadedArg: (() => void) | undefined
+    const markRead = vi.fn()
+    vi.mocked(useChannel).mockImplementation((() => baseChannelMock({ markRead })) as any)
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+      onLoadedArg = onLoaded
+      return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
+    }) as any)
+
+    renderView()
+
+    // No history: no read-mark. (The gate is still closed, so even a direct
+    // markRead exposure would stay inert — the deferred trigger below is the
+    // only path that fires once the gate opens.)
+    expect(markRead).not.toHaveBeenCalled()
+
+    act(() => { onLoadedArg?.() })
+    expect(markRead).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips the deferred read-mark when history loads in a hidden tab', () => {
+    // #404 visibility path: history fetched while the tab is hidden must not
+    // be marked read; the visible-tab re-entry lives in useChannel's
+    // visibilitychange handler (covered in useChannel.test.tsx).
+    let onLoadedArg: (() => void) | undefined
+    const markRead = vi.fn()
+    vi.mocked(useChannel).mockImplementation((() => baseChannelMock({ markRead })) as any)
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+      onLoadedArg = onLoaded
+      return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
+    }) as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    renderView()
+
+    act(() => { onLoadedArg?.() })
+    expect(markRead).not.toHaveBeenCalled()
+  })
+
+  it('retries messages from the error banner button', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useChannel).mockReturnValue(baseChannelMock() as any)
+    vi.mocked(useMessages).mockReturnValue(baseMessagesMock({
+      messages: [],
+      error: new Error('Failed to fetch messages'),
+      refresh
+    }) as any)
+
+    renderView()
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load messages. Try again.')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading messages' }))
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows Retrying and disables the banner button while a retry runs', () => {
+    vi.mocked(useChannel).mockReturnValue(baseChannelMock() as any)
+    vi.mocked(useMessages).mockReturnValue(baseMessagesMock({
+      messages: [],
+      error: new Error('Failed to fetch messages'),
+      retrying: true
+    }) as any)
+
+    renderView()
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Retrying')
+    const retryButton = screen.getByRole('button', { name: 'Retry loading messages' })
+    expect(retryButton).toBeDisabled()
   })
 })

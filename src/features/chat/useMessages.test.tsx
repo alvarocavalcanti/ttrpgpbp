@@ -103,6 +103,138 @@ describe('useMessages', () => {
     expect(callbacks['message_reactions']).toBeDefined()
   })
 
+  it('calls onLoaded after the first successful fetch', async () => {
+    // #412: the read-mark gate keys on a successful messages fetch.
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage()], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockChannels()
+
+    const onLoaded = vi.fn()
+    const { result } = renderHook(() => useMessages('c1', onLoaded))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(onLoaded).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onLoaded when the fetch fails', async () => {
+    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('Messages DB Error') })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockChannels()
+
+    const onLoaded = vi.fn()
+    const { result } = renderHook(() => useMessages('c1', onLoaded))
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(onLoaded).not.toHaveBeenCalled()
+  })
+
+  it('refresh re-runs the fetch after a failure and clears the error on success', async () => {
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Flaky network') })
+      .mockResolvedValueOnce({ data: [baseMessage({ id: 'm2', sender: [{ display_name: 'Hero' }] })], error: null })
+      // The edit-reconcile pass that follows the catch-up: nothing newer.
+      .mockResolvedValue({ data: [], error: null })
+    // Self-chaining order shared by the initial fetch (two .order calls) and
+    // the reconcile pass (.or + two .order calls).
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, or: mockOrder }) }) })
+    mockChannels()
+
+    const onLoaded = vi.fn()
+    const { result } = renderHook(() => useMessages('c1', onLoaded))
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(result.current.messages).toHaveLength(0)
+
+    await act(async () => {
+      await result.current.refresh()
+    })
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.messages).toHaveLength(1)
+    expect(onLoaded).toHaveBeenCalledTimes(1)
+  })
+
+  it('refresh clears the error when messages are already held (catch-up pass)', async () => {
+    // #404: with held messages the refresh path runs the cursor catch-up and
+    // never reaches fetchMessages — a successful pass must still clear the
+    // error banner set by a failed mid-session load.
+    const initial = [baseMessage({ id: 'm1', created_at: '2023-01-01T00:00:00.000Z' })]
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
+    const insertLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Flaky catch-up') })
+      .mockResolvedValue({ data: [], error: null })
+    const mockGt = vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: insertLimit }) })
+    const updateLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const updateOrder = vi.fn()
+    updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
+    const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(1)
+    })
+
+    // Reconnect catch-up fails: the banner error sets while messages stay up.
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+
+    // Retry now runs a successful catch-up pass (nothing new): error clears.
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(result.current.error).toBeNull()
+    expect(result.current.messages).toHaveLength(1)
+  })
+
+  it('flags retrying while a refresh is in flight', async () => {
+    let resolveRetry!: (v: { data: any[]; error: null }) => void
+    const retryFetch = new Promise<{ data: any[]; error: null }>(resolve => { resolveRetry = resolve })
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Flaky network') })
+      .mockImplementationOnce(() => retryFetch)
+      .mockResolvedValue({ data: [], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, or: mockOrder }) }) })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(result.current.retrying).toBe(false)
+
+    let refreshPromise: Promise<void> = Promise.resolve()
+    act(() => {
+      refreshPromise = result.current.refresh()
+    })
+    await waitFor(() => {
+      expect(result.current.retrying).toBe(true)
+    })
+
+    await act(async () => {
+      resolveRetry({ data: [baseMessage({ id: 'm3' })], error: null })
+      await refreshPromise
+    })
+    expect(result.current.retrying).toBe(false)
+    expect(result.current.error).toBeNull()
+  })
+
   it('keeps send callbacks stable across incoming messages', async () => {
     // Regression test for the memoized MessageItem hot path: if `messages`
     // creeps back into the callback deps, every incoming event rebuilds
@@ -389,6 +521,78 @@ describe('useMessages', () => {
 
     expect(mockRpc).toHaveBeenCalledTimes(1)
     expect(result.current.messages.some(m => m.id === 'real-id')).toBe(true)
+  })
+
+  it('reuses the errored bubble client_request_id when the composer resubmits the same payload', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendMessage({ content: 'hi', type: 'regular' })).rejects.toThrow('boom')
+    })
+    const errored = result.current.messages.find(m => m.pending)!
+    expect(errored.error).toBe('boom')
+    const firstRequestId = errored.client_request_id
+
+    // Composer resubmit after the error re-enters sendMessage with the same
+    // payload (not the bubble's retryMessage path) — it must replay the
+    // errored bubble's client_request_id (#404) instead of minting a fresh
+    // one, so a late-landing first attempt cannot double-post.
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc.mock.calls[1][1]).toEqual(expect.objectContaining({
+      p_channel_id: 'c1',
+      p_client_request_id: firstRequestId,
+    }))
+    const reconciled = result.current.messages.find(m => m.id === 'real-id')!
+    expect(reconciled.pending).toBe(false)
+    expect(reconciled.error).toBeNull()
+    // One bubble for the request: the reused bubble was replaced, not twinned.
+    expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
+  })
+
+  it('mints a fresh client_request_id when the resubmit payload differs', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValue({ data: [{ message_id: 'real-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendMessage({ content: 'hi', type: 'regular' })).rejects.toThrow('boom')
+    })
+    const errored = result.current.messages.find(m => m.pending)!
+    const firstRequestId = errored.client_request_id
+
+    // Different content is a different request, not a resubmit.
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi again', type: 'regular' })
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc.mock.calls[1][1]).toEqual(expect.objectContaining({
+      p_client_request_id: expect.not.stringMatching(new RegExp(`^${firstRequestId}$`)),
+    }))
+    // The edited resubmit is a second bubble; the errored one stays errored.
+    expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
   })
 
   it('reconciles a failed send after a successful retry', async () => {    const mockRpc = vi.fn()

@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Turn control lives in one place** — the message composer no longer shows an Active Player menu. It could silently overwrite an ensemble turn (several players acting at once) down to a single player; the channel sidebar's **Active Player** item, which already supports naming several players, is now the only way to set who's up.
+
+- **X-Card flags reach the GM even after they step away** — a scene flagged while the GM was offline now shows the alert banner when they next open the channel (flags from the last 7 days stay pending), and dismissing the alert stays dismissed after a reload instead of resetting.
+
 - **Whispers stay private in the lobby** — private messages no longer show up as a channel's preview text in the lobby. The preview now only ever shows what every player at the table can already read.
 
 - **Roll messages show their maths** — a roll like `Rolled 1d20+3` now reads `Rolled 1d20+3: 10 + 3 = **13**` instead of just `13`, so you can see how the total was reached. Multi-die rolls break down too (`Rolled 2d6: 3 + 5 = **8**`), and the dice-roller panel closes after you roll so the result message is immediately visible.

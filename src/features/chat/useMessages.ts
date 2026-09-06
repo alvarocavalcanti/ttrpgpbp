@@ -84,7 +84,10 @@ function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, 
   return { ...map, [row.message_id]: list.map((e, i) => (i === idx ? nextEntry : e)) }
 }
 
-export function useMessages(channelId: string | undefined) {
+// onLoaded (optional, #412): fires after the first successful messages fetch
+// for the channel. ChannelView uses it to open the read-mark gate in
+// useChannel, so history must load before anything is marked read.
+export function useMessages(channelId: string | undefined, onLoaded?: () => void) {
   const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [reactions, setReactions] = useState<Record<string, ReactionSummary[]>>({})
@@ -92,6 +95,8 @@ export function useMessages(channelId: string | undefined) {
   const [error, setError] = useState<Error | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  // True while a manual refresh (Retry button) is in flight (#412).
+  const [retrying, setRetrying] = useState(false)
 
   // Live view of messages so async catch-up can compute the newest held row
   // without stale-closure reads inside the subscribe effect (same pattern as
@@ -99,10 +104,20 @@ export function useMessages(channelId: string | undefined) {
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
+  // Latest onLoaded without reopening the channel effect for callback identity
+  // changes (same ref pattern as messagesRef above).
+  const onLoadedRef = useRef(onLoaded)
+  onLoadedRef.current = onLoaded
+
   // High-water mark of server `updated_at` among rows we've fetched. Catch-up
   // uses it to re-pull rows edited (or soft-deleted) while we were offline, so
   // reconnect reconciles UPDATEs and not just INSERTs (#336).
   const updatedCursorRef = useRef<string | null>(null)
+
+  // The reconnect/visibility catch-up, ref-assigned inside the channel effect
+  // below. The Retry button reuses this exact path instead of duplicating it
+  // (#412).
+  const catchUpRef = useRef<() => Promise<void>>(async () => {})
 
   useEffect(() => {
     let mounted = true
@@ -150,6 +165,10 @@ export function useMessages(channelId: string | undefined) {
           }, updatedCursorRef.current)
           if (maxUpdated) updatedCursorRef.current = maxUpdated
           setHasMore((data || []).length === PAGE_SIZE)
+          // Success clears a stale error banner and opens the read-mark gate
+          // (via onLoaded, #412) — history is now on screen.
+          setError(null)
+          onLoadedRef.current?.()
         }
       } catch (err) {
         console.error('Error fetching messages:', err)
@@ -208,6 +227,10 @@ export function useMessages(channelId: string | undefined) {
           if (mounted) setError(error)
           return
         }
+        // A successful pass (even with nothing new) clears a stale error:
+        // with held messages refresh() never reaches fetchMessages, whose
+        // success is the only other place the banner clears (#404).
+        if (mounted) setError(null)
         const batch = (data || []).map(formatMessage).filter((m): m is Message => m !== null)
         if (batch.length === 0) return
         setMessages(prev => {
@@ -373,17 +396,21 @@ export function useMessages(channelId: string | undefined) {
             // Snapshot the cursor before catchUp runs: its INSERT batches
             // advance the high-water mark, and reconcileUpdates must start
             // from the pre-catch-up mark to still see earlier offline edits.
-            const preCatchUpCursor = updatedCursorRef.current
-            void Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
+            void catchUpRef.current()
           }
         }
       })
 
+    // One catch-up implementation shared by reconnect, visibility return and
+    // the Retry button: cursor catch-up + edit reconcile + reactions refetch
+    // (#412).
+    catchUpRef.current = async () => {
+      const preCatchUpCursor = updatedCursorRef.current
+      await Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
+    }
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const preCatchUpCursor = updatedCursorRef.current
-        void Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
-      }
+      if (document.visibilityState === 'visible') void catchUpRef.current()
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
@@ -453,8 +480,8 @@ export function useMessages(channelId: string | undefined) {
     // Read pending state through messagesRef (not the `messages` closure) so
     // the callback identity stays stable across message events — an unstable
     // identity would defeat React.memo on every MessageItem (#408).
-    const duplicate = messagesRef.current.find(m => {
-      if (!m.pending || m.error) return false
+    const sameMessagePayload = (m: Message) => {
+      if (!m.pending) return false
       const p = m.pending_payload
       return p?.kind === 'message' &&
         p.content === payload.content &&
@@ -464,10 +491,16 @@ export function useMessages(channelId: string | undefined) {
         (p.npc_name ?? null) === (payload.npc_name ?? null) &&
         (p.npc_avatar_url ?? null) === (payload.npc_avatar_url ?? null) &&
         JSON.stringify(p.active_player_ids ?? null) === JSON.stringify(payload.active_player_ids ?? null)
-    })
+    }
+    const duplicate = messagesRef.current.find(m => sameMessagePayload(m) && !m.error)
     if (duplicate) return
 
-    const clientRequestId = crypto.randomUUID()
+    // A resubmit after an errored send is the same request: reuse the errored
+    // bubble's client_request_id instead of minting a fresh one, so a
+    // late-landing first attempt replays to the same row instead of
+    // double-posting (#404). Same full-identity bar as the pending guard.
+    const errored = messagesRef.current.find(m => sameMessagePayload(m) && Boolean(m.error))
+    const clientRequestId = errored?.client_request_id ?? crypto.randomUUID()
 
     const optimisticMsg: Message = {
       id: clientRequestId, // temporary ID
@@ -494,7 +527,12 @@ export function useMessages(channelId: string | undefined) {
       search_vector: null,
     }
 
-    setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
+    setMessages(prev => {
+      // When reusing the errored bubble's key, it already holds this
+      // request's slot — replace it in place instead of appending a twin.
+      const base = errored ? prev.filter(m => m.client_request_id !== clientRequestId) : prev
+      return [...base, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+    })
 
     const { data, error } = await supabase.rpc('send_message', {
       p_channel_id: channelId,
@@ -670,5 +708,19 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, applyRpcResult])
 
-  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
+  // Retry entry point for the "Could not load messages" error state (#412):
+  // runs the same catch-up a visibility change triggers. Success clears the
+  // error inside fetchMessages; failure leaves it set.
+  // ponytail: no in-flight guard — concurrent catch-ups dedupe by id and are
+  // bounded by the same guard loops; a double click just fetches twice.
+  const refresh = useCallback(async () => {
+    setRetrying(true)
+    try {
+      await catchUpRef.current()
+    } finally {
+      setRetrying(false)
+    }
+  }, [])
+
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
 }

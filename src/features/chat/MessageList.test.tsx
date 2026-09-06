@@ -36,6 +36,24 @@ describe('MessageList', () => {
     expect(screen.queryByText('No messages yet. Say hello!')).not.toBeInTheDocument()
   })
 
+  it('renders a Retry button with the error state and re-triggers loading', () => {
+    // #412: the failed-load state must be actionable instead of telling the
+    // player to refresh the page.
+    const onRetryLoad = vi.fn()
+    render(
+      <MessageList
+        messages={[]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        error={new Error('Failed to fetch messages')}
+        onRetryLoad={onRetryLoad}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onRetryLoad).toHaveBeenCalledTimes(1)
+  })
+
   it('renders a load-older button when hasMore is set and calls the handler', () => {
     const onLoadOlder = vi.fn()
     const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]

@@ -55,7 +55,7 @@
 - **Active player(s)** — structured field, one or more players, drives notifications
 - Editable by GM at any time
 - When collapsed, first line remains visible
-- GM can set active player(s) directly from the channel menu (no message needed) or while composing a message (updates status + notifies)
+- GM can set active player(s) directly from the channel menu (no message needed); the sidebar's multi-select Active Player modal is the only place to set them
 
 ## Messages
 
@@ -79,7 +79,7 @@
 - **Reliable sending** — messages and rolls are sent with a client-generated idempotency key. If the connection drops during sending, the message is kept in a "Pending/Failed" state. Users can click **Retry** to safely resend it without duplicating the message, or **Remove** to discard the pending bubble (the draft text remains safe in the composer)
 - **Emoji reactions** — react to a message from the **Reactions** action; counts update live and toggle per user
 - **Unread badges** — Lobby shows a "N new" badge per channel counting messages since the member's `last_read_at`; excludes the user's own and deleted messages
-- **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read
+- **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read. The read mark only advances after your message history has actually loaded, so a failed load never hides the divider for messages you haven't seen; if loading fails, the banner and empty state offer a **Retry** button
 
 ## NPCs (GM-only)
 
@@ -153,7 +153,7 @@
 
 - **Lines & Veils** — GM-editable persistent text fields (up to 2,000 characters each; collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
 - **Safety Tools URL** — optional external link (up to 500 characters; e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
-- **X-Card** — a red card-with-X button in the message composer flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast.
+- **X-Card** — a red card-with-X button in the message composer flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast. Flags raised while the GM is away still show when they open the channel (unresolved flags from the last 7 days), and dismissing the banner persists, so it survives reloads.
 
 ## Help
 

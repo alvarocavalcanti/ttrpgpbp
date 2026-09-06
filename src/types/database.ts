@@ -940,18 +940,21 @@ export type Database = {
           created_at: string
           id: string
           message_id: string | null
+          resolved_at: string | null
         }
         Insert: {
           channel_id: string
           created_at?: string
           id?: string
           message_id?: string | null
+          resolved_at?: string | null
         }
         Update: {
           channel_id?: string
           created_at?: string
           id?: string
           message_id?: string | null
+          resolved_at?: string | null
         }
         Relationships: [
           {

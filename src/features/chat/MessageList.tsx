@@ -32,6 +32,7 @@ interface MessageListProps {
   lastReadAt?: string | null
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
+  onRetryLoad?: () => void
   onEditCharacter?: () => void
   error?: Error | null
   hasMore?: boolean
@@ -39,7 +40,7 @@ interface MessageListProps {
   onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onRetry, onRemovePending, onEditCharacter, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onRetry, onRemovePending, onRetryLoad, onEditCharacter, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -196,9 +197,20 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center gap-2">
         {error ? (
-          <p className="text-red-500 dark:text-red-400 text-sm">Could not load messages.</p>
+          <>
+            <p className="text-red-500 dark:text-red-400 text-sm">Could not load messages.</p>
+            {onRetryLoad && (
+              <button
+                type="button"
+                onClick={onRetryLoad}
+                className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200"
+              >
+                Retry
+              </button>
+            )}
+          </>
         ) : (
           <p className="text-gray-400 dark:text-gray-500 text-sm">No messages yet. Say hello!</p>
         )}

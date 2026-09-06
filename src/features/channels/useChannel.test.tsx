@@ -724,6 +724,198 @@ describe('useChannel', () => {
     expect(result.current.members.some(m => m.id === 'm1')).toBe(false)
   })
 
+  it('does not mark read when the messages-loaded gate is closed', async () => {
+    // #412: mount-time markRead must wait until message history actually
+    // loaded; a closed gate (failed messages fetch) must not write last_read_at.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1', undefined, () => false))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('marks read through the exposed markRead once the messages-loaded gate opens', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    let gateOpen = false
+    const { result } = renderHook(() => useChannel('c1', undefined, () => gateOpen))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(mockUpdate).not.toHaveBeenCalled()
+
+    // History loaded: the gate opens and the deferred read-mark fires.
+    act(() => { gateOpen = true })
+    await act(async () => {
+      result.current.markRead()
+    })
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+  })
+
+  it('marks read when the tab becomes visible after history loaded hidden', async () => {
+    // #404 visibility path: ChannelView defers the read-mark while the tab is
+    // hidden; useChannel's visibilitychange handler must fire the gated
+    // markRead once the tab is visible again.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    let gateOpen = false
+    const { result } = renderHook(() => useChannel('c1', undefined, () => gateOpen))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    // Hidden mount: no read-mark write even with membership resolved.
+    expect(mockUpdate).not.toHaveBeenCalled()
+
+    // History loads while still hidden: the gate opens (ChannelView's
+    // deferred effect skips until visible — covered in ChannelView.test.tsx).
+    await act(async () => { gateOpen = true })
+
+    // Tab becomes visible: the visibilitychange re-fetch fires markRead.
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+  })
+
+  it('gates the live INSERT advance on the messages-loaded gate', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    let gateOpen = false
+    renderHook(() => useChannel('c1', undefined, () => gateOpen))
+
+    await waitFor(() => {
+      expect(mockSingle).toHaveBeenCalled()
+    })
+
+    // History never loaded: an arriving message must not advance the read mark.
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mockUpdate).not.toHaveBeenCalled()
+
+    // History loads; the same live path now advances the read mark.
+    act(() => { gateOpen = true })
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x2', channel_id: 'c1' } })
+    })
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('removes a member on realtime DELETE', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
 
@@ -771,5 +963,86 @@ describe('useChannel', () => {
       expect(result.current.members).toHaveLength(1)
       expect(result.current.members[0].user_id).toBe('u1')
     })
+  })
+
+  it('does not write a queued read-mark to the member of a channel switched to', async () => {
+    // A write queued for channel A must keep targeting A's member row even
+    // if the user switches to channel B before the queued write runs —
+    // executing it with B's member id would mark B read while its history
+    // gate is still closed.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const c1 = { id: 'c1', gm_id: 'u1' }
+    const c1members = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+    const c2 = { id: 'c2', gm_id: 'u1' }
+    const c2members = [{ id: 'm2', user_id: 'u1', last_read_at: '2023-01-01T09:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn()
+      .mockResolvedValueOnce({ data: c1, error: null })
+      .mockResolvedValueOnce({ data: c2, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn()
+      .mockResolvedValueOnce({ data: c1members, error: null })
+      .mockResolvedValueOnce({ data: c2members, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    // The c1 mount write hangs, so the queued write survives the switch.
+    let resolveFirst!: (v: { error: null }) => void
+    const firstWrite = new Promise<{ error: null }>(resolve => { resolveFirst = resolve })
+    const mockEqUpdate = vi.fn()
+      .mockImplementationOnce(() => firstWrite)
+      .mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { rerender } = renderHook(({ id }) => useChannel(id), { initialProps: { id: 'c1' } })
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+
+    // A message arrives in c1; its read-mark write queues behind the hung one.
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+      await Promise.resolve()
+    })
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+
+    // Switch to c2 before the queued c1 write runs.
+    rerender({ id: 'c2' })
+
+    await waitFor(() => {
+      expect(mockSingle).toHaveBeenCalledTimes(2)
+    })
+
+    await act(async () => {
+      resolveFirst({ error: null })
+      await Promise.resolve()
+    })
+
+    // The queued c1 write was dropped instead of retargeting m2; only the
+    // original m1 write and c2's own mount write ran.
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(2)
+    })
+    const eqIds = mockEqUpdate.mock.calls.map(c => (c[1] as string))
+    expect(eqIds).toEqual(['m1', 'm2'])
   })
 })

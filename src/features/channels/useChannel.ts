@@ -11,7 +11,11 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
 }
 
-export function useChannel(channelId: string | undefined, onRead?: () => void) {
+// canMarkRead (optional, #412): call-time gate that must return true only
+// once message history has loaded for this channel. The read mark (mount-time
+// and live-advance) is suppressed until then, so a failed messages fetch can
+// never destroy the "New messages" boundary for posts the player never saw.
+export function useChannel(channelId: string | undefined, onRead?: () => void, canMarkRead?: () => boolean) {
   const { user } = useAuth()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
@@ -36,18 +40,30 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   const readWriteChainRef = useRef<Promise<unknown>>(Promise.resolve())
 
   const markRead = useCallback(() => {
-    if (!myMemberIdRef.current) return
+    // Capture the member id at scheduling time: the write runs later, after
+    // other queued writes, and must never adopt the member id of a channel
+    // the user switched to in the meantime.
+    const memberId = myMemberIdRef.current
+    if (!memberId) return
+    // #412: history-first read-mark. Every path (mount-time, live INSERT,
+    // visibility reconnect) routes through here, so one gate covers all.
+    if (canMarkRead && !canMarkRead()) return
     readWriteChainRef.current = readWriteChainRef.current
       .then(async () => {
+        // Re-validate at execution time: the channel may have switched while
+        // this write sat queued (its member id changed), and the history gate
+        // may have closed in between (#412).
+        if (myMemberIdRef.current !== memberId) return
+        if (canMarkRead && !canMarkRead()) return
         const { error } = await supabase
           .from('channel_members')
           .update({ last_read_at: new Date().toISOString() })
-          .eq('id', myMemberIdRef.current as string)
+          .eq('id', memberId)
         if (error) console.error('Failed to update last_read_at', error)
         else onRead?.()
       })
       .catch(() => {})
-  }, [onRead])
+  }, [onRead, canMarkRead])
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
@@ -208,5 +224,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
 
-  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, refetch }
+  // markRead is exposed so the owner (ChannelView) can fire the deferred
+  // history-first read-mark once the messages-loaded gate opens (#412).
+  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, markRead, refetch }
 }

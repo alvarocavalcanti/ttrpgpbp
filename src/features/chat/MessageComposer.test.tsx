@@ -115,6 +115,40 @@ describe('MessageComposer', () => {
     })
   })
 
+  it('does not persist the old channel draft under the new channel key when switching', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+    localStorage.setItem('composer_draft_c2', 'precious c2 draft')
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'typed in c1' } })
+    expect(localStorage.getItem('composer_draft_c1')).toBe('typed in c1')
+
+    rerender(<MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+
+    // #404: the transitional save pass (old channel's text + new channel's
+    // key) must never happen — a switch that unmounts before the restore
+    // render lands would keep the clobbered draft.
+    expect(setItemSpy).not.toHaveBeenCalledWith('composer_draft_c2', 'typed in c1')
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('precious c2 draft')
+    expect(localStorage.getItem('composer_draft_c2')).toBe('precious c2 draft')
+    setItemSpy.mockRestore()
+  })
+
+  it('restores the destination draft and keeps the old channel draft on a switch', () => {
+    localStorage.setItem('composer_draft_c2', 'c2 saved')
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'c1 text' } })
+
+    rerender(<MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('c2 saved')
+    expect(localStorage.getItem('composer_draft_c1')).toBe('c1 text')
+    expect(localStorage.getItem('composer_draft_c2')).toBe('c2 saved')
+  })
+
   it('submits regular message', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
@@ -707,7 +741,7 @@ describe('MessageComposer', () => {
     expect(screen.getByText('X Card')).toBeInTheDocument()
   })
 
-  it('opens whisper and active player as dialog popups on mobile', () => {
+  it('opens whisper as a dialog popup on mobile', () => {
     setMobileViewport()
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
@@ -715,9 +749,9 @@ describe('MessageComposer', () => {
     expect(screen.getByRole('dialog', { name: 'Whisper' })).toBeInTheDocument()
     expect(screen.getByRole('menuitemradio', { name: /Hero/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
-    expect(screen.getByRole('dialog', { name: 'Active Player' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitemradio', { name: /Hero/ })).toBeInTheDocument()
+    // #404: the composer's Active Player menu is gone — the sidebar modal is
+    // the single authority for active players (multi-select).
+    expect(screen.queryByRole('dialog', { name: 'Active Player' })).not.toBeInTheDocument()
   })
 
   it('selects a whisper target via the menu on mobile', async () => {
@@ -741,23 +775,13 @@ describe('MessageComposer', () => {
     })
   })
 
-  it('sets the active player via its menu', async () => {
-    const mockOnSend = vi.fn().mockResolvedValue(undefined)
-    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
-
+  it('does not render an Active Player menu in the composer', () => {
+    // #404: the single-select menu silently overwrote ensemble turns; the
+    // sidebar's Active Player modal (multi-select) is the only control.
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
-    fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Go!' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-
-    await waitFor(() => {
-      expect(mockOnSend).toHaveBeenCalledWith(expect.objectContaining({
-        content: 'Go!',
-        type: 'regular',
-        active_player_ids: ['u1']
-      }))
-    })
+    expect(screen.queryByRole('button', { name: /Active Player/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitemradio', { name: /Hero/ })).not.toBeInTheDocument()
   })
 
   it('closes the bottom sheet on Escape', () => {
@@ -792,16 +816,15 @@ describe('MessageComposer', () => {
     expect(screen.getByLabelText('Scene Description')).toBeInTheDocument()
   })
 
-  it('shows whisper and active player indicator chips with member names', () => {
+  it('shows a whisper indicator chip with the member name', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Active Player/ }))
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
     fireEvent.click(screen.getByLabelText('Toggle options'))
     expect(screen.getByLabelText('Edit Whisper: Hero')).toBeInTheDocument()
-    expect(screen.getByLabelText('Edit Active: Hero')).toBeInTheDocument()
+    // #404: no Active Player chip — the sidebar modal owns that state.
+    expect(screen.queryByLabelText('Edit Active: Hero')).not.toBeInTheDocument()
   })
 })
 
