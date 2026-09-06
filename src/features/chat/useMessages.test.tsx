@@ -103,6 +103,98 @@ describe('useMessages', () => {
     expect(callbacks['message_reactions']).toBeDefined()
   })
 
+  it('calls onLoaded after the first successful fetch', async () => {
+    // #412: the read-mark gate keys on a successful messages fetch.
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage()], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockChannels()
+
+    const onLoaded = vi.fn()
+    const { result } = renderHook(() => useMessages('c1', onLoaded))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    expect(onLoaded).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onLoaded when the fetch fails', async () => {
+    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('Messages DB Error') })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockChannels()
+
+    const onLoaded = vi.fn()
+    const { result } = renderHook(() => useMessages('c1', onLoaded))
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(onLoaded).not.toHaveBeenCalled()
+  })
+
+  it('refresh re-runs the fetch after a failure and clears the error on success', async () => {
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Flaky network') })
+      .mockResolvedValueOnce({ data: [baseMessage({ id: 'm2', sender: [{ display_name: 'Hero' }] })], error: null })
+      // The edit-reconcile pass that follows the catch-up: nothing newer.
+      .mockResolvedValue({ data: [], error: null })
+    // Self-chaining order shared by the initial fetch (two .order calls) and
+    // the reconcile pass (.or + two .order calls).
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, or: mockOrder }) }) })
+    mockChannels()
+
+    const onLoaded = vi.fn()
+    const { result } = renderHook(() => useMessages('c1', onLoaded))
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(result.current.messages).toHaveLength(0)
+
+    await act(async () => {
+      await result.current.refresh()
+    })
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.messages).toHaveLength(1)
+    expect(onLoaded).toHaveBeenCalledTimes(1)
+  })
+
+  it('flags retrying while a refresh is in flight', async () => {
+    let resolveRetry!: (v: { data: any[]; error: null }) => void
+    const retryFetch = new Promise<{ data: any[]; error: null }>(resolve => { resolveRetry = resolve })
+    const mockLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Flaky network') })
+      .mockImplementationOnce(() => retryFetch)
+      .mockResolvedValue({ data: [], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, or: mockOrder }) }) })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(result.current.retrying).toBe(false)
+
+    let refreshPromise: Promise<void> = Promise.resolve()
+    act(() => {
+      refreshPromise = result.current.refresh()
+    })
+    await waitFor(() => {
+      expect(result.current.retrying).toBe(true)
+    })
+
+    await act(async () => {
+      resolveRetry({ data: [baseMessage({ id: 'm3' })], error: null })
+      await refreshPromise
+    })
+    expect(result.current.retrying).toBe(false)
+    expect(result.current.error).toBeNull()
+  })
+
   it('keeps send callbacks stable across incoming messages', async () => {
     // Regression test for the memoized MessageItem hot path: if `messages`
     // creeps back into the callback deps, every incoming event rebuilds

@@ -48,3 +48,5 @@ The GM can send a **whisper** visible only to themselves and one specific player
 ## Connection status
 
 If your connection drops, a banner lets you know while keeping loaded chat available. RoleByPost catches up on new messages and channel changes when your connection returns or when you bring the app back to the foreground.
+
+If your message history fails to load when you open a channel, you'll see a clear error with a **Retry** button instead of being told to refresh the page. Your unread marker ("New messages" divider) is also safe: it only moves after your history has actually loaded, so a failed load never makes messages look read that you never saw.

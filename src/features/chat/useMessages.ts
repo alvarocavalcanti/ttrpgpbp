@@ -84,7 +84,10 @@ function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, 
   return { ...map, [row.message_id]: list.map((e, i) => (i === idx ? nextEntry : e)) }
 }
 
-export function useMessages(channelId: string | undefined) {
+// onLoaded (optional, #412): fires after the first successful messages fetch
+// for the channel. ChannelView uses it to open the read-mark gate in
+// useChannel, so history must load before anything is marked read.
+export function useMessages(channelId: string | undefined, onLoaded?: () => void) {
   const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [reactions, setReactions] = useState<Record<string, ReactionSummary[]>>({})
@@ -92,6 +95,8 @@ export function useMessages(channelId: string | undefined) {
   const [error, setError] = useState<Error | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  // True while a manual refresh (Retry button) is in flight (#412).
+  const [retrying, setRetrying] = useState(false)
 
   // Live view of messages so async catch-up can compute the newest held row
   // without stale-closure reads inside the subscribe effect (same pattern as
@@ -99,10 +104,20 @@ export function useMessages(channelId: string | undefined) {
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
+  // Latest onLoaded without reopening the channel effect for callback identity
+  // changes (same ref pattern as messagesRef above).
+  const onLoadedRef = useRef(onLoaded)
+  onLoadedRef.current = onLoaded
+
   // High-water mark of server `updated_at` among rows we've fetched. Catch-up
   // uses it to re-pull rows edited (or soft-deleted) while we were offline, so
   // reconnect reconciles UPDATEs and not just INSERTs (#336).
   const updatedCursorRef = useRef<string | null>(null)
+
+  // The reconnect/visibility catch-up, ref-assigned inside the channel effect
+  // below. The Retry button reuses this exact path instead of duplicating it
+  // (#412).
+  const catchUpRef = useRef<() => Promise<void>>(async () => {})
 
   useEffect(() => {
     let mounted = true
@@ -150,6 +165,10 @@ export function useMessages(channelId: string | undefined) {
           }, updatedCursorRef.current)
           if (maxUpdated) updatedCursorRef.current = maxUpdated
           setHasMore((data || []).length === PAGE_SIZE)
+          // Success clears a stale error banner and opens the read-mark gate
+          // (via onLoaded, #412) — history is now on screen.
+          setError(null)
+          onLoadedRef.current?.()
         }
       } catch (err) {
         console.error('Error fetching messages:', err)
@@ -373,17 +392,21 @@ export function useMessages(channelId: string | undefined) {
             // Snapshot the cursor before catchUp runs: its INSERT batches
             // advance the high-water mark, and reconcileUpdates must start
             // from the pre-catch-up mark to still see earlier offline edits.
-            const preCatchUpCursor = updatedCursorRef.current
-            void Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
+            void catchUpRef.current()
           }
         }
       })
 
+    // One catch-up implementation shared by reconnect, visibility return and
+    // the Retry button: cursor catch-up + edit reconcile + reactions refetch
+    // (#412).
+    catchUpRef.current = async () => {
+      const preCatchUpCursor = updatedCursorRef.current
+      await Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
+    }
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const preCatchUpCursor = updatedCursorRef.current
-        void Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
-      }
+      if (document.visibilityState === 'visible') void catchUpRef.current()
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
@@ -670,5 +693,19 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, applyRpcResult])
 
-  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
+  // Retry entry point for the "Could not load messages" error state (#412):
+  // runs the same catch-up a visibility change triggers. Success clears the
+  // error inside fetchMessages; failure leaves it set.
+  // ponytail: no in-flight guard — concurrent catch-ups dedupe by id and are
+  // bounded by the same guard loops; a double click just fetches twice.
+  const refresh = useCallback(async () => {
+    setRetrying(true)
+    try {
+      await catchUpRef.current()
+    } finally {
+      setRetrying(false)
+    }
+  }, [])
+
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
 }

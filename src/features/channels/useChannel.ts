@@ -11,7 +11,11 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
 }
 
-export function useChannel(channelId: string | undefined, onRead?: () => void) {
+// canMarkRead (optional, #412): call-time gate that must return true only
+// once message history has loaded for this channel. The read mark (mount-time
+// and live-advance) is suppressed until then, so a failed messages fetch can
+// never destroy the "New messages" boundary for posts the player never saw.
+export function useChannel(channelId: string | undefined, onRead?: () => void, canMarkRead?: () => boolean) {
   const { user } = useAuth()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
@@ -37,6 +41,9 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
 
   const markRead = useCallback(() => {
     if (!myMemberIdRef.current) return
+    // #412: history-first read-mark. Every path (mount-time, live INSERT,
+    // visibility reconnect) routes through here, so one gate covers all.
+    if (canMarkRead && !canMarkRead()) return
     readWriteChainRef.current = readWriteChainRef.current
       .then(async () => {
         const { error } = await supabase
@@ -47,7 +54,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
         else onRead?.()
       })
       .catch(() => {})
-  }, [onRead])
+  }, [onRead, canMarkRead])
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
@@ -208,5 +215,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void) {
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
 
-  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, refetch }
+  // markRead is exposed so the owner (ChannelView) can fire the deferred
+  // history-first read-mark once the messages-loaded gate opens (#412).
+  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, markRead, refetch }
 }
