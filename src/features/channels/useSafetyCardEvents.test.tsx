@@ -17,6 +17,45 @@ function wrapper({ children }: { children: ReactNode }) {
   return <ToastProvider>{children}</ToastProvider>
 }
 
+// The GM mount now runs a catch-up SELECT and dismissal runs an UPDATE, both
+// against safety_card_events. Build separate thenable chains per operation so
+// each can resolve with its own result (the real builder is thenable too).
+function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown } = { count: 0, error: null }, updateResult: { error?: unknown } = { error: null }) {
+  const buildChain = (result: unknown) => {
+    const chain: Record<string, ReturnType<typeof vi.fn>> = {}
+    for (const op of ['select', 'update', 'eq', 'is', 'gt']) {
+      chain[op] = vi.fn(() => chain)
+    }
+    chain.then = vi.fn((onFulfilled: any, onRejected: any) =>
+      Promise.resolve(result).then(onFulfilled, onRejected)
+    ) as any
+    return chain
+  }
+  const fetchChain = buildChain(fetchResult) as any
+  const updateChain = buildChain(updateResult) as any
+  vi.mocked(supabase.from).mockReturnValue({
+    select: (...args: any[]) => {
+      fetchChain.select(...args)
+      return fetchChain
+    },
+    update: (...args: any[]) => {
+      updateChain.update(...args)
+      return updateChain
+    }
+  } as any)
+  return { fetchChain, updateChain }
+}
+
+function mockRealtimeChannel() {
+  let cardCallback: ((payload: unknown) => void) | undefined
+  const mockOn = vi.fn().mockImplementation((_event, _config, callback) => {
+    cardCallback = callback
+    return { on: mockOn, subscribe: vi.fn() }
+  })
+  vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+  return () => cardCallback
+}
+
 describe('useSafetyCardEvents', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -88,14 +127,122 @@ describe('useSafetyCardEvents', () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
-  it('activates the GM alert when an X-Card event arrives', async () => {
-    let cardCallback: ((payload: unknown) => void) | undefined
-    const mockOn = vi.fn().mockImplementation((_event, _config, callback) => {
-      cardCallback = callback
-      return { on: mockOn, subscribe: vi.fn() }
+  it('seeds the GM alert from unresolved events on mount', async () => {
+    const getCardCallback = mockRealtimeChannel()
+    const { fetchChain } = mockSupabaseQuery({ count: 2, error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+      expect(result.current.alertCount).toBe(2)
     })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
-    vi.mocked(supabase.from).mockReturnValue({} as any)
+
+    expect(fetchChain.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
+    expect(fetchChain.eq).toHaveBeenCalledWith('channel_id', 'c1')
+    expect(fetchChain.is).toHaveBeenCalledWith('resolved_at', null)
+    // Catch-up window: only events newer than ~7 days ago count.
+    const [column, since] = fetchChain.gt.mock.calls[0]
+    expect(column).toBe('created_at')
+    expect(Date.now() - new Date(since as string).getTime()).toBeGreaterThan(7 * 24 * 60 * 60 * 1000 - 60_000)
+    expect(Date.now() - new Date(since as string).getTime()).toBeLessThan(7 * 24 * 60 * 60 * 1000 + 60_000)
+
+    // A live flag on top of the catch-up keeps counting from the seeded total.
+    act(() => {
+      getCardCallback()?.({})
+    })
+
+    await waitFor(() => {
+      expect(result.current.alertCount).toBe(3)
+    })
+  })
+
+  it('does not activate the alert when there are no unresolved events', async () => {
+    mockRealtimeChannel()
+    mockSupabaseQuery({ count: 0, error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(fetchCountCalls()).toBe(1)
+    })
+
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
+  })
+
+  it('does not fetch catch-up events for non-GM clients', async () => {
+    mockRealtimeChannel()
+    const { fetchChain } = mockSupabaseQuery({ count: 5, error: null })
+
+    renderHook(() => useSafetyCardEvents('c1', false), { wrapper })
+
+    await waitFor(() => {
+      expect(supabase.channel).not.toHaveBeenCalled()
+    })
+
+    expect(fetchChain.select).not.toHaveBeenCalled()
+  })
+
+  it('shows an error toast when the catch-up fetch fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRealtimeChannel()
+    mockSupabaseQuery({ count: null, error: { message: 'RLS block' } })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Failed to load X-Card alerts.')
+    })
+
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
+  })
+
+  it('persists dismissal by resolving the unresolved events', async () => {
+    mockRealtimeChannel()
+    const { updateChain } = mockSupabaseQuery({ count: 0, error: null }, { error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalled()
+    })
+
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+
+    expect(updateChain.update).toHaveBeenCalledWith({ resolved_at: expect.any(String) })
+    expect(updateChain.eq).toHaveBeenCalledWith('channel_id', 'c1')
+    expect(updateChain.is).toHaveBeenCalledWith('resolved_at', null)
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
+  })
+
+  it('keeps the alert visible when the dismissal write fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRealtimeChannel()
+    mockSupabaseQuery({ count: 1, error: null }, { error: { message: 'RLS block' } })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+
+    expect(document.body.textContent).toContain('Failed to dismiss X-Card alert.')
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(0)
+  })
+
+  it('activates the GM alert when an X-Card event arrives', async () => {
+    const getCardCallback = mockRealtimeChannel()
+    mockSupabaseQuery({ count: 0, error: null })
 
     const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
 
@@ -104,7 +251,7 @@ describe('useSafetyCardEvents', () => {
     })
 
     act(() => {
-      cardCallback?.({})
+      getCardCallback()?.({})
     })
 
     await waitFor(() => {
@@ -112,17 +259,16 @@ describe('useSafetyCardEvents', () => {
       expect(result.current.alertCount).toBe(1)
     })
 
-    // Non-GM never sees the alert state change even if the payload arrives.
     act(() => {
-      cardCallback?.({})
+      getCardCallback()?.({})
     })
 
     await waitFor(() => {
       expect(result.current.alertCount).toBe(2)
     })
 
-    act(() => {
-      result.current.dismissAlert()
+    await act(async () => {
+      await result.current.dismissAlert()
     })
 
     await waitFor(() => {
@@ -131,25 +277,24 @@ describe('useSafetyCardEvents', () => {
   })
 
   it('ignores X-Card events for non-GM clients', async () => {
-    let cardCallback: ((payload: unknown) => void) | undefined
-    const mockOn = vi.fn().mockImplementation((_event, _config, callback) => {
-      cardCallback = callback
-      return { on: mockOn, subscribe: vi.fn() }
-    })
-    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
-    vi.mocked(supabase.from).mockReturnValue({} as any)
+    const getCardCallback = mockRealtimeChannel()
+    mockSupabaseQuery({ count: 0, error: null })
 
     const { result } = renderHook(() => useSafetyCardEvents('c1', false), { wrapper })
 
     await waitFor(() => {
-      expect(result.current.alertActive).toBe(false)
+      expect(supabase.channel).not.toHaveBeenCalled()
     })
 
     act(() => {
-      cardCallback?.({})
+      getCardCallback()?.({})
     })
 
     expect(result.current.alertActive).toBe(false)
     expect(result.current.alertCount).toBe(0)
   })
 })
+
+function fetchCountCalls(): number {
+  return vi.mocked(supabase.from).mock.calls.length
+}
