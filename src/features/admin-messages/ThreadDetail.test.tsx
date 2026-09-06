@@ -264,4 +264,31 @@ describe('ThreadDetail', () => {
       expect(deleteMessage).toHaveBeenCalledWith('msg-1')
     })
   })
+
+  const mockMatchMedia = (matches: boolean) => {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+  }
+
+  it('scrolls to the newest message instantly when prefers-reduced-motion is set (UX-6)', () => {
+    mockMatchMedia(true)
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto' })
+  })
+
+  it('smooth-scrolls to the newest message when motion is allowed (UX-6)', () => {
+    mockMatchMedia(false)
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
+  })
 })

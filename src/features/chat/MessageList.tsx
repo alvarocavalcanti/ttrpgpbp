@@ -78,7 +78,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   // app comes back to the foreground, so both behave the same.
   const scrollToUnread = useCallback(() => {
     if (newMessagesDividerRef.current) {
-      newMessagesDividerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      newMessagesDividerRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
       atBottomRef.current = false
       return
     }

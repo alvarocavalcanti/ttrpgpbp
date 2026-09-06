@@ -32,7 +32,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
       loadMoreHeightRef.current = null
       return
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }, [messages])
 
   const handleLoadMore = async () => {

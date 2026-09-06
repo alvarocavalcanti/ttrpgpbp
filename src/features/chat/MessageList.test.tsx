@@ -150,6 +150,47 @@ describe('MessageList', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 
+  const unreadMsgs: any[] = [
+    { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+    { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+  ]
+
+  const renderWithUnread = () =>
+    render(
+      <MessageList
+        messages={unreadMsgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T12:00:00Z"
+      />
+    )
+
+  const mockMatchMedia = (matches: boolean) => {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+  }
+
+  it('jumps to the unread divider without smooth scrolling when prefers-reduced-motion is set (UX-6)', () => {
+    mockMatchMedia(true)
+    renderWithUnread()
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('smooth-scrolls to the unread divider when motion is allowed (UX-6)', () => {
+    mockMatchMedia(false)
+    renderWithUnread()
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
   it('announces new messages to screen readers via a log live region', () => {
     const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
     render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)

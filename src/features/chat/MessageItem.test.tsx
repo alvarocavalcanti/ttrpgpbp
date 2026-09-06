@@ -965,3 +965,37 @@ it('styles NPC paragraphs with parchment ink so typography plugin cannot overrid
   expect(content.className).toContain('dark:prose-p:text-parchment-ink-dark')
   expect(content.className).toContain('font-serif')
 })
+
+it('scrolls highlighted messages into view instantly under prefers-reduced-motion (UX-6)', () => {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn()
+  window.matchMedia = ((query: string) => ({
+    matches: true,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as any
+  const msg: any = { id: 'h1', content: 'Look here', created_at: new Date().toISOString(), sender_id: 'u2' }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} isHighlighted onEdit={vi.fn()} onDelete={vi.fn()} />)
+  expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+})
+
+it('smooth-scrolls highlighted messages into view when motion is allowed (UX-6)', () => {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn()
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as any
+  const msg: any = { id: 'h1', content: 'Look here', created_at: new Date().toISOString(), sender_id: 'u2' }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} isHighlighted onEdit={vi.fn()} onDelete={vi.fn()} />)
+  expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+})

@@ -1227,6 +1227,24 @@ describe('ChannelView search functionality', () => {
       expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
     })
 
+    it('gates the drawer slide transition behind motion-reduce (UX-6)', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+
+      const sidebar = screen.getByTestId('sidebar-menu').parentElement as HTMLElement
+      expect(sidebar.className).toContain('motion-reduce:transition-none')
+    })
+
     it('hides the overlay from the a11y tree and traps focus in the sidebar (UX-4)', () => {
       render(
         <ToastProvider>

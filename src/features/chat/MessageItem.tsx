@@ -179,7 +179,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
 
   useEffect(() => {
     if (isHighlighted && itemRef.current) {
-      itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      itemRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
     }
   }, [isHighlighted])
 
