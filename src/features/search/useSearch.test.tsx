@@ -108,4 +108,42 @@ describe('useSearch', () => {
       expect(result.current.error).toBeTruthy()
     })
   })
+
+  it('retry re-runs the search after an error (UX-7)', async () => {
+    const mockAbortSignal = vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })
+    const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq = vi.fn()
+    mockEq.mockReturnValue({ eq: mockEq, textSearch: mockTextSearch })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { result } = renderHook(() => useSearch('channel-1'))
+
+    act(() => {
+      result.current.setSearchTerm('hello')
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+
+    vi.useRealTimers()
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+    expect(supabase.from).toHaveBeenCalledTimes(1)
+
+    // Retry re-runs the same fetch without waiting for another debounce.
+    act(() => {
+      result.current.retry()
+    })
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalledTimes(2)
+    })
+  })
 })

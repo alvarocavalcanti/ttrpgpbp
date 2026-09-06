@@ -43,7 +43,7 @@ function channelPreview(preview?: string | null): string {
 }
 
 export function Lobby() {
-  const { myChannels, loading, error } = useChannels()
+  const { myChannels, loading, error, refetch } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [inviteInput, setInviteInput] = useState('')
   const [inviteError, setInviteError] = useState<string | null>(null)
@@ -93,8 +93,9 @@ export function Lobby() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-64" role="alert">
-        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400">
-          Failed to load channels. Refresh the page to try again.
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 flex items-center gap-3">
+          <span>Couldn't load channels.</span>
+          <button type="button" onClick={refetch} className="font-semibold hover:underline">Retry</button>
         </div>
       </div>
     )

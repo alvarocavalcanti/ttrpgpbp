@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -34,6 +34,13 @@ export function useChannels() {
   // Tracks my channel ids so the lobby messages subscription below can ignore
   // INSERTs for channels I am not a member of.
   const myChannelIdsRef = useRef<Set<string>>(new Set())
+  // Bumped by refetch() to re-run the fetch effect (lobby error-state Retry).
+  const [refetchKey, setRefetchKey] = useState(0)
+  const refetch = useCallback(() => {
+    setError(null)
+    setLoading(true)
+    setRefetchKey(k => k + 1)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -141,7 +148,7 @@ export function useChannels() {
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user?.id, authLoading])
+  }, [user?.id, authLoading, refetchKey])
 
-  return { myChannels, loading, error }
+  return { myChannels, loading, error, refetch }
 }

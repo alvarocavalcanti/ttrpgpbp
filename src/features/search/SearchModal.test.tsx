@@ -18,7 +18,8 @@ describe('SearchModal', () => {
       setSearchTerm: vi.fn(),
       results: [],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
   })
 
@@ -54,24 +55,31 @@ describe('SearchModal', () => {
       setSearchTerm: vi.fn(),
       results: [],
       loading: true,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     const { container } = render(<SearchModal channelId="c1" onClose={mockOnClose} />)
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('renders error state', () => {
+  it('renders error state with an in-place Retry that re-runs the search', () => {
+    const retry = vi.fn()
     vi.mocked(useSearch).mockReturnValue({
       searchTerm: 'hello',
       setSearchTerm: vi.fn(),
       results: [],
       loading: false,
-      error: new Error('Failed')
+      error: new Error('Failed'),
+      retry
     })
-    
+
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)
     expect(screen.getByText(/An error occurred while searching/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retry).toHaveBeenCalledTimes(1)
   })
 
   it('renders no results state', () => {
@@ -80,7 +88,8 @@ describe('SearchModal', () => {
       setSearchTerm: vi.fn(),
       results: [],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)
@@ -100,7 +109,8 @@ describe('SearchModal', () => {
         } as any
       ],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     render(<SearchModal channelId="c1" onClose={mockOnClose} onJumpToMessage={mockOnJumpToMessage} />)
@@ -128,7 +138,8 @@ describe('SearchModal', () => {
         } as any
       ],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
 
     const { container } = render(<SearchModal channelId="c1" onClose={mockOnClose} />)
@@ -144,7 +155,8 @@ describe('SearchModal', () => {
       setSearchTerm: mockSetSearchTerm,
       results: [],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)

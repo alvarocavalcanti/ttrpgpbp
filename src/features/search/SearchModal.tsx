@@ -11,7 +11,7 @@ interface SearchModalProps {
 }
 
 export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModalProps) {
-  const { searchTerm, setSearchTerm, results, loading, error } = useSearch(channelId)
+  const { searchTerm, setSearchTerm, results, loading, error, retry } = useSearch(channelId)
   const dialogRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -80,6 +80,9 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
             ) : error ? (
               <div className="text-center text-red-600 dark:text-red-400 py-8">
                 An error occurred while searching. Please try again.
+                <div className="mt-3">
+                  <button type="button" onClick={retry} className="font-semibold hover:underline">Retry</button>
+                </div>
               </div>
             ) : searchTerm && results.length === 0 ? (
               <div className="text-center text-gray-500 dark:text-gray-400 py-8">

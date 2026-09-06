@@ -128,6 +128,27 @@ describe('useChannels', () => {
     expect(result.current.error).toBeInstanceOf(Error)
   })
 
+  it('refetch() clears the error and re-runs the fetch (UX-7)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: null, error: new Error('Member DB error') }) as any;
+      return {} as any;
+    })
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error))
+    expect(supabase.from).toHaveBeenCalledTimes(1)
+
+    act(() => { result.current.refetch() })
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(true)
+
+    await waitFor(() => expect(supabase.from).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+  })
+
   it('fetches and formats channels successfully with unread counts', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
     const mockMyChannelsRaw = [{
