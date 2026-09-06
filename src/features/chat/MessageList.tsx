@@ -205,14 +205,14 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               <button
                 type="button"
                 onClick={onRetryLoad}
-                className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200"
+                className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
               >
                 Retry
               </button>
             )}
           </>
         ) : (
-          <p className="text-gray-400 dark:text-gray-400 text-sm">No messages yet. Say hello!</p>
+          <p className="text-surface-400 dark:text-surface-400 text-sm">No messages yet. Say hello!</p>
         )}
       </div>
     )
@@ -232,7 +232,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             type="button"
             onClick={onLoadOlder}
             disabled={loadingOlder}
-            className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 disabled:opacity-50"
+            className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 disabled:opacity-50"
           >
             {/* Manual fallback for short first pages (no scroll => no auto-load) */}
             {loadingOlder ? 'Loading older messages...' : 'Load older messages'}
@@ -253,11 +253,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
           <Fragment key={message.id}>
             {showDivider && (
               <div data-testid="date-divider" className="flex items-center my-3 -mx-2">
-                <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
-                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex-grow border-t border-surface-300 dark:border-surface-600"></div>
+                <span className="flex-shrink-0 mx-4 text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                   {currentDate}
                 </span>
-                <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                <div className="flex-grow border-t border-surface-300 dark:border-surface-600"></div>
               </div>
             )}
             {showNewDivider && (

@@ -656,7 +656,7 @@ describe('MessageItem', () => {
     }
     const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     const card = container.querySelector('.max-w-lg')
-    expect(card?.className).toContain('bg-indigo-50')
+    expect(card?.className).toContain('bg-primary-50')
     expect(container.querySelector('span.bg-green-100, span.bg-red-100')).toBeNull()
   })
 
@@ -951,10 +951,11 @@ describe('MessageItem', () => {
 it('keeps timestamps readable on dark backgrounds (AA contrast)', () => {
   const msg: any = { type: 'regular', content: 'hi', created_at: new Date().toISOString(), sender_id: 'u1' }
   const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
-  const timestamp = Array.from(container.querySelectorAll('span')).find(s => s.className.includes('text-xs') && s.className.includes('gray-500'))
+  const timestamp = Array.from(container.querySelectorAll('span')).find(s => s.className.includes('text-xs') && s.className.includes('surface-500'))
   expect(timestamp).toBeDefined()
-  // gray-500 is 3.11:1 on the dark NPC background — below AA; gray-400 is 5.92:1
-  expect(timestamp!.className).toContain('dark:text-gray-400')
+  // surface-500 (gray-500) is 3.11:1 on the dark NPC background — below AA;
+  // surface-400 (gray-400) is 5.92:1
+  expect(timestamp!.className).toContain('dark:text-surface-400')
 })
 
 it('styles NPC paragraphs with parchment ink so typography plugin cannot override them', () => {

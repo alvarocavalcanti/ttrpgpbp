@@ -805,7 +805,7 @@ describe('ChannelView search functionality', () => {
 
     const npcBtn = Array.from(screen.getByTestId('sidebar-menu').querySelectorAll('button'))
       .find(b => b.textContent?.trim() === 'NPCs')!
-    expect(npcBtn).toHaveClass('text-gray-700', 'dark:text-gray-300', 'dark:hover:bg-gray-700')
+    expect(npcBtn).toHaveClass('text-surface-700', 'dark:text-surface-300', 'dark:hover:bg-surface-700')
   })
 
   it('does not show the NPCs sidebar item for non-GMs', () => {
