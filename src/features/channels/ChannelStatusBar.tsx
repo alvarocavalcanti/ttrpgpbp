@@ -128,7 +128,9 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
           )}
         </div>
 
-        <div className="flex items-center space-x-2 flex-shrink-0 mt-1">
+        {/* space-x-3 (12px) reserves room for the chevron's 10px hit-expansion
+            so it cannot overlap the Edit button's active area. */}
+        <div className="flex items-center space-x-3 flex-shrink-0 mt-1">
           {isGM && !isEditing && (
             <button
               type="button"

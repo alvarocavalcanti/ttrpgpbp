@@ -81,9 +81,10 @@ describe('SearchModal', () => {
 
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)
     expect(screen.getByText(/An error occurred while searching/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    const retryBtn = screen.getByRole('button', { name: 'Retry' })
+    // Touch target (CodeRabbit): 44px box, not a padded text link.
+    expect(retryBtn.className).toContain('min-h-11')
+    fireEvent.click(retryBtn)
     expect(retry).toHaveBeenCalledTimes(1)
   })
 

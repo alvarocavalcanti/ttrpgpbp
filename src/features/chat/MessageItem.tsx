@@ -448,7 +448,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           key={r.emoji}
           type="button"
           onClick={() => handleToggleReaction(r.emoji)}
-          className={`relative px-1.5 py-0.5 rounded-full text-xs border transition-colors after:content-[''] after:absolute after:inset-x-1 after:-inset-y-3 ${r.hasReacted ? 'bg-primary-100 dark:bg-primary-900 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700'}`}
+          className={`relative inline-flex min-w-11 items-center justify-center px-1.5 py-0.5 rounded-full text-xs border transition-colors after:content-[''] after:absolute after:inset-x-1 after:-inset-y-3 ${r.hasReacted ? 'bg-primary-100 dark:bg-primary-900 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700'}`}
           aria-label={`Reaction ${r.emoji}, ${r.count}`}
         >
           <span className="mr-0.5">{r.emoji}</span>

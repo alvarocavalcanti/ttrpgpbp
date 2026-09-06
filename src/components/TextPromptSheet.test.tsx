@@ -64,6 +64,14 @@ describe('TextPromptSheet', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('sizes the Cancel and confirm buttons to 44px touch targets (CodeRabbit)', () => {
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} />)
+
+    for (const name of ['Cancel', 'Save']) {
+      expect(screen.getByRole('button', { name }).className).toContain('min-h-11')
+    }
+  })
+
   it('focuses the input on open', () => {
     render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} />)
 

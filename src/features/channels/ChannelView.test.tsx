@@ -1275,6 +1275,52 @@ describe('ChannelView search functionality', () => {
       expect(sidebar).toContainElement(document.activeElement as HTMLElement)
     })
 
+    it('does not trap focus on desktop viewports while the mobile flag is open (review fix)', () => {
+      // Desktop sidebar is persistent inline (lg:), not an overlay — the trap
+      // must disable there even if showMobileSidebar stayed set across a
+      // resize. jsdom has no matchMedia, so stub the lg breakpoint as matching.
+      const originalMatchMedia = window.matchMedia
+      window.matchMedia = ((query: string) => ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as any
+      try {
+        render(
+          <ToastProvider>
+            <MemoryRouter initialEntries={['/channel/c1']}>
+              <Routes>
+                <Route path="/channel/:id" element={<ChannelView />} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>
+        )
+
+        swipe('touchstart', 380)
+        swipe('touchend', 260)
+
+        // Trap disabled on desktop: opening the drawer does not yank focus
+        // into the sidebar (it is inline page content there).
+        const sidebar = screen.getByTestId('sidebar-menu').parentElement as HTMLElement
+        expect(sidebar).not.toContainElement(document.activeElement as HTMLElement)
+        // And Tab is not redirected/wrapped by the trap: focusing the last
+        // item and pressing Tab leaves focus where it was (jsdom no-op),
+        // whereas an engaged trap would wrap it back to the first item.
+        const items = sidebar.querySelectorAll<HTMLElement>('a, button')
+        const last = items[items.length - 1]
+        last.focus()
+        fireEvent.keyDown(window, { key: 'Tab' })
+        expect(document.activeElement).toBe(last)
+      } finally {
+        window.matchMedia = originalMatchMedia
+      }
+    })
+
     it('closes the sidebar on Escape', () => {
       render(
         <ToastProvider>

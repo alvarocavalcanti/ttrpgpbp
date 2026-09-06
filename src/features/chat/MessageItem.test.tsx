@@ -929,6 +929,9 @@ describe('MessageItem', () => {
     // regression fails here.
     expect(chip.className).toContain("after:content-['']")
     expect(chip.className).toContain('after:-inset-y-3')
+    // Horizontal 44px too (CodeRabbit): short emoji+count pills must not be
+    // narrow targets — min-w-11 guarantees the width.
+    expect(chip.className).toContain('min-w-11')
     // The 12px hit-expansion must land in whitespace, not claim taps on
     // interactive content above (inline dice buttons): the row wrapper needs
     // mt-3 (chip → gap-1 row → mt-3 wrapper).

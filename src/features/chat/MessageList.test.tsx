@@ -50,7 +50,10 @@ describe('MessageList', () => {
         onRetryLoad={onRetryLoad}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    const retry = screen.getByRole('button', { name: 'Retry' })
+    // Touch target (CodeRabbit): 44px box, not a padded text link.
+    expect(retry.className).toContain('min-h-11')
+    fireEvent.click(retry)
     expect(onRetryLoad).toHaveBeenCalledTimes(1)
   })
 

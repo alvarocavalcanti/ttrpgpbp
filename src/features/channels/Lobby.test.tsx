@@ -166,7 +166,11 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't load channels/)
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'Retry' })
+    expect(retry).toBeInTheDocument()
+    // Touch target (CodeRabbit): Retry is a primary recovery action on
+    // mobile — 44px box, not a padded text link.
+    expect(retry.className).toContain('min-h-11')
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalledTimes(1)

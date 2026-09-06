@@ -26,6 +26,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 
 // Shared styling for the sidebar menu rows (Map, Rolls, Search, Notifications,
 // Resources, Safety Tools, Help, GM Resources, NPCs, Active Player, Settings).
@@ -89,9 +90,13 @@ export function ChannelView() {
   useEscapeToClose(() => setShowMobileSidebar(false))
   // Focus containment while the drawer is open (UX-4): the sidebar element is
   // always mounted (translate-x-full when closed), so the trap is gated on
-  // the open state instead of conditional rendering.
+  // the open state instead of conditional rendering. On desktop the sidebar
+  // is persistent inline (lg:), not an overlay — disable the trap there so
+  // crossing the lg breakpoint with the mobile flag still set cannot trap
+  // Tab in the sidebar.
   const sidebarRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(sidebarRef, showMobileSidebar)
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  useFocusTrap(sidebarRef, showMobileSidebar && !isDesktop)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
   // Which member's character sheet is being edited; shared by MemberList and

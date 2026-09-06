@@ -205,7 +205,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               <button
                 type="button"
                 onClick={onRetryLoad}
-                className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
               >
                 Retry
               </button>

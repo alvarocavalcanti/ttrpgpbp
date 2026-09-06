@@ -82,7 +82,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
               <div className="text-center text-red-600 dark:text-red-400 py-8">
                 An error occurred while searching. Please try again.
                 <div className="mt-3">
-                  <button type="button" onClick={retry} className="font-semibold hover:underline p-2 -m-2">Retry</button>
+                  <button type="button" onClick={retry} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">Retry</button>
                 </div>
               </div>
             ) : searchTerm && results.length === 0 ? (
