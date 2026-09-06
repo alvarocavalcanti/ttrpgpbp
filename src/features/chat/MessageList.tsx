@@ -219,7 +219,12 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   }
 
   return (
-    <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 space-y-2">
+    <div
+      ref={listRef}
+      role="log"
+      aria-live="polite"
+      className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 space-y-2"
+    >
       <div ref={contentRef}>
       {hasMore && (
         <div className="flex justify-center py-2">

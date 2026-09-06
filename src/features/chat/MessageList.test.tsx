@@ -150,6 +150,13 @@ describe('MessageList', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 
+  it('announces new messages to screen readers via a log live region', () => {
+    const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const log = screen.getByRole('log')
+    expect(log).toHaveAttribute('aria-live', 'polite')
+  })
+
   it('clips horizontal overflow so the list does not scroll sideways', () => {
     const msgs: any = [
       { id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }
