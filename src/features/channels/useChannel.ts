@@ -40,16 +40,25 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
   const readWriteChainRef = useRef<Promise<unknown>>(Promise.resolve())
 
   const markRead = useCallback(() => {
-    if (!myMemberIdRef.current) return
+    // Capture the member id at scheduling time: the write runs later, after
+    // other queued writes, and must never adopt the member id of a channel
+    // the user switched to in the meantime.
+    const memberId = myMemberIdRef.current
+    if (!memberId) return
     // #412: history-first read-mark. Every path (mount-time, live INSERT,
     // visibility reconnect) routes through here, so one gate covers all.
     if (canMarkRead && !canMarkRead()) return
     readWriteChainRef.current = readWriteChainRef.current
       .then(async () => {
+        // Re-validate at execution time: the channel may have switched while
+        // this write sat queued (its member id changed), and the history gate
+        // may have closed in between (#412).
+        if (myMemberIdRef.current !== memberId) return
+        if (canMarkRead && !canMarkRead()) return
         const { error } = await supabase
           .from('channel_members')
           .update({ last_read_at: new Date().toISOString() })
-          .eq('id', myMemberIdRef.current as string)
+          .eq('id', memberId)
         if (error) console.error('Failed to update last_read_at', error)
         else onRead?.()
       })

@@ -311,7 +311,7 @@ export function ChannelView() {
 
         {messagesError && (
           <div className="px-4 py-2 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm flex items-center justify-between gap-3" role="alert">
-            <span>{messagesRetrying ? 'Retrying…' : 'Failed to load messages. Refresh the page to try again.'}</span>
+            <span>{messagesRetrying ? 'Retrying…' : 'Failed to load messages. Try again.'}</span>
             <button
               type="button"
               onClick={refreshMessages}

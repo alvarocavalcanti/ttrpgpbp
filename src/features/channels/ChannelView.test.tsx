@@ -1443,7 +1443,7 @@ describe('ChannelView history-gated read-mark (#412)', () => {
 
     renderView()
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load messages')
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load messages. Try again.')
     fireEvent.click(screen.getByRole('button', { name: 'Retry loading messages' }))
     expect(refresh).toHaveBeenCalledTimes(1)
   })

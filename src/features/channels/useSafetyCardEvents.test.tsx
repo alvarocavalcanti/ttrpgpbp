@@ -48,9 +48,15 @@ function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown
 
 function mockRealtimeChannel() {
   let cardCallback: ((payload: unknown) => void) | undefined
+  // The catch-up snapshot now starts from SUBSCRIBED, so the subscription
+  // mock must deliver that status.
+  const mockSubscribe = vi.fn().mockImplementation((cb?: (status: string) => void) => {
+    cb?.('SUBSCRIBED')
+    return { unsubscribe: vi.fn() }
+  })
   const mockOn = vi.fn().mockImplementation((_event, _config, callback) => {
     cardCallback = callback
-    return { on: mockOn, subscribe: vi.fn() }
+    return { on: mockOn, subscribe: mockSubscribe }
   })
   vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
   return () => cardCallback
@@ -336,6 +342,91 @@ describe('useSafetyCardEvents', () => {
 
     expect(result.current.alertActive).toBe(false)
     expect(result.current.alertCount).toBe(0)
+  })
+
+  it('starts the catch-up snapshot only after the subscription goes live', async () => {
+    // A flag pressed while the subscription is still being set up is missed
+    // by the (not yet attached) live stream; only a snapshot taken after
+    // SUBSCRIBED can count the committed row.
+    let cardCallback: ((payload: unknown) => void) | undefined
+    let deliverSubscribed!: () => void
+    const subscribed = new Promise<void>(resolve => { deliverSubscribed = resolve })
+    const mockOn = vi.fn().mockImplementation((_event, _config, callback) => {
+      cardCallback = callback
+      return {
+        on: mockOn,
+        subscribe: (cb?: (status: string) => void) => {
+          void subscribed.then(() => cb?.('SUBSCRIBED'))
+          return { unsubscribe: vi.fn() }
+        }
+      }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+    const { fetchChain } = mockSupabaseQuery({ count: 1, error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    act(() => {
+      cardCallback?.({})
+    })
+    expect(result.current.alertCount).toBe(1)
+    // The snapshot must not have fired before SUBSCRIBED.
+    expect(fetchChain.select).not.toHaveBeenCalled()
+
+    await act(async () => {
+      deliverSubscribed()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+    })
+    // The live-arrived count survives the snapshot (count 1 >= live 1).
+    expect(result.current.alertCount).toBe(1)
+  })
+
+  it('does not let a pending snapshot overwrite a live-arrived count', async () => {
+    const getCardCallback = mockRealtimeChannel()
+    // Snapshot held in flight so live inserts can land while it is pending.
+    let releaseSnapshot!: (value: { count: number | null; error: unknown }) => void
+    const snapshotPromise = new Promise<{ count: number | null; error: unknown }>(resolve => { releaseSnapshot = resolve })
+    const fetchChain: Record<string, any> = {}
+    for (const op of ['select', 'eq', 'is', 'gt']) fetchChain[op] = vi.fn(() => fetchChain)
+    fetchChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
+      snapshotPromise.then(onFulfilled, onRejected)) as any
+    const updateChain: Record<string, any> = {}
+    for (const op of ['update', 'eq', 'is']) updateChain[op] = vi.fn(() => updateChain)
+    updateChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
+      Promise.resolve({ error: null }).then(onFulfilled, onRejected)) as any
+    vi.mocked(supabase.from).mockReturnValue({
+      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain },
+      update: (...args: any[]) => { updateChain.update(...args); return updateChain }
+    } as any)
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    // The snapshot query starts once the subscription is live and stays pending.
+    await waitFor(() => {
+      expect(fetchChain.select).toHaveBeenCalled()
+    })
+
+    // Two flags land while the snapshot is still in flight.
+    act(() => {
+      getCardCallback()?.({})
+      getCardCallback()?.({})
+    })
+    await waitFor(() => {
+      expect(result.current.alertCount).toBe(2)
+    })
+
+    // The snapshot only saw one event: it must not pull the count backward.
+    await act(async () => {
+      releaseSnapshot({ count: 1, error: null })
+      await Promise.resolve()
+    })
+
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(2)
   })
 })
 

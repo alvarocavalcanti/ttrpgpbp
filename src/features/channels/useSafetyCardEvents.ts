@@ -12,11 +12,8 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
   const { addToast } = useToast()
   const [alertActive, setAlertActive] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
-  // Live count so dismissAlert can restore it if the persist write fails, and
-  // a dismissal latch so an in-flight catch-up SELECT can't re-apply a stale
+  // Dismissal latch so an in-flight catch-up SELECT can't re-apply a stale
   // pre-dismissal count after the GM dismissed.
-  const alertCountRef = useRef(0)
-  alertCountRef.current = alertCount
   const dismissedRef = useRef(false)
 
   useEffect(() => {
@@ -25,30 +22,9 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     // insert events).
     if (!channelId || !isGM) return
 
-    // Catch up on flags pressed while the GM was away: unresolved events from
-    // the last 7 days re-seed the alert. RLS limits reads to the GM, keeping
-    // the presser anonymous (issue #411).
     let cancelled = false
     dismissedRef.current = false
     const since = new Date(Date.now() - CATCHUP_WINDOW_MS).toISOString()
-    void supabase
-      .from('safety_card_events')
-      .select('id', { count: 'exact', head: true })
-      .eq('channel_id', channelId)
-      .is('resolved_at', null)
-      .gt('created_at', since)
-      .then(({ count, error }) => {
-        if (cancelled || dismissedRef.current) return
-        if (error) {
-          console.error('Failed to load X-Card alerts:', error)
-          addToast('Failed to load X-Card alerts.', 'error')
-          return
-        }
-        if (count && count > 0) {
-          setAlertActive(true)
-          setAlertCount(count)
-        }
-      })
 
     const realtimeChannel = supabase
       .channel(`safety-card:${channelId}`)
@@ -61,7 +37,32 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         setAlertActive(true)
         setAlertCount(c => c + 1)
       })
-    const stopRealtime = subscribeWithRetry(realtimeChannel, `safety-card:${channelId}`)
+    // The catch-up snapshot waits for SUBSCRIBED: a query fired during setup
+    // misses an X-Card INSERT landing in the same window (Postgres Changes
+    // doesn't replay missed events), leaving the alert dark. Merging with the
+    // live count (Math.max) keeps a live-arrived count from being erased by
+    // a snapshot that predates it.
+    const stopRealtime = subscribeWithRetry(realtimeChannel, `safety-card:${channelId}`, (status) => {
+      if (status !== 'SUBSCRIBED') return
+      void supabase
+        .from('safety_card_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('channel_id', channelId)
+        .is('resolved_at', null)
+        .gt('created_at', since)
+        .then(({ count, error }) => {
+          if (cancelled || dismissedRef.current) return
+          if (error) {
+            console.error('Failed to load X-Card alerts:', error)
+            addToast('Failed to load X-Card alerts.', 'error')
+            return
+          }
+          if (count && count > 0) {
+            setAlertActive(true)
+            setAlertCount(prev => Math.max(prev, count))
+          }
+        })
+    })
 
     return () => {
       cancelled = true
@@ -86,7 +87,10 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
 
   const dismissAlert = useCallback(async () => {
     if (!channelId) return
-    const previousCount = alertCountRef.current
+    // Committed state, not a render-written ref (React Doctor
+    // no-ref-current-in-render): the callback is re-created on count changes,
+    // so it always sees the count as of its scheduling time.
+    const previousCount = alertCount
     dismissedRef.current = true
     setAlertActive(false)
     setAlertCount(0)
@@ -105,7 +109,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       setAlertCount(previousCount)
       addToast('Failed to dismiss X-Card alert.', 'error')
     }
-  }, [channelId, addToast])
+  }, [channelId, addToast, alertCount])
 
   return { alertActive, alertCount, dismissAlert, triggerXCard }
 }

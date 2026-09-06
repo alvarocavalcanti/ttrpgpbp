@@ -46,9 +46,15 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
   // Latest content for the save-on-leave cleanup below, which must persist
   // the text belonging to the key being left — a closure would see stale
-  // content (typing doesn't re-run a [draftKey] effect).
+  // content (typing doesn't re-run a [draftKey] effect). Synced in a
+  // committed effect, not render (React Doctor no-ref-current-in-render):
+  // cleanups run after the last commit, so the ref already holds the final
+  // content when a key change or unmount persists it. Declared before the
+  // restore effect so this commit's sync runs before its re-stamp.
   const contentRef = useRef(content)
-  contentRef.current = content
+  useEffect(() => {
+    contentRef.current = content
+  }, [content])
 
   useEffect(() => {
     // Restore: bring this channel's draft into the composer. From this point
