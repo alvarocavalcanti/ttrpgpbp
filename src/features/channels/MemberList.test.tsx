@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -320,7 +320,6 @@ describe('MemberList', () => {
   })
 
   it('allows marking self as away with an away message', async () => {
-    window.prompt = vi.fn().mockReturnValue('Back on Thursday')
     const mockOnUpdate = vi.fn()
 
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
@@ -328,28 +327,52 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
 
+    const sheet = screen.getByRole('dialog', { name: 'Mark Away (AFK)' })
+    fireEvent.change(within(sheet).getByLabelText('Away message (optional)'), { target: { value: 'Back on Thursday' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Mark Away' }))
+
     await waitFor(() => {
-      expect(window.prompt).toHaveBeenCalled()
       expect(mockSetAway).toHaveBeenCalledWith('m2', true, 'Back on Thursday')
       expect(mockOnUpdate).toHaveBeenCalled()
+      expect(screen.queryByRole('dialog', { name: 'Mark Away (AFK)' })).not.toBeInTheDocument()
     })
   })
 
-  it('rejects away messages over 200 characters', async () => {
-    window.prompt = vi.fn().mockReturnValue('x'.repeat(201))
+  it('prefills the away sheet with the previous away message', () => {
+    const members: any[] = mockMembers.map(m => m.id === 'm2' ? { ...m, away_message: 'Stale message' } : m)
+    render(<StatefulMemberList members={members} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Away (AFK)'))
+
+    expect(within(screen.getByRole('dialog', { name: 'Mark Away (AFK)' })).getByLabelText('Away message (optional)')).toHaveValue('Stale message')
+  })
+
+  it('caps the away message at input via maxLength', () => {
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
 
+    const input = within(screen.getByRole('dialog', { name: 'Mark Away (AFK)' })).getByLabelText('Away message (optional)')
+    expect(input).toHaveAttribute('maxLength', '200')
+    expect(mockSetAway).not.toHaveBeenCalled()
+  })
+
+  it('marks away with an empty message as null', async () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Mark Away (AFK)'))
+
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Mark Away (AFK)' })).getByRole('button', { name: 'Mark Away' }))
+
     await waitFor(() => {
-      expect(screen.getByText('Away message is limited to 200 characters.')).toBeInTheDocument()
-      expect(mockSetAway).not.toHaveBeenCalled()
+      expect(mockSetAway).toHaveBeenCalledWith('m2', true, null)
     })
   })
 
   it('allows marking self as back (clears away)', async () => {
-    window.prompt = vi.fn()
     const mockOnUpdate = vi.fn()
 
     const members: any[] = mockMembers.map(m => m.id === 'm2' ? { ...m, is_away: true, away_message: 'BRB' } : m)
@@ -359,28 +382,25 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('Mark Back (Available)'))
 
     await waitFor(() => {
-      expect(window.prompt).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(mockSetAway).toHaveBeenCalledWith('m2', false, null)
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
 
-  it('cancels away marking when prompt dismissed', async () => {
-    window.prompt = vi.fn().mockReturnValue(null)
-
+  it('cancels away marking without changing status', () => {
     render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
 
-    await waitFor(() => {
-      expect(window.prompt).toHaveBeenCalled()
-      expect(mockSetAway).not.toHaveBeenCalled()
-    })
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Mark Away (AFK)' })).getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog', { name: 'Mark Away (AFK)' })).not.toBeInTheDocument()
+    expect(mockSetAway).not.toHaveBeenCalled()
   })
 
-  it('handles toggle away error', async () => {
-    window.prompt = vi.fn().mockReturnValue('')
+  it('handles toggle away error', () => {
     mockSetAway.mockResolvedValue(new Error('DB Error'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockOnUpdate = vi.fn()
@@ -390,7 +410,9 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByText('Mark Away (AFK)'))
 
-    await waitFor(() => {
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Mark Away (AFK)' })).getByRole('button', { name: 'Mark Away' }))
+
+    return waitFor(() => {
       expect(mockSetAway).toHaveBeenCalledWith('m2', true, null)
       expect(screen.getByText('Failed to update away status.')).toBeInTheDocument()
       expect(mockOnUpdate).not.toHaveBeenCalled()

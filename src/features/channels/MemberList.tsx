@@ -6,6 +6,7 @@ import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { useMemberModeration } from './useMemberModeration'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -31,6 +32,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<{ action: 'block' | 'kick' | 'leave'; memberId: string } | null>(null)
+  const [awayPromptMemberId, setAwayPromptMemberId] = useState<string | null>(null)
   
   // Close menu on click outside
   useEffect(() => {
@@ -79,23 +81,22 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     }
   }
 
-  const handleToggleAway = async (memberId: string) => {
+  const handleToggleAway = (memberId: string) => {
     setError(null)
     const targetMember = members.find(m => m.id === memberId)
     if (!targetMember) return
-    try {
-      let awayMessage: string | null = null
-      if (!targetMember.is_away) {
-        const entered = window.prompt('Optional away message (e.g. "Away until Monday"). Leave blank for none.')
-        if (entered === null) return
-        if (entered.length > MAX_AWAY_MESSAGE_LENGTH) {
-          setError(`Away message is limited to ${MAX_AWAY_MESSAGE_LENGTH} characters.`)
-          return
-        }
-        awayMessage = entered.trim() || null
-      }
-      const error = await setAway(memberId, !targetMember.is_away, awayMessage)
+    // Going back needs no input; going away opens the in-app message sheet
+    // (prefilled with any previous message) so Cancel aborts with no change.
+    if (targetMember.is_away) {
+      void setAwayStatus(memberId, false, null)
+    } else {
+      setAwayPromptMemberId(memberId)
+    }
+  }
 
+  const setAwayStatus = async (memberId: string, isAway: boolean, awayMessage: string | null) => {
+    try {
+      const error = await setAway(memberId, isAway, awayMessage)
       if (error) throw error
       onUpdate()
     } catch (err) {
@@ -343,6 +344,26 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           onClose={() => setPendingAction(null)}
         />
       )}
+
+      {awayPromptMemberId && (() => {
+        const targetMember = members.find(m => m.id === awayPromptMemberId)
+        if (!targetMember) return null
+        return (
+          <TextPromptSheet
+            title="Mark Away (AFK)"
+            label="Away message (optional)"
+            initialValue={targetMember.away_message ?? ''}
+            placeholder='e.g. "Away until Monday"'
+            maxLength={MAX_AWAY_MESSAGE_LENGTH}
+            confirmLabel="Mark Away"
+            onConfirm={(message) => {
+              setAwayPromptMemberId(null)
+              void setAwayStatus(targetMember.id, true, message || null)
+            }}
+            onClose={() => setAwayPromptMemberId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

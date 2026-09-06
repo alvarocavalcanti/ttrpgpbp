@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
-import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
 
 function BackProbe() {
   const navigate = useNavigate()
@@ -180,9 +179,7 @@ describe('AdminView', () => {
     })
   })
 
-  it('does not suspend when prompt is cancelled', async () => {
-    vi.spyOn(window, 'prompt').mockReturnValue(null)
-
+  it('does not suspend when the reason sheet is cancelled', async () => {
     render(
       <MemoryRouter>
         <AdminView />
@@ -194,14 +191,16 @@ describe('AdminView', () => {
     expect(aliceRow).not.toBeNull()
     fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
 
+    const sheet = screen.getByRole('dialog', { name: 'Suspend Alice?' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog', { name: 'Suspend Alice?' })).not.toBeInTheDocument()
     expect(
       vi.mocked(supabase.rpc).mock.calls.filter(([fn]) => fn === 'admin_suspend_user')
     ).toHaveLength(0)
   })
 
   it('suspends user with trimmed reason and updates status UI', async () => {
-    vi.spyOn(window, 'prompt').mockReturnValue('  Spamming  ')
-
     render(
       <MemoryRouter>
         <AdminView />
@@ -212,6 +211,10 @@ describe('AdminView', () => {
     const aliceRow = screen.getByText('Alice').closest('tr')
     expect(aliceRow).not.toBeNull()
     fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
+
+    const sheet = screen.getByRole('dialog', { name: 'Suspend Alice?' })
+    fireEvent.change(within(sheet).getByLabelText('Reason'), { target: { value: '  Spamming  ' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Suspend' }))
 
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledWith('admin_suspend_user', {
@@ -239,7 +242,6 @@ describe('AdminView', () => {
       if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
       return Promise.resolve({ data: null, error: null })
     }) as any)
-    vi.spyOn(window, 'prompt').mockReturnValue('')
 
     render(
       <MemoryRouter>
@@ -251,6 +253,8 @@ describe('AdminView', () => {
     const aliceRow = screen.getByText('Alice').closest('tr')
     expect(aliceRow).not.toBeNull()
     fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Unsuspend' }))
+
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Unsuspend Alice?' })).getByRole('button', { name: 'Unsuspend' }))
 
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledWith('admin_suspend_user', {
@@ -269,7 +273,6 @@ describe('AdminView', () => {
   it('shows a toast when suspend action fails', async () => {
     const addToast = vi.fn()
     vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
-    vi.spyOn(window, 'prompt').mockReturnValue('Spamming')
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
@@ -291,16 +294,14 @@ describe('AdminView', () => {
     expect(aliceRow).not.toBeNull()
     fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
 
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Suspend Alice?' })).getByRole('button', { name: 'Suspend' }))
+
     await waitFor(() => {
       expect(addToast).toHaveBeenCalledWith('Failed to suspend user.', 'error')
     })
   })
 
-  it('rejects suspend reason over max length', async () => {
-    const addToast = vi.fn()
-    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
-    vi.spyOn(window, 'prompt').mockReturnValue('x'.repeat(MAX_ADMIN_SUSPEND_REASON_LENGTH + 1))
-
+  it('caps the suspend reason at input via maxLength', async () => {
     render(
       <MemoryRouter>
         <AdminView />
@@ -312,7 +313,8 @@ describe('AdminView', () => {
     expect(aliceRow).not.toBeNull()
     fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
 
-    expect(addToast).toHaveBeenCalledWith(`Reason is limited to ${MAX_ADMIN_SUSPEND_REASON_LENGTH} characters.`, 'error')
+    const input = within(screen.getByRole('dialog', { name: 'Suspend Alice?' })).getByLabelText('Reason')
+    expect(input).toHaveAttribute('maxLength', '200')
     expect(
       vi.mocked(supabase.rpc).mock.calls.filter(([fn]) => fn === 'admin_suspend_user')
     ).toHaveLength(0)
