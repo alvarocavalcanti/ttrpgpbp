@@ -43,7 +43,7 @@ function channelPreview(preview?: string | null): string {
 }
 
 export function Lobby() {
-  const { myChannels, loading, error } = useChannels()
+  const { myChannels, loading, error, refetch } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [inviteInput, setInviteInput] = useState('')
   const [inviteError, setInviteError] = useState<string | null>(null)
@@ -93,8 +93,9 @@ export function Lobby() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-64" role="alert">
-        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400">
-          Failed to load channels. Refresh the page to try again.
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 flex items-center gap-3">
+          <span>Couldn't load channels.</span>
+          <button type="button" onClick={refetch} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">Retry</button>
         </div>
       </div>
     )
@@ -194,7 +195,7 @@ export function Lobby() {
                               </span>
                             ) : null}
                           </span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                          <span className="text-xs text-gray-400 dark:text-gray-400 flex-shrink-0">
                             {channelTimestamp(channel.last_message_at)}
                           </span>
                         </div>

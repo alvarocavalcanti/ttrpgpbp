@@ -67,4 +67,12 @@ describe('ModifierInput', () => {
     expect(buttonRow).toHaveClass('sm:contents')
     expect(screen.getByRole('button', { name: 'Decrease STR' })).toHaveClass('sm:order-first')
   })
+
+  it('sizes the steppers to the 44px touch target', () => {
+    setup()
+    // Literal touch-target requirement (UX-1): 44px steppers, asserted
+    // literally so a sizing regression fails here.
+    expect(screen.getByRole('button', { name: 'Decrease STR' })).toHaveClass('w-11', 'h-11')
+    expect(screen.getByRole('button', { name: 'Increase STR' })).toHaveClass('w-11', 'h-11')
+  })
 })

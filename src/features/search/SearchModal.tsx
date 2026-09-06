@@ -11,7 +11,7 @@ interface SearchModalProps {
 }
 
 export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModalProps) {
-  const { searchTerm, setSearchTerm, results, loading, error } = useSearch(channelId)
+  const { searchTerm, setSearchTerm, results, loading, error, retry } = useSearch(channelId)
   const dialogRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -46,7 +46,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-white dark:bg-gray-800 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="bg-white dark:bg-gray-800 rounded-md text-gray-400 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <span className="sr-only">Close</span>
                 <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -57,13 +57,14 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
             
             <div className="relative rounded-md shadow-sm">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5 text-gray-400 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
               <input
                 type="text"
                 ref={inputRef}
+                aria-label="Search"
                 className="bg-white dark:bg-gray-800 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 border"
                 placeholder="Search by keywords..."
                 value={searchTerm}
@@ -80,6 +81,9 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
             ) : error ? (
               <div className="text-center text-red-600 dark:text-red-400 py-8">
                 An error occurred while searching. Please try again.
+                <div className="mt-3">
+                  <button type="button" onClick={retry} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">Retry</button>
+                </div>
               </div>
             ) : searchTerm && results.length === 0 ? (
               <div className="text-center text-gray-500 dark:text-gray-400 py-8">

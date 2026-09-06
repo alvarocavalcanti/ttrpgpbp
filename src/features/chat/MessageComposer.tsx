@@ -279,6 +279,15 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault()
         selectMention(mentionOptions[activeMentionIndex])
+        return
+      }
+      // Escape cancels the mention list without inserting anything;
+      // stopPropagation keeps the same keypress from also closing a modal
+      // below via the useEscapeToClose stack.
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        setMentionState(null)
       }
     }
   }
@@ -450,7 +459,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
               <button
                 type="button"
                 onClick={onCancelReply}
-                className="ml-auto p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
+                className="ml-auto p-0.5 text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400"
                 aria-label="Cancel reply"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -602,7 +611,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                       className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                     >
                       <span className="font-medium text-gray-900 dark:text-gray-100">@all</span>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">All players</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-400">All players</span>
                     </button>
                   )}
                   {matchedMembers.map((m, i) => {
@@ -620,7 +629,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                           <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
                         )}
                         <span className="font-medium text-gray-900 dark:text-gray-100">{m.character_name}</span>
-                        {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-500">({m.profile.display_name})</span>}
+                        {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-400">({m.profile.display_name})</span>}
                       </button>
                     )
                   })}

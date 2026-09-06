@@ -6,8 +6,9 @@ Set yourself **away** to let the group know you're stepping out.
 
 ## How to go away
 
-1. Mark yourself away in the channel.
-2. Optionally add a message of up to 200 characters, e.g. "Away until Monday".
+1. Tap **Mark Away (AFK)** in the member menu — a small sheet slides up from the bottom.
+2. Optionally type a message of up to 200 characters, e.g. "Away until Monday", and choose **Mark Away**. Leaving it blank goes away with no message.
+3. Choose **Cancel** (or press Escape) to back out without changing your status.
 
 ## What others see
 

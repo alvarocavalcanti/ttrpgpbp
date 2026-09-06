@@ -656,7 +656,7 @@ describe('MessageItem', () => {
     }
     const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     const card = container.querySelector('.max-w-lg')
-    expect(card?.className).toContain('bg-indigo-50')
+    expect(card?.className).toContain('bg-primary-50')
     expect(container.querySelector('span.bg-green-100, span.bg-red-100')).toBeNull()
   })
 
@@ -914,15 +914,56 @@ describe('MessageItem', () => {
     expect(trigger.className).toContain('p-1.5')
   })
 
+  it('expands reaction chips to a 44px touch target', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} reactions={[{ emoji: '👍', count: 2, hasReacted: true }]} />)
+    const chip = screen.getByRole('button', { name: /Reaction 👍, 2/ })
+    // Literal touch-target requirement (UX-1): ~24px pill expanded to 44px
+    // via invisible pseudo padding — asserted literally so a sizing
+    // regression fails here.
+    expect(chip.className).toContain("after:content-['']")
+    expect(chip.className).toContain('after:-inset-y-3')
+    // Horizontal 44px too (CodeRabbit): short emoji+count pills must not be
+    // narrow targets — min-w-11 guarantees the width.
+    expect(chip.className).toContain('min-w-11')
+    // The 12px hit-expansion must land in whitespace, not claim taps on
+    // interactive content above (inline dice buttons): the row wrapper needs
+    // mt-3 (chip → gap-1 row → mt-3 wrapper).
+    expect(chip.parentElement?.className).toContain('gap-1')
+    expect(chip.parentElement?.parentElement?.className).toContain('mt-3')
+  })
+
+  it('expands CheckSheet buttons to 44px touch targets', () => {
+    const msg = { id: 'm1', type: 'scene', content: '[STR Check](check:STR)', created_at: new Date().toISOString(), sender_id: 'u1' } as any
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={vi.fn()} gameSystem="shadowdark" members={[{ user_id: 'u1', character_name: 'test', attributes: { STR: 1 } }]} />)
+    fireEvent.click(screen.getByText('STR Check'))
+    // Literal touch-target requirement (UX-1): segments get invisible
+    // pseudo padding, Roll/Cancel grow to py-3 (44px tall).
+    for (const name of ['Normal', 'Adv', 'Dis']) {
+      const segment = screen.getByRole('button', { name })
+      expect(segment.className).toContain("after:content-['']")
+      expect(segment.className).toContain('after:-inset-y-2.5')
+    }
+    expect(screen.getByRole('button', { name: 'Roll' }).className).toContain('py-3')
+    expect(screen.getByRole('button', { name: 'Cancel' }).className).toContain('py-3')
+  })
+
 })
 
 it('keeps timestamps readable on dark backgrounds (AA contrast)', () => {
   const msg: any = { type: 'regular', content: 'hi', created_at: new Date().toISOString(), sender_id: 'u1' }
   const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
-  const timestamp = Array.from(container.querySelectorAll('span')).find(s => s.className.includes('text-xs') && s.className.includes('gray-500'))
+  const timestamp = Array.from(container.querySelectorAll('span')).find(s => s.className.includes('text-xs') && s.className.includes('surface-500'))
   expect(timestamp).toBeDefined()
-  // gray-500 is 3.11:1 on the dark NPC background — below AA; gray-400 is 5.92:1
-  expect(timestamp!.className).toContain('dark:text-gray-400')
+  // surface-500 (gray-500) is 3.11:1 on the dark NPC background — below AA;
+  // surface-400 (gray-400) is 5.92:1
+  expect(timestamp!.className).toContain('dark:text-surface-400')
 })
 
 it('styles NPC paragraphs with parchment ink so typography plugin cannot override them', () => {
@@ -932,4 +973,38 @@ it('styles NPC paragraphs with parchment ink so typography plugin cannot overrid
   expect(content.className).toContain('prose-p:text-parchment-ink')
   expect(content.className).toContain('dark:prose-p:text-parchment-ink-dark')
   expect(content.className).toContain('font-serif')
+})
+
+it('scrolls highlighted messages into view instantly under prefers-reduced-motion (UX-6)', () => {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn()
+  window.matchMedia = ((query: string) => ({
+    matches: true,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as any
+  const msg: any = { id: 'h1', content: 'Look here', created_at: new Date().toISOString(), sender_id: 'u2' }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} isHighlighted onEdit={vi.fn()} onDelete={vi.fn()} />)
+  expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+})
+
+it('smooth-scrolls highlighted messages into view when motion is allowed (UX-6)', () => {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn()
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as any
+  const msg: any = { id: 'h1', content: 'Look here', created_at: new Date().toISOString(), sender_id: 'u2' }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} isHighlighted onEdit={vi.fn()} onDelete={vi.fn()} />)
+  expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
 })

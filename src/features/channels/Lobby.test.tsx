@@ -59,6 +59,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: true,
       error: null,
+      refetch: vi.fn(),
     })
 
     const { container } = render(<Lobby />, { wrapper: MemoryRouter })
@@ -70,6 +71,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -87,6 +89,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     const { container } = render(<Lobby />, { wrapper: MemoryRouter })
@@ -100,6 +103,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -115,6 +119,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -129,6 +134,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(
@@ -149,15 +155,25 @@ describe('Lobby', () => {
     expect(screen.getByTestId('join-page')).toBeInTheDocument()
   })
 
-  it('renders error state when channels fail to load', () => {
+  it('renders error state with an in-place Retry that refetches', () => {
+    const refetch = vi.fn()
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [],
       loading: false,
-      error: new Error('DB down')
+      error: new Error('DB down'),
+      refetch,
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load channels/)
+    expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't load channels/)
+    const retry = screen.getByRole('button', { name: 'Retry' })
+    expect(retry).toBeInTheDocument()
+    // Touch target (CodeRabbit): Retry is a primary recovery action on
+    // mobile — 44px box, not a padded text link.
+    expect(retry.className).toContain('min-h-11')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
   })
 
   it('renders channels correctly with unread counts', () => {
@@ -172,6 +188,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -207,6 +224,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -233,6 +251,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -265,6 +284,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -294,6 +314,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     const { unmount } = render(<Lobby />, { wrapper: MemoryRouter })
@@ -311,6 +332,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     unmount()
@@ -331,6 +353,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -342,6 +365,7 @@ describe('Lobby', () => {
       myChannels: [],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
     
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -366,6 +390,7 @@ describe('Lobby', () => {
       }) as any),
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -398,6 +423,7 @@ describe('Lobby', () => {
       }) as any),
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -422,6 +448,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
@@ -443,6 +470,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     const { getByTestId } = render(<Lobby />, { wrapper: MemoryRouter })
@@ -457,6 +485,7 @@ describe('Lobby', () => {
       ],
       loading: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     const { getByTestId } = render(<Lobby />, { wrapper: MemoryRouter })

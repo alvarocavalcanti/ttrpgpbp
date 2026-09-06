@@ -805,7 +805,7 @@ describe('ChannelView search functionality', () => {
 
     const npcBtn = Array.from(screen.getByTestId('sidebar-menu').querySelectorAll('button'))
       .find(b => b.textContent?.trim() === 'NPCs')!
-    expect(npcBtn).toHaveClass('text-gray-700', 'dark:text-gray-300', 'dark:hover:bg-gray-700')
+    expect(npcBtn).toHaveClass('text-surface-700', 'dark:text-surface-300', 'dark:hover:bg-surface-700')
   })
 
   it('does not show the NPCs sidebar item for non-GMs', () => {
@@ -1111,7 +1111,11 @@ describe('ChannelView search functionality', () => {
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent(/X-Card triggered \(2\)\./)
-    fireEvent.click(screen.getByLabelText('Dismiss X-Card alert'))
+    const dismiss = screen.getByLabelText('Dismiss X-Card alert')
+    // Literal touch-target requirement (UX-1): 24px ✕ expanded to 44px via
+    // invisible pseudo padding.
+    expect(dismiss.className).toContain('after:-inset-2.5')
+    fireEvent.click(dismiss)
     expect(mockDismiss).toHaveBeenCalled()
   })
 
@@ -1221,6 +1225,119 @@ describe('ChannelView search functionality', () => {
       swipe('touchend', 260)
 
       expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
+    })
+
+    it('gates the drawer slide transition behind motion-reduce (UX-6)', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+
+      const sidebar = screen.getByTestId('sidebar-menu').parentElement as HTMLElement
+      expect(sidebar.className).toContain('motion-reduce:transition-none')
+    })
+
+    it('hides the overlay from the a11y tree and traps focus in the sidebar (UX-4)', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+
+      // Backdrop is a convenience click target only: hidden from the a11y
+      // tree, not a focusable role="button".
+      const overlay = screen.getByTestId('sidebar-overlay')
+      expect(overlay).toHaveAttribute('aria-hidden', 'true')
+      expect(overlay).not.toHaveAttribute('role')
+      expect(overlay).not.toHaveAttribute('tabindex')
+
+      // The trap moves focus into the sidebar on open and Tab wraps back
+      // inside instead of escaping to the page behind the overlay.
+      const sidebar = screen.getByTestId('sidebar-menu').parentElement as HTMLElement
+      expect(sidebar).toContainElement(document.activeElement as HTMLElement)
+      screen.getByRole('button', { name: 'Help' }).focus()
+      fireEvent.keyDown(window, { key: 'Tab' })
+      expect(sidebar).toContainElement(document.activeElement as HTMLElement)
+    })
+
+    it('does not trap focus on desktop viewports while the mobile flag is open (review fix)', () => {
+      // Desktop sidebar is persistent inline (lg:), not an overlay — the trap
+      // must disable there even if showMobileSidebar stayed set across a
+      // resize. jsdom has no matchMedia, so stub the lg breakpoint as matching.
+      const originalMatchMedia = window.matchMedia
+      window.matchMedia = ((query: string) => ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as any
+      try {
+        render(
+          <ToastProvider>
+            <MemoryRouter initialEntries={['/channel/c1']}>
+              <Routes>
+                <Route path="/channel/:id" element={<ChannelView />} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>
+        )
+
+        swipe('touchstart', 380)
+        swipe('touchend', 260)
+
+        // Trap disabled on desktop: opening the drawer does not yank focus
+        // into the sidebar (it is inline page content there).
+        const sidebar = screen.getByTestId('sidebar-menu').parentElement as HTMLElement
+        expect(sidebar).not.toContainElement(document.activeElement as HTMLElement)
+        // And Tab is not redirected/wrapped by the trap: focusing the last
+        // item and pressing Tab leaves focus where it was (jsdom no-op),
+        // whereas an engaged trap would wrap it back to the first item.
+        const items = sidebar.querySelectorAll<HTMLElement>('a, button')
+        const last = items[items.length - 1]
+        last.focus()
+        fireEvent.keyDown(window, { key: 'Tab' })
+        expect(document.activeElement).toBe(last)
+      } finally {
+        window.matchMedia = originalMatchMedia
+      }
+    })
+
+    it('closes the sidebar on Escape', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+      expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
     })
 
     it('closes the sidebar from a rightward swipe', () => {

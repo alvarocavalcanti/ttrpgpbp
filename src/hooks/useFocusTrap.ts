@@ -12,8 +12,14 @@ const FOCUSABLE = [
 // Traps Tab/Shift+Tab within the dialog container and restores focus to the
 // trigger element on unmount — the focus half of the ARIA dialog contract
 // (UX audit #345). Pair with useEscapeToClose, which covers the Escape half.
-export function useFocusTrap(containerRef: RefObject<HTMLElement | null>) {
+//
+// `enabled` gates surfaces that stay mounted while visually closed (drawers
+// translated off-screen): pass the open flag so the trap only engages while
+// the surface is actually shown. Refs don't retrigger effects, so a plain
+// ref.flip inside an always-mounted parent would never engage the trap.
+export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, enabled = true) {
   useEffect(() => {
+    if (!enabled) return
     const container = containerRef.current
     if (!container) return
 
@@ -65,5 +71,5 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>) {
       window.removeEventListener('keydown', handler)
       previouslyFocused?.focus()
     }
-  }, [containerRef])
+  }, [containerRef, enabled])
 }

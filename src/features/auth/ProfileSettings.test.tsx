@@ -275,6 +275,31 @@ describe('ProfileSettings', () => {
     expect(mockUnsubscribe).toHaveBeenCalled()
   })
 
+  it('shows a toast when the push toggle fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    mockSubscribe.mockRejectedValue(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Failed to update push notification settings. Please try again.', 'error')
+    })
+  })
+
   it('shows not configured message when isConfigured is false', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,

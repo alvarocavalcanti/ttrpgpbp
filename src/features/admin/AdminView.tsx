@@ -5,6 +5,7 @@ import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useAdminData, type AdminUser } from './useAdminData'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
+import { TextPromptSheet } from '../../components/TextPromptSheet'
 
 type Tab = 'users' | 'channels' | 'settings'
 
@@ -47,11 +48,16 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
   const isActive = activeKey === sortKey
   return (
     <th
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300"
-      onClick={() => onSort(sortKey)}
+      className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
       aria-sort={isActive ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
     >
-      {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="w-full px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+      >
+        {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+      </button>
     </th>
   )
 }
@@ -70,6 +76,7 @@ export function AdminView() {
   const [imageMaxSize, setImageMaxSize] = useState('5')
   const [imageRetention, setImageRetention] = useState('0')
   const [isSavingImages, setIsSavingImages] = useState(false)
+  const [suspendPromptUser, setSuspendPromptUser] = useState<AdminUser | null>(null)
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
@@ -140,17 +147,14 @@ export function AdminView() {
     }
   }
 
-  const handleToggleSuspend = async (targetUser: AdminUser) => {
-    const action = targetUser.is_suspended ? 'Unsuspend' : 'Suspend'
-    const targetLabel = targetUser.display_name?.trim() || targetUser.email?.trim() || 'Unknown user'
-    const enteredReason = window.prompt(`Reason to ${action.toLowerCase()} user ${targetLabel}?`)
-    if (enteredReason === null) return // cancelled
-    const reason = enteredReason.trim()
-    if (reason.length > MAX_ADMIN_SUSPEND_REASON_LENGTH) {
-      addToast(`Reason is limited to ${MAX_ADMIN_SUSPEND_REASON_LENGTH} characters.`, 'error')
-      return
-    }
+  const handleToggleSuspend = (targetUser: AdminUser) => {
+    // Reason entry happens in the in-app sheet (capped at input); Cancel
+    // closes it with no status change.
+    setSuspendPromptUser(targetUser)
+  }
 
+  const applySuspend = async (targetUser: AdminUser, reason: string) => {
+    const action = targetUser.is_suspended ? 'Unsuspend' : 'Suspend'
     const rpcError = await suspendUser(targetUser.id, !targetUser.is_suspended, reason || 'No reason provided')
     if (rpcError) {
       console.error(`Error ${action.toLowerCase()}ing user:`, rpcError)
@@ -457,6 +461,22 @@ export function AdminView() {
             </div>
           )}
         </>
+      )}
+
+      {suspendPromptUser && (
+        <TextPromptSheet
+          title={`${suspendPromptUser.is_suspended ? 'Unsuspend' : 'Suspend'} ${suspendPromptUser.display_name?.trim() || suspendPromptUser.email?.trim() || 'Unknown user'}?`}
+          label="Reason"
+          placeholder="Reason (optional)"
+          maxLength={MAX_ADMIN_SUSPEND_REASON_LENGTH}
+          confirmLabel={suspendPromptUser.is_suspended ? 'Unsuspend' : 'Suspend'}
+          onConfirm={(reason) => {
+            const targetUser = suspendPromptUser
+            setSuspendPromptUser(null)
+            void applySuspend(targetUser, reason)
+          }}
+          onClose={() => setSuspendPromptUser(null)}
+        />
       )}
     </div>
   )

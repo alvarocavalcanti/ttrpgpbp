@@ -18,7 +18,8 @@ describe('SearchModal', () => {
       setSearchTerm: vi.fn(),
       results: [],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
   })
 
@@ -27,6 +28,11 @@ describe('SearchModal', () => {
     expect(screen.getByText('Search Messages')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Search by keywords...')).toBeInTheDocument()
     expect(screen.getByText('Enter a search term to find messages in this channel')).toBeInTheDocument()
+  })
+
+  it('labels the search input for screen readers', () => {
+    render(<SearchModal channelId="c1" onClose={mockOnClose} />)
+    expect(screen.getByRole('textbox', { name: 'Search' })).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', () => {
@@ -54,24 +60,32 @@ describe('SearchModal', () => {
       setSearchTerm: vi.fn(),
       results: [],
       loading: true,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     const { container } = render(<SearchModal channelId="c1" onClose={mockOnClose} />)
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('renders error state', () => {
+  it('renders error state with an in-place Retry that re-runs the search', () => {
+    const retry = vi.fn()
     vi.mocked(useSearch).mockReturnValue({
       searchTerm: 'hello',
       setSearchTerm: vi.fn(),
       results: [],
       loading: false,
-      error: new Error('Failed')
+      error: new Error('Failed'),
+      retry
     })
-    
+
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)
     expect(screen.getByText(/An error occurred while searching/i)).toBeInTheDocument()
+    const retryBtn = screen.getByRole('button', { name: 'Retry' })
+    // Touch target (CodeRabbit): 44px box, not a padded text link.
+    expect(retryBtn.className).toContain('min-h-11')
+    fireEvent.click(retryBtn)
+    expect(retry).toHaveBeenCalledTimes(1)
   })
 
   it('renders no results state', () => {
@@ -80,7 +94,8 @@ describe('SearchModal', () => {
       setSearchTerm: vi.fn(),
       results: [],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)
@@ -100,7 +115,8 @@ describe('SearchModal', () => {
         } as any
       ],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     render(<SearchModal channelId="c1" onClose={mockOnClose} onJumpToMessage={mockOnJumpToMessage} />)
@@ -128,7 +144,8 @@ describe('SearchModal', () => {
         } as any
       ],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
 
     const { container } = render(<SearchModal channelId="c1" onClose={mockOnClose} />)
@@ -144,7 +161,8 @@ describe('SearchModal', () => {
       setSearchTerm: mockSetSearchTerm,
       results: [],
       loading: false,
-      error: null
+      error: null,
+      retry: vi.fn()
     })
     
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)

@@ -17,7 +17,7 @@ export function ModifierInput({ attr, value, onChange, min, max }: ModifierInput
   const invalid = /^-?\d+$/.test(value) && (current < min || current > max)
 
   const btnClass =
-    'shrink-0 w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium leading-none'
+    'shrink-0 w-11 h-11 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium leading-none'
 
   // Stacked on mobile (input full-width, buttons in a row below), flanking
   // row on sm+ — sm:contents dissolves the button wrapper back into the row.

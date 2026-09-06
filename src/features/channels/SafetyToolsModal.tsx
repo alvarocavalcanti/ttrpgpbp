@@ -30,7 +30,7 @@ export function SafetyToolsModal({ channelId, safetyToolsUrl, isGM, onClose }: S
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-1"
+            className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 p-1"
             aria-label="Close safety tools"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -79,7 +79,7 @@ export function SafetyToolsModal({ channelId, safetyToolsUrl, isGM, onClose }: S
               </p>
             </div>
             {isGM && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+              <p className="text-xs text-gray-400 dark:text-gray-400 italic">
                 Edit Lines &amp; Veils in Channel Settings (GM).
               </p>
             )}

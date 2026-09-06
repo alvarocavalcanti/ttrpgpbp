@@ -107,16 +107,18 @@ interface CheckSheetProps {
 // check chip: modifier pre-filled from the profile, Adv/Dis toggle, Roll/Cancel.
 function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEditCharacter, onRoll, onClose }: CheckSheetProps) {
   const limits = getModifierLimits(gameSystem)
+  // Hit-area expansion (UX-1): 44px touch targets without blowing up the
+  // segment visuals — the pseudo-element pads the tappable region only.
   const segmentBtn = (selected: boolean) =>
-    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+    `relative flex-1 text-xs py-1 rounded transition-colors after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5 ${selected ? 'bg-white dark:bg-surface-800 shadow-sm font-medium text-surface-900 dark:text-surface-100' : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}`
   const advBtn = (selected: boolean) =>
-    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-green-100 dark:bg-green-900 shadow-sm font-medium text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+    `relative flex-1 text-xs py-1 rounded transition-colors after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5 ${selected ? 'bg-green-100 dark:bg-green-900 shadow-sm font-medium text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}`
   const disBtn = (selected: boolean) =>
-    `flex-1 text-xs py-1 rounded transition-colors ${selected ? 'bg-red-100 dark:bg-red-900 shadow-sm font-medium text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`
+    `relative flex-1 text-xs py-1 rounded transition-colors after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5 ${selected ? 'bg-red-100 dark:bg-red-900 shadow-sm font-medium text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}`
 
   return (
     <BottomSheet title={`Roll ${draft.ability} Check${draft.dc ? ` (DC ${draft.dc})` : ''}`} onClose={onClose}>
-      <label htmlFor="check-modifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label htmlFor="check-modifier" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
         Modifier
       </label>
       <ModifierInput attr="check-modifier" value={draft.modifier} onChange={onModifierChange} min={limits.min} max={limits.max} />
@@ -127,14 +129,14 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
             <button
               type="button"
               onClick={onEditCharacter}
-              className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+              className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
             >
               Set it in your character sheet
             </button>
           )}
         </p>
       )}
-      <div className="mt-4 flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-md">
+      <div className="mt-4 flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-md">
         <button type="button" onClick={() => onAdvDisChange(null)} className={segmentBtn(draft.advDis === null)}>Normal</button>
         <button type="button" onClick={() => onAdvDisChange('adv')} className={advBtn(draft.advDis === 'adv')}>Adv</button>
         <button type="button" onClick={() => onAdvDisChange('dis')} className={disBtn(draft.advDis === 'dis')}>Dis</button>
@@ -143,14 +145,14 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
         <button
           type="button"
           onClick={onRoll}
-          className="flex-1 flex justify-center py-1.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="flex-1 flex justify-center py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
         >
           Roll
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 flex justify-center py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+          className="flex-1 flex justify-center py-3 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm text-sm font-medium text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700"
         >
           Cancel
         </button>
@@ -177,7 +179,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
 
   useEffect(() => {
     if (isHighlighted && itemRef.current) {
-      itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      itemRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
     }
   }, [isHighlighted])
 
@@ -271,7 +273,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               if (!isValidDiceNotation(notation)) return
               onRollDice?.(notation, message.id)
             }}
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer border border-indigo-200 dark:border-indigo-800 shadow-sm"
+            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors cursor-pointer border border-primary-200 dark:border-primary-800 shadow-sm"
             title={`Roll ${notation}`}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} /><circle cx="8" cy="8" r="2" fill="currentColor" /><circle cx="16" cy="8" r="2" fill="currentColor" /><circle cx="12" cy="12" r="2" fill="currentColor" /><circle cx="8" cy="16" r="2" fill="currentColor" /><circle cx="16" cy="16" r="2" fill="currentColor" /></svg>
@@ -317,7 +319,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
       }
       if (href?.startsWith('user:')) {
         return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium text-xs font-sans border border-indigo-100 dark:border-indigo-900">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium text-xs font-sans border border-primary-100 dark:border-primary-900">
             {children}
           </span>
         )
@@ -375,7 +377,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message])
 
   const actionIconClass = (danger?: boolean) =>
-    `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`
+    `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-surface-400 dark:text-surface-400 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-primary-600 dark:hover:text-primary-400'}`
 
   const actionIcons = actions.map(a => (
     <button key={a.id} type="button" onClick={a.onClick} aria-label={a.label} title={a.label} className={actionIconClass(a.danger)}>
@@ -389,7 +391,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       onClick={() => setActionsOpen(true)}
       aria-label="Message actions"
       title="Message actions"
-      className={`${MESSAGE_ACTION_SIZING.menuButtonVisibility} ${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400`}
+      className={`${MESSAGE_ACTION_SIZING.menuButtonVisibility} ${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-surface-400 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400`}
     >
       <svg className={MESSAGE_ACTION_SIZING.icon} fill="currentColor" viewBox="0 0 24 24">
         <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
@@ -405,7 +407,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             key={a.id}
             type="button"
             onClick={() => { setActionsOpen(false); a.onClick() }}
-            className={`w-full text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${a.danger ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            className={`w-full text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${a.danger ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950' : 'text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-700'}`}
           >
             {a.label}
           </button>
@@ -428,12 +430,12 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       type="button"
       onClick={() => onJumpToMessage?.(message.reply!.id)}
       disabled={!onJumpToMessage}
-      className="mt-1 w-full text-left px-2 py-1.5 rounded-md bg-gray-50 dark:bg-gray-900 border-l-2 border-indigo-300 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors"
+      className="mt-1 w-full text-left px-2 py-1.5 rounded-md bg-surface-50 dark:bg-surface-900 border-l-2 border-primary-300 dark:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors"
     >
-      <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+      <span className="text-xs font-medium text-primary-700 dark:text-primary-300">
         Replying to {replySenderName || 'someone'}
       </span>
-      <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
+      <span className="block text-xs text-surface-500 dark:text-surface-400 truncate">
         {message.reply!.is_deleted ? 'This message was deleted.' : snippet(message.reply!.content) || '(no text)'}
       </span>
     </button>
@@ -446,7 +448,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           key={r.emoji}
           type="button"
           onClick={() => handleToggleReaction(r.emoji)}
-          className={`px-1.5 py-0.5 rounded-full text-xs border transition-colors ${r.hasReacted ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          className={`relative inline-flex min-w-11 items-center justify-center px-1.5 py-0.5 rounded-full text-xs border transition-colors after:content-[''] after:absolute after:inset-x-1 after:-inset-y-3 ${r.hasReacted ? 'bg-primary-100 dark:bg-primary-900 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700'}`}
           aria-label={`Reaction ${r.emoji}, ${r.count}`}
         >
           <span className="mr-0.5">{r.emoji}</span>
@@ -463,8 +465,8 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   ) : null
 
   const pendingOverlay = message.pending && !message.error ? (
-    <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/50 flex items-center justify-center rounded-lg z-10 pointer-events-none">
-      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="absolute inset-0 bg-white/50 dark:bg-surface-900/50 flex items-center justify-center rounded-lg z-10 pointer-events-none">
+      <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
     </div>
   ) : null
 
@@ -472,8 +474,8 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     <div className="mt-2 text-sm">
       <div className="text-red-600 dark:text-red-400 font-medium mb-1">Failed to send: {message.error}</div>
       <div className="flex space-x-3">
-        <button type="button" onClick={() => onRetry?.(message.id)} className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold">Retry</button>
-        <button type="button" onClick={() => onRemovePending?.(message.id)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">Remove</button>
+        <button type="button" onClick={() => onRetry?.(message.id)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-semibold">Retry</button>
+        <button type="button" onClick={() => onRemovePending?.(message.id)} className="text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-300">Remove</button>
       </div>
     </div>
   ) : null
@@ -482,7 +484,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     return (
       <div ref={itemRef} className={`relative flex justify-center my-1 transition-colors duration-1000 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900 rounded-lg p-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
-        <div className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-3 py-1 rounded-full">
+        <div className="bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 text-xs px-3 py-1 rounded-full">
           {message.content}
         </div>
         {errorOverlay}
@@ -501,7 +503,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 maxLength={MAX_MESSAGE_LENGTH}
-                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                className="bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm p-2 border"
                 rows={3}
               />
               <div className="mt-2 flex space-x-2">
@@ -509,7 +511,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
                   type="button"
                   onClick={handleSaveEdit}
                   disabled={isSubmitting || !editContent.trim()}
-                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-3 py-1 bg-primary-600 text-white text-xs rounded hover:bg-primary-700 disabled:opacity-50"
                 >
                   Save
                 </button>
@@ -517,7 +519,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
                   type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSubmitting}
-                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                  className="px-3 py-1 bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-300 text-xs rounded hover:bg-surface-300 dark:hover:bg-surface-600"
                 >
                   Cancel
                 </button>
@@ -564,9 +566,9 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       icon: 'bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-400',
       label: 'text-red-800 dark:text-red-300',
     } : {
-      container: 'bg-indigo-50 dark:bg-indigo-950 border-indigo-100 dark:border-indigo-900',
-      icon: 'bg-indigo-200 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-300',
-      label: 'text-indigo-800 dark:text-indigo-200',
+      container: 'bg-primary-50 dark:bg-primary-950 border-primary-100 dark:border-primary-900',
+      icon: 'bg-primary-200 dark:bg-primary-800 text-primary-700 dark:text-primary-300',
+      label: 'text-primary-800 dark:text-primary-200',
     }
     return (
       <div ref={itemRef} className={`relative flex items-center space-x-3 my-1 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
@@ -598,7 +600,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </span>
             )}
           </div>
-          <div className="text-gray-900 dark:text-gray-100 text-lg">
+          <div className="text-surface-900 dark:text-surface-100 text-lg">
             <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
@@ -622,7 +624,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         ) : message.sender?.avatar_url ? (
           <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
         ) : (
-          <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400">
+          <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400">
             {senderName?.[0]?.toUpperCase() || '?'}
           </div>
         )}
@@ -630,10 +632,10 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline space-x-2">
-          <span className={`text-sm font-medium ${isNpc ? 'font-serif text-parchment-ink-strong dark:text-parchment-ink-strong-dark' : 'text-gray-900 dark:text-gray-100'}`}>
+          <span className={`text-sm font-medium ${isNpc ? 'font-serif text-parchment-ink-strong dark:text-parchment-ink-strong-dark' : 'text-surface-900 dark:text-surface-100'}`}>
             {senderName}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-surface-500 dark:text-surface-400">
             {formatTimestamp(message.created_at)}
           </span>
           {isWhisper && (
@@ -642,22 +644,22 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             </span>
           )}
           {message.is_edited && !message.is_deleted && (
-            <span className="text-xs text-gray-400 dark:text-gray-500 italic">(edited)</span>
+            <span className="text-xs text-surface-400 dark:text-surface-400 italic">(edited)</span>
           )}
         </div>
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
+        <div className={`mt-1 text-sm text-surface-800 dark:text-surface-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
-            <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
+            <span className="text-surface-400 dark:text-surface-400 italic">This message was deleted.</span>
           ) : isEditing ? (
             <div className="mt-2">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 maxLength={MAX_MESSAGE_LENGTH}
-                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                className="bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm p-2 border"
                 rows={3}
               />
               <div className="mt-2 flex space-x-2">
@@ -665,7 +667,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
                   type="button"
                   onClick={handleSaveEdit}
                   disabled={isSubmitting || !editContent.trim()}
-                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-3 py-1 bg-primary-600 text-white text-xs rounded hover:bg-primary-700 disabled:opacity-50"
                 >
                   Save
                 </button>
@@ -673,7 +675,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
                   type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSubmitting}
-                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                  className="px-3 py-1 bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-300 text-xs rounded hover:bg-surface-300 dark:hover:bg-surface-600"
                 >
                   Cancel
                 </button>
@@ -698,7 +700,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
 
         {!message.is_deleted && !message.pending && !isEditing && (
-          <div className="mt-1 flex items-center gap-0.5">
+          <div className="mt-3 flex items-center gap-0.5">
             {reactionsRow}
             {reactionPicker}
           </div>

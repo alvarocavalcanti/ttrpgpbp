@@ -83,7 +83,7 @@ export function ProfileSettings() {
       }
     } catch (err) {
       console.error('Push notification error:', err)
-      alert('Failed to update push notification settings. Please try again.')
+      addToast('Failed to update push notification settings. Please try again.', 'error')
     }
   }
 

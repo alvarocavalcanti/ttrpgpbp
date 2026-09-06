@@ -1,8 +1,9 @@
 import { useEdgeSwipe } from './hooks/useEdgeSwipe'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
+import { useFocusTrap } from './hooks/useFocusTrap'
 import { useTheme } from './hooks/useTheme'
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -38,13 +39,18 @@ const AdminMessagesView = lazy(() => import('./features/admin-messages/AdminMess
 
 export function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 px-4">
-      <h1 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Page not found</h1>
-      <p className="text-gray-500 dark:text-gray-400 mb-6">The page you&apos;re looking for does not exist.</p>
-      <Link to="/" replace className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium">Return to Lobby</Link>
+    <div className="flex flex-col items-center justify-center h-screen bg-surface-50 dark:bg-surface-900 px-4">
+      <h1 className="text-xl font-medium text-surface-900 dark:text-surface-100 mb-2">Page not found</h1>
+      <p className="text-surface-500 dark:text-surface-400 mb-6">The page you&apos;re looking for does not exist.</p>
+      <Link to="/" replace className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium">Return to Lobby</Link>
     </div>
   )
 }
+
+// Shared styling for the nav drawer menu rows; variants compose the prefix
+// (e.g. `md:hidden`) or differ in color/layout and stay inline.
+const NAV_MENU_ITEM =
+  'block w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
 
 // Fires a GA page_view on every SPA route change (initial load is covered by
 // initAnalytics). Only the pathname is reported; search terms (e.g. lobby
@@ -85,6 +91,9 @@ function AppNav() {
   // No header X in the drawer (issue #382): close via backdrop tap, edge
   // swipe, the hamburger toggle, or Escape.
   useEscapeToClose(() => setMenuOpen(false))
+  // Focus containment while the drawer is open (UX-4).
+  const menuRef = useRef<HTMLElement>(null)
+  useFocusTrap(menuRef, menuOpen)
   // Local input state so URL search params only update once the query settles
   // (M10), instead of on every keystroke.
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
@@ -101,8 +110,8 @@ function AppNav() {
   if (!user || location.pathname.startsWith('/channel/')) return null
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
-      <Link to="/" replace className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate min-w-0">
+    <header className="bg-white dark:bg-surface-800 shadow-sm p-4 flex justify-between items-center gap-2 relative z-50">
+      <Link to="/" replace className="flex items-center gap-2 text-lg font-bold text-surface-900 dark:text-surface-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors truncate min-w-0">
         <img src="/RoleByPost.png" alt="" className="w-8 h-8 rounded" />
         Role by Post
       </Link>
@@ -110,7 +119,7 @@ function AppNav() {
       <div className="flex items-center flex-shrink-0 gap-2">
         {location.pathname === '/' && (
           <form className="relative hidden md:block" onSubmit={(e) => e.preventDefault()}>
-            <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 dark:text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" />
             </svg>
             <input 
@@ -120,7 +129,7 @@ function AppNav() {
               placeholder="Search..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="bg-white dark:bg-gray-800 w-10 focus:w-64 xl:w-48 pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-[width] duration-150 placeholder:opacity-0 focus:placeholder:opacity-100 xl:placeholder:opacity-100"
+              className="bg-white dark:bg-surface-800 w-10 focus:w-64 xl:w-48 pl-9 pr-3 py-1.5 text-sm border border-surface-300 dark:border-surface-600 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 transition-[width] duration-150 placeholder:opacity-0 focus:placeholder:opacity-100 xl:placeholder:opacity-100"
             />
           </form>
         )}
@@ -128,14 +137,14 @@ function AppNav() {
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="relative p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="relative p-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           aria-label="Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
           {adminUnreadCount > 0 && (
-            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800" />
+            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-surface-800" />
           )}
         </button>
 
@@ -145,19 +154,20 @@ function AppNav() {
                 old outside-mousedown handler used by the popup menu). */}
             <div
               data-testid="menu-backdrop"
-              className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 z-40"
+              className="fixed inset-0 bg-surface-600 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80 z-40"
               onClick={() => setMenuOpen(false)}
               aria-hidden="true"
             />
             {/* Right drawer, same layout as the channel sidebar. Rendered
                 conditionally, so only the open transition animates. */}
             <nav
+              ref={menuRef}
               aria-label="Main menu"
-              className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700 shadow-lg motion-safe:animate-slide-in-right"
+              className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-surface-800 overflow-y-auto border-l border-surface-200 dark:border-surface-700 shadow-lg motion-safe:animate-slide-in-right"
             >
             <Link
               to="/settings"
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}
             >
               Profile
@@ -166,7 +176,7 @@ function AppNav() {
               mode. Search is lobby-only, matching the header search. */}
             {location.pathname === '/' && (
               <>
-                <div className="md:hidden border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                <div className="md:hidden border-t border-surface-100 dark:border-surface-700 my-1"></div>
                 <div className="md:hidden px-4 py-2">
                   <form onSubmit={(e) => e.preventDefault()}>
                     <input
@@ -175,7 +185,7 @@ function AppNav() {
                       placeholder="Search channels..."
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                     />
                   </form>
                 </div>
@@ -184,13 +194,13 @@ function AppNav() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="md:hidden block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={`md:hidden ${NAV_MENU_ITEM}`}
             >
               {isDark ? 'Light mode' : 'Dark mode'}
             </button>
             <Link 
               to="/archived" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}
             >
               Archived Channels
@@ -198,7 +208,7 @@ function AppNav() {
             {(isServerAdmin || isActiveGM) && (
               <Link
                 to="/messages"
-                className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
                 onClick={() => setMenuOpen(false)}
               >
                 <span>Admin Messages</span>
@@ -209,14 +219,14 @@ function AppNav() {
             )}
             <Link 
               to="/help" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}
             >
               Help
             </Link>
             <Link
               to="/about"
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}
             >
               About
@@ -227,20 +237,20 @@ function AppNav() {
                 setMenuOpen(false)
                 openChangelog()
               }}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
             >
               Change Log
             </button>
             <Link 
               to="/privacy" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}
             >
               Privacy Policy
             </Link>
             <Link 
               to="/terms" 
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}
             >
               Terms of Service
@@ -248,20 +258,20 @@ function AppNav() {
             {isServerAdmin && (
               <Link 
                 to="/admin" 
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className={NAV_MENU_ITEM}
                 onClick={() => setMenuOpen(false)}
               >
                 Server Admin
               </Link>
             )}
-            <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <div className="border-t border-surface-100 dark:border-surface-700 my-1"></div>
             <button
               type="button"
               onClick={() => {
                 setMenuOpen(false)
                 signOut()
               }}
-              className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
             >
               Sign Out
             </button>
@@ -281,7 +291,7 @@ export default function App() {
           <ScrollToTop />
           <RouteTracker />
           <ChangelogProvider>
-            <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 flex flex-col">
+            <div className="min-h-[100dvh] bg-surface-50 dark:bg-surface-900 flex flex-col">
               <AppNav />
               <RealtimeBanner />
               <PwaUpdateBanner />
@@ -289,7 +299,7 @@ export default function App() {
               <main className="flex-1 flex flex-col">
                 <Suspense fallback={
                   <div className="flex-1 flex items-center justify-center">
-                    <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 }>
                 <RouteErrorBoundary>

@@ -6,6 +6,7 @@ import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { useMemberModeration } from './useMemberModeration'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -31,6 +32,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<{ action: 'block' | 'kick' | 'leave'; memberId: string } | null>(null)
+  const [awayPromptMemberId, setAwayPromptMemberId] = useState<string | null>(null)
   
   // Close menu on click outside
   useEffect(() => {
@@ -79,23 +81,22 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     }
   }
 
-  const handleToggleAway = async (memberId: string) => {
+  const handleToggleAway = (memberId: string) => {
     setError(null)
     const targetMember = members.find(m => m.id === memberId)
     if (!targetMember) return
-    try {
-      let awayMessage: string | null = null
-      if (!targetMember.is_away) {
-        const entered = window.prompt('Optional away message (e.g. "Away until Monday"). Leave blank for none.')
-        if (entered === null) return
-        if (entered.length > MAX_AWAY_MESSAGE_LENGTH) {
-          setError(`Away message is limited to ${MAX_AWAY_MESSAGE_LENGTH} characters.`)
-          return
-        }
-        awayMessage = entered.trim() || null
-      }
-      const error = await setAway(memberId, !targetMember.is_away, awayMessage)
+    // Going back needs no input; going away opens the in-app message sheet
+    // (prefilled with any previous message) so Cancel aborts with no change.
+    if (targetMember.is_away) {
+      void setAwayStatus(memberId, false, null)
+    } else {
+      setAwayPromptMemberId(memberId)
+    }
+  }
 
+  const setAwayStatus = async (memberId: string, isAway: boolean, awayMessage: string | null) => {
+    try {
+      const error = await setAway(memberId, isAway, awayMessage)
       if (error) throw error
       onUpdate()
     } catch (err) {
@@ -183,10 +184,10 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                         {member.profile?.display_name}
                       </p>
                       {member.character_notes && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{member.character_notes}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-400 truncate">{member.character_notes}</p>
                       )}
                       {member.is_away && member.away_message && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 italic truncate">
+                        <p className="text-xs text-gray-400 dark:text-gray-400 italic truncate">
                           {member.away_message}
                         </p>
                       )}
@@ -209,7 +210,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                       type="button"
                       data-testid={`menu-btn-${member.id}`}
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
-                      className="p-1 rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="p-3 rounded-full text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -343,6 +344,26 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           onClose={() => setPendingAction(null)}
         />
       )}
+
+      {awayPromptMemberId && (() => {
+        const targetMember = members.find(m => m.id === awayPromptMemberId)
+        if (!targetMember) return null
+        return (
+          <TextPromptSheet
+            title="Mark Away (AFK)"
+            label="Away message (optional)"
+            initialValue={targetMember.away_message ?? ''}
+            placeholder='e.g. "Away until Monday"'
+            maxLength={MAX_AWAY_MESSAGE_LENGTH}
+            confirmLabel="Mark Away"
+            onConfirm={(message) => {
+              setAwayPromptMemberId(null)
+              void setAwayStatus(targetMember.id, true, message || null)
+            }}
+            onClose={() => setAwayPromptMemberId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

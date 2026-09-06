@@ -50,7 +50,10 @@ describe('MessageList', () => {
         onRetryLoad={onRetryLoad}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    const retry = screen.getByRole('button', { name: 'Retry' })
+    // Touch target (CodeRabbit): 44px box, not a padded text link.
+    expect(retry.className).toContain('min-h-11')
+    fireEvent.click(retry)
     expect(onRetryLoad).toHaveBeenCalledTimes(1)
   })
 
@@ -148,6 +151,54 @@ describe('MessageList', () => {
     // Initial load with no unread messages pins directly via scrollTop, not
     // scrollIntoView (that path is reserved for the unread divider).
     expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  const unreadMsgs: any[] = [
+    { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+    { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+  ]
+
+  const renderWithUnread = () =>
+    render(
+      <MessageList
+        messages={unreadMsgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T12:00:00Z"
+      />
+    )
+
+  const mockMatchMedia = (matches: boolean) => {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+  }
+
+  it('jumps to the unread divider without smooth scrolling when prefers-reduced-motion is set (UX-6)', () => {
+    mockMatchMedia(true)
+    renderWithUnread()
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('smooth-scrolls to the unread divider when motion is allowed (UX-6)', () => {
+    mockMatchMedia(false)
+    renderWithUnread()
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('announces new messages to screen readers via a log live region', () => {
+    const msgs: any = [{ id: '1', content: 'Msg 1', created_at: '2023-01-01T10:00:00Z' }]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const log = screen.getByRole('log')
+    expect(log).toHaveAttribute('aria-live', 'polite')
   })
 
   it('clips horizontal overflow so the list does not scroll sideways', () => {

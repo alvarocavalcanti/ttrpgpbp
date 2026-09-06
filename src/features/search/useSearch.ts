@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useDebounce } from '../../hooks/useDebounce'
@@ -16,6 +16,9 @@ export function useSearch(channelId: string) {
   const [results, setResults] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  // Bumped by retry() to re-run the fetch effect (search error-state Retry).
+  const [retryKey, setRetryKey] = useState(0)
+  const retry = useCallback(() => setRetryKey(k => k + 1), [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -26,6 +29,7 @@ export function useSearch(channelId: string) {
         if (mounted) {
           setResults([])
           setLoading(false)
+          setError(null)
         }
         return
       }
@@ -71,13 +75,14 @@ export function useSearch(channelId: string) {
       mounted = false
       controller.abort()
     }
-  }, [debouncedTerm, channelId])
+  }, [debouncedTerm, channelId, retryKey])
 
   return {
     searchTerm,
     setSearchTerm,
     results,
     loading,
-    error
+    error,
+    retry
   }
 }

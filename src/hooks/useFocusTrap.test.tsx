@@ -82,6 +82,31 @@ describe('useFocusTrap', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('engages when enabled flips true and restores focus when it flips back', () => {
+    function Drawer({ open }: { open: boolean }) {
+      const ref = useRef<HTMLDivElement>(null)
+      useFocusTrap(ref, open)
+      return (
+        <div>
+          <button type="button">Trigger</button>
+          <div ref={ref} data-testid="drawer">
+            <button type="button">First</button>
+          </div>
+        </div>
+      )
+    }
+    // Always-mounted drawer (translated off-screen when closed): the trap
+    // must engage only while `enabled`/`open` is true, then hand focus back.
+    const { getByRole, getByTestId, rerender } = render(<Drawer open={false} />)
+    const trigger = getByRole('button', { name: 'Trigger' })
+    trigger.focus()
+    rerender(<Drawer open />)
+    expect(getByRole('button', { name: 'First' })).toHaveFocus()
+    expect(getByTestId('drawer')).toContainElement(document.activeElement as HTMLElement)
+    rerender(<Drawer open={false} />)
+    expect(trigger).toHaveFocus()
+  })
+
   it('skips elements hidden or inside aria-hidden subtrees', () => {
     function DialogWithHidden() {
       const ref = useRef<HTMLDivElement>(null)
