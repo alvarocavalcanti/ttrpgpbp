@@ -483,6 +483,78 @@ describe('useMessages', () => {
     expect(result.current.messages.some(m => m.id === 'real-id')).toBe(true)
   })
 
+  it('reuses the errored bubble client_request_id when the composer resubmits the same payload', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendMessage({ content: 'hi', type: 'regular' })).rejects.toThrow('boom')
+    })
+    const errored = result.current.messages.find(m => m.pending)!
+    expect(errored.error).toBe('boom')
+    const firstRequestId = errored.client_request_id
+
+    // Composer resubmit after the error re-enters sendMessage with the same
+    // payload (not the bubble's retryMessage path) — it must replay the
+    // errored bubble's client_request_id (#404) instead of minting a fresh
+    // one, so a late-landing first attempt cannot double-post.
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc.mock.calls[1][1]).toEqual(expect.objectContaining({
+      p_channel_id: 'c1',
+      p_client_request_id: firstRequestId,
+    }))
+    const reconciled = result.current.messages.find(m => m.id === 'real-id')!
+    expect(reconciled.pending).toBe(false)
+    expect(reconciled.error).toBeNull()
+    // One bubble for the request: the reused bubble was replaced, not twinned.
+    expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
+  })
+
+  it('mints a fresh client_request_id when the resubmit payload differs', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValue({ data: [{ message_id: 'real-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendMessage({ content: 'hi', type: 'regular' })).rejects.toThrow('boom')
+    })
+    const errored = result.current.messages.find(m => m.pending)!
+    const firstRequestId = errored.client_request_id
+
+    // Different content is a different request, not a resubmit.
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi again', type: 'regular' })
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc.mock.calls[1][1]).toEqual(expect.objectContaining({
+      p_client_request_id: expect.not.stringMatching(new RegExp(`^${firstRequestId}$`)),
+    }))
+    // The edited resubmit is a second bubble; the errored one stays errored.
+    expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
+  })
+
   it('reconciles a failed send after a successful retry', async () => {    const mockRpc = vi.fn()
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
