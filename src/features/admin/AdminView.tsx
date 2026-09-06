@@ -48,11 +48,16 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
   const isActive = activeKey === sortKey
   return (
     <th
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300"
-      onClick={() => onSort(sortKey)}
+      className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
       aria-sort={isActive ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
     >
-      {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="w-full px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+      >
+        {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+      </button>
     </th>
   )
 }

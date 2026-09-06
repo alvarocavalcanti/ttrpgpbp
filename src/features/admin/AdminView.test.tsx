@@ -80,6 +80,11 @@ describe('AdminView', () => {
     }) as any)
   })
 
+  const switchToChannelsTab = () =>
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Channels' })
+    )
+
   it('renders stats row with total users, channels, and image storage', async () => {
     render(
       <MemoryRouter>
@@ -120,7 +125,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+    switchToChannelsTab()
 
     expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
     expect(screen.getByText('shadowdark')).toBeInTheDocument()
@@ -139,7 +144,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+    switchToChannelsTab()
 
     expect(await screen.findByText('Orphaned')).toBeInTheDocument()
 
@@ -171,7 +176,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+    switchToChannelsTab()
     fireEvent.click(await screen.findByRole('button', { name: 'Claim' }))
 
     await waitFor(() => {
@@ -592,7 +597,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+    switchToChannelsTab()
 
     const table = await screen.findByRole('table')
     expect(table.parentElement).toHaveClass('overflow-x-auto')
@@ -608,12 +613,12 @@ describe('AdminView', () => {
     await screen.findByText('Alice')
     const channelsHeader = screen.getAllByRole('columnheader', { name: 'Channels' })[0]
 
-    fireEvent.click(channelsHeader)
+    fireEvent.click(within(channelsHeader).getByRole('button', { name: 'Channels' }))
     expect(channelsHeader).toHaveAttribute('aria-sort', 'ascending')
     let rows = screen.getAllByRole('row').slice(1)
     expect(within(rows[0]).getByText('bob@example.com')).toBeInTheDocument()
 
-    fireEvent.click(channelsHeader)
+    fireEvent.click(within(channelsHeader).getByRole('button', { name: /Channels/ }))
     expect(channelsHeader).toHaveAttribute('aria-sort', 'descending')
     rows = screen.getAllByRole('row').slice(1)
     expect(within(rows[0]).getByText('Alice')).toBeInTheDocument()
@@ -627,9 +632,9 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByRole('button', { name: 'Channels' }))
+    switchToChannelsTab()
 
-    fireEvent.click(await screen.findByRole('columnheader', { name: 'Members' }))
+    fireEvent.click(within(await screen.findByRole('columnheader', { name: 'Members' })).getByRole('button', { name: 'Members' }))
     const rows = screen.getAllByRole('row').slice(1)
     expect(within(rows[0]).getByText('Empty')).toBeInTheDocument()
     expect(within(rows[1]).getByText('Curse of Strahd')).toBeInTheDocument()
@@ -646,5 +651,27 @@ describe('AdminView', () => {
     const nameHeader = screen.getAllByRole('columnheader', { name: /Name/ })[0]
     expect(nameHeader.textContent).toContain('▲')
     expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('exposes sortable headers as keyboard-operable buttons with aria-sort on the column', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    const nameHeader = screen.getAllByRole('columnheader', { name: /Name/ })[0]
+    const sortButton = within(nameHeader).getByRole('button', { name: /Name/ })
+    expect(sortButton.tagName).toBe('BUTTON')
+    expect(sortButton).toHaveClass('focus:ring-2', 'focus:ring-inset')
+
+    // jsdom does not synthesize click from Enter/Space keydown; native <button>
+    // gets that activation for free in real browsers, so simulate the click
+    // event the browser dispatches on keyboard activation.
+    expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
+    fireEvent.click(sortButton)
+
+    expect(nameHeader).toHaveAttribute('aria-sort', 'descending')
   })
 })
