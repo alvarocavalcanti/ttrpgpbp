@@ -310,7 +310,7 @@ setIsSubmitting(true)
                 </div>
                 <div className="flex-1 min-w-0">
                   <label htmlFor="channelAvatar" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Channel Avatar</label>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 mb-1">Shown in the channel list and header.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5 mb-1">Shown in the channel list and header.</p>
                   <input
                     type="file"
                     id="channelAvatar"
@@ -382,7 +382,7 @@ setIsSubmitting(true)
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
@@ -524,7 +524,7 @@ setIsSubmitting(true)
                           className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
                           placeholder="https://docs.google.com/document/d/..."
                         />
-                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
                           Shown as a menu item for all players in the sidebar, like the other URL fields.
                         </p>
                         {safetyToolsError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{safetyToolsError}</p>}

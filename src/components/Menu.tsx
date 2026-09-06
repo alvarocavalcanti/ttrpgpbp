@@ -65,7 +65,7 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
     >
       <span className="min-w-0">
         <span className={`block truncate ${opt.value === value ? 'font-medium text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-gray-100'}`}>{opt.label}</span>
-        {opt.hint && <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">{opt.hint}</span>}
+        {opt.hint && <span className="block text-xs text-gray-400 dark:text-gray-400 truncate">{opt.hint}</span>}
       </span>
       {opt.value === value && (
         <svg className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +93,7 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
             {selected ? selected.label : 'Select…'}
           </span>
         </span>
-        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-gray-400 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>

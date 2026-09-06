@@ -212,7 +212,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             )}
           </>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-sm">No messages yet. Say hello!</p>
+          <p className="text-gray-400 dark:text-gray-400 text-sm">No messages yet. Say hello!</p>
         )}
       </div>
     )

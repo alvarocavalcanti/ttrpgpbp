@@ -420,7 +420,7 @@ export function ChannelView() {
         />
         <div data-testid="sidebar-menu">
           {/* Table tools — available to everyone (issue #346) */}
-          <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Table</p>
+          <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-400">Table</p>
           <div className="divide-y divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
             {channel.map_url && (
               <a
@@ -492,7 +492,7 @@ export function ChannelView() {
           {isGM && (
             <>
               {/* GM-only tools */}
-              <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">GM Tools</p>
+              <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-400">GM Tools</p>
               <div className="divide-y divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
                 {gmOnlyResourcesUrl && (
                   <a

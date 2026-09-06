@@ -184,10 +184,10 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                         {member.profile?.display_name}
                       </p>
                       {member.character_notes && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{member.character_notes}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-400 truncate">{member.character_notes}</p>
                       )}
                       {member.is_away && member.away_message && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 italic truncate">
+                        <p className="text-xs text-gray-400 dark:text-gray-400 italic truncate">
                           {member.away_message}
                         </p>
                       )}
@@ -210,7 +210,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                       type="button"
                       data-testid={`menu-btn-${member.id}`}
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
-                      className="p-3 rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="p-3 rounded-full text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />

@@ -194,7 +194,7 @@ export function Lobby() {
                               </span>
                             ) : null}
                           </span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                          <span className="text-xs text-gray-400 dark:text-gray-400 flex-shrink-0">
                             {channelTimestamp(channel.last_message_at)}
                           </span>
                         </div>

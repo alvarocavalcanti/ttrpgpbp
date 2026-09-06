@@ -377,7 +377,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message])
 
   const actionIconClass = (danger?: boolean) =>
-    `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`
+    `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-400 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`
 
   const actionIcons = actions.map(a => (
     <button key={a.id} type="button" onClick={a.onClick} aria-label={a.label} title={a.label} className={actionIconClass(a.danger)}>
@@ -391,7 +391,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       onClick={() => setActionsOpen(true)}
       aria-label="Message actions"
       title="Message actions"
-      className={`${MESSAGE_ACTION_SIZING.menuButtonVisibility} ${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400`}
+      className={`${MESSAGE_ACTION_SIZING.menuButtonVisibility} ${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-gray-400 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400`}
     >
       <svg className={MESSAGE_ACTION_SIZING.icon} fill="currentColor" viewBox="0 0 24 24">
         <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
@@ -644,7 +644,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             </span>
           )}
           {message.is_edited && !message.is_deleted && (
-            <span className="text-xs text-gray-400 dark:text-gray-500 italic">(edited)</span>
+            <span className="text-xs text-gray-400 dark:text-gray-400 italic">(edited)</span>
           )}
         </div>
 
@@ -652,7 +652,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         <div className={`mt-1 text-sm text-gray-800 dark:text-gray-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
-            <span className="text-gray-400 dark:text-gray-500 italic">This message was deleted.</span>
+            <span className="text-gray-400 dark:text-gray-400 italic">This message was deleted.</span>
           ) : isEditing ? (
             <div className="mt-2">
               <textarea
