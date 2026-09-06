@@ -44,22 +44,44 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
   const draftKey = channelId ? `composer_draft_${channelId}` : null
 
+  // Latest content for the save-on-leave cleanup below, which must persist
+  // the text belonging to the key being left — a closure would see stale
+  // content (typing doesn't re-run a [draftKey] effect).
+  const contentRef = useRef(content)
+  contentRef.current = content
+
   useEffect(() => {
+    // Restore: bring this channel's draft into the composer. From this point
+    // the content that "belongs" to this key is the saved draft (or empty) —
+    // the ref is re-stamped so a mid-switch unmount persists the right value.
     if (draftKey) {
       const saved = safeGetItem(draftKey)
-      if (saved) setContent(saved)
-      else setContent('')
+      contentRef.current = saved ?? ''
+      setContent(saved ?? '')
     } else {
+      contentRef.current = ''
       setContent('')
+    }
+    return () => {
+      // Save on key change/unmount: the cleanup runs BEFORE the next key's
+      // restore and always with the key it belongs to, so a quick channel
+      // switch can never write the old channel's text over the new channel's
+      // stored draft (#404). Only non-empty writes — the empty transition is
+      // handled by the live-save effect below, and a no-op keeps StrictMode's
+      // double-mount from wiping a draft before its restore re-reads it.
+      if (draftKey && contentRef.current) safeSetItem(draftKey, contentRef.current)
     }
   }, [draftKey])
 
+  // Live-save while composing. Keyed on content only: re-running on draftKey
+  // would replay the pre-restore text into the new key — the race PBP-4
+  // fixes. The key-change persist is the restore effect's cleanup above.
   useEffect(() => {
     if (draftKey) {
       if (content) safeSetItem(draftKey, content)
       else safeRemoveItem(draftKey)
     }
-  }, [content, draftKey])
+  }, [content])
 
   const [isNpc, setIsNpc] = useState(false)
   const [npcName, setNpcName] = useState('')

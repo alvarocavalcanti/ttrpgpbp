@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 import { useImageUpload } from '../../hooks/useImageUpload'
@@ -113,6 +113,40 @@ describe('MessageComposer', () => {
       expect(localStorage.getItem('composer_draft_c1')).toBe('failed message')
       expect(textarea).toHaveValue('failed message')
     })
+  })
+
+  it('does not persist the old channel draft under the new channel key when switching', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+    localStorage.setItem('composer_draft_c2', 'precious c2 draft')
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'typed in c1' } })
+    expect(localStorage.getItem('composer_draft_c1')).toBe('typed in c1')
+
+    rerender(<MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+
+    // #404: the transitional save pass (old channel's text + new channel's
+    // key) must never happen — a switch that unmounts before the restore
+    // render lands would keep the clobbered draft.
+    expect(setItemSpy).not.toHaveBeenCalledWith('composer_draft_c2', 'typed in c1')
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('precious c2 draft')
+    expect(localStorage.getItem('composer_draft_c2')).toBe('precious c2 draft')
+    setItemSpy.mockRestore()
+  })
+
+  it('restores the destination draft and keeps the old channel draft on a switch', () => {
+    localStorage.setItem('composer_draft_c2', 'c2 saved')
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'c1 text' } })
+
+    rerender(<MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('c2 saved')
+    expect(localStorage.getItem('composer_draft_c1')).toBe('c1 text')
+    expect(localStorage.getItem('composer_draft_c2')).toBe('c2 saved')
   })
 
   it('submits regular message', async () => {
