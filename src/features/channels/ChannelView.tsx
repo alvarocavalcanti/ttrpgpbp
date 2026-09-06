@@ -25,6 +25,7 @@ import { ChannelHelpModal } from '../help/ChannelHelpModal'
 import { useToast } from '../../contexts/ToastContext'
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 export function ChannelView() {
   const { id } = useParams<{ id: string }>()
@@ -81,6 +82,11 @@ export function ChannelView() {
   // No header X in the drawer (issue #382): close via backdrop tap, edge
   // swipe, the header toggle, or Escape.
   useEscapeToClose(() => setShowMobileSidebar(false))
+  // Focus containment while the drawer is open (UX-4): the sidebar element is
+  // always mounted (translate-x-full when closed), so the trap is gated on
+  // the open state instead of conditional rendering.
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(sidebarRef, showMobileSidebar)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
   // Which member's character sheet is being edited; shared by MemberList and
@@ -387,21 +393,14 @@ export function ChannelView() {
       {showMobileSidebar && (
         <div
           data-testid="sidebar-overlay"
-          role="button"
-          tabIndex={0}
+          aria-hidden="true"
           className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 z-20 lg:hidden"
           onClick={() => setShowMobileSidebar(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              setShowMobileSidebar(false)
-              e.preventDefault()
-            }
-          }}
         />
       )}
 
       {/* Sidebar */}
-      <div className={`
+      <div ref={sidebarRef} className={`
         absolute inset-y-0 right-0 z-30 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700
         transform transition-transform duration-300 ease-in-out
         lg:relative lg:translate-x-0

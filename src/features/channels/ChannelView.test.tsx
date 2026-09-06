@@ -1227,6 +1227,55 @@ describe('ChannelView search functionality', () => {
       expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
     })
 
+    it('hides the overlay from the a11y tree and traps focus in the sidebar (UX-4)', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+
+      // Backdrop is a convenience click target only: hidden from the a11y
+      // tree, not a focusable role="button".
+      const overlay = screen.getByTestId('sidebar-overlay')
+      expect(overlay).toHaveAttribute('aria-hidden', 'true')
+      expect(overlay).not.toHaveAttribute('role')
+      expect(overlay).not.toHaveAttribute('tabindex')
+
+      // The trap moves focus into the sidebar on open and Tab wraps back
+      // inside instead of escaping to the page behind the overlay.
+      const sidebar = screen.getByTestId('sidebar-menu').parentElement as HTMLElement
+      expect(sidebar).toContainElement(document.activeElement as HTMLElement)
+      screen.getByRole('button', { name: 'Help' }).focus()
+      fireEvent.keyDown(window, { key: 'Tab' })
+      expect(sidebar).toContainElement(document.activeElement as HTMLElement)
+    })
+
+    it('closes the sidebar on Escape', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+      expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
+    })
+
     it('closes the sidebar from a rightward swipe', () => {
       render(
         <ToastProvider>

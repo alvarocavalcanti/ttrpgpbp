@@ -468,6 +468,31 @@ describe('App main menu drawer', () => {
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
+  it('hides the backdrop from the a11y tree and traps focus in the drawer (UX-4)', async () => {
+    await renderLobby()
+
+    const trigger = screen.getByRole('button', { name: 'Menu' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
+
+    // Backdrop stays a convenience click target: hidden from the a11y tree,
+    // not a focusable role="button".
+    const backdrop = screen.getByTestId('menu-backdrop')
+    expect(backdrop).toHaveAttribute('aria-hidden', 'true')
+    expect(backdrop).not.toHaveAttribute('role')
+
+    // The trap moves focus into the drawer on open, Tab wraps from the last
+    // item back to the first, and closing hands focus back to the trigger.
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveFocus()
+    screen.getByRole('button', { name: 'Sign Out' }).focus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+  })
+
   it('folds search and dark mode into the drawer', async () => {
     await renderLobby()
 

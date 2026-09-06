@@ -1,8 +1,9 @@
 import { useEdgeSwipe } from './hooks/useEdgeSwipe'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
+import { useFocusTrap } from './hooks/useFocusTrap'
 import { useTheme } from './hooks/useTheme'
 import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -85,6 +86,9 @@ function AppNav() {
   // No header X in the drawer (issue #382): close via backdrop tap, edge
   // swipe, the hamburger toggle, or Escape.
   useEscapeToClose(() => setMenuOpen(false))
+  // Focus containment while the drawer is open (UX-4).
+  const menuRef = useRef<HTMLElement>(null)
+  useFocusTrap(menuRef, menuOpen)
   // Local input state so URL search params only update once the query settles
   // (M10), instead of on every keystroke.
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
@@ -152,6 +156,7 @@ function AppNav() {
             {/* Right drawer, same layout as the channel sidebar. Rendered
                 conditionally, so only the open transition animates. */}
             <nav
+              ref={menuRef}
               aria-label="Main menu"
               className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-gray-800 overflow-y-auto border-l border-gray-200 dark:border-gray-700 shadow-lg motion-safe:animate-slide-in-right"
             >
