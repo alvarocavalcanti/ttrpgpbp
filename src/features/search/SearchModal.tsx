@@ -64,6 +64,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
               <input
                 type="text"
                 ref={inputRef}
+                aria-label="Search"
                 className="bg-white dark:bg-gray-800 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 border"
                 placeholder="Search by keywords..."
                 value={searchTerm}

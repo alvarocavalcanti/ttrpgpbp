@@ -25,6 +25,16 @@ describe('EmojiPicker', () => {
     expect(screen.queryByText('👍')).not.toBeInTheDocument()
   })
 
+  it('closes on Escape (uncontrolled)', () => {
+    const onPick = vi.fn()
+    render(<EmojiPicker onPick={onPick} />)
+    fireEvent.click(screen.getByLabelText('Add reaction'))
+    expect(screen.getByText('👍')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByText('👍')).not.toBeInTheDocument()
+    expect(onPick).not.toHaveBeenCalled()
+  })
+
   describe('controlled mode', () => {
     it('renders the grid without the trigger button when open', () => {
       const onOpenChange = vi.fn()
@@ -57,6 +67,14 @@ describe('EmojiPicker', () => {
       render(<EmojiPicker onPick={onPick} open onOpenChange={onOpenChange} />)
       fireEvent.click(screen.getByText('🔥'))
       expect(onPick).toHaveBeenCalledWith('🔥')
+      expect(onOpenChange).toHaveBeenCalledWith(false)
+    })
+
+    it('closes on Escape via a single onOpenChange(false)', () => {
+      const onOpenChange = vi.fn()
+      render(<EmojiPicker onPick={vi.fn()} open onOpenChange={onOpenChange} />)
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(onOpenChange).toHaveBeenCalledTimes(1)
       expect(onOpenChange).toHaveBeenCalledWith(false)
     })
 

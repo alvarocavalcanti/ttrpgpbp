@@ -30,6 +30,11 @@ describe('SearchModal', () => {
     expect(screen.getByText('Enter a search term to find messages in this channel')).toBeInTheDocument()
   })
 
+  it('labels the search input for screen readers', () => {
+    render(<SearchModal channelId="c1" onClose={mockOnClose} />)
+    expect(screen.getByRole('textbox', { name: 'Search' })).toBeInTheDocument()
+  })
+
   it('calls onClose when close button is clicked', () => {
     render(<SearchModal channelId="c1" onClose={mockOnClose} />)
     fireEvent.click(screen.getByText('Close'))

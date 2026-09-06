@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { QUICK_EMOJIS } from './emojis'
 
 interface EmojiPickerBaseProps {
@@ -31,6 +32,14 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
     onOpenChange?.(v)
   }
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Escape closes the popup via the shared stack (topmost handler wins, so a
+  // modal above keeps priority and this can't double-fire with it). The
+  // no-op while closed keeps a closed picker from swallowing Escape meant
+  // for something below.
+  useEscapeToClose(() => {
+    if (isOpen) setOpen(false)
+  })
 
   useEffect(() => {
     if (!isOpen) return

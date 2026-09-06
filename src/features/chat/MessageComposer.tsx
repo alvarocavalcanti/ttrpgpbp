@@ -279,6 +279,15 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault()
         selectMention(mentionOptions[activeMentionIndex])
+        return
+      }
+      // Escape cancels the mention list without inserting anything;
+      // stopPropagation keeps the same keypress from also closing a modal
+      // below via the useEscapeToClose stack.
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        setMentionState(null)
       }
     }
   }

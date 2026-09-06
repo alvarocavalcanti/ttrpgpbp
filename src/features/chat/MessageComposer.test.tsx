@@ -410,6 +410,21 @@ describe('MessageComposer', () => {
     })
   })
 
+  it('closes the mention list on Escape without inserting anything', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+
+    expect(screen.getByRole('listbox', { name: 'Mention options' })).toBeInTheDocument()
+
+    fireEvent.keyDown(textarea, { key: 'Escape' })
+
+    expect(screen.queryByRole('option', { name: /Hero/ })).not.toBeInTheDocument()
+    // The draft text is untouched — Escape cancels, it never inserts a mention.
+    expect((textarea as HTMLTextAreaElement).value).toBe('Hi @')
+  })
+
   it('wraps the highlight around with ArrowUp', () => {
     const multiMembers: any[] = [
       { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } },
