@@ -95,7 +95,7 @@ export function Lobby() {
       <div className="flex justify-center items-center h-64" role="alert">
         <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 flex items-center gap-3">
           <span>Couldn't load channels.</span>
-          <button type="button" onClick={refetch} className="font-semibold hover:underline">Retry</button>
+          <button type="button" onClick={refetch} className="font-semibold hover:underline p-2 -m-2">Retry</button>
         </div>
       </div>
     )

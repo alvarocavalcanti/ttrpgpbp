@@ -700,7 +700,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
 
         {!message.is_deleted && !message.pending && !isEditing && (
-          <div className="mt-1 flex items-center gap-0.5">
+          <div className="mt-3 flex items-center gap-0.5">
             {reactionsRow}
             {reactionPicker}
           </div>

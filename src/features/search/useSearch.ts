@@ -29,6 +29,7 @@ export function useSearch(channelId: string) {
         if (mounted) {
           setResults([])
           setLoading(false)
+          setError(null)
         }
         return
       }

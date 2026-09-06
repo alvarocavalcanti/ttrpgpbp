@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { BottomSheet } from './BottomSheet'
 
 interface TextPromptSheetProps {
@@ -18,6 +18,7 @@ interface TextPromptSheetProps {
 export function TextPromptSheet({ title, label, maxLength, initialValue = '', placeholder, confirmLabel, onConfirm, onClose }: TextPromptSheetProps) {
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
+  const inputId = useId()
 
   // The focus trap lands on the sheet's close button (first focusable), so
   // move focus to the input to open the mobile keyboard immediately.
@@ -32,12 +33,12 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
         className="space-y-4"
       >
         <div>
-          <label htmlFor="text-prompt-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             {label}
           </label>
           <input
             ref={inputRef}
-            id="text-prompt-input"
+            id={inputId}
             type="text"
             value={value}
             maxLength={maxLength}

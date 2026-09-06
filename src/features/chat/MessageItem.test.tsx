@@ -929,6 +929,11 @@ describe('MessageItem', () => {
     // regression fails here.
     expect(chip.className).toContain("after:content-['']")
     expect(chip.className).toContain('after:-inset-y-3')
+    // The 12px hit-expansion must land in whitespace, not claim taps on
+    // interactive content above (inline dice buttons): the row wrapper needs
+    // mt-3 (chip → gap-1 row → mt-3 wrapper).
+    expect(chip.parentElement?.className).toContain('gap-1')
+    expect(chip.parentElement?.parentElement?.className).toContain('mt-3')
   })
 
   it('expands CheckSheet buttons to 44px touch targets', () => {
