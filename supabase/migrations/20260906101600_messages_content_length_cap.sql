@@ -5,5 +5,10 @@
 -- realtime feed. The database gets the final word.
 -- NOT VALID matches the abuse_reports_reason_length precedent: existing rows
 -- predate the bound and are not re-validated, but every new write is.
+-- Truncate legacy oversize bodies first: a NOT VALID check is skipped for
+-- rows existing at ADD time, but it IS re-validated on every subsequent
+-- UPDATE — an oversize row could otherwise never be edited or soft-deleted.
+UPDATE public.messages SET content = left(content, 4000) WHERE char_length(content) > 4000;
+
 ALTER TABLE public.messages ADD CONSTRAINT messages_content_length
   CHECK (char_length(content) <= 4000) NOT VALID;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
 import { subscribeWithRetry } from '../../lib/realtime'
@@ -12,6 +12,12 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
   const { addToast } = useToast()
   const [alertActive, setAlertActive] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
+  // Live count so dismissAlert can restore it if the persist write fails, and
+  // a dismissal latch so an in-flight catch-up SELECT can't re-apply a stale
+  // pre-dismissal count after the GM dismissed.
+  const alertCountRef = useRef(0)
+  alertCountRef.current = alertCount
+  const dismissedRef = useRef(false)
 
   useEffect(() => {
     // Only the GM needs the alert stream; non-GMs shouldn't open a realtime
@@ -23,6 +29,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     // the last 7 days re-seed the alert. RLS limits reads to the GM, keeping
     // the presser anonymous (issue #411).
     let cancelled = false
+    dismissedRef.current = false
     const since = new Date(Date.now() - CATCHUP_WINDOW_MS).toISOString()
     void supabase
       .from('safety_card_events')
@@ -31,7 +38,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       .is('resolved_at', null)
       .gt('created_at', since)
       .then(({ count, error }) => {
-        if (cancelled) return
+        if (cancelled || dismissedRef.current) return
         if (error) {
           console.error('Failed to load X-Card alerts:', error)
           addToast('Failed to load X-Card alerts.', 'error')
@@ -79,11 +86,13 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
 
   const dismissAlert = useCallback(async () => {
     if (!channelId) return
+    const previousCount = alertCountRef.current
+    dismissedRef.current = true
     setAlertActive(false)
     setAlertCount(0)
     // Persist the dismissal so it survives reloads (issue #411). Fail-safe:
-    // if the write fails, bring the alert back rather than silently dropping
-    // a safety flag.
+    // if the write fails, bring the alert back — count included, or a
+    // multi-flag alert would lose its tally until reload.
     const { error } = await supabase
       .from('safety_card_events')
       .update({ resolved_at: new Date().toISOString() })
@@ -91,7 +100,9 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       .is('resolved_at', null)
     if (error) {
       console.error('Failed to dismiss X-Card alert:', error)
+      dismissedRef.current = false
       setAlertActive(true)
+      setAlertCount(previousCount)
       addToast('Failed to dismiss X-Card alert.', 'error')
     }
   }, [channelId, addToast])

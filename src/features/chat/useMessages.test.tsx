@@ -162,6 +162,46 @@ describe('useMessages', () => {
     expect(onLoaded).toHaveBeenCalledTimes(1)
   })
 
+  it('refresh clears the error when messages are already held (catch-up pass)', async () => {
+    // #404: with held messages the refresh path runs the cursor catch-up and
+    // never reaches fetchMessages — a successful pass must still clear the
+    // error banner set by a failed mid-session load.
+    const initial = [baseMessage({ id: 'm1', created_at: '2023-01-01T00:00:00.000Z' })]
+    const mockInitialLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
+    const mockDescOrder = vi.fn(); mockDescOrder.mockReturnValue({ order: mockDescOrder, limit: mockInitialLimit })
+    const insertLimit = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('Flaky catch-up') })
+      .mockResolvedValue({ data: [], error: null })
+    const mockGt = vi.fn().mockReturnValue({ order: vi.fn().mockReturnValue({ limit: insertLimit }) })
+    const updateLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+    const updateOrder = vi.fn()
+    updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
+    const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
+    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    const { emitStatus } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+      expect(result.current.messages).toHaveLength(1)
+    })
+
+    // Reconnect catch-up fails: the banner error sets while messages stay up.
+    await act(async () => {
+      emitStatus('SUBSCRIBED')
+    })
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+    })
+
+    // Retry now runs a successful catch-up pass (nothing new): error clears.
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(result.current.error).toBeNull()
+    expect(result.current.messages).toHaveLength(1)
+  })
+
   it('flags retrying while a refresh is in flight', async () => {
     let resolveRetry!: (v: { data: any[]; error: null }) => void
     const retryFetch = new Promise<{ data: any[]; error: null }>(resolve => { resolveRetry = resolve })

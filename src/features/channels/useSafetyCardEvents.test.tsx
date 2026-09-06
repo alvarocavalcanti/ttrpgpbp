@@ -237,6 +237,50 @@ describe('useSafetyCardEvents', () => {
 
     expect(document.body.textContent).toContain('Failed to dismiss X-Card alert.')
     expect(result.current.alertActive).toBe(true)
+    // The pre-dismiss count comes back with the alert: a multi-flag alert
+    // must not lose its tally until reload.
+    expect(result.current.alertCount).toBe(1)
+  })
+
+  it('ignores a stale catch-up result that lands after dismissal', async () => {
+    mockRealtimeChannel()
+    // Catch-up SELECT held in flight until we release it, so the GM can
+    // dismiss while the query is still pending.
+    let releaseCatchUp!: (value: { count: number | null; error: unknown }) => void
+    const catchUpPromise = new Promise<{ count: number | null; error: unknown }>(resolve => { releaseCatchUp = resolve })
+    const fetchChain: Record<string, any> = {}
+    for (const op of ['select', 'eq', 'is', 'gt']) fetchChain[op] = vi.fn(() => fetchChain)
+    fetchChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
+      catchUpPromise.then(onFulfilled, onRejected)) as any
+    const updateChain: Record<string, any> = {}
+    for (const op of ['update', 'eq', 'is']) updateChain[op] = vi.fn(() => updateChain)
+    updateChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
+      Promise.resolve({ error: null }).then(onFulfilled, onRejected)) as any
+    vi.mocked(supabase.from).mockReturnValue({
+      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain },
+      update: (...args: any[]) => { updateChain.update(...args); return updateChain }
+    } as any)
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalled()
+    })
+
+    // GM dismisses while the catch-up SELECT is still in flight.
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+    expect(result.current.alertActive).toBe(false)
+
+    // The pre-dismissal snapshot lands late: it must not re-activate the
+    // banner with its stale count.
+    await act(async () => {
+      releaseCatchUp({ count: 3, error: null })
+      await Promise.resolve()
+    })
+
+    expect(result.current.alertActive).toBe(false)
     expect(result.current.alertCount).toBe(0)
   })
 

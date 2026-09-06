@@ -227,6 +227,10 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
           if (mounted) setError(error)
           return
         }
+        // A successful pass (even with nothing new) clears a stale error:
+        // with held messages refresh() never reaches fetchMessages, whose
+        // success is the only other place the banner clears (#404).
+        if (mounted) setError(null)
         const batch = (data || []).map(formatMessage).filter((m): m is Message => m !== null)
         if (batch.length === 0) return
         setMessages(prev => {

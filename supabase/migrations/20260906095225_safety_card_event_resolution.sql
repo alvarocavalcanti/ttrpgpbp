@@ -12,3 +12,12 @@ CREATE POLICY "GM can resolve X-Card events"
   ON safety_card_events FOR UPDATE
   USING (is_channel_gm(channel_id))
   WITH CHECK (is_channel_gm(channel_id));
+
+-- A flagger could otherwise INSERT a pre-resolved event (resolved_at set),
+-- which the GM catch-up (resolved_at IS NULL) would never surface. Members
+-- may only raise unresolved flags; resolution stays GM-only via the UPDATE
+-- policy above.
+DROP POLICY "Members can trigger X-Card" ON safety_card_events;
+CREATE POLICY "Members can trigger X-Card"
+  ON safety_card_events FOR INSERT
+  WITH CHECK (is_channel_member(channel_id) AND resolved_at IS NULL);

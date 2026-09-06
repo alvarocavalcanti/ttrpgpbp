@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
@@ -1329,6 +1329,12 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     } as any)
   })
 
+  afterEach(() => {
+    // Tests overriding visibilityState define it as an own property; delete
+    // restores the jsdom prototype getter for later suites.
+    delete (document as unknown as Record<string, unknown>).visibilityState
+  })
+
   const baseChannelMock = (overrides: Record<string, unknown> = {}) => ({
     channel: { id: 'c1', name: 'Test Channel' },
     members: [{ id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
@@ -1405,6 +1411,25 @@ describe('ChannelView history-gated read-mark (#412)', () => {
 
     act(() => { onLoadedArg?.() })
     expect(markRead).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips the deferred read-mark when history loads in a hidden tab', () => {
+    // #404 visibility path: history fetched while the tab is hidden must not
+    // be marked read; the visible-tab re-entry lives in useChannel's
+    // visibilitychange handler (covered in useChannel.test.tsx).
+    let onLoadedArg: (() => void) | undefined
+    const markRead = vi.fn()
+    vi.mocked(useChannel).mockImplementation((() => baseChannelMock({ markRead })) as any)
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+      onLoadedArg = onLoaded
+      return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
+    }) as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    renderView()
+
+    act(() => { onLoadedArg?.() })
+    expect(markRead).not.toHaveBeenCalled()
   })
 
   it('retries messages from the error banner button', () => {

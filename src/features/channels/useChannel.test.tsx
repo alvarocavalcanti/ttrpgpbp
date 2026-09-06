@@ -806,6 +806,58 @@ describe('useChannel', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
   })
 
+  it('marks read when the tab becomes visible after history loaded hidden', async () => {
+    // #404 visibility path: ChannelView defers the read-mark while the tab is
+    // hidden; useChannel's visibilitychange handler must fire the gated
+    // markRead once the tab is visible again.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    let gateOpen = false
+    const { result } = renderHook(() => useChannel('c1', undefined, () => gateOpen))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+    // Hidden mount: no read-mark write even with membership resolved.
+    expect(mockUpdate).not.toHaveBeenCalled()
+
+    // History loads while still hidden: the gate opens (ChannelView's
+    // deferred effect skips until visible — covered in ChannelView.test.tsx).
+    await act(async () => { gateOpen = true })
+
+    // Tab becomes visible: the visibilitychange re-fetch fires markRead.
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+  })
+
   it('gates the live INSERT advance on the messages-loaded gate', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
