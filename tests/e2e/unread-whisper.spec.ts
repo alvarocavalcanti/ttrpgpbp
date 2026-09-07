@@ -78,12 +78,12 @@ test.describe('Unread counts and whispers', () => {
     await expect(page.getByText('2 new')).not.toBeVisible();
 
     // The per-user RPC agrees (1, not 2).
-    const unreadBefore = await page.evaluate(async ({ channelId: cid }) => {
+    const unreadBefore = await page.evaluate(async () => {
       // @ts-expect-error - exposed in dev for E2E
       const client = window.__supabase;
       const { data } = await client.rpc('get_user_channels_unread', { p_user_id: (await client.auth.getUser()).data.user.id });
       return data as { channel_id: string; unread_count: number }[];
-    }, { channelId });
+    });
     expect(unreadBefore).toEqual([{ channel_id: channelId, unread_count: 1 }]);
 
     // The push edge-function badge payload (service_role, RLS bypassed) must
