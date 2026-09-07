@@ -7,7 +7,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(54);
+SELECT plan(55);
 
 SELECT is(
   (SELECT count(*)
@@ -306,6 +306,11 @@ SELECT is(
   has_function_privilege('service_role', 'public.get_unread_totals(uuid[])', 'EXECUTE'),
   true,
   'service_role keeps get_unread_totals (push pipeline uses it)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.mark_channel_read(uuid)', 'EXECUTE'),
+  true,
+  'authenticated keeps mark_channel_read (read-state RPC; anon grant stripped by 20260907132031)'
 );
 
 SELECT * FROM finish();

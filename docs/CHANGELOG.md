@@ -14,7 +14,9 @@ All notable changes to this project are documented in this file.
 
 - **Turn control lives in one place** — the message composer no longer shows an Active Player menu. It could silently overwrite an ensemble turn (several players acting at once) down to a single player; the channel sidebar's **Active Player** item, which already supports naming several players, is now the only way to set who's up.
 
-- **X-Card flags reach the GM even after they step away** — a scene flagged while the GM was offline now shows the alert banner when they next open the channel (flags from the last 7 days stay pending), and dismissing the alert stays dismissed after a reload instead of resetting.
+- **X-Card flags reach the GM even after they step away** — a scene flagged while the GM was offline now shows the alert banner when they next open the channel, however long the GM was gone — every unhandled flag stays pending until handled. Dismissing the alert stays dismissed after a reload instead of resetting.
+
+- **Safer dice and safety flags on a shaky connection** — tapping the same dice link after a failed roll can no longer post the roll twice. An X-Card flag stays pending until the GM handles it, no matter how long they're away, and when the GM plays from more than one device, dismissing the alert on one clears it on the others.
 
 - **Whispers stay private in the lobby** — private messages no longer show up as a channel's preview text in the lobby. The preview now only ever shows what every player at the table can already read.
 

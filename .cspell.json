@@ -75,6 +75,7 @@
     "subcomponents",
     "subselect",
     "supabase",
+    "syncable",
     "tappable",
     "timestamptz",
     "tsvector",
@@ -98,6 +99,7 @@
     "whisperable",
     "worktree",
     "worktrees",
+    "xcard",
     "xlarge"
   ]
 }
