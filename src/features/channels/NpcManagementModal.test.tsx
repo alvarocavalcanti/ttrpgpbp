@@ -63,6 +63,26 @@ describe('NpcManagementModal', () => {
     expect(container.querySelector('img[class*="dark:invert"]')).toBeNull()
   })
 
+  it('expands the roster icon controls to 44px touch targets', () => {
+    // Literal touch-target requirement (UX audit): the 32px p-1.5 icon
+    // controls get invisible pseudo padding — asserted literally so a sizing
+    // regression fails.
+    render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
+    for (const label of ['Rename Goblin King', 'Choose portrait for Goblin King', 'Randomize portrait for Goblin King', 'Upload portrait for Goblin King', 'Delete Goblin King', 'Choose portrait for new NPC', 'Randomize new NPC portrait', 'Upload new NPC portrait']) {
+      // The upload controls are labels wrapping a hidden input; the
+      // hit-expansion lives on the label, so climb to it when present.
+      const control = screen.getByLabelText(label)
+      const target = control.closest('label') ?? control
+      expect(target.className).toContain("after:content-['']")
+      expect(target.className).toContain('after:-inset-2.5')
+    }
+    // The cancel control exists only mid-rename.
+    fireEvent.click(screen.getByLabelText('Rename Goblin King'))
+    const cancel = screen.getByLabelText('Cancel rename')
+    expect(cancel.className).toContain("after:content-['']")
+    expect(cancel.className).toContain('after:-inset-2.5')
+  })
+
   it('inverts game-icons roster portraits but not uploaded ones', () => {
     mockHook({
       npcs: [

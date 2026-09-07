@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MessageItem } from './MessageItem'
+import { proseParchment, proseAmber } from './composerChip'
 
 describe('MessageItem', () => {
   it('renders system message correctly', () => {
@@ -973,6 +974,38 @@ it('styles NPC paragraphs with parchment ink so typography plugin cannot overrid
   expect(content.className).toContain('prose-p:text-parchment-ink')
   expect(content.className).toContain('dark:prose-p:text-parchment-ink-dark')
   expect(content.className).toContain('font-serif')
+})
+
+it('renders scene-message prose from the shared proseParchment constant (P2-18)', () => {
+  const msg: any = { id: 'sc1', type: 'scene', content: 'The hall falls silent', created_at: new Date().toISOString(), sender_id: 'u2' }
+  const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const scene = container.querySelector('.prose')!
+  // Literals below mirror src/features/chat/composerChip.ts on purpose (DAMP):
+  // rewording the constant or inlining it back into the component fails here.
+  expect(scene.className).toContain('max-w-2xl w-full text-center font-serif')
+  expect(scene.className).toContain('prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark')
+  expect(scene.className).toContain('prose-headings:text-parchment-ink-strong dark:prose-headings:text-parchment-ink-strong-dark')
+  expect(scene.className).toContain('prose-blockquote:border-parchment-border dark:prose-blockquote:border-parchment-border-dark')
+  expect(scene.className).toContain('[&>p:last-child]:bg-parchment-shade dark:[&>p:last-child]:bg-parchment-shade-dark')
+  expect(scene.className).toContain('dark:[&>p:last-child]:text-parchment-ink-strong-dark')
+})
+
+it('proseParchment constant keeps the extracted scene-prose classes (P2-18)', () => {
+  // Import is literal on purpose: renaming the export must break this test.
+  expect(proseParchment.startsWith('max-w-2xl w-full text-center font-serif text-parchment-ink')).toBe(true)
+  expect(proseParchment).toContain('prose dark:prose-invert prose-p:text-parchment-ink')
+  expect(proseParchment).toContain('prose-ol:text-parchment-ink dark:prose-ol:text-parchment-ink-dark')
+  expect(proseParchment).toContain('max-w-none break-words')
+  expect(proseParchment).toContain('[&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark')
+})
+
+it('proseAmber constant keeps the extracted status-prose classes (P2-18)', () => {
+  // Import is literal on purpose: renaming the export must break this test.
+  expect(proseAmber.startsWith('prose prose-sm max-w-none dark:prose-invert text-amber-900')).toBe(true)
+  expect(proseAmber).toContain('prose-p:text-amber-900 dark:prose-p:text-amber-200')
+  expect(proseAmber).toContain('prose-a:text-amber-700 dark:prose-a:text-amber-300')
+  expect(proseAmber).toContain('prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700')
+  expect(proseAmber).toContain('prose-ol:text-amber-900 dark:prose-ol:text-amber-200')
 })
 
 it('scrolls highlighted messages into view instantly under prefers-reduced-motion (UX-6)', () => {

@@ -153,7 +153,7 @@
 
 - **Lines & Veils** — GM-editable persistent text fields (up to 2,000 characters each; collapsible "Safety Tools" section in Channel Settings) listing hard limits (Lines) and off-screen topics (Veils); visible to every member via the **Safety Tools** sidebar item
 - **Safety Tools URL** — optional external link (up to 500 characters; e.g. a shared Google Doc), configured by the GM in settings and shown as a **Safety Tools Doc** menu item in the sidebar for all members (like the other URL fields)
-- **X-Card** — a red card-with-X button in the message composer flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast. Flags raised while the GM is away still show when they open the channel (unresolved flags from the last 7 days), and dismissing the banner persists, so it survives reloads.
+- **X-Card** — a red card-with-X button in the message composer flags a scene to the GM **anonymously** (no identity stored). The GM sees an instant in-app alert banner; the presser gets a private confirmation toast. Flags raised while the GM is away still show when they open the channel (unresolved flags from the last 7 days), and dismissing the banner persists, so it survives reloads. When the GM dismisses the alert, everyone in the channel sees a short note that the flagged scene has been resolved — no names, just an all-clear.
 
 ## Help
 

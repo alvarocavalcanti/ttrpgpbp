@@ -52,6 +52,8 @@ describe('ChannelView search functionality', () => {
     vi.mocked(useSafetyCardEvents).mockReturnValue({
       alertActive: false,
       alertCount: 0,
+      catchUpError: false,
+      retryCatchUp: vi.fn(),
       dismissAlert: vi.fn(),
       triggerXCard: vi.fn()
     } as any)
@@ -429,6 +431,38 @@ describe('ChannelView search functionality', () => {
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load messages/)
+  })
+
+  it('sizes the messages-error Retry button to a 44px touch target', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [],
+      reactions: {},
+      loading: false,
+      error: new Error('Failed to fetch messages'),
+      retrying: false,
+      refresh: vi.fn(),
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined)
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const retry = screen.getByRole('button', { name: 'Retry loading messages' })
+    // Literal touch-target requirement (UX audit): the alert-bar Retry was a
+    // ~26px text link; asserted literally so a sizing regression fails here.
+    expect(retry.className).toContain('min-h-11')
   })
 
   it('projects channel member attributes so ability checks reuse the stored modifier', async () => {
@@ -963,7 +997,7 @@ describe('ChannelView search functionality', () => {
     fireEvent.click(screen.getByLabelText('Reply'))
     expect(screen.getByText(/Replying to Hero/)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'my reply' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'my reply' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -1441,6 +1475,8 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     vi.mocked(useSafetyCardEvents).mockReturnValue({
       alertActive: false,
       alertCount: 0,
+      catchUpError: false,
+      retryCatchUp: vi.fn(),
       dismissAlert: vi.fn(),
       triggerXCard: vi.fn()
     } as any)
@@ -1549,8 +1585,30 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     expect(markRead).not.toHaveBeenCalled()
   })
 
-  it('retries messages from the error banner button', () => {
-    const refresh = vi.fn().mockResolvedValue(undefined)
+  it('shows a retryable error chip when the X-Card alerts fail to load', () => {
+    const retryCatchUp = vi.fn()
+    vi.mocked(useChannel).mockReturnValue(baseChannelMock({ isGM: true }) as any)
+    vi.mocked(useMessages).mockReturnValue(baseMessagesMock() as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      catchUpError: true,
+      retryCatchUp,
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn()
+    } as any)
+
+    renderView()
+
+    expect(screen.getByRole('alert')).toHaveTextContent("Could not load X-Card alerts. Try again.")
+    const retryButton = screen.getByRole('button', { name: 'Retry loading X-Card alerts' })
+    // Literal touch-target requirement (UX-1): banner Retry is min 44px tall.
+    expect(retryButton.className).toContain('min-h-11')
+    fireEvent.click(retryButton)
+    expect(retryCatchUp).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries messages from the error banner button', () => {    const refresh = vi.fn().mockResolvedValue(undefined)
     vi.mocked(useChannel).mockReturnValue(baseChannelMock() as any)
     vi.mocked(useMessages).mockReturnValue(baseMessagesMock({
       messages: [],

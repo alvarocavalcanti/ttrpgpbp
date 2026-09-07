@@ -105,6 +105,11 @@ describe('PermissionBanner', () => {
 
     render(<PermissionBanner />)
     expect(screen.getByRole('region')).toBeInTheDocument()
+    // Literal touch-target requirement (UX audit): both banner buttons grow
+    // to 44px — asserted literally so a sizing regression fails.
+    for (const name of ['Enable Notifications', 'Dismiss notification banner']) {
+      expect(screen.getByRole('button', { name }).className).toContain('min-h-11')
+    }
   })
 
   it('enables notifications on click', async () => {

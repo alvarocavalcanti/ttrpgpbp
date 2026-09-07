@@ -24,11 +24,17 @@ function installDispatcher() {
 // through a ref — callers commonly pass inline arrows whose identity changes
 // every render, and re-pushing would reorder the stack so a re-rendered
 // parent could jump back on top and swallow Escape meant for its child.
-export function useEscapeToClose(onClose: () => void) {
+//
+// Pass `enabled=false` for always-mounted consumers whose surface is closed
+// (e.g. a popup menu inside a persistent panel): a disabled handler is not
+// pushed at all, so it can't sit on top of the stack and swallow Escape
+// meant for a modal or drawer below.
+export function useEscapeToClose(onClose: () => void, enabled = true) {
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
   useEffect(() => {
+    if (!enabled) return
     installDispatcher()
     const handler = () => {
       onCloseRef.current()
@@ -38,5 +44,5 @@ export function useEscapeToClose(onClose: () => void) {
       const i = escapeStack.indexOf(handler)
       if (i !== -1) escapeStack.splice(i, 1)
     }
-  }, [])
+  }, [enabled])
 }
