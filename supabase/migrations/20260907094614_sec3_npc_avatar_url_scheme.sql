@@ -12,8 +12,15 @@
 -- route on TG_TABLE_NAME (messages.npc_avatar_url vs channel_npcs.avatar_url).
 -- Only fires when the value is non-NULL and non-empty: '' stays legal, matching
 -- the channels/channel_members contract.
+-- SECURITY DEFINER: the trigger fires on direct client writes (roster UI) by
+-- authenticated users, and the helper url_scheme_allowed is owner-only — an
+-- invoker-rights body would fail with permission denied (review finding).
 CREATE OR REPLACE FUNCTION public.enforce_npc_url_scheme()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_url TEXT;
 BEGIN
@@ -28,7 +35,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS channel_npcs_url_scheme ON channel_npcs;
 CREATE TRIGGER channel_npcs_url_scheme
@@ -49,8 +56,10 @@ REVOKE ALL ON FUNCTION public.enforce_npc_url_scheme()
 -- loses nothing structural). Relative storage paths and http(s) values are
 -- untouched. Runs before the auth guard of prevent_message_update_tampering
 -- can matter: migrations execute without a JWT context.
+-- channel_npcs.avatar_url is NOT NULL: '' is the legal unset (and skips the
+-- trigger guard). messages.npc_avatar_url is nullable, so NULL it directly.
 UPDATE channel_npcs
-SET avatar_url = NULL
+SET avatar_url = ''
 WHERE avatar_url IS NOT NULL
   AND avatar_url <> ''
   AND NOT public.url_scheme_allowed(avatar_url);

@@ -6,16 +6,25 @@ import { z } from 'zod'
 
 // A notification url is focused/opened by the service worker on click, and
 // the payload is attacker-influenceable, so only site-relative paths are
-// allowed (#429): exactly one leading '/', no '//' prefix (which also rules
-// out any scheme like javascript: or https://).
+// allowed (#429): exactly one leading '/', no '/' or '\' after it (which also
+// rules out any scheme like javascript: or https://). WHATWG URL parsing maps
+// '\' to '/' and strips tabs/newlines before resolution, so both are rejected
+// up front — '/\evil.com' must not become a protocol-relative URL.
 export function isSiteRelativeUrl(url: string): boolean {
-  return /^\/(?!\/)/.test(url)
+  const normalized = url.replace(/[\t\n\r]/g, '')
+  return /^\/(?![/\\])/.test(normalized)
 }
 
 export const PushNotificationDataSchema = z.object({
   title: z.string().optional(),
   body: z.string().optional(),
-  url: z.string().refine(isSiteRelativeUrl).optional(),
+  // '' is tolerated (the click handler ignores it — isSiteRelativeUrl('') is
+  // false) because the push pipeline historically emits { url: '' }; rejecting
+  // it at the schema boundary would drop the whole notification.
+  url: z
+    .string()
+    .refine((url) => url === '' || isSiteRelativeUrl(url))
+    .optional(),
   badgeEnabled: z.boolean().optional(),
 // Badge counts must be valid non-negative safe integers: setAppBadge's
   // [EnforceRange] unsigned long long conversion throws synchronously on

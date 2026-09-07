@@ -6,10 +6,9 @@
 -- enforce_member_url_scheme) and SECURITY DEFINER helpers stayed EXECUTE-able
 -- by authenticated. This extends the sweep's revoke list.
 --
--- Safe by construction: these functions are (a) wired via CREATE TRIGGER and
+-- Safe by construction: these functions are wired via CREATE TRIGGER and
 -- cannot be invoked directly ("trigger functions can only be fired via
--- triggers"), or (b) SECURITY DEFINER helpers whose only caller
--- (get_join_channel_preview) itself runs as owner. None are referenced in RLS
+-- triggers"). None are referenced in RLS
 -- policy expressions (pg_policies) — is_active_gm, is_channel_gm,
 -- is_channel_member, is_server_admin (policy helpers) and get_channel_salt
 -- (authenticated client RPC used pre-join) are deliberately NOT revoked.
@@ -76,8 +75,9 @@ REVOKE ALL ON FUNCTION public.handle_admin_message_inserted()
 REVOKE ALL ON FUNCTION public.handle_new_message_notification()
   FROM PUBLIC, anon, authenticated, service_role;
 
--- 3. SECURITY DEFINER helper: its only caller, get_join_channel_preview, is
--- itself SECURITY DEFINER and runs as owner. Direct calls would let any
--- authenticated session probe channel password state.
-REVOKE ALL ON FUNCTION public.has_password(channels)
-  FROM PUBLIC, anon, authenticated, service_role;
+-- 3. has_password(channels) intentionally KEEPS authenticated EXECUTE: it
+-- backs the has_password computed column (20260731174524), which PostgREST
+-- invokes on every channels read that expands it — including plain
+-- `select=*` queries (verified live: revoking fails those reads with
+-- "permission denied"). Row visibility is RLS's job, so the helper stays
+-- callable; it is client-facing, not a server-only helper.

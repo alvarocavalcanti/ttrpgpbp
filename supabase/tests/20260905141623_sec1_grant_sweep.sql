@@ -7,7 +7,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(55);
+SELECT plan(54);
 
 SELECT is(
   (SELECT count(*)
@@ -56,13 +56,13 @@ SELECT is(
   'authenticated cannot call resolve_mention_user_ids'
 );
 
--- Issue #429: trigger/definer helpers left EXECUTE-able by the blanket
+-- Issue #429: trigger helpers left EXECUTE-able by the blanket
 -- sweep grant (created after it, or missed by its explicit list). Trigger
--- functions cannot be invoked directly; has_password's only caller
--- (get_join_channel_preview) runs as owner. Policy helpers (is_active_gm,
--- is_channel_gm, is_channel_member, is_server_admin) and the client RPC
--- get_channel_salt are deliberately NOT revoked — policies and the pre-join
--- flow call them with the invoking user's privileges.
+-- functions cannot be invoked directly. Policy helpers (is_active_gm,
+-- is_channel_gm, is_channel_member, is_server_admin), the client RPC
+-- get_channel_salt and the computed-column helper has_password are
+-- deliberately NOT revoked — policies, the pre-join flow and channel reads
+-- call them with the invoking user's privileges.
 
 -- 1. Trigger functions (row guards, wired via CREATE TRIGGER only).
 SELECT is(
@@ -258,17 +258,11 @@ SELECT is(
   'service_role cannot call handle_new_message_notification'
 );
 
--- 3. SECURITY DEFINER helper (only caller runs as owner).
-SELECT is(
-  has_function_privilege('authenticated', 'public.has_password(channels)', 'EXECUTE'),
-  false,
-  'authenticated cannot call has_password'
-);
-SELECT is(
-  has_function_privilege('service_role', 'public.has_password(channels)', 'EXECUTE'),
-  false,
-  'service_role cannot call has_password'
-);
+-- 3. has_password(channels) KEEPS authenticated EXECUTE: it backs the
+-- has_password computed column, which PostgREST invokes during reads —
+-- including plain `select=*` queries (verified live: revoking fails every
+-- channels read that expands the computed column). Row visibility is RLS's
+-- job; the helper stays callable.
 
 -- Policy helpers must KEEP authenticated EXECUTE: RLS policy expressions run
 -- with the invoking user's privileges, so revoking them breaks every policy.
@@ -296,6 +290,11 @@ SELECT is(
   has_function_privilege('authenticated', 'public.get_channel_salt(uuid)', 'EXECUTE'),
   true,
   'authenticated keeps get_channel_salt (client RPC, pre-join flow)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.has_password(channels)', 'EXECUTE'),
+  true,
+  'authenticated keeps has_password (computed column, invoked by channel reads)'
 );
 
 SELECT is(
