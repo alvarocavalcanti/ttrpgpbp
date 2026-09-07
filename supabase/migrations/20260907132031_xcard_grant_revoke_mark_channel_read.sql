@@ -1,0 +1,12 @@
+-- Follow-up to 20260907110653 (issue #437): mark_channel_read was created
+-- after the sec1 grant sweep and inherited the postgres template's default
+-- function privileges, which grant EXECUTE to anon. That migration's
+-- `REVOKE ALL ... FROM PUBLIC` cannot strip a per-role grant, so anon kept
+-- direct EXECUTE on an authenticated-only RPC — exactly the class
+-- 20260905141623/20260907093802 (issue #429 SEC-1) sweep closes, and the
+-- reason supabase/tests/20260905141623_sec1_grant_sweep.sql now fails on
+-- main ("anon has EXECUTE on no user-defined function in public").
+--
+-- authenticated keeps its explicit EXECUTE (the RPC's only caller); PUBLIC
+-- was already revoked by 20260907110653.
+REVOKE EXECUTE ON FUNCTION public.mark_channel_read(UUID) FROM anon;
