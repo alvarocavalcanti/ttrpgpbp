@@ -52,7 +52,9 @@ describe('Menu', () => {
   it('closes the popup on Escape', () => {
     render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} popup />)
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
-    fireEvent.keyDown(document, { key: 'Escape' })
+    // Escape is handled on the menu container (bubbled from the trigger) —
+    // not via the window-level Escape stack (a11y #432).
+    fireEvent.keyDown(screen.getByRole('button', { name: /Whisper/ }), { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -75,8 +77,23 @@ describe('Menu', () => {
   it('closes on Escape', () => {
     render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('button', { name: /Whisper/ }), { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('ignores Escape while closed so it cannot swallow a lower handler', () => {
+    const stackEscape = vi.fn()
+    document.addEventListener('keydown', stackEscape)
+    try {
+      render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+      // Closed menu: the container handler returns early, so the keypress
+      // keeps propagating to the window-level stack.
+      fireEvent.keyDown(screen.getByRole('button', { name: /Whisper/ }), { key: 'Escape' })
+      expect(stackEscape).toHaveBeenCalled()
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    } finally {
+      document.removeEventListener('keydown', stackEscape)
+    }
   })
 
   it('closes on click outside', () => {

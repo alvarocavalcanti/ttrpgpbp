@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useClickOutside } from '../hooks/useClickOutside'
-import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { BottomSheet } from './BottomSheet'
 
 export interface MenuOption {
@@ -25,7 +24,6 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
   const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false), open)
-  useEscapeToClose(() => setOpen(false))
 
   const selected = options.find(o => o.value === value)
 
@@ -47,8 +45,11 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
     if (e.key === 'ArrowDown') { e.preventDefault(); move(1) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1) }
     else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); choose(highlighted) }
+    // Escape on the trigger, not the shared stack: the anchored popup mounts
+    // with the tree, so the drawer's always-mounted handler would swallow
+    // Escape. stopPropagation keeps the keypress from reaching the stack.
+    else if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }
   }
-
   // Shared option buttons — rendered inside the BottomSheet (popup) or the
   // anchored dropdown container, so both variants list identical items.
   const optionButtons = options.map((opt, i) => (
@@ -105,7 +106,19 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
         <div
           role="menu"
           aria-label={label}
+          tabIndex={-1}
           className="absolute bottom-full mb-2 left-0 w-64 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
+          // Escape is handled on the trigger and this menu itself, not via the
+          // shared useEscapeToClose stack: the menu mounts with the tree, so
+          // the drawer's always-mounted handler sits above it in that stack
+          // and would swallow Escape. stopPropagation keeps the same keypress
+          // from reaching the stack underneath.
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation()
+              setOpen(false)
+            }
+          }}
         >
           {optionButtons}
         </div>

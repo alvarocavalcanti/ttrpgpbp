@@ -7,7 +7,6 @@ import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
-import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useMemberModeration } from './useMemberModeration'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -42,12 +41,6 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     return () => document.removeEventListener('click', handleClick)
   }, [])
 
-  // Escape closes the popup via the shared stack; no-op while closed so a
-  // closed menu can't swallow Escape meant for something below (a11y #433).
-  useEscapeToClose(() => {
-    if (openMenuId) setOpenMenuId(null)
-  })
-  
   const { moderateMember, setAway } = useMemberModeration()
 
   const startEditing = (member: ChannelMember) => {
@@ -212,13 +205,21 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                 </div>
 
                 {(isMe || isGM) && (
-                  <div className="relative">
+                  <div
+                    className="relative"
+                  >
                     <button
                       type="button"
                       data-testid={`menu-btn-${member.id}`}
                       aria-label={`Member options for ${member.character_name}`}
                       aria-expanded={openMenuId === member.id}
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape' && openMenuId === member.id) {
+                          e.stopPropagation()
+                          setOpenMenuId(null)
+                        }
+                      }}
                       className="p-3 rounded-full text-surface-400 dark:text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -227,7 +228,21 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     </button>
                     
                     {openMenuId === member.id && (
-                      <div role="menu" aria-label={`Member options for ${member.character_name}`} className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-surface-800 ring-1 ring-black ring-opacity-5 z-50">
+                      <div role="menu" aria-label={`Member options for ${member.character_name}`} tabIndex={-1} className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-surface-800 ring-1 ring-black ring-opacity-5 z-50"
+                        // Escape is handled on the trigger and the menu itself,
+                        // not via the shared useEscapeToClose stack: MemberList
+                        // mounts with the channel tree, so the drawer's
+                        // always-mounted handler sits above it in that stack
+                        // and would swallow Escape (a11y #432/#433).
+                        // stopPropagation keeps the same keypress from
+                        // reaching the stack underneath.
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            e.stopPropagation()
+                            setOpenMenuId(null)
+                          }
+                        }}
+                      >
                         <div className="py-1">
                           {isMe && (
                             <button

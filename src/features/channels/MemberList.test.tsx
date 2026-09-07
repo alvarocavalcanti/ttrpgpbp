@@ -141,8 +141,39 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     expect(screen.getByRole('menu')).toBeInTheDocument()
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    // Escape is handled on the popup container (bubble phase from the
+    // trigger/its menu items), not via the window-level Escape stack.
+    fireEvent.keyDown(screen.getByTestId('menu-btn-m2'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('keeps Escape on the open popup from reaching the window-level stack (a11y)', () => {
+    const stackEscape = vi.fn()
+    document.addEventListener('keydown', stackEscape)
+    try {
+      render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByTestId('menu-btn-m2'))
+      fireEvent.keyDown(screen.getByTestId('menu-btn-m2'), { key: 'Escape' })
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(stackEscape).not.toHaveBeenCalled()
+    } finally {
+      document.removeEventListener('keydown', stackEscape)
+    }
+  })
+
+  it('ignores Escape while the popup is closed (a11y)', () => {
+    const stackEscape = vi.fn()
+    document.addEventListener('keydown', stackEscape)
+    try {
+      render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.keyDown(screen.getByTestId('menu-btn-m2'), { key: 'Escape' })
+      expect(stackEscape).toHaveBeenCalled()
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    } finally {
+      document.removeEventListener('keydown', stackEscape)
+    }
   })
 
   it('flips aria-expanded false→true→false across open and Escape close (a11y)', () => {
@@ -152,7 +183,7 @@ describe('MemberList', () => {
     expect(kebab).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(kebab)
     expect(kebab).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByTestId('menu-btn-m2'), { key: 'Escape' })
     expect(kebab).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })

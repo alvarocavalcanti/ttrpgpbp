@@ -27,12 +27,23 @@ describe('EmojiPicker', () => {
 
   it('closes on Escape (uncontrolled)', () => {
     const onPick = vi.fn()
-    render(<EmojiPicker onPick={onPick} />)
-    fireEvent.click(screen.getByLabelText('Add reaction'))
-    expect(screen.getByText('👍')).toBeInTheDocument()
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByText('👍')).not.toBeInTheDocument()
-    expect(onPick).not.toHaveBeenCalled()
+    const stackEscape = vi.fn()
+    document.addEventListener('keydown', stackEscape)
+    try {
+      render(<EmojiPicker onPick={onPick} />)
+      fireEvent.click(screen.getByLabelText('Add reaction'))
+      expect(screen.getByText('👍')).toBeInTheDocument()
+      // Escape is handled on the trigger and the grid itself, and
+      // stopPropagation keeps the keypress from reaching the window-level
+      // Escape stack (the always-mounted drawer handler would otherwise
+      // win — a11y #432).
+      fireEvent.keyDown(screen.getByLabelText('Add reaction'), { key: 'Escape' })
+      expect(screen.queryByText('👍')).not.toBeInTheDocument()
+      expect(onPick).not.toHaveBeenCalled()
+      expect(stackEscape).not.toHaveBeenCalled()
+    } finally {
+      document.removeEventListener('keydown', stackEscape)
+    }
   })
 
   describe('controlled mode', () => {
@@ -73,7 +84,9 @@ describe('EmojiPicker', () => {
     it('closes on Escape via a single onOpenChange(false)', () => {
       const onOpenChange = vi.fn()
       render(<EmojiPicker onPick={vi.fn()} open onOpenChange={onOpenChange} />)
-      fireEvent.keyDown(window, { key: 'Escape' })
+      // Fire on the grid (role=group) — where the Escape handler lives now
+      // (a11y #432).
+      fireEvent.keyDown(screen.getByRole('group', { name: 'Quick reactions' }), { key: 'Escape' })
       expect(onOpenChange).toHaveBeenCalledTimes(1)
       expect(onOpenChange).toHaveBeenCalledWith(false)
     })

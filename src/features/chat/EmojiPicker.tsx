@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { QUICK_EMOJIS } from './emojis'
 
 interface EmojiPickerBaseProps {
@@ -33,13 +32,17 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
   }
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Escape closes the popup via the shared stack (topmost handler wins, so a
-  // modal above keeps priority and this can't double-fire with it). The
-  // no-op while closed keeps a closed picker from swallowing Escape meant
-  // for something below.
-  useEscapeToClose(() => {
-    if (isOpen) setOpen(false)
-  })
+  // Escape closes the popup on the trigger and the grid itself, not via the
+  // shared useEscapeToClose stack: the picker mounts with the channel tree,
+  // so the drawer's always-mounted handler sits above it in that stack and
+  // would swallow Escape. stopPropagation keeps the same keypress from
+  // reaching the stack underneath.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen) {
+      e.stopPropagation()
+      setOpen(false)
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -60,6 +63,7 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
           aria-label="Add reaction"
           aria-expanded={isOpen}
           onClick={() => setOpen(!isOpen)}
+          onKeyDown={handleKeyDown}
           className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -68,7 +72,7 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
         </button>
       )}
       {isOpen && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-4 gap-1 w-64">
+        <div role="group" aria-label="Quick reactions" onKeyDown={handleKeyDown} className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-4 gap-1 w-64">
           {QUICK_EMOJIS.map(emoji => (
             <button
               key={emoji}

@@ -333,6 +333,49 @@ describe('useSafetyCardEvents', () => {
     expect(result.current.alertCount).toBe(0)
   })
 
+  it('cedes the alert state to a live INSERT that lands during a retry', async () => {
+    // A live flag arriving mid-retry bumps the generation; the retry's
+    // in-flight SELECT snapshot the pre-INSERT table state and must not
+    // overwrite the banner the live writer just reopened (audit item 17).
+    const getCardCallback = mockRealtimeChannel()
+    const { deferNext, flush, setCountResult } = mockMutableCountQuery({ count: null, error: { message: 'RLS block' } })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+
+    // The retry's count query is held in flight…
+    deferNext()
+    act(() => {
+      result.current.retryCatchUp()
+    })
+    expect(result.current.catchUpRetrying).toBe(true)
+
+    // …and a live flag lands while it is unresolved.
+    await act(async () => {
+      getCardCallback('INSERT')?.({})
+      await Promise.resolve()
+    })
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(1)
+
+    // The stale retry reports a pre-INSERT zero: only the in-flight flag is
+    // cleaned up — the banner and the error chip both stay up (the live
+    // writer owns the alert state; nothing verified a clean table).
+    setCountResult({ count: 0, error: null })
+    await act(async () => {
+      flush()
+      await Promise.resolve()
+    })
+
+    expect(result.current.catchUpRetrying).toBe(false)
+    expect(result.current.catchUpError).toBe(true)
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(1)
+  })
+
   it('persists dismissal by resolving the unresolved events', async () => {
     mockRealtimeChannel()
     const { updateChain } = mockSupabaseQuery({ count: 0, error: null }, { error: null })
