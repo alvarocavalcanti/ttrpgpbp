@@ -52,7 +52,7 @@
 
 - `npx tsc -p tsconfig.app.json --noEmit` → **passed, no errors** (exit 0)
 - `npx oxlint` → **passed, clean** (exit 0)
-- All claims verified by file reads / grep against `src/`, `supabase/migrations/`, `.github/workflows/`, `.oxlintrc.json`; no tests, builds, DB, or git commands run (per contract). Build/bundle therefore not re-measured this pass — precache config is unchanged (`vite.config.ts:27-29`), so the 20260904 measured state (42 entries / 1.5 MiB) remains the reference.
+- All claims verified by file reads / grep against `src/`, `supabase/migrations/`, `.github/workflows/`, `.oxlintrc.json`; no tests, builds, DB, or git commands run (per contract). Build/bundle therefore not re-measured this pass — precache config is unchanged (`vite.config.ts:27-29`), so the historical 20260904 baseline (42 entries / 1.5 MiB) remains the reference; the orchestrator's post-audit build (see [INDEX.md](INDEX.md)) measured 41 entries / 1.58 MiB, consistent with that baseline.
 
 ---
 

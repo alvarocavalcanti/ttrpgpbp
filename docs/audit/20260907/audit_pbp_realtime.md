@@ -107,9 +107,9 @@ None.
 
 **Problem:** The exact scenario P1.1 existed for — a player flags at 2am, the GM is unreachable — now also has a duration bound. A GM on a two-week break who misses a flag pressed on day 1 comes back to no banner, no count, no trace: the flag is invisible forever. After `20260906095225`, "unresolved" is precisely "unhandled," so age is meaningless for surfacing; the window exists only to avoid surfacing pre-migration rows that client-side dismissals (then local-only) never persisted as resolved. It buys that by silently dropping real late flags.
 
-**Fix:** One migration line backfilling legacy rows (`UPDATE safety_card_events SET resolved_at = now()` — every row existing before the column shipped was already client-dismissed or acted on), then drop the `.gt('created_at', since)` filter so the count is exactly "everything unresolved." No index or schema change needed; the horizon constant goes away.
+**Fix:** One migration backfilling legacy rows, then drop the `.gt('created_at', since)` filter so the count is exactly "everything unresolved." No index or schema change needed; the horizon constant goes away. Caveat on the backfill policy: do **not** blanket-`UPDATE … SET resolved_at = now()` without an evidence-based cutoff — the correct scope is rows that predate the `resolved_at` column (`20260906095225`), which were raised in the local-dismissal era and were already acted on or expired client-side; a blanket write would silently mark any genuinely unhandled legacy flag resolved. Keep the horizon filter in place until that cutoff is established.
 
-**Effort:** Trivial (one backfill + delete one filter + adjust two tests).
+**Effort:** Small (scoped backfill + delete one filter + adjust two tests).
 
 ### 3. X-Card dismissal doesn't propagate across the GM's own tabs/devices [NEW]
 
@@ -163,7 +163,7 @@ New deliberate choices observed this pass (do not fix):
 
 - **Resolution is per-event, not a per-GM dismissal ledger** — `resolved_at` on the event row is sufficient for single-GM channels (`gm_id` is a single column); a dismissal-ledger table would be architecture for a constraint that doesn't exist.
 - **Explicit table DML grants to match hosted Supabase** (`20260905195245_add_table_dml_grants.sql`) — RLS remains the access authority; the migration only makes local/CI reset behave like hosted under CLI v2.111.0.
-- **X-Card catch-up failure surfaces a toast, not a retry** — self-heals on the next reconnect (every SUBSCRIBED re-queries) and live INSERTs are unaffected; a dedicated retry affordance would be chrome.
+- **X-Card catch-up failure surfaces a toast, not a retry** — [OPEN — not an exclusion; tracked as deduped P2-17 (ux#P2.4); cross-pillar conflict resolved in INDEX: the UX pillar owns the UX surface] self-heals on the next reconnect (every SUBSCRIBED re-queries) and live INSERTs are unaffected, but until the inline Retry lands, a GM who misses the toast sees a clean-looking table.
 - **Catch-up horizon of 7 days** — deliberate ceiling documented in-code (`useSafetyCardEvents.ts:6-7`); its safety-tool implication is raised as P2 #2 above rather than re-litigated as intent.
 
 ## Suggested execution order
