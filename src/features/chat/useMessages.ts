@@ -104,6 +104,18 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
+  // Mutation tokens per message id: a failed mutation may only roll back its
+  // optimistic state if no newer mutation has started on the same message,
+  // otherwise the stale snapshot would clobber fresher edits/deletes (#448).
+  const mutationTokensRef = useRef(new Map<string, number>())
+  const beginMessageMutation = useCallback((messageId: string) => {
+    const next = (mutationTokensRef.current.get(messageId) ?? 0) + 1
+    mutationTokensRef.current.set(messageId, next)
+    return next
+  }, [])
+  const isLatestMessageMutation = useCallback((messageId: string, token: number) =>
+    mutationTokensRef.current.get(messageId) === token, [])
+
   // Latest onLoaded without reopening the channel effect for callback identity
   // changes (same ref pattern as messagesRef above).
   const onLoadedRef = useRef(onLoaded)
@@ -642,20 +654,39 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
+    // Apply locally before the network round-trip: the write succeeds over HTTP
+    // even when the realtime socket is dead (e.g. backgrounded tab), so waiting
+    // for the UPDATE event left the message looking unedited (#448). The
+    // realtime event, if it arrives, reapplies the same server row (idempotent).
+    const updated_at = new Date().toISOString()
+    const previous = messagesRef.current.find(m => m.id === messageId)
+    const token = beginMessageMutation(messageId)
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content, is_edited: true, updated_at } : m))
     const { error } = await supabase
       .from('messages')
-      .update({ content, is_edited: true, updated_at: new Date().toISOString() })
+      .update({ content, is_edited: true, updated_at })
       .eq('id', messageId)
-    if (error) throw error
+    if (error) {
+      // Roll back only if no newer mutation has taken over this message;
+      // otherwise the stale snapshot would clobber fresher state (#448).
+      if (previous && isLatestMessageMutation(messageId, token)) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, ...previous } : m))
+      throw error
+    }
   }, [])
 
   const deleteMessage = useCallback(async (messageId: string) => {
-    // Soft delete
+    // Soft delete; optimistic for the same reason as editMessage (#448).
+    const previous = messagesRef.current.find(m => m.id === messageId)
+    const token = beginMessageMutation(messageId)
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: true } : m))
     const { error } = await supabase
       .from('messages')
       .update({ is_deleted: true })
       .eq('id', messageId)
-    if (error) throw error
+    if (error) {
+      if (previous && isLatestMessageMutation(messageId, token)) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, ...previous } : m))
+      throw error
+    }
   }, [])
 
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
