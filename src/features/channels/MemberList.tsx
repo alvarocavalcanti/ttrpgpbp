@@ -237,7 +237,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               type="button"
                               role="menuitem"
                               onClick={() => { setOpenMenuId(null); startEditing(member); }}
-                              className="w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
                             >
                               Edit Character
                             </button>
@@ -247,7 +247,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               type="button"
                               role="menuitem"
                               onClick={() => { setOpenMenuId(null); handleToggleAway(member.id); }}
-                              className="w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
                             >
                               {member.is_away ? 'Mark Back (Available)' : 'Mark Away (AFK)'}
                             </button>
@@ -258,7 +258,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                                 type="button"
                                 role="menuitem"
                                 onClick={() => { setOpenMenuId(null); requestModeration('kick', member); }}
-                                className="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-surface-100 dark:hover:bg-surface-700"
+                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-surface-100 dark:hover:bg-surface-700"
                               >
                                 Kick Player
                               </button>
@@ -266,7 +266,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                                 type="button"
                                 role="menuitem"
                                 onClick={() => { setOpenMenuId(null); requestModeration('block', member); }}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
+                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
                               >
                                 Block Player
                               </button>
@@ -277,7 +277,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               type="button"
                               role="menuitem"
                               onClick={() => { setOpenMenuId(null); requestModeration('leave', member); }}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
                             >
                               Leave Channel
                             </button>
@@ -321,7 +321,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                 <button
                   type="button"
                   onClick={() => handleUnblockMember(member.id)}
-                  className="ml-3 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium shrink-0"
+                  className="ml-3 relative after:content-[''] after:absolute after:-inset-2 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium shrink-0"
                 >
                   Unblock
                 </button>

@@ -645,6 +645,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
                 role="combobox"
+                aria-autocomplete={mentionOpen ? 'list' : undefined}
                 aria-expanded={mentionOpen}
                 aria-controls={mentionOpen ? listboxId : undefined}
                 aria-activedescendant={mentionOpen ? `${listboxId}-option-${Math.min(activeMentionIndex, mentionOptions.length - 1)}` : undefined}

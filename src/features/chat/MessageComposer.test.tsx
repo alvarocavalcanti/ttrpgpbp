@@ -456,6 +456,7 @@ describe('MessageComposer', () => {
     fireEvent.change(textarea, { target: { value: 'Hi @He', selectionStart: 5 } })
 
     expect(textarea).toHaveAttribute('aria-expanded', 'true')
+    expect(textarea).toHaveAttribute('aria-autocomplete', 'list')
     const listbox = screen.getByRole('listbox', { name: 'Mention options' })
     expect(textarea.getAttribute('aria-controls')).toBe(listbox.id)
     const highlighted = screen.getByRole('option', { name: /Hero/ })

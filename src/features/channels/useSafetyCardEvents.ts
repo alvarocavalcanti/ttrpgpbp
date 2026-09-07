@@ -65,6 +65,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
             setCatchUpError(true)
             return
           }
+          setCatchUpError(false)
           if (count && count > 0) {
             setAlertActive(true)
             setAlertCount(prev => Math.max(prev, count))
@@ -82,8 +83,13 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
   // P2-17 companion to the catch-up query above: re-runs the same head-count
   // with the same merge semantics (latch check, Math.max). Kept as a separate
   // callback so the flagged SUBSCRIBED-then-query state machine stays as-is.
+  // Guarded by requestedChannelRef: a retry fired for channel A must never
+  // apply to channel B if the hook is retargeted before the response lands.
+  const requestedChannelRef = useRef<string | undefined>(undefined)
+  requestedChannelRef.current = channelId
   const retryCatchUp = useCallback(() => {
     if (!channelId || !isGM) return
+    const requestedChannelId = channelId
     const since = new Date(Date.now() - CATCHUP_WINDOW_MS).toISOString()
     void supabase
       .from('safety_card_events')
@@ -92,7 +98,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       .is('resolved_at', null)
       .gt('created_at', since)
       .then(({ count, error }) => {
-        if (dismissedRef.current) return
+        if (dismissedRef.current || requestedChannelRef.current !== requestedChannelId) return
         if (error) {
           console.error('Failed to load X-Card alerts:', error)
           addToast('Failed to load X-Card alerts.', 'error')

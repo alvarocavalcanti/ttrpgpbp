@@ -125,6 +125,10 @@ describe('MemberList', () => {
     const menu = screen.getByRole('menu', { name: 'Member options for Sidekick' })
     expect(menu).toBeInTheDocument()
     expect(within(menu).getAllByRole('menuitem').length).toBeGreaterThan(0)
+    // Menu items are touch-first controls: 44px floor, asserted literally.
+    for (const item of within(menu).getAllByRole('menuitem')) {
+      expect(item.className).toContain('min-h-11')
+    }
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
