@@ -19,7 +19,13 @@ jobs:
           version: v2.111.0
 
       - name: Start local Supabase & apply migrations
-        run: supabase db start
+        # `supabase stop` clears containers left over from a previous run on a
+        # reused runner; without it, the port bind (54322) can collide with the
+        # stale container ("address already in use") and fail the job before
+        # any test runs. No-op on a fresh runner, so failure is ignored.
+        run: |
+          supabase stop || true
+          supabase db start
 
       - name: Verify migrations apply from scratch
         run: supabase db reset
@@ -51,7 +57,12 @@ jobs:
           version: v2.111.0
 
       - name: Start local Supabase
-        run: supabase db start
+        # `supabase stop` clears containers left over from a previous run on a
+        # reused runner (port 54322 collision otherwise fails the job before
+        # tests run). No-op on a fresh runner, so failure is ignored.
+        run: |
+          supabase stop || true
+          supabase db start
 
       - name: Generate .env.local from Supabase config
         run: |
@@ -97,7 +108,12 @@ jobs:
       # specs need the auth API and are skipped (not run) without it, which
       # used to make the Playwright step a no-op in CI (issue #403 ARCH-7).
       - name: Start local Supabase stack
-        run: supabase start
+        # `supabase stop` clears containers left over from a previous run on a
+        # reused runner (port collisions otherwise fail the job before tests
+        # run). No-op on a fresh runner, so failure is ignored.
+        run: |
+          supabase stop || true
+          supabase start
 
       - name: Apply migrations from scratch
         run: supabase db reset
