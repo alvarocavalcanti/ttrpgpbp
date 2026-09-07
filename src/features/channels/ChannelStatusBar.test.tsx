@@ -34,6 +34,22 @@ describe('ChannelStatusBar', () => {
     render(<ChannelStatusBar channelId="c1" statusText={null} activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
     expect(screen.getByText('No status set.')).toBeInTheDocument()
     expect(screen.getByText('Edit')).toBeInTheDocument()
+    // Literal touch-target requirement (UX audit): the bar's labeled text
+    // button grows to 44px — asserted literally so a sizing regression fails.
+    expect(screen.getByText('Edit').closest('button')!.className).toContain('min-h-11')
+  })
+
+  it('renders status prose from the shared proseAmber constant (P2-18)', () => {
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="Initiative: Thor 18" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    const prose = container.querySelector('.prose')!
+    // Literals mirror src/features/chat/composerChip.ts on purpose (DAMP):
+    // rewording the constant or inlining it back fails here.
+    expect(prose.className).toContain('prose prose-sm max-w-none dark:prose-invert text-amber-900')
+    expect(prose.className).toContain('prose-p:text-amber-900 dark:prose-p:text-amber-200')
+    expect(prose.className).toContain('prose-ol:text-amber-900 dark:prose-ol:text-amber-200')
+    // Collapsed by default: the space between the constant and line-clamp-1
+    // must survive the template interpolation or the token merges and breaks.
+    expect(prose.className).toContain('prose-ol:text-amber-200 line-clamp-1')
   })
 
   it('renders active players when provided', () => {
@@ -47,27 +63,32 @@ describe('ChannelStatusBar', () => {
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="**Bold** status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
     expect(screen.getByText('Bold').tagName).toBe('STRONG')
     
-    const toggleButton = container.querySelector('button[title="Expand Status"]')!
+    const toggleButton = container.querySelector('button[aria-label="Expand Status"]')!
     expect(toggleButton).toBeInTheDocument()
-    
+
     // Initially line-clamp-1
     expect(container.querySelector('.line-clamp-1')).toBeInTheDocument()
+
+    // Audit P2-15: the disclosure chevron exposes its expanded state.
+    expect(toggleButton).toHaveAttribute('aria-expanded', 'false')
 
     // Expand
     fireEvent.click(toggleButton)
     expect(container.querySelector('.line-clamp-1')).not.toBeInTheDocument()
+    expect(toggleButton).toHaveAttribute('aria-expanded', 'true')
+    expect(toggleButton).toHaveAttribute('aria-label', 'Collapse Status')
   })
 
   it('hides the chevron on single-line status text', () => {
     // Default (0/0) means no overflow — nothing to expand.
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="Short status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
-    expect(container.querySelector('button[title="Expand Status"]')).toBeNull()
+    expect(container.querySelector('button[aria-label="Expand Status"]')).toBeNull()
   })
 
   it('shows the chevron only when the status text overflows', () => {
     setOverflow(100, 30)
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="A very long status line that would overflow the single line clamp." activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
-    const chevron = container.querySelector('button[title="Expand Status"]')!
+    const chevron = container.querySelector('button[aria-label="Expand Status"]')!
     expect(chevron).toBeInTheDocument()
     // Literal touch-target requirement (UX-1): 24px chevron expanded to 44px
     // via invisible pseudo padding.

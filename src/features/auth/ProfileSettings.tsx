@@ -122,9 +122,9 @@ export function ProfileSettings() {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-8">Profile Settings</h2>
+        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100 mb-8">Profile Settings</h2>
         
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <div className="bg-white dark:bg-surface-800 shadow rounded-lg p-6">
           <div className="flex items-center space-x-6 mb-8">
             <div className="shrink-0">
               {profile.avatar_url ? (
@@ -135,7 +135,7 @@ export function ProfileSettings() {
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shadow-sm">
+                <div className="h-24 w-24 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 shadow-sm">
                   <span className="text-3xl font-medium">
                     {displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
                   </span>
@@ -143,8 +143,8 @@ export function ProfileSettings() {
               )}
             </div>
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Your Avatar</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <h3 className="text-lg font-medium text-surface-900 dark:text-surface-100">Your Avatar</h3>
+              <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
                 Currently using your Google account picture.
               </p>
             </div>
@@ -152,7 +152,7 @@ export function ProfileSettings() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
                 Email Address
               </label>
               <input
@@ -160,13 +160,13 @@ export function ProfileSettings() {
                 id="email"
                 disabled
                 value={user?.email || ''}
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-gray-500 dark:text-gray-400 px-3 py-2 border"
+                className="mt-1 block w-full rounded-md border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-surface-500 dark:text-surface-400 px-3 py-2 border"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Your email is managed by your Google account.</p>
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">Your email is managed by your Google account.</p>
             </div>
 
             <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="displayName" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
                 Display Name
               </label>
               <input
@@ -176,7 +176,7 @@ export function ProfileSettings() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
-                className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                className="bg-white dark:bg-surface-800 mt-1 block w-full rounded-md border-surface-300 dark:border-surface-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
               />
             </div>
 
@@ -184,7 +184,7 @@ export function ProfileSettings() {
               <button
                 type="submit"
                 disabled={isSaving || !displayName.trim()}
-                className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                className="inline-flex justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -194,11 +194,11 @@ export function ProfileSettings() {
       </div>
 
       <div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Appearance</h3>
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <h3 className="text-xl font-bold text-surface-900 dark:text-surface-100 mb-4">Appearance</h3>
+        <div className="bg-white dark:bg-surface-800 shadow rounded-lg p-6">
           <div>
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Text size</h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Text size</h4>
+            <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
               Controls the size of all app text. Pick the size that reads most comfortably for you.
             </p>
           </div>
@@ -209,10 +209,10 @@ export function ProfileSettings() {
                 type="button"
                 onClick={() => setSize(value)}
                 aria-pressed={textSize === value}
-                className={`inline-flex justify-center rounded-md border py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                className={`inline-flex justify-center rounded-md border py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                   textSize === value
-                    ? 'border-transparent bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700'
+                    ? 'border-transparent bg-primary-600 text-white shadow-sm hover:bg-primary-700'
+                    : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700'
                 }`}
               >
                 {label}
@@ -223,23 +223,23 @@ export function ProfileSettings() {
       </div>
 
       <div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Notifications</h3>
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-6">
+        <h3 className="text-xl font-bold text-surface-900 dark:text-surface-100 mb-4">Notifications</h3>
+        <div className="bg-white dark:bg-surface-800 shadow rounded-lg p-6 space-y-6">
           {prefsLoading ? (
             <div className="animate-pulse flex space-x-4">
               <div className="flex-1 space-y-4 py-1">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                <div className="h-4 bg-surface-200 dark:bg-surface-700 rounded w-3/4"></div>
+                <div className="h-4 bg-surface-200 dark:bg-surface-700 rounded w-1/2"></div>
               </div>
             </div>
           ) : (
             <>
               {/* Push Subscriptions - Device specific */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
+              <div className="border-b border-surface-200 dark:border-surface-700 pb-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Push Notifications on this device</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Push Notifications on this device</h4>
+                    <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
                       {!isConfigured
                         ? 'Push notifications are not configured on the server.'
                         : needsInstall
@@ -259,14 +259,14 @@ export function ProfileSettings() {
                       type="button"
                       onClick={togglePushSubscription}
                       disabled={permission === 'denied'}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${isSubscribed ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${isSubscribed ? 'bg-primary-600' : 'bg-surface-200 dark:bg-surface-700'}`}
                       role="switch"
                       aria-checked={isSubscribed}
                     >
                       <span className="sr-only">Use push notifications</span>
                       <span
                         aria-hidden="true"
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-gray-800 shadow ring-0 transition duration-200 ease-in-out ${isSubscribed ? 'translate-x-5' : 'translate-x-0'}`}
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-surface-800 shadow ring-0 transition duration-200 ease-in-out ${isSubscribed ? 'translate-x-5' : 'translate-x-0'}`}
                       />
                     </button>
                   )}
@@ -275,7 +275,7 @@ export function ProfileSettings() {
 
               {/* Notification Preferences - Account wide */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notification Types</h4>
+                <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Notification Types</h4>
                 
                   <div className="flex items-start">
                   <div className="flex h-5 items-center">
@@ -285,12 +285,12 @@ export function ProfileSettings() {
                       checked={preferences?.push_enabled ?? false}
                       onChange={(e) => updatePreferences({ push_enabled: e.target.checked })}
                       disabled={pushUnavailable}
-                      className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-4 w-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label htmlFor="push_enabled" className={`font-medium ${pushUnavailable ? 'text-gray-400 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>Send me Push Notifications</label>
-                    <p className={`${pushUnavailable ? 'text-gray-400 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>Global toggle for push notifications across all devices.</p>
+                    <label htmlFor="push_enabled" className={`font-medium ${pushUnavailable ? 'text-surface-400 dark:text-surface-400' : 'text-surface-700 dark:text-surface-300'}`}>Send me Push Notifications</label>
+                    <p className={`${pushUnavailable ? 'text-surface-400 dark:text-surface-400' : 'text-surface-500 dark:text-surface-400'}`}>Global toggle for push notifications across all devices.</p>
                   </div>
                 </div>
 
@@ -301,12 +301,12 @@ export function ProfileSettings() {
                       type="checkbox"
                       checked={preferences?.badge_enabled ?? false}
                       onChange={(e) => updatePreferences({ badge_enabled: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500"
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label htmlFor="badge_enabled" className="font-medium text-gray-700 dark:text-gray-300">Show Unread Badges</label>
-                    <p className="text-gray-500 dark:text-gray-400">Show a red dot on channels with unread messages.</p>
+                    <label htmlFor="badge_enabled" className="font-medium text-surface-700 dark:text-surface-300">Show Unread Badges</label>
+                    <p className="text-surface-500 dark:text-surface-400">Show a red dot on channels with unread messages.</p>
                   </div>
                 </div>
               </div>
@@ -316,12 +316,12 @@ export function ProfileSettings() {
       </div>
 
       <div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Account &amp; Data</h3>
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-6">
+        <h3 className="text-xl font-bold text-surface-900 dark:text-surface-100 mb-4">Account &amp; Data</h3>
+        <div className="bg-white dark:bg-surface-800 shadow rounded-lg p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Download My Data</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Download My Data</h4>
+              <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
                 Export your profile, channel memberships, and authored messages as a JSON file.
               </p>
             </div>
@@ -329,17 +329,17 @@ export function ProfileSettings() {
               type="button"
               onClick={handleExport}
               disabled={isExporting}
-              className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+              className="inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-2 px-4 text-sm font-medium text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
             >
               {isExporting ? 'Exporting...' : 'Download My Data'}
             </button>
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="border-t border-surface-200 dark:border-surface-700 pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-medium text-red-600 dark:text-red-400">Delete Account</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
                   Permanently deletes your account and personal data. Your messages are kept
                   anonymous and your channels are handed to the server admin.
                 </p>
@@ -354,9 +354,9 @@ export function ProfileSettings() {
             </div>
           </div>
 
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="text-sm text-surface-500 dark:text-surface-400">
             See the{' '}
-            <Link to="/privacy" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium">
+            <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium">
               Privacy Policy
             </Link>{' '}
             for details on what data we store and how you can exercise your rights.
@@ -385,12 +385,12 @@ function DeleteConfirmDialog({ onCancel, onConfirm, isDeleting, deleteConfirmTex
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80" aria-hidden="true" onClick={onCancel}></div>
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-          <h3 id="delete-account-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+        <div className="fixed inset-0 bg-surface-500 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80" aria-hidden="true" onClick={onCancel}></div>
+        <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 id="delete-account-title" className="text-lg font-bold text-surface-900 dark:text-surface-100 mb-2">
             Delete your account?
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          <p className="text-sm text-surface-500 dark:text-surface-400 mb-4">
             This action is permanent and cannot be undone. Type <span className="font-semibold">DELETE</span> to confirm.
           </p>
           <input
@@ -399,13 +399,13 @@ function DeleteConfirmDialog({ onCancel, onConfirm, isDeleting, deleteConfirmTex
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder="DELETE"
             aria-label="Type DELETE to confirm"
-            className="bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm px-3 py-2 border"
+            className="bg-white dark:bg-surface-800 mt-1 block w-full rounded-md border-surface-300 dark:border-surface-600 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm px-3 py-2 border"
           />
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
               onClick={onCancel}
-              className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+              className="inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-2 px-4 text-sm font-medium text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
             >
               Cancel
             </button>

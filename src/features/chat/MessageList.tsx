@@ -232,7 +232,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             type="button"
             onClick={onLoadOlder}
             disabled={loadingOlder}
-            className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 disabled:opacity-50"
+            className="inline-flex items-center justify-center min-h-11 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 disabled:opacity-50"
           >
             {/* Manual fallback for short first pages (no scroll => no auto-load) */}
             {loadingOlder ? 'Loading older messages...' : 'Load older messages'}

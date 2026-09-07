@@ -101,6 +101,39 @@ describe('MemberList', () => {
     expect(screen.getByTestId('menu-btn-m1')).toHaveClass('p-3')
   })
 
+  it('gives the kebab an accessible name containing the member character name', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    // #433 / audit P2-19: the bare-SVG kebab must expose which member it acts on.
+    expect(screen.getByRole('button', { name: 'Member options for Hero' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Member options for Sidekick' })).toBeInTheDocument()
+  })
+
+  it('toggles aria-expanded on the kebab when the menu opens', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    const btn = screen.getByTestId('menu-btn-m2')
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(btn)
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('closes the open menu on Escape', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    const menu = screen.getByRole('menu', { name: 'Member options for Sidekick' })
+    expect(menu).toBeInTheDocument()
+    expect(within(menu).getAllByRole('menuitem').length).toBeGreaterThan(0)
+    // Menu items are touch-first controls: 44px floor, asserted literally.
+    for (const item of within(menu).getAllByRole('menuitem')) {
+      expect(item.className).toContain('min-h-11')
+    }
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('allows editing own character', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })

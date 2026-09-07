@@ -81,4 +81,42 @@ describe('useEscapeToClose', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(closeParent).toHaveBeenCalledTimes(1)
   })
+
+  it('does not respond or block lower handlers while disabled', () => {
+    const closeDrawer = vi.fn()
+    const closeMenu = vi.fn()
+
+    // Always-mounted MemberList (disabled while no menu is open) mounts after
+    // ChannelView's drawer handler in production — it must not swallow Escape.
+    const menu = renderHook(() => useEscapeToClose(closeMenu, false))
+    const drawer = renderHook(() => useEscapeToClose(closeDrawer))
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeDrawer).toHaveBeenCalledTimes(1)
+    expect(closeMenu).not.toHaveBeenCalled()
+    menu.unmount()
+    drawer.unmount()
+  })
+
+  it('joins and leaves the top of the stack as enabled flips', () => {
+    const closeDrawer = vi.fn()
+    const closeMenu = vi.fn()
+
+    const menu = renderHook(({ enabled }) => useEscapeToClose(closeMenu, enabled), {
+      initialProps: { enabled: false },
+    })
+    renderHook(() => useEscapeToClose(closeDrawer))
+
+    // Enabling puts the menu on top; Escape closes only the menu.
+    menu.rerender({ enabled: true })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeMenu).toHaveBeenCalledTimes(1)
+    expect(closeDrawer).not.toHaveBeenCalled()
+
+    // Disabling again hands Escape back to the drawer.
+    menu.rerender({ enabled: false })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closeDrawer).toHaveBeenCalledTimes(1)
+    expect(closeMenu).toHaveBeenCalledTimes(1)
+  })
 })

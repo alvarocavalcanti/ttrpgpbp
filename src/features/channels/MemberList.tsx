@@ -8,6 +8,7 @@ import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { useMemberModeration } from './useMemberModeration'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -40,6 +41,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
   }, [])
+
+  // Escape closes the open menu. Registered only while a menu is open: this
+  // component is always mounted, so an always-on handler would sit on top of
+  // the shared Escape stack and swallow Escape meant for the mobile drawer
+  // or modals below.
+  useEscapeToClose(() => {
+    setOpenMenuId(null)
+  }, openMenuId !== null)
   
   const { moderateMember, setAway } = useMemberModeration()
 
@@ -130,7 +139,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
         </div>
       )}
       <div className="px-4 mb-4">
-        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        <h3 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider">
           Players — {activeMembers.length}
         </h3>
       </div>
@@ -141,7 +150,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           
 
           return (
-            <li key={member.id} className="group p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <li key={member.id} className="group p-2 rounded-md hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors">
               <div className={`flex items-center space-x-3 ${member.is_away ? 'opacity-60' : ''}`}>
                 <div className="flex-shrink-0 relative">
                   {member.character_avatar_url || member.profile?.avatar_url ? (
@@ -152,7 +161,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <div className={`h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 ${member.is_away ? 'grayscale' : ''}`}>
+                    <div className={`h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 ${member.is_away ? 'grayscale' : ''}`}>
                       {member.character_name[0].toUpperCase()}
                     </div>
                   )}
@@ -161,16 +170,16 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                 <div className="flex-1 min-w-0">
                     <>
                       <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        <p className="text-sm font-medium text-surface-900 dark:text-surface-100 truncate">
                           {member.character_name}
                         </p>
                         {member.is_away && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400 uppercase">
                             AFK
                           </span>
                         )}
                         {member.is_active_player && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 uppercase">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 uppercase">
                             Active
                           </span>
                         )}
@@ -180,14 +189,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
                         {member.profile?.display_name}
                       </p>
                       {member.character_notes && (
-                        <p className="text-xs text-gray-400 dark:text-gray-400 truncate">{member.character_notes}</p>
+                        <p className="text-xs text-surface-400 dark:text-surface-400 truncate">{member.character_notes}</p>
                       )}
                       {member.is_away && member.away_message && (
-                        <p className="text-xs text-gray-400 dark:text-gray-400 italic truncate">
+                        <p className="text-xs text-surface-400 dark:text-surface-400 italic truncate">
                           {member.away_message}
                         </p>
                       )}
@@ -196,7 +205,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           href={member.character_sheet_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline inline-block mt-1"
+                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline inline-block mt-1"
                         >
                           Sheet
                         </a>
@@ -209,8 +218,11 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     <button
                       type="button"
                       data-testid={`menu-btn-${member.id}`}
+                      aria-label={`Member options for ${member.character_name}`}
+                      aria-haspopup="menu"
+                      aria-expanded={openMenuId === member.id}
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
-                      className="p-3 rounded-full text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="p-3 rounded-full text-surface-400 dark:text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -218,13 +230,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     </button>
                     
                     {openMenuId === member.id && (
-                      <div className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                      <div role="menu" aria-label={`Member options for ${member.character_name}`} className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-surface-800 ring-1 ring-black ring-opacity-5 z-50">
                         <div className="py-1">
                           {isMe && (
                             <button
                               type="button"
+                              role="menuitem"
                               onClick={() => { setOpenMenuId(null); startEditing(member); }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
                             >
                               Edit Character
                             </button>
@@ -232,8 +245,9 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {isMe && (
                             <button
                               type="button"
+                              role="menuitem"
                               onClick={() => { setOpenMenuId(null); handleToggleAway(member.id); }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
                             >
                               {member.is_away ? 'Mark Back (Available)' : 'Mark Away (AFK)'}
                             </button>
@@ -242,15 +256,17 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                             <>
                               <button
                                 type="button"
+                                role="menuitem"
                                 onClick={() => { setOpenMenuId(null); requestModeration('kick', member); }}
-                                className="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-surface-100 dark:hover:bg-surface-700"
                               >
                                 Kick Player
                               </button>
                               <button
                                 type="button"
+                                role="menuitem"
                                 onClick={() => { setOpenMenuId(null); requestModeration('block', member); }}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
                               >
                                 Block Player
                               </button>
@@ -259,8 +275,9 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {isMe && member.user_id !== gmId && (
                             <button
                               type="button"
+                              role="menuitem"
                               onClick={() => { setOpenMenuId(null); requestModeration('leave', member); }}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"
                             >
                               Leave Channel
                             </button>
@@ -293,10 +310,10 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate line-through">
+                    <p className="text-sm font-medium text-surface-900 dark:text-surface-100 truncate line-through">
                       {member.character_name}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
                       {member.profile?.display_name}
                     </p>
                   </div>
@@ -304,7 +321,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                 <button
                   type="button"
                   onClick={() => handleUnblockMember(member.id)}
-                  className="ml-3 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium shrink-0"
+                  className="ml-3 relative after:content-[''] after:absolute after:-inset-2 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium shrink-0"
                 >
                   Unblock
                 </button>

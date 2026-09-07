@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **X-Card resolutions are announced to the table** — when the GM resolves a flagged scene, everyone in the channel now sees a short system note ("A flagged scene has been resolved. Carry on — the X-Card is always there if you need it again."), so whoever raised the flag knows it was handled instead of wondering.
+- **Easier to tap, clearer to hear** — small buttons across the app (the status bar's Edit, the message retry, notification prompts, "Load older messages" and others) now meet the comfortable 44px touch size. The member options menu now announces itself to screen readers (with each member's name), closes on Escape, and the @-mention picker speaks its highlighted choice. If the X-Card alert list ever fails to load, the GM now sees a retry button right in the banner instead of a fleeting notice.
+
 - **Unread counts now match what you can actually see** — private whispers between other players no longer inflate your unread badge or the "N new" pill in the lobby, and opening a channel to read it clears its badge for good, even across devices. The lobby's "N new" pill also stays on one line next to long channel names.
 - **Channel sidebar slides in cleanly** — opening the sidebar on a phone or a narrow window no longer makes the view drift sideways or makes the chat appear to slide the other way. The sidebar now animates in on its own, leaving the chat window where it is.
 

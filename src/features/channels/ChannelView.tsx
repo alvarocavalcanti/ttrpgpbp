@@ -71,7 +71,7 @@ export function ChannelView() {
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, markRead, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead, canMarkRead)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
-  const { alertActive, alertCount, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
+  const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -301,6 +301,7 @@ export function ChannelView() {
             <button
               type="button"
               aria-label="Toggle sidebar menu"
+              aria-expanded={showMobileSidebar}
               onClick={() => setShowMobileSidebar(!showMobileSidebar)}
               className="lg:hidden text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 rounded-md bg-surface-50 dark:bg-surface-900 hover:bg-primary-50 dark:hover:bg-primary-950"
             >
@@ -333,7 +334,21 @@ export function ChannelView() {
               onClick={refreshMessages}
               disabled={messagesRetrying}
               aria-label="Retry loading messages"
-              className="flex-shrink-0 rounded-md border border-red-300 dark:border-red-700 px-2 py-1 font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 disabled:opacity-50"
+              className="flex-shrink-0 inline-flex items-center justify-center min-h-11 rounded-md border border-red-300 dark:border-red-700 px-2 py-1 font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 disabled:opacity-50"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {catchUpError && (
+          <div className="px-4 py-2 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm flex items-center justify-between gap-3" role="alert">
+            <span>Could not load X-Card alerts. Try again.</span>
+            <button
+              type="button"
+              onClick={retryCatchUp}
+              aria-label="Retry loading X-Card alerts"
+              className="flex-shrink-0 inline-flex items-center justify-center min-h-11 rounded-md border border-red-300 dark:border-red-700 px-2 py-1 font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900"
             >
               Retry
             </button>

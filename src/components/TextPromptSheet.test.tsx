@@ -9,6 +9,9 @@ describe('TextPromptSheet', () => {
     expect(screen.getByRole('dialog', { name: 'Mark Away (AFK)' })).toBeInTheDocument()
     const input = screen.getByLabelText('Away message (optional)')
     expect(input).toHaveValue('Back on Thursday')
+    // Literal touch-target requirement (UX audit): the prompt input grows to
+    // 44px — asserted literally so a sizing regression fails.
+    expect(input.className).toContain('min-h-11')
   })
 
   it('caps input length at maxLength', () => {

@@ -1145,6 +1145,10 @@ export type Database = {
         Args: { p_channel_id: string; p_content: string }
         Returns: string[]
       }
+      resolve_safety_card_events: {
+        Args: { p_channel_id: string }
+        Returns: undefined
+      }
       retry_failed_push_invocations: {
         Args: { p_max?: number }
         Returns: number

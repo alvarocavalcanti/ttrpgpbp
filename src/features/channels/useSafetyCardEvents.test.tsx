@@ -9,7 +9,8 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
     channel: vi.fn(),
-    removeChannel: vi.fn()
+    removeChannel: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -17,10 +18,11 @@ function wrapper({ children }: { children: ReactNode }) {
   return <ToastProvider>{children}</ToastProvider>
 }
 
-// The GM mount now runs a catch-up SELECT and dismissal runs an UPDATE, both
-// against safety_card_events. Build separate thenable chains per operation so
-// each can resolve with its own result (the real builder is thenable too).
-function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown } = { count: 0, error: null }, updateResult: { error?: unknown } = { error: null }) {
+// The GM mount now runs a catch-up SELECT and dismissal runs the
+// resolve_safety_card_events RPC. Build separate thenable chains per
+// operation so each can resolve with its own result (the real builder is
+// thenable too).
+function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown } = { count: 0, error: null }, rpcResult: { error?: unknown } = { error: null }) {
   const buildChain = (result: unknown) => {
     const chain: Record<string, ReturnType<typeof vi.fn>> = {}
     for (const op of ['select', 'update', 'eq', 'is', 'gt']) {
@@ -32,18 +34,15 @@ function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown
     return chain
   }
   const fetchChain = buildChain(fetchResult) as any
-  const updateChain = buildChain(updateResult) as any
+  const rpcChain = buildChain(rpcResult) as any
   vi.mocked(supabase.from).mockReturnValue({
     select: (...args: any[]) => {
       fetchChain.select(...args)
       return fetchChain
-    },
-    update: (...args: any[]) => {
-      updateChain.update(...args)
-      return updateChain
     }
   } as any)
-  return { fetchChain, updateChain }
+  vi.mocked(supabase.rpc).mockReturnValue(rpcChain as any)
+  return { fetchChain, rpcChain }
 }
 
 function mockRealtimeChannel() {
@@ -277,9 +276,144 @@ describe('useSafetyCardEvents', () => {
     expect(result.current.alertCount).toBe(0)
   })
 
-  it('persists dismissal by resolving the unresolved events', async () => {
+  it('exposes a catch-up error state when the snapshot fetch fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRealtimeChannel()
-    const { updateChain } = mockSupabaseQuery({ count: 0, error: null }, { error: null })
+    mockSupabaseQuery({ count: null, error: { message: 'RLS block' } })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+  })
+
+  it('re-runs the catch-up query on retry and clears the error on success', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRealtimeChannel()
+    // First snapshot fails; the retry re-runs the same query and succeeds.
+    let snapshot: { count: number | null; error: unknown } = { count: null, error: { message: 'RLS block' } }
+    const fetchChain: Record<string, any> = {}
+    for (const op of ['select', 'eq', 'is', 'gt']) fetchChain[op] = vi.fn(() => fetchChain)
+    fetchChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
+      Promise.resolve(snapshot).then(onFulfilled, onRejected)) as any
+    vi.mocked(supabase.from).mockReturnValue({
+      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain }
+    } as any)
+    vi.mocked(supabase.rpc).mockReturnValue(Promise.resolve({ error: null }) as any)
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+    const snapshotsBeforeRetry = fetchChain.select.mock.calls.length
+
+    snapshot = { count: 2, error: null }
+    act(() => {
+      result.current.retryCatchUp()
+    })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(false)
+    })
+    expect(fetchChain.select.mock.calls.length).toBe(snapshotsBeforeRetry + 1)
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(2)
+  })
+
+  it('clears the catch-up error when a live flag arrives', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const getCardCallback = mockRealtimeChannel()
+    mockSupabaseQuery({ count: null, error: { message: 'RLS block' } })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+
+    act(() => {
+      getCardCallback()?.({})
+    })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(false)
+    })
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(1)
+  })
+
+  it('clears the catch-up error when a later snapshot succeeds', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRealtimeChannel()
+    mockSupabaseQuery({ count: null, error: { message: 'RLS block' } })
+
+    const { result, rerender } = renderHook(({ id }) => useSafetyCardEvents(id, true), {
+      initialProps: { id: 'c1' },
+      wrapper,
+    })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+
+    // Retargeting the hook re-runs the mount snapshot; a successful one
+    // clears the stale error even when it finds zero events.
+    const okChain: Record<string, any> = {}
+    for (const op of ['select', 'eq', 'is', 'gt']) okChain[op] = () => okChain
+    okChain.then = (onFulfilled: any) => Promise.resolve({ count: 0, error: null }).then(onFulfilled)
+    vi.mocked(supabase.from).mockReturnValue(okChain)
+    rerender({ id: 'c2' })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(false)
+    })
+    expect(result.current.alertActive).toBe(false)
+  })
+
+  it('ignores a late retry result for a channel the hook has left', async () => {
+    mockRealtimeChannel()
+    // Deferred chain: the retry's response is released only by the test.
+    let releaseRetry: (r: { count: number | null; error: unknown }) => void = () => {}
+    const retryPromise = new Promise<{ count: number | null; error: unknown }>((resolve) => {
+      releaseRetry = resolve
+    })
+    const okChain: Record<string, any> = {}
+    for (const op of ['select', 'eq', 'is', 'gt']) okChain[op] = () => okChain
+    okChain.then = (onFulfilled: any) => Promise.resolve({ count: 0, error: null }).then(onFulfilled)
+    vi.mocked(supabase.from).mockReturnValue(okChain)
+
+    const { result, rerender } = renderHook(({ id }) => useSafetyCardEvents(id, true), {
+      initialProps: { id: 'c1' },
+      wrapper,
+    })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(false)
+    })
+
+    // Fire the retry for c1, leave the channel, THEN deliver c1's response.
+    const deferredChain: Record<string, any> = {}
+    for (const op of ['select', 'eq', 'is', 'gt']) deferredChain[op] = () => deferredChain
+    deferredChain.then = (onFulfilled: any) => retryPromise.then(onFulfilled)
+    vi.mocked(supabase.from).mockReturnValue(deferredChain)
+    act(() => {
+      result.current.retryCatchUp()
+    })
+    rerender({ id: 'c2' })
+    releaseRetry({ count: 5, error: null })
+
+    await waitFor(() => {
+      // The c1 result must not bleed into c2's state.
+      expect(result.current.alertCount).toBe(0)
+      expect(result.current.alertActive).toBe(false)
+    })
+  })
+
+  it('persists dismissal through the resolution RPC that announces it to the channel', async () => {
+    mockRealtimeChannel()
+    const { rpcChain } = mockSupabaseQuery({ count: 0, error: null }, { error: null })
 
     const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
 
@@ -291,9 +425,8 @@ describe('useSafetyCardEvents', () => {
       await result.current.dismissAlert()
     })
 
-    expect(updateChain.update).toHaveBeenCalledWith({ resolved_at: expect.any(String) })
-    expect(updateChain.eq).toHaveBeenCalledWith('channel_id', 'c1')
-    expect(updateChain.is).toHaveBeenCalledWith('resolved_at', null)
+    expect(supabase.rpc).toHaveBeenCalledWith('resolve_safety_card_events', { p_channel_id: 'c1' })
+    expect(rpcChain.then).toHaveBeenCalled()
     expect(result.current.alertActive).toBe(false)
     expect(result.current.alertCount).toBe(0)
   })
@@ -330,14 +463,10 @@ describe('useSafetyCardEvents', () => {
     for (const op of ['select', 'eq', 'is', 'gt']) fetchChain[op] = vi.fn(() => fetchChain)
     fetchChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
       catchUpPromise.then(onFulfilled, onRejected)) as any
-    const updateChain: Record<string, any> = {}
-    for (const op of ['update', 'eq', 'is']) updateChain[op] = vi.fn(() => updateChain)
-    updateChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
-      Promise.resolve({ error: null }).then(onFulfilled, onRejected)) as any
     vi.mocked(supabase.from).mockReturnValue({
-      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain },
-      update: (...args: any[]) => { updateChain.update(...args); return updateChain }
+      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain }
     } as any)
+    vi.mocked(supabase.rpc).mockReturnValue(Promise.resolve({ error: null }) as any)
 
     const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
 
@@ -466,14 +595,10 @@ describe('useSafetyCardEvents', () => {
     for (const op of ['select', 'eq', 'is', 'gt']) fetchChain[op] = vi.fn(() => fetchChain)
     fetchChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
       snapshotPromise.then(onFulfilled, onRejected)) as any
-    const updateChain: Record<string, any> = {}
-    for (const op of ['update', 'eq', 'is']) updateChain[op] = vi.fn(() => updateChain)
-    updateChain.then = vi.fn((onFulfilled: any, onRejected: any) =>
-      Promise.resolve({ error: null }).then(onFulfilled, onRejected)) as any
     vi.mocked(supabase.from).mockReturnValue({
-      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain },
-      update: (...args: any[]) => { updateChain.update(...args); return updateChain }
+      select: (...args: any[]) => { fetchChain.select(...args); return fetchChain }
     } as any)
+    vi.mocked(supabase.rpc).mockReturnValue(Promise.resolve({ error: null }) as any)
 
     const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
 

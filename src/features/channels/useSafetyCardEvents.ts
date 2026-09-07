@@ -9,6 +9,11 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
   const { addToast } = useToast()
   const [alertActive, setAlertActive] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
+  // Sticky signal that the mount-time catch-up SELECT failed (P2-17): a bare
+  // toast leaves the GM session looking like a clean table. Cleared by a
+  // successful retry, a successful snapshot, or a live INSERT (the stream
+  // working makes the stale snapshot moot).
+  const [catchUpError, setCatchUpError] = useState(false)
   // Monotonic generation token for async recounts. Every recount (mount
   // catch-up, UPDATE-driven) captures it when issued; dismissals and live
   // INSERTs bump it. A recount completing against a bumped generation is
@@ -24,6 +29,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
 
     let cancelled = false
     stateGenRef.current = 0
+    setCatchUpError(false)
 
     const realtimeChannel = supabase
       .channel(`safety-card:${channelId}`)
@@ -38,6 +44,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         stateGenRef.current++
         setAlertActive(true)
         setAlertCount(c => c + 1)
+        setCatchUpError(false)
       })
       // Dismissals persist as UPDATEs (resolved_at), so the GM's other live
       // tabs/devices learn about them here (finding P2.13): re-count
@@ -101,8 +108,10 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
           if (error) {
             console.error('Failed to load X-Card alerts:', error)
             addToast('Failed to load X-Card alerts.', 'error')
+            setCatchUpError(true)
             return
           }
+          setCatchUpError(false)
           if (count && count > 0) {
             setAlertActive(true)
             setAlertCount(prev => Math.max(prev, count))
@@ -124,6 +133,39 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       void supabase.removeChannel(realtimeChannel)
     }
   }, [channelId, isGM])
+
+  // P2-17 companion to the catch-up query above: re-runs the same head-count
+  // with the same merge semantics (generation check, Math.max). Kept as a
+  // separate callback so the flagged SUBSCRIBED-then-query state machine
+  // stays as-is. Guarded by requestedChannelRef: a retry fired for channel A
+  // must never apply to channel B if the hook is retargeted before the
+  // response lands.
+  const requestedChannelRef = useRef<string | undefined>(undefined)
+  requestedChannelRef.current = channelId
+  const retryCatchUp = useCallback(() => {
+    if (!channelId || !isGM) return
+    const requestedChannelId = channelId
+    const gen = stateGenRef.current
+    void supabase
+      .from('safety_card_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('channel_id', channelId)
+      .is('resolved_at', null)
+      .then(({ count, error }) => {
+        if (gen !== stateGenRef.current || requestedChannelRef.current !== requestedChannelId) return
+        if (error) {
+          console.error('Failed to load X-Card alerts:', error)
+          addToast('Failed to load X-Card alerts.', 'error')
+          setCatchUpError(true)
+          return
+        }
+        setCatchUpError(false)
+        if (count && count > 0) {
+          setAlertActive(true)
+          setAlertCount(prev => Math.max(prev, count))
+        }
+      })
+  }, [channelId, isGM, addToast])
 
   const triggerXCard = useCallback(async (messageId?: string): Promise<boolean> => {
     if (!channelId) return false
@@ -150,16 +192,16 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     stateGenRef.current++
     setAlertActive(false)
     setAlertCount(0)
-    // Persist the dismissal so it survives reloads (issue #411). Fail-safe:
+    // Persist the dismissal so it survives reloads (issue #411), and close
+    // the loop for the table (issue #434): one atomic RPC resolves the
+    // unresolved events AND posts the identity-free system message every
+    // member already receives through the normal message pipeline. Fail-safe:
     // if the write fails, bring the alert back — count included, or a
     // multi-flag alert would lose its tally until reload. On success there is
-    // no latch to hold: the UPDATE echo (ours or another device's) recounts
-    // live state, so the banner stays syncable for the mount's lifetime.
-    const { error } = await supabase
-      .from('safety_card_events')
-      .update({ resolved_at: new Date().toISOString() })
-      .eq('channel_id', channelId)
-      .is('resolved_at', null)
+    // no latch to hold: the UPDATE echo from the RPC (ours or another
+    // device's) recounts live state, so the banner stays syncable for the
+    // mount's lifetime.
+    const { error } = await supabase.rpc('resolve_safety_card_events', { p_channel_id: channelId })
     if (error) {
       console.error('Failed to dismiss X-Card alert:', error)
       setAlertActive(true)
@@ -168,5 +210,5 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     }
   }, [channelId, addToast, alertCount])
 
-  return { alertActive, alertCount, dismissAlert, triggerXCard }
+  return { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard }
 }

@@ -51,6 +51,11 @@ describe('PwaInstallBanner', () => {
     expect(screen.getByText('Install Role by Post')).toBeInTheDocument()
     expect(screen.getByText('Install')).toBeInTheDocument()
     expect(screen.getByText('No thanks')).toBeInTheDocument()
+    // Literal touch-target requirement (UX audit): both banner buttons grow
+    // to 44px — asserted literally so a sizing regression fails.
+    for (const name of ['Install', 'No thanks']) {
+      expect(screen.getByRole('button', { name }).className).toContain('min-h-11')
+    }
   })
 
   it('calls prompt() and hides banner on Install', async () => {

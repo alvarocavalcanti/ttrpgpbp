@@ -65,14 +65,14 @@ describe('MessageComposer', () => {
     const { unmount } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     expect(textarea).toHaveValue('draft for c1')
 
     unmount()
     render(
       <MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('draft for c2')
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('draft for c2')
   })
 
   it('saves draft to localStorage on change and clears on success', async () => {
@@ -81,7 +81,7 @@ describe('MessageComposer', () => {
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={mockOnSendMessage} />
     )
     
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'new draft' } })
     
     expect(localStorage.getItem('composer_draft_c1')).toBe('new draft')
@@ -102,7 +102,7 @@ describe('MessageComposer', () => {
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={mockOnSendMessage} />
     )
     
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'failed message' } })
     
     const submitBtn = getByRole('button', { name: /Send/i })
@@ -121,7 +121,7 @@ describe('MessageComposer', () => {
     const { rerender } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'typed in c1' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'typed in c1' } })
     expect(localStorage.getItem('composer_draft_c1')).toBe('typed in c1')
 
     rerender(<MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />)
@@ -130,7 +130,7 @@ describe('MessageComposer', () => {
     // key) must never happen — a switch that unmounts before the restore
     // render lands would keep the clobbered draft.
     expect(setItemSpy).not.toHaveBeenCalledWith('composer_draft_c2', 'typed in c1')
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('precious c2 draft')
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('precious c2 draft')
     expect(localStorage.getItem('composer_draft_c2')).toBe('precious c2 draft')
     setItemSpy.mockRestore()
   })
@@ -140,11 +140,11 @@ describe('MessageComposer', () => {
     const { rerender } = render(
       <MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'c1 text' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'c1 text' } })
 
     rerender(<MessageComposer channelId="c2" isGM={false} members={[]} onSendMessage={vi.fn()} />)
 
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('c2 saved')
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('c2 saved')
     expect(localStorage.getItem('composer_draft_c1')).toBe('c1 text')
     expect(localStorage.getItem('composer_draft_c2')).toBe('c2 saved')
   })
@@ -153,7 +153,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -167,7 +167,7 @@ describe('MessageComposer', () => {
 
   it('caps composed messages at 4000 characters', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveAttribute('maxLength', '4000')
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveAttribute('maxLength', '4000')
   })
 
   it('allows GM to send scene', async () => {
@@ -176,7 +176,7 @@ describe('MessageComposer', () => {
     
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('Scene Description'))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'A dark cave.' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'A dark cave.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -203,7 +203,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'psst' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -222,7 +222,7 @@ describe('MessageComposer', () => {
     
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     // Wait for the async submit handler to catch the error
@@ -235,7 +235,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Cmd Enter' } })
     fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
     
@@ -252,7 +252,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn()
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
@@ -263,7 +263,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
 
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Check this: https://example.com/image.png' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
@@ -291,7 +291,7 @@ describe('MessageComposer', () => {
     
     expect(screen.getByText(/Replying to Hero/)).toBeInTheDocument()
     
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'my reply' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'my reply' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -316,7 +316,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi @Hero!' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @Hero!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     
     await waitFor(() => {
@@ -370,7 +370,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
     
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @He', selectionStart: 5 } })
     
     expect(screen.getByText('Hero')).toBeInTheDocument()
@@ -385,7 +385,7 @@ describe('MessageComposer', () => {
   it('highlights the first mention option by default', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
 
     expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
   })
@@ -397,7 +397,7 @@ describe('MessageComposer', () => {
     ]
     render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     fireEvent.keyDown(textarea, { key: 'ArrowDown' })
@@ -413,7 +413,7 @@ describe('MessageComposer', () => {
   it('closes the mention list on Escape without inserting anything', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     expect(screen.getByRole('listbox', { name: 'Mention options' })).toBeInTheDocument()
@@ -432,17 +432,75 @@ describe('MessageComposer', () => {
     ]
     render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     fireEvent.keyDown(textarea, { key: 'ArrowUp' })
     expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('exposes a closed combobox: no expanded state or popup references when mentions are hidden', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    expect(textarea).toHaveAttribute('role', 'combobox')
+    expect(textarea).toHaveAttribute('aria-expanded', 'false')
+    expect(textarea).not.toHaveAttribute('aria-controls')
+    expect(textarea).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('links the open mention listbox to the combobox via aria-controls and aria-activedescendant', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'Hi @He', selectionStart: 5 } })
+
+    expect(textarea).toHaveAttribute('aria-expanded', 'true')
+    expect(textarea).toHaveAttribute('aria-autocomplete', 'list')
+    const listbox = screen.getByRole('listbox', { name: 'Mention options' })
+    expect(textarea.getAttribute('aria-controls')).toBe(listbox.id)
+    const highlighted = screen.getByRole('option', { name: /Hero/ })
+    expect(highlighted).toHaveAttribute('aria-selected', 'true')
+    expect(textarea.getAttribute('aria-activedescendant')).toBe(highlighted.id)
+  })
+
+  it('moves aria-activedescendant to the next option on ArrowDown', () => {
+    const multiMembers: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } },
+      { id: 'm2', user_id: 'u2', character_name: 'Archer', profile: { display_name: 'P2' } },
+    ]
+    render(<MessageComposer isGM={false} members={multiMembers} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+
+    expect(textarea.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: /Hero/ }).id)
+
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' })
+    const archer = screen.getByRole('option', { name: /Archer/ })
+    expect(textarea.getAttribute('aria-activedescendant')).toBe(archer.id)
+    expect(archer).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('drops the combobox popup attributes when the mention list closes', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+    expect(screen.getByRole('listbox', { name: 'Mention options' })).toBeInTheDocument()
+
+    fireEvent.keyDown(textarea, { key: 'Escape' })
+
+    expect(textarea).toHaveAttribute('aria-expanded', 'false')
+    expect(textarea).not.toHaveAttribute('aria-controls')
+    expect(textarea).not.toHaveAttribute('aria-activedescendant')
+  })
+
   it('navigates @all as the first option for the GM', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     expect(screen.getByRole('option', { name: /All players/ })).toHaveAttribute('aria-selected', 'true')
@@ -455,7 +513,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Everyone @all!' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Everyone @all!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -472,7 +530,7 @@ describe('MessageComposer', () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Everyone @all!' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Everyone @all!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -487,7 +545,7 @@ describe('MessageComposer', () => {
   it('shows the @all autocomplete option for the GM and inserts it', async () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
 
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @a', selectionStart: 5 } })
 
     expect(screen.getByRole('option', { name: /All players/ })).toBeInTheDocument()
@@ -502,7 +560,7 @@ describe('MessageComposer', () => {
   it('hides the @all autocomplete option for non-GM players', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi @a', selectionStart: 5 } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @a', selectionStart: 5 } })
 
     expect(screen.queryByRole('option', { name: /All players/ })).not.toBeInTheDocument()
   })
@@ -525,7 +583,7 @@ describe('MessageComposer', () => {
     expect(preview).not.toBeNull()
     expect(preview?.getAttribute('src')).toMatch(/^https:\/\/api\.iconify\.design\/game-icons\//)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Trespassers!' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Trespassers!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -548,7 +606,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'goblin king' } })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -572,7 +630,7 @@ describe('MessageComposer', () => {
     // Pick from the roster dropdown: this sets npcAvatarUrl to the roster's
     // null avatar_url, so resolvedNpcAvatar stays null and the payload omits it.
     fireEvent.mouseDown(screen.getByRole('button', { name: /Faceless/i }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -590,7 +648,7 @@ describe('MessageComposer', () => {
 
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hello' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
@@ -654,7 +712,7 @@ describe('MessageComposer', () => {
     render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)
 
     fireEvent.click(screen.getByLabelText('Toggle options'))
-    const textarea = screen.getByRole('textbox', { name: 'Message' })
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi ' } })
     fireEvent.change(screen.getByLabelText('Upload Image'), {
       target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
@@ -711,14 +769,14 @@ describe('MessageComposer', () => {
     render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
 
-    const messageInput = screen.getByRole('textbox', { name: 'Message' })
+    const messageInput = screen.getByRole('combobox', { name: 'Message' })
     expect(messageInput).toHaveClass('dark:bg-gray-800')
     expect(messageInput).toHaveClass('text-gray-900')
     expect(messageInput).toHaveClass('dark:text-gray-100')
     expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveClass('dark:bg-parchment-dark')
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveClass('dark:bg-parchment-dark')
   })
 
   it('keeps the typed message text visible on dark backgrounds', () => {
@@ -728,7 +786,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('NPC Name'))
     fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Goblin King' } })
 
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveClass('dark:text-gray-100')
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveClass('dark:text-gray-100')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('text-gray-900')
     expect(screen.getByLabelText('NPC Name')).toHaveClass('dark:text-gray-100')
   })
@@ -777,7 +835,7 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'psst' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'psst' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {
