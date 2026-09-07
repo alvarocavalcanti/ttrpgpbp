@@ -95,8 +95,10 @@ self.addEventListener('notificationclick', (event) => {
 
   // Notification data travels with the push payload and may be crafted
   // outside the schema's parse (e.g. an old notification), so re-check here:
-  // only site-relative urls may be focused or opened (#429).
-  if (url && isSiteRelativeUrl(url)) {
+  // only site-relative url STRINGS may be focused or opened (#429). The
+  // typeof guard also keeps a truthy non-string url (number, object…) from
+  // reaching the validator and throwing.
+  if (typeof url === 'string' && url && isSiteRelativeUrl(url)) {
     event.waitUntil(
       self.clients.matchAll({ type: 'window' }).then((clientList) => {
         for (const client of clientList) {
