@@ -1,4 +1,17 @@
 export NODE_OPTIONS="$(sh "$(dirname "$0")/_sanitize-node-options.sh")"
+
+# E2E seeding needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (see
+# tests/e2e/helpers.ts). CI exports them; locally derive them from the local
+# Supabase stack so git push works from a fresh worktree/shell. Still
+# fail-closed: if no local stack is running, the vars stay unset and E2E
+# refuses to guess (only against the local URL).
+if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+  if sb_env="$(npx supabase status -o env 2>/dev/null)"; then
+    eval "$(printf '%s\n' "$sb_env" | grep -E '^(API_URL|SERVICE_ROLE_KEY)=')"
+    export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+  fi
+fi
+
 npm run build
 npm run test:coverage
 npx playwright test

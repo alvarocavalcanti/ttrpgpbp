@@ -98,6 +98,33 @@ describe('Lobby', () => {
     expect(root.className).not.toMatch(/min-h-\[calc/)
   })
 
+  it('channel rows have taller vertical padding for comfortable mobile touch targets', () => {
+    // Regression test for #443: rows were shortened to py-1.5 during the
+    // lobby tidy-up, making them hard to tap on phones. WhatsApp-style
+    // spacing (py-3) is the floor for the row height.
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: 'c1',
+          name: 'Adventure',
+          avatar_url: null,
+          gm_id: 'gm-1',
+          unread_count: 0,
+          last_message_at: null,
+          last_message_preview: null,
+        },
+      ] as any,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    const { container } = render(<Lobby />, { wrapper: MemoryRouter })
+    const row = container.querySelector('ul li a > div') as HTMLElement
+    expect(row).toHaveClass('py-3')
+    expect(row.className).not.toContain('py-1.5')
+  })
+
   it('empty state offers create-channel and invite-link paths', () => {
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [],

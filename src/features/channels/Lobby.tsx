@@ -169,7 +169,7 @@ export function Lobby() {
               {filteredMy.map((channel) => (
                 <li key={channel.id}>
                   <Link to={`/channel/${channel.id}`} className="block hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors">
-                    <div className="flex items-center px-4 py-1.5 sm:px-6">
+                    <div className="flex items-center px-4 py-3 sm:px-6">
                       {channel.avatar_url ? (
                         <SignedImg
                           src={channel.avatar_url}
