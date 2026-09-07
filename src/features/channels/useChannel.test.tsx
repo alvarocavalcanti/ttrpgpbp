@@ -12,6 +12,7 @@ vi.mock('../auth/useAuth', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn().mockResolvedValue({ error: null }),
     removeChannel: vi.fn(),
     channel: vi.fn().mockReturnValue({
       on: vi.fn().mockReturnThis(),
@@ -31,6 +32,9 @@ describe('useChannel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // clearAllMocks keeps implementations; restore the default success result
+    // so tests that don't care about the read-mark see a clean slate.
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
   })
 
   // Tests that override visibilityState define it as an own property on the
@@ -175,17 +179,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
     
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: new Error('Update failed') })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: new Error('Update failed') } as any)
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') {
-        return { 
-          select: mockSelectMembers,
-          update: mockUpdate
-        } as any
-      }
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -214,12 +212,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -246,12 +243,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -277,11 +273,11 @@ describe('useChannel', () => {
       messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
     })
 
-    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1' })
     expect(onRead).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps last_read_at monotonic when writes are initiated back to back', async () => {
+  it('serializes read-mark RPCs when writes are initiated back to back', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
 
@@ -295,18 +291,19 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    // First write (initial) hangs; the message INSERT write must queue behind
-    // it instead of racing it.
+    // First read-mark RPC (initial) hangs; the message INSERT write must queue
+    // behind it instead of racing it. The timestamp itself is server-owned
+    // (mark_channel_read uses DB now()), so serialization plus the DB clock
+    // guarantee the boundary can never move backward (#437).
     let resolveFirst!: (v: { error: null }) => void
     const firstWrite = new Promise<{ error: null }>(resolve => { resolveFirst = resolve })
-    const mockEqUpdate = vi.fn()
-      .mockImplementationOnce(() => firstWrite)
-      .mockResolvedValueOnce({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    vi.mocked(supabase.rpc)
+      .mockImplementationOnce(() => firstWrite as any)
+      .mockResolvedValueOnce({ error: null } as any)
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -322,7 +319,7 @@ describe('useChannel', () => {
     renderHook(() => useChannel('c1'))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
 
     // Message arrives while the first (slow) write is still in flight.
@@ -330,19 +327,19 @@ describe('useChannel', () => {
       messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
       await Promise.resolve()
     })
-    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
 
-    // First write completes; only then does the queued write run — with a
-    // later timestamp, so the stored value can never move backward.
+    // First write completes; only then does the queued write run.
     await act(async () => {
       resolveFirst({ error: null })
       await Promise.resolve()
       await Promise.resolve()
     })
 
-    expect(mockUpdate).toHaveBeenCalledTimes(2)
-    const [firstTs, secondTs] = mockUpdate.mock.calls.map(c => (c[0] as { last_read_at: string }).last_read_at)
-    expect(new Date(secondTs).getTime()).toBeGreaterThanOrEqual(new Date(firstTs).getTime())
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+    for (const call of vi.mocked(supabase.rpc).mock.calls) {
+      expect(call).toEqual(['mark_channel_read', { p_channel_id: 'c1' }])
+    }
   })
 
   it('does not advance last_read_at from message events while the tab is hidden', async () => {
@@ -361,12 +358,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -382,7 +378,7 @@ describe('useChannel', () => {
     renderHook(() => useChannel('c1'))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
 
     // Tab goes hidden before the message arrives.
@@ -392,7 +388,7 @@ describe('useChannel', () => {
       messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
     })
 
-    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
   })
 
   it('does not mark read when a reconnect completes while the tab is hidden', async () => {
@@ -409,12 +405,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -430,7 +425,7 @@ describe('useChannel', () => {
     renderHook(() => useChannel('c1'))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
 
     // Tab hidden when the socket drops and the retry reconnects.
@@ -442,7 +437,7 @@ describe('useChannel', () => {
       await Promise.resolve()
     })
 
-    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
   })
 
   it('handles realtime updates', async () => {
@@ -564,12 +559,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -697,12 +691,11 @@ describe('useChannel', () => {
       .mockResolvedValueOnce({ data: c1members, error: null })
       .mockResolvedValueOnce({ data: c2members, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -739,12 +732,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -760,7 +752,7 @@ describe('useChannel', () => {
       await Promise.resolve()
     })
 
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
   })
 
   it('marks read through the exposed markRead once the messages-loaded gate opens', async () => {
@@ -776,12 +768,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -792,7 +783,7 @@ describe('useChannel', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
     })
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
 
     // History loaded: the gate opens and the deferred read-mark fires.
     act(() => { gateOpen = true })
@@ -801,9 +792,9 @@ describe('useChannel', () => {
     })
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
-    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1' })
   })
 
   it('marks read when the tab becomes visible after history loaded hidden', async () => {
@@ -823,12 +814,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -840,7 +830,7 @@ describe('useChannel', () => {
       expect(result.current.loading).toBe(false)
     })
     // Hidden mount: no read-mark write even with membership resolved.
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
 
     // History loads while still hidden: the gate opens (ChannelView's
     // deferred effect skips until visible — covered in ChannelView.test.tsx).
@@ -853,9 +843,9 @@ describe('useChannel', () => {
     })
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
-    expect(mockUpdate).toHaveBeenCalledWith({ last_read_at: expect.any(String) })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1' })
   })
 
   it('gates the live INSERT advance on the messages-loaded gate', async () => {
@@ -872,12 +862,11 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -903,7 +892,7 @@ describe('useChannel', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
 
     // History loads; the same live path now advances the read mark.
     act(() => { gateOpen = true })
@@ -912,7 +901,7 @@ describe('useChannel', () => {
     })
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -992,14 +981,13 @@ describe('useChannel', () => {
     // The c1 mount write hangs, so the queued write survives the switch.
     let resolveFirst!: (v: { error: null }) => void
     const firstWrite = new Promise<{ error: null }>(resolve => { resolveFirst = resolve })
-    const mockEqUpdate = vi.fn()
-      .mockImplementationOnce(() => firstWrite)
-      .mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    vi.mocked(supabase.rpc)
+      .mockImplementationOnce(() => firstWrite as any)
+      .mockResolvedValue({ error: null } as any)
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
-      if (table === 'channel_members') return { select: mockSelectMembers, update: mockUpdate } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
       if (table === 'channel_secrets') return mockSecret() as any
       return {} as any
     })
@@ -1015,7 +1003,7 @@ describe('useChannel', () => {
     const { rerender } = renderHook(({ id }) => useChannel(id), { initialProps: { id: 'c1' } })
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
 
     // A message arrives in c1; its read-mark write queues behind the hung one.
@@ -1023,7 +1011,7 @@ describe('useChannel', () => {
       messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
       await Promise.resolve()
     })
-    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
 
     // Switch to c2 before the queued c1 write runs.
     rerender({ id: 'c2' })
@@ -1037,12 +1025,12 @@ describe('useChannel', () => {
       await Promise.resolve()
     })
 
-    // The queued c1 write was dropped instead of retargeting m2; only the
-    // original m1 write and c2's own mount write ran.
+    // The queued c1 write was dropped instead of retargeting c2; only the
+    // original c1 write and c2's own mount write ran.
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledTimes(2)
+      expect(supabase.rpc).toHaveBeenCalledTimes(2)
     })
-    const eqIds = mockEqUpdate.mock.calls.map(c => (c[1] as string))
-    expect(eqIds).toEqual(['m1', 'm2'])
+    const channelIds = vi.mocked(supabase.rpc).mock.calls.map(c => (c[1] as { p_channel_id: string }).p_channel_id)
+    expect(channelIds).toEqual(['c1', 'c2'])
   })
 })

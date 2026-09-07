@@ -43,11 +43,28 @@ const serviceRoleKey = unquote(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export const TEST_PASSWORD = 'Password123!';
 
+// Service-role REST call against the local Supabase API (bypasses RLS). Used
+// by specs that need to seed rows beyond what the app's own UI can create
+// (e.g. a whisper between two other members for the unread-count regression).
+export async function serviceRole(path: string, init: RequestInit = {}): Promise<Response> {
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      'Service-role seeding needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment ' +
+      '(CI exports them from `supabase status -o env`; locally run `export $(npx supabase status -o env | grep SERVICE_ROLE_KEY)`).'
+    );
+  }
+  const headers = new Headers(init.headers);
+  headers.set('apikey', serviceRoleKey);
+  headers.set('Authorization', `Bearer ${serviceRoleKey}`);
+  headers.set('Content-Type', 'application/json');
+  return fetch(`${supabaseUrl}${path}`, { ...init, headers });
+}
+
 // Seeds a confirmed email/password user through the Supabase Admin API
 // (service role). This replaces the old sign-up-via-page.evaluate harness
 // (issue #403 ARCH-7): seeding is deterministic and independent of the app
 // bundle and of email-confirmation timing.
-export async function seedUser(email: string, password: string = TEST_PASSWORD): Promise<{ ok: boolean; error?: string }> {
+export async function seedUser(email: string, password: string = TEST_PASSWORD): Promise<{ ok: boolean; id?: string; error?: string }> {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error(
       'E2E seeding needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment ' +
@@ -63,7 +80,10 @@ export async function seedUser(email: string, password: string = TEST_PASSWORD):
     },
     body: JSON.stringify({ email, password, email_confirm: true }),
   });
-  if (res.ok) return { ok: true };
+  if (res.ok) {
+    const body = await res.json().catch(() => null);
+    return { ok: true, id: body?.id as string | undefined };
+  }
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   const error = (body.msg || body.message || body.error_description || body.error || `HTTP ${res.status}`) as string;
   return { ok: false, error };

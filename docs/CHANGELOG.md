@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Unread counts now match what you can actually see** — private whispers between other players no longer inflate your unread badge or the "N new" pill in the lobby, and opening a channel to read it clears its badge for good, even across devices. The lobby's "N new" pill also stays on one line next to long channel names.
+- **Channel sidebar slides in cleanly** — opening the sidebar on a phone or a narrow window no longer makes the view drift sideways or makes the chat appear to slide the other way. The sidebar now animates in on its own, leaving the chat window where it is.
+
 - **Turn control lives in one place** — the message composer no longer shows an Active Player menu. It could silently overwrite an ensemble turn (several players acting at once) down to a single player; the channel sidebar's **Active Player** item, which already supports naming several players, is now the only way to set who's up.
 
 - **X-Card flags reach the GM even after they step away** — a scene flagged while the GM was offline now shows the alert banner when they next open the channel (flags from the last 7 days stay pending), and dismissing the alert stays dismissed after a reload instead of resetting.
