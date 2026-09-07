@@ -728,11 +728,12 @@ describe('useMessages', () => {
     })
 
     expect(mockRpc).toHaveBeenCalledTimes(2)
-    expect(mockRpc.mock.calls[1][1]).toEqual(expect.objectContaining({
-      p_client_request_id: expect.not.stringMatching(new RegExp(`^${firstRequestId}$`)),
-    }))
+    const secondRequestId = (mockRpc.mock.calls[1][1] as { p_client_request_id: string }).p_client_request_id
+    expect(typeof secondRequestId).toBe('string')
+    expect(secondRequestId).not.toBe(firstRequestId)
     // The new roll is a second bubble; the errored one stays errored.
     expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
+    expect(result.current.messages.find(m => m.client_request_id === firstRequestId)!.error).toBe('boom')
   })
 
   it('marks a message unconfirmed when the RPC returns no id', async () => {

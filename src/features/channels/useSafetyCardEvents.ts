@@ -52,6 +52,12 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         table: 'safety_card_events',
         filter: `channel_id=eq.${channelId}`
       }, () => {
+        // Every realtime event invalidates recounts already in flight: an
+        // earlier event's SELECT may have snapshot a pre-dismissal table
+        // state that would otherwise overwrite this event's fresher view
+        // when it completes late (older positive re-opening over a newer
+        // zero).
+        stateGenRef.current++
         const gen = stateGenRef.current
         void supabase
           .from('safety_card_events')
@@ -100,6 +106,14 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
           if (count && count > 0) {
             setAlertActive(true)
             setAlertCount(prev => Math.max(prev, count))
+          } else {
+            // A reconnect snapshot of zero unresolved rows heals a stale
+            // banner: Postgres Changes doesn't replay events missed while
+            // the socket was down, so this recount is the only path that
+            // learns a dismissal happened on another device (same authority
+            // as the UPDATE handler's clear).
+            setAlertActive(false)
+            setAlertCount(0)
           }
         })
     })

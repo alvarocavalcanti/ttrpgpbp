@@ -51,8 +51,11 @@ function mockRealtimeChannel() {
   // separate so tests can deliver either event.
   const cardCallbacks: Record<string, ((payload: unknown) => void) | undefined> = {}
   // The catch-up snapshot now starts from SUBSCRIBED, so the subscription
-  // mock must deliver that status.
+  // mock must deliver that status. Keep the status callback so tests can
+  // redeliver SUBSCRIBED (a reconnect re-runs the catch-up).
+  let statusCallback: ((status: string) => void) | undefined
   const mockSubscribe = vi.fn().mockImplementation((cb?: (status: string) => void) => {
+    statusCallback = cb
     cb?.('SUBSCRIBED')
     return { unsubscribe: vi.fn() }
   })
@@ -62,25 +65,35 @@ function mockRealtimeChannel() {
   })
   vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
   // Defaults to the INSERT callback (existing tests deliver live flags this
-  // way); pass 'UPDATE' for dismissal-sync events.
-  return (event = 'INSERT') => cardCallbacks[event]
+  // way); pass 'UPDATE' for dismissal-sync events, or 'SUBSCRIBED' for a
+  // reconnect (the returned invoker re-fires the status callback).
+  return (event = 'INSERT') =>
+    event === 'SUBSCRIBED'
+      ? () => { statusCallback?.('SUBSCRIBED') }
+      : cardCallbacks[event]
 }
 
 // Same shape as mockSupabaseQuery, but the count result is mutable so a test
 // can change what the (repeated) unresolved-count SELECT returns between
 // phases — the UPDATE-driven recount queries the same chain again. deferNext
 // holds the next count query's resolution so a test can interleave a
-// dismissal or INSERT before flushing it (stale-writer race tests).
+// dismissal or INSERT before flushing it (stale-writer race tests); pass an
+// explicit result to pin it (two deferred recounts with different outcomes).
+// flush() with no argument resolves every held query in issue order; an
+// index resolves only that one.
 function mockMutableCountQuery(initial: { count: number | null; error: unknown }) {
   let result = initial
   let holdNext = false
-  let release: ((value: unknown) => void) | undefined
+  let pinned: { count: number | null; error: unknown } | undefined
+  const pending: Array<{ resolve: (value: unknown) => void; pinned?: { count: number | null; error: unknown } }> = []
   const fetchChain: Record<string, any> = {}
   for (const op of ['select', 'eq', 'is', 'gt']) fetchChain[op] = vi.fn(() => fetchChain)
   fetchChain.then = vi.fn((onFulfilled: any, onRejected: any) => {
     if (holdNext) {
       holdNext = false
-      return new Promise((res) => { release = res })
+      const captured = pinned
+      pinned = undefined
+      return new Promise((res) => { pending.push({ resolve: res, pinned: captured }) })
         .then((value: unknown) => Promise.resolve(value).then(onFulfilled, onRejected)) as any
     }
     return Promise.resolve(result).then(onFulfilled, onRejected)
@@ -96,8 +109,11 @@ function mockMutableCountQuery(initial: { count: number | null; error: unknown }
   return {
     fetchChain,
     setCountResult: (next: { count: number | null; error: unknown }) => { result = next },
-    deferNext: () => { holdNext = true },
-    flush: () => { const res = release; release = undefined; res?.(result) }
+    deferNext: (next?: { count: number | null; error: unknown }) => { holdNext = true; pinned = next },
+    flush: (index?: number) => {
+      const targets = index === undefined ? pending.splice(0) : pending.splice(index, 1)
+      for (const p of targets) p.resolve(p.pinned ?? result)
+    }
   }
 }
 
@@ -634,6 +650,75 @@ describe('useSafetyCardEvents', () => {
 
     expect(result.current.alertActive).toBe(true)
     expect(result.current.alertCount).toBe(2)
+  })
+
+  it('drops an older UPDATE recount that completes after a newer one cleared the banner', async () => {
+    // Two UPDATE events in a row: the older event's recount snapshot a
+    // pre-dismissal state (2 unresolved) and completes after the newer
+    // event's recount (0) already cleared the banner. Without per-event
+    // invalidation the older positive would resurrect the banner.
+    const getCardCallback = mockRealtimeChannel()
+    const { deferNext, flush } = mockMutableCountQuery({ count: 1, error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+      expect(result.current.alertCount).toBe(1)
+    })
+
+    // Event A's recount is in flight with a stale pre-dismissal snapshot…
+    deferNext({ count: 2, error: null })
+    await act(async () => {
+      getCardCallback('UPDATE')?.({})
+      await Promise.resolve()
+    })
+    // …event B arrives (invalidating A) and its recount clears.
+    deferNext({ count: 0, error: null })
+    await act(async () => {
+      getCardCallback('UPDATE')?.({})
+      await Promise.resolve()
+    })
+    await act(async () => {
+      flush(1)
+      await Promise.resolve()
+    })
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
+
+    // A's stale positive lands last: it must not resurrect the banner.
+    await act(async () => {
+      flush(0)
+      await Promise.resolve()
+    })
+
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
+  })
+
+  it('clears a stale banner when a reconnect catch-up finds zero unresolved flags', async () => {
+    // The socket dropped right as another device's dismissal UPDATE fired,
+    // so the event was missed; Postgres Changes doesn't replay it. The
+    // reconnect catch-up is the only path that learns the flag is resolved.
+    const deliver = mockRealtimeChannel()
+    const { setCountResult } = mockMutableCountQuery({ count: 1, error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+      expect(result.current.alertCount).toBe(1)
+    })
+
+    // Reconnect: the catch-up recounts and finds the flag resolved.
+    setCountResult({ count: 0, error: null })
+    await act(async () => {
+      deliver('SUBSCRIBED')?.('SUBSCRIBED')
+      await Promise.resolve()
+    })
+
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
   })
 
   it('leaves state untouched and skips the toast when the UPDATE recount fails', async () => {
