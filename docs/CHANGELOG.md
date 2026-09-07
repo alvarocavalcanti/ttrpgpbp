@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Controls are easier to tap and easier to name** — small buttons across the app (banner actions, NPC portrait icons, the status-bar Edit button, "Load older messages", the away-message input) now meet a comfortable 44px touch floor on phones. Screen readers can now announce the channel sidebar, status bar and per-player menus as open/closed, every per-player menu is named after its player and closes on Escape, the @-mention popup announces its highlighted suggestion, and the whole UI now speaks one shared color vocabulary (visual look unchanged).
+- **X-Card alerts fail loudly for the GM** — if the GM's pending-flag history can't load, a visible "Retry" now stays on screen instead of a passing toast, so an unverified table is never mistaken for a clean one.
+
 - **Unread counts now match what you can actually see** — private whispers between other players no longer inflate your unread badge or the "N new" pill in the lobby, and opening a channel to read it clears its badge for good, even across devices. The lobby's "N new" pill also stays on one line next to long channel names.
 - **Channel sidebar slides in cleanly** — opening the sidebar on a phone or a narrow window no longer makes the view drift sideways or makes the chat appear to slide the other way. The sidebar now animates in on its own, leaving the chat window where it is.
 
