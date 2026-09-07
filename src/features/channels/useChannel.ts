@@ -32,19 +32,23 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
   // My channel_members row id, set once members load. Lets the messages INSERT
   // listener below advance last_read_at without re-deriving membership.
   const myMemberIdRef = useRef<string | null>(null)
+  // The channel the queued read-mark belongs to; captured alongside the member
+  // id so the write never lands on a channel switched away from (#437).
+  const channelIdRef = useRef<string | null>(null)
   // Serializes last_read_at writes so two overlapping requests can't complete
   // out of order and move the timestamp backward (the unread count derives
-  // from last_read_at). Timestamps are generated when the write actually runs,
-  // so the persisted value is monotonic. Single-client ordering is enough —
-  // cross-device races resolve to whichever write lands last, same as before.
+  // from last_read_at). The timestamp itself is now server-owned
+  // (mark_channel_read uses DB now()), so the persisted value is monotonic and
+  // immune to client clock skew (issue #437).
   const readWriteChainRef = useRef<Promise<unknown>>(Promise.resolve())
 
   const markRead = useCallback(() => {
-    // Capture the member id at scheduling time: the write runs later, after
-    // other queued writes, and must never adopt the member id of a channel
-    // the user switched to in the meantime.
+    // Capture the member id and channel at scheduling time: the write runs
+    // later, after other queued writes, and must never adopt the member id or
+    // channel of one the user switched to in the meantime.
     const memberId = myMemberIdRef.current
-    if (!memberId) return
+    const channelId = channelIdRef.current
+    if (!memberId || !channelId) return
     // #412: history-first read-mark. Every path (mount-time, live INSERT,
     // visibility reconnect) routes through here, so one gate covers all.
     if (canMarkRead && !canMarkRead()) return
@@ -55,10 +59,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
         // may have closed in between (#412).
         if (myMemberIdRef.current !== memberId) return
         if (canMarkRead && !canMarkRead()) return
-        const { error } = await supabase
-          .from('channel_members')
-          .update({ last_read_at: new Date().toISOString() })
-          .eq('id', memberId)
+        const { error } = await supabase.rpc('mark_channel_read', { p_channel_id: channelId })
         if (error) console.error('Failed to update last_read_at', error)
         else onRead?.()
       })
@@ -80,6 +81,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
     setLastReadAt(null)
     boundaryCapturedRef.current = false
     myMemberIdRef.current = null
+    channelIdRef.current = channelId ?? null
 
     if (!channelId || !user?.id) {
       setLoading(false)

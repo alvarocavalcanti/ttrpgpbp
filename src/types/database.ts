@@ -1103,6 +1103,10 @@ export type Database = {
         Args: { p_thread_id: string }
         Returns: undefined
       }
+      mark_channel_read: {
+        Args: { p_channel_id: string }
+        Returns: undefined
+      }
       moderate_member: {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
         Returns: undefined
