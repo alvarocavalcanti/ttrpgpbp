@@ -250,30 +250,30 @@ setIsSubmitting(true)
   return (
     <div ref={dialogRef} className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+        <div className="fixed inset-0 bg-surface-500 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <div className="inline-block align-bottom bg-white dark:bg-surface-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">
+            <h3 className="text-lg leading-6 font-medium text-surface-900 dark:text-surface-100" id="modal-title">
               Channel Settings
             </h3>
             
             <form onSubmit={handleSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Invite Link</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Invite Link</label>
                 <div className="mt-1 flex rounded-md shadow-sm">
                   <input
                     type="text"
                     readOnly
                     value={inviteLink}
-                    className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 border"
+                    className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
                   />
                   <button
                     type="button"
                     onClick={handleCopy}
-                    className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 sm:text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700"
                   >
                     Copy
                   </button>
@@ -290,23 +290,23 @@ setIsSubmitting(true)
                       className="h-12 w-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 text-lg font-medium">
+                    <div className="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 text-lg font-medium">
                       {(name[0] || '#').toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label htmlFor="channelAvatar" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Channel Avatar</label>
-                  <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5 mb-1">Shown in the channel list and header.</p>
+                  <label htmlFor="channelAvatar" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Channel Avatar</label>
+                  <p className="text-xs text-surface-400 dark:text-surface-400 mt-0.5 mb-1">Shown in the channel list and header.</p>
                   <input
                     type="file"
                     id="channelAvatar"
                     accept="image/*"
                     disabled={uploading || !uploadEnabled || settingsLoading}
                     onChange={handleAvatarChange}
-                    className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 dark:file:bg-indigo-950 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900 disabled:opacity-50"
+                    className="block w-full text-sm text-surface-500 dark:text-surface-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 dark:file:bg-primary-950 file:text-primary-700 dark:file:text-primary-300 hover:file:bg-primary-100 dark:hover:file:bg-primary-900 disabled:opacity-50"
                   />
-                  {uploading && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Uploading...</p>}
+                  {uploading && <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Uploading...</p>}
                   {!uploadEnabled && !settingsLoading && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Image uploads are disabled by the server admin.</p>
                   )}
@@ -315,7 +315,7 @@ setIsSubmitting(true)
               </div>
 
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Channel Name</label>
+                <label htmlFor="name" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Channel Name</label>
                 <input
                   type="text"
                   id="name"
@@ -323,17 +323,17 @@ setIsSubmitting(true)
                   maxLength={MAX_CHANNEL_NAME_LENGTH}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                 />
               </div>
 
               <div>
-                <label htmlFor="gameSystem" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Game System</label>
+                <label htmlFor="gameSystem" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Game System</label>
                 <select
                   id="gameSystem"
                   value={gameSystem}
                   onChange={(e) => setGameSystem(e.target.value)}
-                  className="bg-white dark:bg-gray-800 mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                  className="bg-white dark:bg-surface-800 mt-1 block w-full pl-3 pr-10 py-2 text-base border-surface-300 dark:border-surface-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
                 >
                   {GAME_SYSTEM_OPTIONS.map(sys => (
                     <option key={sys.id} value={sys.id}>{sys.name}</option>
@@ -343,14 +343,14 @@ setIsSubmitting(true)
 
               <div className="pt-2">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label htmlFor="password" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
                     Channel Password
                   </label>
                   {!changePassword && (
                     <button
                       type="button"
                       onClick={() => setChangePassword(true)}
-                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200"
+                      className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
                     >
                       Change Password
                     </button>
@@ -363,13 +363,13 @@ setIsSubmitting(true)
                       id="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="bg-white dark:bg-gray-800 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border pr-10"
+                      className="bg-white dark:bg-surface-800 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border pr-10"
                       placeholder="Leave blank to remove password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="absolute inset-y-0 right-0 px-3 flex items-center text-surface-400 dark:text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
@@ -385,7 +385,7 @@ setIsSubmitting(true)
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-1 text-sm text-gray-500 dark:text-gray-400 italic">
+                  <div className="mt-1 text-sm text-surface-500 dark:text-surface-400 italic">
                     {channel.has_password ? 'Password is set (hidden)' : 'No password currently set'}
                   </div>
                 )}
@@ -393,8 +393,8 @@ setIsSubmitting(true)
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="mapUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Map URL</label>
-                  <label className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 cursor-pointer font-medium disabled:opacity-50">
+                  <label htmlFor="mapUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Map URL</label>
+                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium disabled:opacity-50">
                     <input
                       type="file"
                       accept="image/*"
@@ -412,7 +412,7 @@ setIsSubmitting(true)
                   maxLength={MAX_URL_LENGTH}
                   value={mapUrl}
                   onChange={(e) => setMapUrl(e.target.value)}
-                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://owlbear.rodeo/..."
                 />
                 {mapError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{mapError}</p>}
@@ -420,8 +420,8 @@ setIsSubmitting(true)
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="resourcesUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Resources URL</label>
-                  <label className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 cursor-pointer font-medium disabled:opacity-50">
+                  <label htmlFor="resourcesUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Resources URL</label>
+                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium disabled:opacity-50">
                     <input
                       type="file"
                       accept="image/*"
@@ -439,30 +439,30 @@ setIsSubmitting(true)
                   maxLength={MAX_URL_LENGTH}
                   value={resourcesUrl}
                   onChange={(e) => setResourcesUrl(e.target.value)}
-                  className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                  className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                   placeholder="https://drive.google.com/..."
                 />
                 {resourcesError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{resourcesError}</p>}
               </div>
 
                 <div>
-                  <label htmlFor="gmOnlyResourcesUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">GM-Only Resources URL</label>
+                  <label htmlFor="gmOnlyResourcesUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">GM-Only Resources URL</label>
                   <input
                     type="url"
                     id="gmOnlyResourcesUrl"
                     maxLength={MAX_URL_LENGTH}
                     value={gmOnlyResourcesUrl}
                     onChange={(e) => setGmOnlyResourcesUrl(e.target.value)}
-                    className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                     placeholder="https://lorekeeper.app/..."
                   />
                 </div>
 
-                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="pt-2 border-t border-surface-200 dark:border-surface-700">
                   <button
                     type="button"
                     onClick={() => setShowSafetyTools(!showSafetyTools)}
-                    className="flex items-center justify-between w-full text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    className="flex items-center justify-between w-full text-sm font-medium text-surface-700 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                     aria-expanded={showSafetyTools}
                   >
                     Safety Tools (Lines &amp; Veils)
@@ -477,7 +477,7 @@ setIsSubmitting(true)
                   {showSafetyTools && (
                     <div className="mt-3 space-y-4">
                       <div>
-                        <label htmlFor="safetyLines" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Lines</label>
+                        <label htmlFor="safetyLines" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Lines</label>
                         <textarea
                           id="safetyLines"
                           maxLength={MAX_SAFETY_TEXT_LENGTH}
@@ -485,11 +485,11 @@ setIsSubmitting(true)
                           onChange={(e) => setSafetyLines(e.target.value)}
                           rows={3}
                           placeholder="Hard limits the group agrees never to cross (one per line)."
-                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                         />
                       </div>
                       <div>
-                        <label htmlFor="safetyVeils" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Veils</label>
+                        <label htmlFor="safetyVeils" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Veils</label>
                         <textarea
                           id="safetyVeils"
                           maxLength={MAX_SAFETY_TEXT_LENGTH}
@@ -497,21 +497,21 @@ setIsSubmitting(true)
                           onChange={(e) => setSafetyVeils(e.target.value)}
                           rows={3}
                           placeholder="Topics that happen off-screen when they come up (one per line)."
-                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                         />
                       </div>
                       <div>
-                        <label htmlFor="safetyToolsUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Safety Tools URL</label>
+                        <label htmlFor="safetyToolsUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Safety Tools URL</label>
                         <input
                           type="url"
                           id="safetyToolsUrl"
                           maxLength={MAX_URL_LENGTH}
                           value={safetyToolsUrl}
                           onChange={(e) => setSafetyToolsUrl(e.target.value)}
-                          className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                           placeholder="https://docs.google.com/document/d/..."
                         />
-                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
+                        <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
                           Shown as a menu item for all players in the sidebar, like the other URL fields.
                         </p>
                         {safetyToolsError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{safetyToolsError}</p>}
@@ -525,7 +525,7 @@ setIsSubmitting(true)
                 <button
                   type="submit"
                   disabled={isSubmitting || !name.trim()}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm disabled:opacity-50 transition-colors"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm disabled:opacity-50 transition-colors"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -533,20 +533,20 @@ setIsSubmitting(true)
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm transition-colors"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-base font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm transition-colors"
                 >
                   Cancel
                 </button>
               </div>
               
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Advanced Actions</h4>
+              <div className="mt-8 pt-6 border-t border-surface-200 dark:border-surface-700">
+                <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100 mb-4">Advanced Actions</h4>
                 <div className="flex flex-col gap-3">
                   <button
                     type="button"
                     onClick={handleExport}
                     disabled={isSubmitting}
-                    className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 transition-colors"
+                    className="w-full inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-base font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:text-sm disabled:opacity-50 transition-colors"
                   >
                     Export Chat to Markdown
                   </button>

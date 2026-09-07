@@ -33,7 +33,7 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
         className="space-y-4"
       >
         <div>
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={inputId} className="block text-sm font-medium text-surface-700 dark:text-surface-300">
             {label}
           </label>
           <input
@@ -44,9 +44,9 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
             maxLength={maxLength}
             placeholder={placeholder}
             onChange={(e) => setValue(e.target.value)}
-            className="min-h-11 bg-white dark:bg-gray-800 mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+            className="min-h-11 bg-white dark:bg-surface-800 mt-1 block w-full rounded-md border-surface-300 dark:border-surface-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
             {value.length}/{maxLength}
           </p>
         </div>
@@ -54,13 +54,13 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-2 px-4 text-sm font-medium text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
           >
             {confirmLabel}
           </button>

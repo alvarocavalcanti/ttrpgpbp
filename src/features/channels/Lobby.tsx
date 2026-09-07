@@ -85,7 +85,7 @@ export function Lobby() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-500"></div>
       </div>
     )
   }
@@ -108,10 +108,10 @@ export function Lobby() {
     <div className="w-full max-w-7xl mx-auto pt-0 pb-8 md:px-6 lg:px-8 relative flex-1">
       <div className="flex flex-col gap-6">
         <PermissionBanner />
-        <div className="bg-white dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700 md:border-none md:shadow overflow-hidden md:rounded-md">
+        <div className="bg-white dark:bg-surface-800 border-y border-surface-200 dark:border-surface-700 md:border-none md:shadow overflow-hidden md:rounded-md">
           {filteredMy.length === 0 ? (
             q ? (
-              <div className="p-6 text-center text-gray-500 dark:text-gray-400 text-sm">
+              <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">
                 No matching channels found.
               </div>
             ) : (
@@ -119,7 +119,7 @@ export function Lobby() {
               // surfaces both paths (create / join) at the moment of confusion.
               <div className="p-8 text-center" data-testid="empty-lobby">
                 <svg
-                  className="mx-auto h-16 w-16 text-indigo-200 dark:text-indigo-800"
+                  className="mx-auto h-16 w-16 text-primary-200 dark:text-primary-800"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -127,8 +127,8 @@ export function Lobby() {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4v10l8 4 8-4V7zM4 7l8 4m0 0l8-4m-8 4v10" />
                 </svg>
-                <h2 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">You haven&apos;t joined any channels yet.</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                <h2 className="mt-4 text-lg font-medium text-surface-900 dark:text-surface-100">You haven&apos;t joined any channels yet.</h2>
+                <p className="mt-1 text-sm text-surface-500 dark:text-surface-400 max-w-sm mx-auto">
                   Start your own game, or ask your GM for an invite link to join theirs.
                 </p>
                 <div className="mt-5 flex flex-col items-center gap-3">
@@ -136,7 +136,7 @@ export function Lobby() {
                     type="button"
                     data-testid="empty-lobby-create"
                     onClick={handleCreateClick}
-                    className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                   >
                     Create a channel
                   </button>
@@ -151,11 +151,11 @@ export function Lobby() {
                         setInviteInput(e.target.value)
                         setInviteError(null)
                       }}
-                      className="flex-1 w-full min-w-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="flex-1 w-full min-w-0 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                     />
                     <button
                       type="submit"
-                      className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                     >
                       Join
                     </button>
@@ -165,10 +165,10 @@ export function Lobby() {
               </div>
             )
           ) : (
-            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            <ul className="divide-y divide-surface-200 dark:divide-surface-700">
               {filteredMy.map((channel) => (
                 <li key={channel.id}>
-                  <Link to={`/channel/${channel.id}`} className="block hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <Link to={`/channel/${channel.id}`} className="block hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors">
                     <div className="flex items-center px-4 py-1.5 sm:px-6">
                       {channel.avatar_url ? (
                         <SignedImg
@@ -179,14 +179,14 @@ export function Lobby() {
                           className="h-10 w-10 rounded-full object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div data-testid="channel-avatar" className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 flex-shrink-0">
+                        <div data-testid="channel-avatar" className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 flex-shrink-0">
                           {(channel.name[0] || '#').toUpperCase()}
                         </div>
                       )}
                       <div className="flex-1 min-w-0 ml-3 flex flex-col justify-center">
                         <div className="flex items-center justify-between gap-2">
                           <span className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                            <span className="text-sm font-medium text-primary-600 dark:text-primary-400 truncate">
                               {channel.name}
                             </span>
                             {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
@@ -195,12 +195,12 @@ export function Lobby() {
                               </span>
                             ) : null}
                           </span>
-                          <span className="text-xs text-gray-400 dark:text-gray-400 flex-shrink-0">
+                          <span className="text-xs text-surface-400 dark:text-surface-400 flex-shrink-0">
                             {channelTimestamp(channel.last_message_at)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                          <span className="text-sm text-surface-500 dark:text-surface-400 truncate">
                             {channelPreview(channel.last_message_preview)}
                           </span>
                           {channel.gm_id === user?.id ? (
@@ -208,7 +208,7 @@ export function Lobby() {
                               GM
                             </p>
                           ) : (
-                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 flex-shrink-0">
+                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 flex-shrink-0">
                               Player
                             </p>
                           )}
@@ -230,10 +230,10 @@ export function Lobby() {
           aria-disabled={atChannelCap}
           onClick={handleCreateClick}
           aria-label="Create Channel"
-          className={`inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors ${
+          className={`inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors ${
             atChannelCap
-              ? 'bg-gray-400 dark:bg-gray-600'
-              : 'bg-indigo-600 hover:bg-indigo-700'
+              ? 'bg-surface-400 dark:bg-surface-600'
+              : 'bg-primary-600 hover:bg-primary-700'
           }`}
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

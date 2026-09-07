@@ -2,6 +2,7 @@ import { useState, useRef, useLayoutEffect } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { useChannelStatus } from './useChannelStatus'
 import { MAX_STATUS_LENGTH } from '../../constants'
+import { proseAmber } from '../chat/prose'
 
 interface ActivePlayer {
   character_name: string
@@ -115,7 +116,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
             <div className="relative">
               <div
                 ref={statusRef}
-                className={`prose prose-sm max-w-none dark:prose-invert text-amber-900 dark:text-amber-200 prose-p:text-amber-900 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-200 prose-headings:text-amber-900 dark:prose-headings:text-amber-200 prose-em:text-amber-900 dark:prose-em:text-amber-200 prose-a:text-amber-700 dark:prose-a:text-amber-300 prose-blockquote:text-amber-900 dark:prose-blockquote:text-amber-200 prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700 prose-ul:text-amber-900 dark:prose-ul:text-amber-200 prose-ol:text-amber-900 dark:prose-ol:text-amber-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
+                className={`${proseAmber} ${isExpanded ? '' : 'line-clamp-1'}`}>
                 {statusText ? (
                   <Markdown>{statusText}</Markdown>
                 ) : (
