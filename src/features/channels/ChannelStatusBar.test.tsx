@@ -134,8 +134,8 @@ describe('ChannelStatusBar', () => {
     render(<ChannelStatusBar channelId="c1" statusText="Old status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
     fireEvent.click(screen.getByText('Edit'))
     const textarea = screen.getByDisplayValue('Old status')
-    expect(textarea).toHaveClass('bg-white', 'dark:bg-gray-800')
-    expect(textarea).toHaveClass('text-gray-900', 'dark:text-gray-100')
+    expect(textarea).toHaveClass('bg-white', 'dark:bg-surface-800')
+    expect(textarea).toHaveClass('text-surface-900', 'dark:text-surface-100')
   })
 
   it('cancels edit', () => {
