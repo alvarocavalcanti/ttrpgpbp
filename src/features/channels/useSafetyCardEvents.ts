@@ -155,9 +155,9 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     // multi-flag alert would lose its tally until reload. On success there is
     // no latch to hold: the UPDATE echo (ours or another device's) recounts
     // live state, so the banner stays syncable for the mount's lifetime.
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from('safety_card_events')
-      .update({ resolved_at: new Date().toISOString() })
+      .update({ resolved_at: new Date().toISOString() }, { count: 'exact' })
       .eq('channel_id', channelId)
       .is('resolved_at', null)
     if (error) {
@@ -165,6 +165,19 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       setAlertActive(true)
       setAlertCount(previousCount)
       addToast('Failed to dismiss X-Card alert.', 'error')
+      return
+    }
+    // Close the presser's loop (issue #434): post the identity-free
+    // resolution notice only when this write actually transitioned rows
+    // (resolved_at null -> set). A zero-row update means another dismissal
+    // already resolved the flags (double-tap, second device) — no duplicate.
+    // A failed post leaves the dismissal intact; the notice is best-effort.
+    if (!count) return
+    const { error: noticeError } = await supabase.rpc('notify_xcard_resolved', {
+      p_channel_id: channelId
+    })
+    if (noticeError) {
+      console.error('Failed to post the X-Card resolution notice:', noticeError)
     }
   }, [channelId, addToast, alertCount])
 

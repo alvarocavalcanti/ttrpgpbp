@@ -9,7 +9,8 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
     channel: vi.fn(),
-    removeChannel: vi.fn()
+    removeChannel: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -20,7 +21,7 @@ function wrapper({ children }: { children: ReactNode }) {
 // The GM mount now runs a catch-up SELECT and dismissal runs an UPDATE, both
 // against safety_card_events. Build separate thenable chains per operation so
 // each can resolve with its own result (the real builder is thenable too).
-function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown } = { count: 0, error: null }, updateResult: { error?: unknown } = { error: null }) {
+function mockSupabaseQuery(fetchResult: { count?: number | null; error?: unknown } = { count: 0, error: null }, updateResult: { count?: number | null; error?: unknown } = { error: null }) {
   const buildChain = (result: unknown) => {
     const chain: Record<string, ReturnType<typeof vi.fn>> = {}
     for (const op of ['select', 'update', 'eq', 'is', 'gt']) {
@@ -136,6 +137,9 @@ describe('useSafetyCardEvents', () => {
 
     expect(success).toBe(true)
     expect(mockInsert).toHaveBeenCalledWith({ channel_id: 'c1', message_id: null })
+    // The press path never posts the resolution notice (#434): no system
+    // message from the non-GM side.
+    expect(supabase.rpc).not.toHaveBeenCalled()
 
     const toast = document.body.textContent
     expect(toast).toContain('X-Card sent to the GM')
@@ -291,7 +295,7 @@ describe('useSafetyCardEvents', () => {
       await result.current.dismissAlert()
     })
 
-    expect(updateChain.update).toHaveBeenCalledWith({ resolved_at: expect.any(String) })
+    expect(updateChain.update).toHaveBeenCalledWith({ resolved_at: expect.any(String) }, { count: 'exact' })
     expect(updateChain.eq).toHaveBeenCalledWith('channel_id', 'c1')
     expect(updateChain.is).toHaveBeenCalledWith('resolved_at', null)
     expect(result.current.alertActive).toBe(false)
@@ -745,6 +749,97 @@ describe('useSafetyCardEvents', () => {
     expect(result.current.alertActive).toBe(true)
     expect(result.current.alertCount).toBe(1)
     expect(document.body.textContent).not.toContain('Failed to load X-Card alerts.')
+  })
+
+  it('posts the resolution notice once when the dismissal write resolves rows', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    mockRealtimeChannel()
+    const updateResult = { count: 2, error: null }
+    const { updateChain } = mockSupabaseQuery({ count: 2, error: null }, updateResult)
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalled()
+    })
+
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+
+    // The count rides the dismissal UPDATE: only a write that actually
+    // transitioned unresolved rows may post the notice.
+    expect(updateChain.update).toHaveBeenCalledWith(expect.anything(), { count: 'exact' })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).toHaveBeenCalledWith('notify_xcard_resolved', { p_channel_id: 'c1' })
+  })
+
+  it('does not post the resolution notice again when a second dismissal changes no rows', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    mockRealtimeChannel()
+    const updateResult = { count: 1, error: null }
+    mockSupabaseQuery({ count: 1, error: null }, updateResult)
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalled()
+    })
+
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+
+    // The flags are already resolved: the retry transitions nothing and must
+    // not spam a duplicate notice.
+    updateResult.count = 0
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not post the resolution notice when the dismissal write fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRealtimeChannel()
+    mockSupabaseQuery({ count: 1, error: null }, { error: { message: 'RLS block' } })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+
+    expect(supabase.rpc).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Failed to dismiss X-Card alert.')
+  })
+
+  it('keeps the dismissal intact when posting the resolution notice fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: { message: 'RPC block' } } as any)
+    mockRealtimeChannel()
+    mockSupabaseQuery({ count: 1, error: null }, { count: 1, error: null })
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.alertActive).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.dismissAlert()
+    })
+
+    expect(consoleError).toHaveBeenCalledWith('Failed to post the X-Card resolution notice:', expect.anything())
+    // The notice is best-effort: the dismissal itself still stands.
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
   })
 })
 
