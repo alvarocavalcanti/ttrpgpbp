@@ -1,6 +1,6 @@
 import { useState, useRef, useLayoutEffect } from 'react'
 import { Markdown } from '../../components/Markdown'
-import { supabase } from '../../lib/supabase'
+import { useChannelStatus } from './useChannelStatus'
 import { MAX_STATUS_LENGTH } from '../../constants'
 
 interface ActivePlayer {
@@ -27,6 +27,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
   // one line; single-line text has nothing to expand.
   const statusRef = useRef<HTMLDivElement>(null)
   const [overflows, setOverflows] = useState(false)
+  const { updateStatus } = useChannelStatus()
 
   useLayoutEffect(() => {
     const el = statusRef.current
@@ -38,10 +39,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
     setIsSubmitting(true)
     setError(null)
     try {
-      const { error: updateError } = await supabase
-        .from('channels')
-        .update({ status_text: editContent || null })
-        .eq('id', channelId)
+      const updateError = await updateStatus(channelId, editContent)
 
       if (updateError) throw updateError
       

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react'
 
 export type ToastType = 'success' | 'error' | 'info'
 
@@ -63,8 +63,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
   }, [timers])
 
+  const contextValue = useMemo(() => ({ addToast, removeToast }), [addToast, removeToast])
+
   return (
-    <ToastContext.Provider value={{ addToast, removeToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       
       {/* Toast Container */}
