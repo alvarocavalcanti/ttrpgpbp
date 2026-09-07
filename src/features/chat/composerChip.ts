@@ -1,9 +1,9 @@
 export const chipBase =
-  'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+  'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500'
 export const chipIdle =
-  'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400'
+  'bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 hover:text-primary-600 dark:hover:text-primary-400'
 export const chipActive =
-  'bg-indigo-50 dark:bg-indigo-950 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+  'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-800 text-primary-700 dark:text-primary-300'
 
 // Scene-message (parchment) and channel-status (amber) prose styling, shared
 // by MessageItem (chat) and ChannelStatusBar (channels). Extracted verbatim
