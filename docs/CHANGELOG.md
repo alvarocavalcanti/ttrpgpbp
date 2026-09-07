@@ -69,6 +69,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Blocked players no longer get stuck unread badges** — if the GM blocks you from a channel (or your account is suspended), new messages there no longer pile onto your unread badge or the lobby's "N new" pill, since you couldn't have read them anyway.
 - **New accounts no longer see a spurious "Failed to load channels" error** — after signing up, the lobby now waits for your sign-in to settle before loading your channels.
 - **More reliable reconnects & offline reading** — when your connection returns after a break, messages edited or deleted while you were away now update on their own instead of staying stale, and messages read live in a channel no longer reappear as unread in the Lobby. Opening an app link while offline now loads the app instead of a browser error page. Admin Messages conversations recover on their own after a connection drop too.
 - **Images in private channels stay private** — images you upload (in a message, as a channel avatar, an NPC portrait, or a map) can now only be seen by people in that channel. Someone who isn't a member, or who is later removed from the channel, can no longer view them. The admin's upload settings (allowed / max size) are also enforced on the server, so they hold no matter how an upload is made.
