@@ -57,7 +57,14 @@ export async function serviceRole(path: string, init: RequestInit = {}): Promise
   headers.set('apikey', serviceRoleKey);
   headers.set('Authorization', `Bearer ${serviceRoleKey}`);
   headers.set('Content-Type', 'application/json');
-  return fetch(`${supabaseUrl}${path}`, { ...init, headers });
+  const res = await fetch(`${supabaseUrl}${path}`, { ...init, headers });
+  if (!res.ok) {
+    // Surface the server error (e.g. a 42501 privilege gap) instead of a
+    // cryptic downstream failure like "not iterable" from a JSON error body.
+    const body = await res.text().catch(() => '');
+    throw new Error(`Service-role request failed: ${res.status} ${res.statusText} — ${body}`);
+  }
+  return res;
 }
 
 // Seeds a confirmed email/password user through the Supabase Admin API
