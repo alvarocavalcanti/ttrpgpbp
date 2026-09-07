@@ -88,7 +88,10 @@ GRANT EXECUTE ON FUNCTION get_unread_totals(UUID[]) TO service_role;
 -- move the boundary backward, resurrecting unread counts that a refresh
 -- recomputed the same way — the stuck badge from issue #437. Marking read
 -- here uses the database clock (now()), so the boundary is monotonic and
--- skew-free, matching mark_admin_thread_read.
+-- skew-free, matching mark_admin_thread_read. GREATEST keeps it monotonic even
+-- under concurrent writers: now() is the transaction start time, so a
+-- transaction that started earlier but commits later could otherwise
+-- overwrite a newer read boundary with its older timestamp (issue #437).
 CREATE OR REPLACE FUNCTION public.mark_channel_read(p_channel_id UUID)
 RETURNS void
 LANGUAGE plpgsql
@@ -103,7 +106,7 @@ BEGIN
   END IF;
 
   UPDATE public.channel_members
-  SET last_read_at = now()
+  SET last_read_at = GREATEST(last_read_at, now())
   WHERE channel_id = p_channel_id AND user_id = v_uid;
 END;
 $$;
