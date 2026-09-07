@@ -1108,7 +1108,10 @@ export type Database = {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
         Returns: undefined
       }
-      notify_xcard_resolved: { Args: { p_channel_id: string }; Returns: undefined }
+      notify_xcard_resolved: {
+        Args: { p_channel_id: string }
+        Returns: undefined
+      }
       push_notification_config_value: {
         Args: { p_key: string }
         Returns: string
