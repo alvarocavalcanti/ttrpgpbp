@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **The X-Card loop now closes for everyone** — when the GM handles a flagged scene, everyone in the channel sees a short note ("A flagged scene has been resolved. Carry on — the X-Card is always there if you need it again."). Whoever pressed the X-Card can finally see it was handled, and the note never reveals who pressed or who resolved.
 - **Unread counts now match what you can actually see** — private whispers between other players no longer inflate your unread badge or the "N new" pill in the lobby, and opening a channel to read it clears its badge for good, even across devices. The lobby's "N new" pill also stays on one line next to long channel names.
 - **Channel sidebar slides in cleanly** — opening the sidebar on a phone or a narrow window no longer makes the view drift sideways or makes the chat appear to slide the other way. The sidebar now animates in on its own, leaving the chat window where it is.
 
