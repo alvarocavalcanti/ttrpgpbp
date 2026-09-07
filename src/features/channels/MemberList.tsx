@@ -7,6 +7,7 @@ import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useMemberModeration } from './useMemberModeration'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -40,6 +41,12 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
   }, [])
+
+  // Escape closes the popup via the shared stack; no-op while closed so a
+  // closed menu can't swallow Escape meant for something below (a11y #433).
+  useEscapeToClose(() => {
+    if (openMenuId) setOpenMenuId(null)
+  })
   
   const { moderateMember, setAway } = useMemberModeration()
 
@@ -209,6 +216,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     <button
                       type="button"
                       data-testid={`menu-btn-${member.id}`}
+                      aria-label={`Member options for ${member.character_name}`}
                       aria-expanded={openMenuId === member.id}
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
                       className="p-3 rounded-full text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -219,11 +227,12 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     </button>
                     
                     {openMenuId === member.id && (
-                      <div className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                      <div role="menu" aria-label={`Member options for ${member.character_name}`} className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
                         <div className="py-1">
                           {isMe && (
                             <button
                               type="button"
+                              role="menuitem"
                               onClick={() => { setOpenMenuId(null); startEditing(member); }}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
@@ -233,6 +242,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {isMe && (
                             <button
                               type="button"
+                              role="menuitem"
                               onClick={() => { setOpenMenuId(null); handleToggleAway(member.id); }}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
@@ -243,6 +253,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                             <>
                               <button
                                 type="button"
+                                role="menuitem"
                                 onClick={() => { setOpenMenuId(null); requestModeration('kick', member); }}
                                 className="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
@@ -250,6 +261,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               </button>
                               <button
                                 type="button"
+                                role="menuitem"
                                 onClick={() => { setOpenMenuId(null); requestModeration('block', member); }}
                                 className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
@@ -260,6 +272,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {isMe && member.user_id !== gmId && (
                             <button
                               type="button"
+                              role="menuitem"
                               onClick={() => { setOpenMenuId(null); requestModeration('leave', member); }}
                               className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >

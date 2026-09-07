@@ -110,6 +110,53 @@ describe('MemberList', () => {
     expect(kebab).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('gives the kebab an accessible name with the character name (a11y)', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByTestId('menu-btn-m2')).toHaveAttribute('aria-label', 'Member options for Sidekick')
+    expect(screen.getByTestId('menu-btn-m1')).toHaveAttribute('aria-label', 'Member options for Hero')
+  })
+
+  it('gives the popup menu semantics with menuitem entries (a11y)', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    const menu = screen.getByRole('menu', { name: 'Member options for Sidekick' })
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent))
+      .toEqual(['Kick Player', 'Block Player'])
+  })
+
+  it('gives self-menu actions menuitem semantics (a11y)', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    const menu = screen.getByRole('menu', { name: 'Member options for Sidekick' })
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent))
+      .toEqual(['Edit Character', 'Mark Away (AFK)', 'Leave Channel'])
+  })
+
+  it('closes the popup on Escape (a11y)', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('flips aria-expanded false→true→false across open and Escape close (a11y)', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    const kebab = screen.getByTestId('menu-btn-m2')
+    expect(kebab).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(kebab)
+    expect(kebab).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(kebab).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('allows editing own character', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
