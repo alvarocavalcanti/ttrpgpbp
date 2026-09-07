@@ -980,7 +980,7 @@ describe('ChannelView search functionality', () => {
     fireEvent.click(screen.getByLabelText('Reply'))
     expect(screen.getByText(/Replying to Hero/)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'my reply' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'my reply' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => {

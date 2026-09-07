@@ -1,5 +1,5 @@
 import { Avatar } from '../../components/Avatar';
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import type { Database } from '../../types/database'
 import type { MessageSendPayload } from './types'
 import { DiceRoller } from '../dice/DiceRoller'
@@ -137,6 +137,12 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   ]
   const mentionOpen = mentionOptions.length > 0
   const memberStartIndex = showAllMention ? 1 : 0
+
+  // Combobox pattern (#432 item 16): the textarea is the combobox; the
+  // listbox options get stable ids so aria-activedescendant can point at the
+  // highlighted one while the popup is open.
+  const listboxId = useId()
+  const mentionOptionId = (index: number) => `${listboxId}-option-${index}`
 
   // Keep the highlight on a valid option when the list shrinks.
   useEffect(() => {
@@ -601,11 +607,12 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
             </button>
             <div className="relative flex-1">
               {(showAllMention || matchedMembers.length > 0) && (
-                <div role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div id={listboxId} role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {showAllMention && (
                     <button
                       type="button"
                       role="option"
+                      id={mentionOptionId(0)}
                       aria-selected={activeMentionIndex === 0}
                       onMouseDown={(e) => { e.preventDefault(); selectMention('all') }}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
@@ -621,6 +628,7 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                         key={m.id}
                         type="button"
                         role="option"
+                        id={mentionOptionId(memberStartIndex + i)}
                         aria-selected={active}
                         onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
                         className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
@@ -642,6 +650,11 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
                 maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
                 aria-label="Message"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={mentionOpen}
+                aria-controls={mentionOpen ? listboxId : undefined}
+                aria-activedescendant={mentionOpen ? mentionOptionId(activeMentionIndex) : undefined}
                 className={`block w-full text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />
