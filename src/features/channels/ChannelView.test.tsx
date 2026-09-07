@@ -1150,6 +1150,106 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('shows the X-Card catch-up retry chip for the GM and retries on click', () => {
+    const mockRetry = vi.fn()
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn(),
+      catchUpError: true,
+      catchUpRetrying: false,
+      retryCatchUp: mockRetry
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load X-Card alerts.")
+    const retry = screen.getByRole('button', { name: 'Retry loading X-Card alerts' })
+    // Literal touch-target requirement (UX-1): the Retry button is at least
+    // 44px tall.
+    expect(retry.className).toContain('min-h-11')
+    fireEvent.click(retry)
+    expect(mockRetry).toHaveBeenCalled()
+  })
+
+  it('hides the X-Card catch-up retry chip from players', () => {
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn(),
+      catchUpError: true,
+      catchUpRetrying: false,
+      retryCatchUp: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    // Default useChannel mock: isGM false. Even with the error flag set, a
+    // player never sees the GM-only chip.
+    expect(screen.queryByLabelText('Retry loading X-Card alerts')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('does not show the X-Card catch-up retry chip when the catch-up is clean', () => {
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn(),
+      catchUpError: false,
+      catchUpRetrying: false,
+      retryCatchUp: vi.fn()
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1' },
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.queryByLabelText('Retry loading X-Card alerts')).not.toBeInTheDocument()
+  })
+
   it('dismisses the channel notifications once the channel is read', async () => {
     let onRead: (() => void) | undefined
     vi.mocked(useChannel).mockImplementation((_id: string | undefined, cb?: () => void) => {

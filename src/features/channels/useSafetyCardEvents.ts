@@ -9,6 +9,11 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
   const { addToast } = useToast()
   const [alertActive, setAlertActive] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
+  // Catch-up failure (audit item 17 / #432): a failed snapshot must not leave
+  // the GM session looking like a clean "no alerts" one. The chip stays up
+  // until a successful recount (retry or reconnect) clears it.
+  const [catchUpError, setCatchUpError] = useState(false)
+  const [catchUpRetrying, setCatchUpRetrying] = useState(false)
   // Monotonic generation token for async recounts. Every recount (mount
   // catch-up, UPDATE-driven) captures it when issued; dismissals and live
   // INSERTs bump it. A recount completing against a bumped generation is
@@ -24,6 +29,8 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
 
     let cancelled = false
     stateGenRef.current = 0
+    setCatchUpError(false)
+    setCatchUpRetrying(false)
 
     const realtimeChannel = supabase
       .channel(`safety-card:${channelId}`)
@@ -101,8 +108,12 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
           if (error) {
             console.error('Failed to load X-Card alerts:', error)
             addToast('Failed to load X-Card alerts.', 'error')
+            // Persistent inline signal: a toast alone let the session read as
+            // "no alerts" when the snapshot never landed (audit item 17).
+            setCatchUpError(true)
             return
           }
+          setCatchUpError(false)
           if (count && count > 0) {
             setAlertActive(true)
             setAlertCount(prev => Math.max(prev, count))
@@ -139,6 +150,47 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     return true
   }, [channelId, addToast])
 
+  // Manual re-run of the failed catch-up count (audit item 17 / #432). The
+  // inline error stays up until this succeeds — a failed retry keeps the chip
+  // visible, so the safety path never reads as a clean "no alerts" session.
+  const retryCatchUp = useCallback(() => {
+    if (!channelId) return
+    setCatchUpRetrying(true)
+    // A manual recount is the newest authority: invalidate any recount still
+    // in flight, then snapshot under the fresh generation.
+    stateGenRef.current++
+    const gen = stateGenRef.current
+    void supabase
+      .from('safety_card_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('channel_id', channelId)
+      .is('resolved_at', null)
+      .then(({ count, error }) => {
+        if (gen !== stateGenRef.current) {
+          // Superseded by a live event before it landed; that newer writer
+          // owns the alert state, so only the in-flight flag is cleaned up.
+          setCatchUpRetrying(false)
+          return
+        }
+        if (error) {
+          console.error('Failed to load X-Card alerts:', error)
+          addToast('Failed to load X-Card alerts.', 'error')
+          setCatchUpRetrying(false)
+          setCatchUpError(true)
+          return
+        }
+        setCatchUpRetrying(false)
+        setCatchUpError(false)
+        if (count && count > 0) {
+          setAlertActive(true)
+          setAlertCount(prev => Math.max(prev, count))
+        } else {
+          setAlertActive(false)
+          setAlertCount(0)
+        }
+      })
+  }, [channelId, addToast])
+
   const dismissAlert = useCallback(async () => {
     if (!channelId) return
     // Committed state, not a render-written ref (React Doctor
@@ -168,5 +220,5 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     }
   }, [channelId, addToast, alertCount])
 
-  return { alertActive, alertCount, dismissAlert, triggerXCard }
+  return { alertActive, alertCount, dismissAlert, triggerXCard, catchUpError, catchUpRetrying, retryCatchUp }
 }

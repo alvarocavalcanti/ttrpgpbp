@@ -262,7 +262,7 @@ describe('useSafetyCardEvents', () => {
     expect(fetchChain.select).not.toHaveBeenCalled()
   })
 
-  it('shows an error toast when the catch-up fetch fails', async () => {
+  it('sets the persistent catch-up error state when the catch-up fetch fails', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRealtimeChannel()
     mockSupabaseQuery({ count: null, error: { message: 'RLS block' } })
@@ -273,6 +273,62 @@ describe('useSafetyCardEvents', () => {
       expect(document.body.textContent).toContain('Failed to load X-Card alerts.')
     })
 
+    expect(result.current.alertActive).toBe(false)
+    expect(result.current.alertCount).toBe(0)
+    // The persistent inline chip signal (audit item 17): a failed snapshot
+    // must not read as a clean "no alerts" session.
+    expect(result.current.catchUpError).toBe(true)
+  })
+
+  it('re-runs the count query and clears the error when a retry succeeds', async () => {
+    const { setCountResult, deferNext, flush, fetchChain } = mockMutableCountQuery({ count: null, error: { message: 'RLS block' } })
+    mockRealtimeChannel()
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+
+    setCountResult({ count: 2, error: null })
+    deferNext()
+    act(() => {
+      result.current.retryCatchUp()
+    })
+    expect(result.current.catchUpRetrying).toBe(true)
+
+    await act(async () => {
+      flush()
+      await Promise.resolve()
+    })
+
+    expect(result.current.catchUpError).toBe(false)
+    expect(result.current.catchUpRetrying).toBe(false)
+    expect(result.current.alertActive).toBe(true)
+    expect(result.current.alertCount).toBe(2)
+    // Retry re-runs the same unresolved-count SELECT.
+    expect(fetchChain.select).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the error state when a retry fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { setCountResult } = mockMutableCountQuery({ count: null, error: { message: 'RLS block' } })
+    mockRealtimeChannel()
+
+    const { result } = renderHook(() => useSafetyCardEvents('c1', true), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.catchUpError).toBe(true)
+    })
+
+    setCountResult({ count: null, error: { message: 'RLS block again' } })
+    await act(async () => {
+      result.current.retryCatchUp()
+      await Promise.resolve()
+    })
+
+    expect(result.current.catchUpError).toBe(true)
+    expect(result.current.catchUpRetrying).toBe(false)
     expect(result.current.alertActive).toBe(false)
     expect(result.current.alertCount).toBe(0)
   })
