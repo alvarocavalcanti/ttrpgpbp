@@ -10,7 +10,6 @@ All notable changes to this project are documented in this file.
 - **Easier to tap, clearer to hear** — small buttons across the app (the status bar's Edit, the message retry, notification prompts, "Load older messages" and others) now meet the comfortable 44px touch size. The member options menu now announces itself to screen readers (with each member's name), closes on Escape, and the @-mention picker speaks its highlighted choice. If the X-Card alert list ever fails to load, the GM now sees a retry button right in the banner instead of a fleeting notice.
 
 - **Unread counts now match what you can actually see** — private whispers between other players no longer inflate your unread badge or the "N new" pill in the lobby, and opening a channel to read it clears its badge for good, even across devices. The lobby's "N new" pill also stays on one line next to long channel names.
-- **Blocked players no longer get stuck unread badges** — if the GM blocks you from a channel (or your account is suspended), new messages there no longer pile onto your unread badge or the lobby's "N new" pill, since you couldn't have read them anyway.
 - **Channel sidebar slides in cleanly** — opening the sidebar on a phone or a narrow window no longer makes the view drift sideways or makes the chat appear to slide the other way. The sidebar now animates in on its own, leaving the chat window where it is.
 
 - **Turn control lives in one place** — the message composer no longer shows an Active Player menu. It could silently overwrite an ensemble turn (several players acting at once) down to a single player; the channel sidebar's **Active Player** item, which already supports naming several players, is now the only way to set who's up.
@@ -70,6 +69,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Blocked players no longer get stuck unread badges** — if the GM blocks you from a channel (or your account is suspended), new messages there no longer pile onto your unread badge or the lobby's "N new" pill, since you couldn't have read them anyway.
 - **New accounts no longer see a spurious "Failed to load channels" error** — after signing up, the lobby now waits for your sign-in to settle before loading your channels.
 - **More reliable reconnects & offline reading** — when your connection returns after a break, messages edited or deleted while you were away now update on their own instead of staying stale, and messages read live in a channel no longer reappear as unread in the Lobby. Opening an app link while offline now loads the app instead of a browser error page. Admin Messages conversations recover on their own after a connection drop too.
 - **Images in private channels stay private** — images you upload (in a message, as a channel avatar, an NPC portrait, or a map) can now only be seen by people in that channel. Someone who isn't a member, or who is later removed from the channel, can no longer view them. The admin's upload settings (allowed / max size) are also enforced on the server, so they hold no matter how an upload is made.
