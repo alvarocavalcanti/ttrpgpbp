@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { handlePushEvent, PushNotificationDataSchema } from './swPush'
+import { handlePushEvent, isSiteRelativeUrl, PushNotificationDataSchema } from './swPush'
 
 function makeScope(overrides: Partial<Parameters<typeof handlePushEvent>[0]> = {}) {
   const logger = { error: vi.fn() }
@@ -30,6 +30,32 @@ describe('PushNotificationDataSchema', () => {
 
   it('rejects an oversized unread count', () => {
     expect(PushNotificationDataSchema.safeParse({ unreadCount: Number.MAX_SAFE_INTEGER + 1 }).success).toBe(false)
+  })
+
+  it('accepts site-relative urls', () => {
+    expect(PushNotificationDataSchema.safeParse({ url: '/channel/x' }).success).toBe(true)
+    expect(PushNotificationDataSchema.safeParse({ url: '/' }).success).toBe(true)
+  })
+
+  it('tolerates an empty url (historical pipeline emits { url: "" })', () => {
+    expect(PushNotificationDataSchema.safeParse({ url: '' }).success).toBe(true)
+  })
+
+  it('rejects urls that are not site-relative', () => {
+    expect(PushNotificationDataSchema.safeParse({ url: 'https://evil.com' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: '//evil.com' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: 'javascript:alert(1)' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: 'relative-no-slash' }).success).toBe(false)
+  })
+
+  it('rejects WHATWG parser tricks that resolve off-origin', () => {
+    // '\' normalizes to '/' during URL parsing, so '/\evil.com' becomes a
+    // protocol-relative URL; tabs/newlines are stripped before resolution,
+    // so '/\t/evil.com' would too if the check ran on the raw string.
+    expect(isSiteRelativeUrl('/\\evil.com')).toBe(false)
+    expect(isSiteRelativeUrl('/\t/evil.com')).toBe(false)
+    // Stripping the tab leaves a plain relative path: safe.
+    expect(isSiteRelativeUrl('/\tevil.com')).toBe(true)
   })
 })
 

@@ -267,11 +267,37 @@ describe('sw notificationclick focuses the exact channel', () => {
     expect(openWindow).toHaveBeenCalledWith('/channel/c1')
   })
 
+  it('does not open a notification url that is not site-relative (#429)', async () => {
+    const focus = vi.fn()
+    for (const url of ['https://evil.example/channel/c1', '//evil.example/channel/c1', 'javascript:alert(1)', 'relative-no-slash', '']) {
+      const { waitUntil, matchAll, openWindow } = dispatchNotificationClick({ url }, [{ url: 'https://app.example/channel/c1', focus }])
+      await Promise.resolve()
+      expect(waitUntil).not.toHaveBeenCalled()
+      expect(matchAll).not.toHaveBeenCalled()
+      expect(openWindow).not.toHaveBeenCalled()
+      expect(focus).not.toHaveBeenCalled()
+    }
+  })
+
+  it('ignores a truthy non-string notification url without throwing (review #438)', async () => {
+    const focus = vi.fn()
+    for (const url of [123, {}, [], true]) {
+      const { waitUntil, matchAll, openWindow } = dispatchNotificationClick({ url }, [{ url: 'https://app.example/channel/c1', focus }])
+      await Promise.resolve()
+      expect(waitUntil).not.toHaveBeenCalled()
+      expect(matchAll).not.toHaveBeenCalled()
+      expect(openWindow).not.toHaveBeenCalled()
+      expect(focus).not.toHaveBeenCalled()
+    }
+  })
+
   it('gracefully handles a malformed notification url', async () => {
     const focus = vi.fn()
-    const { waitUntil, openWindow } = dispatchNotificationClick({ url: 'http://[bad' }, [{ url: 'https://app.example/channel/c1', focus }])
-    await waitUntil.mock.calls[0][0]
+    const { waitUntil, matchAll, openWindow } = dispatchNotificationClick({ url: 'http://[bad' }, [{ url: 'https://app.example/channel/c1', focus }])
+    await Promise.resolve()
+    expect(waitUntil).not.toHaveBeenCalled()
+    expect(matchAll).not.toHaveBeenCalled()
     expect(focus).not.toHaveBeenCalled()
-    expect(openWindow).toHaveBeenCalledWith('http://[bad')
+    expect(openWindow).not.toHaveBeenCalled()
   })
 })
