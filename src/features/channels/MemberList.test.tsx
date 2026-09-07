@@ -101,6 +101,15 @@ describe('MemberList', () => {
     expect(screen.getByTestId('menu-btn-m1')).toHaveClass('p-3')
   })
 
+  it('announces the kebab menu open state via aria-expanded (a11y)', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    const kebab = screen.getByTestId('menu-btn-m2')
+    expect(kebab).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(kebab)
+    expect(kebab).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('allows editing own character', async () => {
     const mockEq = vi.fn().mockResolvedValue({ error: null })
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })

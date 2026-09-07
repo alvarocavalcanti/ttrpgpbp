@@ -301,6 +301,7 @@ export function ChannelView() {
             <button
               type="button"
               aria-label="Toggle sidebar menu"
+              aria-expanded={showMobileSidebar}
               onClick={() => setShowMobileSidebar(!showMobileSidebar)}
               className="lg:hidden text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 rounded-md bg-surface-50 dark:bg-surface-900 hover:bg-primary-50 dark:hover:bg-primary-950"
             >

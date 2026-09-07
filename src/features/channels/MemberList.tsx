@@ -209,6 +209,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     <button
                       type="button"
                       data-testid={`menu-btn-${member.id}`}
+                      aria-expanded={openMenuId === member.id}
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
                       className="p-3 rounded-full text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >

@@ -58,6 +58,19 @@ describe('ChannelStatusBar', () => {
     expect(container.querySelector('.line-clamp-1')).not.toBeInTheDocument()
   })
 
+  it('announces chevron state and label via aria-expanded/aria-label (a11y)', () => {
+    setOverflow(100, 30)
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="A long status that overflows." activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+
+    const chevron = container.querySelector('button[title="Expand Status"]')!
+    expect(chevron).toHaveAttribute('aria-expanded', 'false')
+    expect(chevron).toHaveAttribute('aria-label', 'Expand Status')
+
+    fireEvent.click(chevron)
+    expect(chevron).toHaveAttribute('aria-expanded', 'true')
+    expect(chevron).toHaveAttribute('aria-label', 'Collapse Status')
+  })
+
   it('hides the chevron on single-line status text', () => {
     // Default (0/0) means no overflow — nothing to expand.
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="Short status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)

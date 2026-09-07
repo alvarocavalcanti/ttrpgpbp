@@ -79,6 +79,23 @@ describe('ChannelView search functionality', () => {
     } as any)
   })
 
+  it('announces the sidebar open state on the header toggle (a11y)', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const toggle = screen.getByRole('button', { name: 'Toggle sidebar menu' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('toggles search modal', () => {
     render(
       <ToastProvider>
