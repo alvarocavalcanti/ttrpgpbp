@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { chipBase, chipIdle } from '../chat/composerChip'
 import { BottomSheet } from '../../components/BottomSheet'
-import { supabase } from '../../lib/supabase'
+import { useRecentRolls } from './useRecentRolls'
 
 interface DiceRollerProps {
   onRoll: (notation: string) => void
@@ -34,36 +34,10 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
   const [quantity, setQuantity] = useState(1)
   const [modifier, setModifier] = useState(0)
   const [advDis, setAdvDis] = useState<'none' | 'adv' | 'dis'>('none')
-  const [recent, setRecent] = useState<string[]>([])
-
-  useEffect(() => {
-    if (!isOpen || !channelId) return
-    let cancelled = false
-    void supabase
-      .rpc('get_channel_roll_history', { p_channel_id: channelId })
-      .then(({ data }) => {
-        if (cancelled || !data) return
-        const notations: string[] = []
-        for (const r of [...data].sort((a, b) => b.created_at.localeCompare(a.created_at))) {
-          if (!notations.includes(r.notation)) notations.push(r.notation)
-          if (notations.length >= 3) break
-        }
-        // The server snapshot may predate rolls made while it was in flight —
-        // keep the local (newer) entries first and let stale history only fill
-        // the remaining slots.
-        setRecent(prev => {
-          const merged = [...prev]
-          for (const n of notations) {
-            if (!merged.includes(n)) merged.push(n)
-          }
-          return merged.slice(0, 3)
-        })
-      })
-    return () => { cancelled = true }
-  }, [isOpen, channelId])
+  const { recent, recordRoll } = useRecentRolls(channelId, isOpen)
 
   const roll = (notation: string) => {
-    setRecent(prev => [notation, ...prev.filter(n => n !== notation)].slice(0, 3))
+    recordRoll(notation)
     onRoll(notation)
     setIsOpen(false)
   }

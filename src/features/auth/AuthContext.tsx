@@ -1,8 +1,8 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../../lib/supabase'
 import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
+import { authSignOut, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
 import type { Database } from '../../types/database'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
@@ -35,11 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function fetchProfile(userId: string) {
       try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url, created_at, is_suspended')
-          .eq('id', userId)
-          .single()
+        const { data } = await fetchProfileRow(userId)
 
         if (mounted) setProfile(parseRow(ProfileRowSchema, data) as Profile | null)
       } catch (err) {
@@ -53,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function getInitialSession() {
       setError(null)
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession()
+        const currentSession = await getCurrentSession()
         if (!mounted) return
 
         setSession(currentSession)
@@ -73,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getInitialSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, currentSession) => {
+    const { data: { subscription } } = subscribeToAuthEvents(
+      (currentSession) => {
         if (!mounted) return
         setError(null)
         setSession(currentSession)
@@ -110,12 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setError(null)
     try {
-      const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      })
+      const { error: signInError } = await apiSignInWithGoogle()
       if (signInError) throw signInError
     } catch (err) {
       console.error('Error signing in with Google:', err)
@@ -125,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null)
-    await supabase.auth.signOut()
+    await authSignOut()
   }, [])
 
   // Re-fetches the signed-in user's profile so direct profile writes (e.g. the
@@ -135,11 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return
     const userId = user.id
     try {
-      const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url, created_at, is_suspended')
-        .eq('id', userId)
-        .single()
+      const { data, error: fetchError } = await fetchProfileRow(userId)
       if (fetchError) throw fetchError
       // An in-flight refresh must not outlive its identity: sign-out clears
       // the ref, an account switch points it at the new id — either way the

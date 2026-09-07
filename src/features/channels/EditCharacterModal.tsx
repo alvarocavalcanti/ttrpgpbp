@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
-import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useCharacter } from './useCharacter'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
 import { BottomSheet } from '../../components/BottomSheet'
@@ -24,6 +24,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSh
   const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
+  const { updateCharacter } = useCharacter()
   const [characterName, setCharacterName] = useState(member.character_name)
   const [characterSheetUrl, setCharacterSheetUrl] = useState(member.character_sheet_url || '')
   const [characterNotes, setCharacterNotes] = useState(member.character_notes || '')
@@ -73,15 +74,12 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSh
     }
 
     try {
-      const { error: updateError } = await supabase
-        .from('channel_members')
-        .update({
-          character_name: characterName,
-          character_sheet_url: characterSheetUrl || null,
-          character_notes: characterNotes.trim() || null,
-          attributes
-        })
-        .eq('id', member.id)
+      const updateError = await updateCharacter(member.id, {
+        character_name: characterName,
+        character_sheet_url: characterSheetUrl || null,
+        character_notes: characterNotes.trim() || null,
+        attributes
+      })
 
       if (updateError) throw updateError
       

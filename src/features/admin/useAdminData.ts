@@ -1,27 +1,31 @@
 import { useEffect, useState } from 'react'
+import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import type { Json } from '../../types/database'
 
-export type AdminUser = {
-  id: string
-  display_name: string | null
-  email: string | null
-  channel_count: number
-  created_at: string
-  is_suspended: boolean
-}
+export const AdminUserRowSchema = z.object({
+  id: z.string(),
+  display_name: z.string().nullable(),
+  email: z.string().nullable(),
+  channel_count: z.number(),
+  created_at: z.string(),
+  is_suspended: z.boolean(),
+})
 
-export type AdminChannel = {
-  id: string
-  name: string
-  game_system: string
-  gm_id: string | null
-  member_count: number
-  created_at: string
-  last_message_at: string | null
-  gm_display_name: string | null
-}
+export const AdminChannelRowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  game_system: z.string(),
+  gm_id: z.string().nullable(),
+  member_count: z.number(),
+  created_at: z.string(),
+  last_message_at: z.string().nullable(),
+  gm_display_name: z.string().nullable(),
+})
+
+export type AdminUser = z.infer<typeof AdminUserRowSchema>
+export type AdminChannel = z.infer<typeof AdminChannelRowSchema>
 
 // Data layer for the server admin console (ARCH-1): the admin_list_* queries,
 // suspend/claim RPCs, and app_settings upserts live here; AdminView keeps the
@@ -61,8 +65,18 @@ export function useAdminData(isServerAdmin: boolean) {
           throw new Error('Malformed admin data payload.')
         }
         if (mounted) {
-          setUsers((userData as AdminUser[]).filter(u => u != null))
-          setChannels((channelData as AdminChannel[]).filter(c => c != null))
+          setUsers(
+            userData
+              .map(u => AdminUserRowSchema.safeParse(u))
+              .filter(r => r.success)
+              .map(r => r.data)
+          )
+          setChannels(
+            channelData
+              .map(c => AdminChannelRowSchema.safeParse(c))
+              .filter(r => r.success)
+              .map(r => r.data)
+          )
           setStorageBytes(typeof storageData === 'number' ? storageData : 0)
         }
       } catch (err) {

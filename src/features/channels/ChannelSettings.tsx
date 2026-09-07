@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { fetchAllRows } from '../../lib/supabasePagination'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
+import { useUpdateChannelSettings } from './useUpdateChannelSettings'
+import { useChannelMaintenance } from './useChannelMaintenance'
 import { useChannelAvatar } from './useChannelAvatar'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { SignedImg } from '../../components/SignedImg'
@@ -34,6 +34,8 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   useFocusTrap(dialogRef)
   const navigate = useNavigate()
   const { addToast } = useToast()
+  const { updateChannelSettings } = useUpdateChannelSettings()
+  const { fetchChannelMessages, archiveChannel } = useChannelMaintenance()
   const [name, setName] = useState(channel.name)
   const [gameSystem, setGameSystem] = useState(channel.game_system || 'none')
   const [mapUrl, setMapUrl] = useState(channel.map_url || '')
@@ -169,26 +171,22 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     try {
       const hashedPassword = newPassword ? await hashPassword(newPassword) : null
 
-      // update_channel_settings persists channels + channel_secrets + safety
-      // tools in one transaction, so a partial failure can never leave a
-      // half-saved channel.
-      const { error: updateError } = await supabase
-        .rpc('update_channel_settings', {
-          p_channel_id: channel.id,
-          p_name: name,
-          p_game_system: gameSystem,
-          p_map_url: mapUrl || undefined,
-          p_resources_url: resourcesUrl || undefined,
-          p_safety_tools_url: safetyToolsUrl || undefined,
-          p_gm_only_resources_url: gmOnlyResourcesUrl || undefined,
-          // Password only sent when the GM toggled "Change Password"; a blank
-          // new password clears the existing one.
-          p_password_hash: changePassword ? (hashedPassword?.hash ?? undefined) : undefined,
-          p_password_salt: changePassword ? (hashedPassword?.salt ?? undefined) : undefined,
-          p_clear_password: changePassword && !newPassword,
-          p_safety_lines: showSafetyTools ? safetyLines : undefined,
-          p_safety_veils: showSafetyTools ? safetyVeils : undefined,
-        })
+      // Password only sent when the GM toggled "Change Password"; a blank
+      // new password clears the existing one.
+      const { error: updateError } = await updateChannelSettings({
+        p_channel_id: channel.id,
+        p_name: name,
+        p_game_system: gameSystem,
+        p_map_url: mapUrl || undefined,
+        p_resources_url: resourcesUrl || undefined,
+        p_safety_tools_url: safetyToolsUrl || undefined,
+        p_gm_only_resources_url: gmOnlyResourcesUrl || undefined,
+        p_password_hash: changePassword ? (hashedPassword?.hash ?? undefined) : undefined,
+        p_password_salt: changePassword ? (hashedPassword?.salt ?? undefined) : undefined,
+        p_clear_password: changePassword && !newPassword,
+        p_safety_lines: showSafetyTools ? safetyLines : undefined,
+        p_safety_veils: showSafetyTools ? safetyVeils : undefined,
+      })
 
       if (updateError) throw updateError
 
@@ -206,15 +204,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     try {
 setIsSubmitting(true)
 
-      const messages = await fetchAllRows(
-        supabase
-          .from('messages')
-          .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
-          .eq('channel_id', channel.id)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: true })
-          .order('id', { ascending: true }),
-      )
+      const messages = await fetchChannelMessages(channel.id)
 
       let markdown = `# Chat Log for ${channel.name}\n\n`
       for (const msg of messages) {
@@ -244,10 +234,7 @@ setIsSubmitting(true)
 
     try {
       setIsSubmitting(true)
-      const { error: archiveError } = await supabase
-        .from('channels')
-        .update({ is_archived: true })
-        .eq('id', channel.id)
+      const archiveError = await archiveChannel(channel.id)
 
       if (archiveError) throw archiveError
       

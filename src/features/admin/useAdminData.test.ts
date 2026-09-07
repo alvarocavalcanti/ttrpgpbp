@@ -88,6 +88,48 @@ describe('useAdminData', () => {
     expect(result.current.channels).toEqual(channels)
   })
 
+  it('drops rows with malformed fields while valid rows survive', async () => {
+    const validUser = { id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '2024-01-01', is_suspended: false }
+    const badUsers = [
+      { ...validUser, channel_count: 'many' },
+      { id: 'u2', display_name: 'Bob', email: 'b@x', channel_count: 2, is_suspended: false },
+    ]
+    const validChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '2024-01-01', last_message_at: null, gm_display_name: 'Alice' }
+    const badChannels = [
+      { ...validChannel, member_count: null },
+      { id: 'c2', name: 'Broken' },
+    ]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: [validUser, ...badUsers], error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [validChannel, ...badChannels], error: null })
+      return Promise.resolve({ data: 2048, error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.users).toEqual([validUser])
+    expect(result.current.channels).toEqual([validChannel])
+    expect(result.current.error).toBeNull()
+  })
+
+  it('accepts null values in nullable user and channel fields', async () => {
+    const users = [{ id: 'u1', display_name: null, email: null, channel_count: 0, created_at: '2024-01-01', is_suspended: false }]
+    const channels = [{ id: 'c1', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2024-01-01', last_message_at: null, gm_display_name: null }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      return Promise.resolve({ data: 0, error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.users).toEqual(users)
+    expect(result.current.channels).toEqual(channels)
+    expect(result.current.error).toBeNull()
+  })
+
   it('suspendUser catches a rejected RPC and returns the error', async () => {
     const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {

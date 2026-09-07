@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ToastProvider, useToast } from './ToastContext'
@@ -99,5 +100,41 @@ describe('ToastContext', () => {
     expect(screen.queryByText('Success 1')).not.toBeInTheDocument()
     expect(screen.getByText('Success 2')).toBeInTheDocument()
     expect(screen.getByText('Success 6')).toBeInTheDocument()
+  })
+
+  it('provides a referentially stable context value across toast state changes', () => {
+    const captured: ReturnType<typeof useToast>[] = []
+
+    const Probe = () => {
+      captured.push(useToast())
+      const [n, setN] = useState(0)
+      return <button type="button" onClick={() => setN(n + 1)}>Rerender {n}</button>
+    }
+
+    render(
+      <ToastProvider>
+        <Probe />
+      </ToastProvider>
+    )
+    expect(captured).toHaveLength(1)
+
+    const addToast = captured[0].addToast
+
+    act(() => { addToast('One', 'success') })
+    act(() => { addToast('Two', 'info') })
+    expect(screen.getByText('One')).toBeInTheDocument()
+    expect(screen.getByText('Two')).toBeInTheDocument()
+
+    // auto-dismiss fires removeToast internally
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(screen.queryByText('One')).not.toBeInTheDocument()
+
+    // stable value + stable children identity: Probe must not re-render on toast churn
+    expect(captured).toHaveLength(1)
+
+    // forced Probe re-render still observes the same context object
+    act(() => { screen.getByText('Rerender 0').click() })
+    expect(captured).toHaveLength(2)
+    expect(Object.is(captured[1], captured[0])).toBe(true)
   })
 })

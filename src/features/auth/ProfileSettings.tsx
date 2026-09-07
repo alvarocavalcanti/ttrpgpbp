@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useAuth } from './useAuth'
-import { supabase } from '../../lib/supabase'
+import { deleteAccount, updateDisplayName } from './authApi'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { useTextSize, TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE, type TextSize } from '../../hooks/useTextSize'
@@ -54,10 +54,7 @@ export function ProfileSettings() {
     setIsSaving(true)
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ display_name: displayName })
-        .eq('id', user.id)
+      const { error } = await updateDisplayName(user.id, displayName)
 
       if (error) throw error
 
@@ -108,9 +105,7 @@ export function ProfileSettings() {
     if (!user) return
     setIsDeleting(true)
     try {
-      const { error } = await supabase.functions.invoke('delete-account', {
-        method: 'POST',
-      })
+      const { error } = await deleteAccount()
       if (error) throw error
       setShowDeleteConfirm(false)
       setDeleteConfirmText('')
