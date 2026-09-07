@@ -562,23 +562,32 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     if (!channelId || !user) return
     if (warning && warning.length > MAX_ROLL_WARNING_LENGTH) throw new Error(`Roll warning is too long (max ${MAX_ROLL_WARNING_LENGTH} characters).`)
 
-    const clientRequestId = crypto.randomUUID()
-    const content = warning ? `Rolling \`${notation}\`\n\n${warning}` : `Rolling \`${notation}\``
-
     // Double-send guard: same rationale as sendMessage — a second click on a
     // `dice:` link while the roll bubble is still pending reuses that request
     // instead of minting a fresh client_request_id. Full roll identity
     // (notation, reply target, warning, DC).
-    const duplicate = messagesRef.current.find(m => {
-      if (!m.pending || m.error) return false
+    const sameRollPayload = (m: Message) => {
+      if (!m.pending) return false
       const p = m.pending_payload
       return p?.kind === 'roll' &&
         p.notation === notation &&
         (p.replyToId ?? null) === (replyToId ?? null) &&
         (p.warning ?? null) === (warning ?? null) &&
         (p.dc ?? null) === (dc ?? null)
-    })
+    }
+    const duplicate = messagesRef.current.find(m => sameRollPayload(m) && !m.error)
     if (duplicate) return
+
+    // A resubmit after an errored roll (same dice: link or composer re-roll,
+    // not the bubble's retryMessage path) is the same request: reuse the
+    // errored bubble's client_request_id instead of minting a fresh one, so a
+    // late-landing first attempt replays to the same row instead of
+    // double-rolling (#404). A timeout is not a failure — the first attempt
+    // may have committed server-side, and roll_dice replays on the same
+    // p_client_request_id. Same full-identity bar as the pending guard.
+    const errored = messagesRef.current.find(m => sameRollPayload(m) && Boolean(m.error))
+    const clientRequestId = errored?.client_request_id ?? crypto.randomUUID()
+    const content = warning ? `Rolling \`${notation}\`\n\n${warning}` : `Rolling \`${notation}\``
 
     const optimisticMsg: Message = {
       id: clientRequestId,
@@ -605,7 +614,12 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       search_vector: null,
     }
 
-    setMessages(prev => [...prev, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)))
+    setMessages(prev => {
+      // When reusing the errored bubble's key, it already holds this
+      // request's slot — replace it in place instead of appending a twin.
+      const base = errored ? prev.filter(m => m.client_request_id !== clientRequestId) : prev
+      return [...base, optimisticMsg].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+    })
 
     const { data: rollData, error: rollError } = await supabase.rpc('roll_dice', {
       p_channel_id: channelId,

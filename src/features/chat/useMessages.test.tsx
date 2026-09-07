@@ -661,6 +661,81 @@ describe('useMessages', () => {
     expect(reconciled.error).toBeNull()
   })
 
+  it('reuses the errored roll bubble client_request_id when the same roll is resubmitted', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValueOnce({ data: [{ message_id: 'real-roll-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendDiceRoll('1d20+5', 'parent1', 'warning', 12)).rejects.toThrow('boom')
+    })
+    const errored = result.current.messages.find(m => m.pending)!
+    expect(errored.error).toBe('boom')
+    const firstRequestId = errored.client_request_id
+
+    // Tapping the same dice: link (or re-rolling in the composer) re-enters
+    // sendDiceRoll with the same roll identity (not the bubble's
+    // retryMessage path) — it must replay the errored bubble's
+    // client_request_id instead of minting a fresh one, so a late-landing
+    // first attempt cannot double-roll.
+    await act(async () => {
+      await result.current.sendDiceRoll('1d20+5', 'parent1', 'warning', 12)
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc.mock.calls[1][1]).toEqual(expect.objectContaining({
+      p_channel_id: 'c1',
+      p_notation: '1d20+5',
+      p_client_request_id: firstRequestId,
+    }))
+    const reconciled = result.current.messages.find(m => m.id === 'real-roll-id')!
+    expect(reconciled.pending).toBe(false)
+    expect(reconciled.error).toBeNull()
+    // One bubble for the request: the reused bubble was replaced, not twinned.
+    expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
+  })
+
+  it('mints a fresh client_request_id when the resubmitted roll differs', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValue({ data: [{ message_id: 'real-roll-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendDiceRoll('1d20+5', 'parent1', 'warning', 12)).rejects.toThrow('boom')
+    })
+    const errored = result.current.messages.find(m => m.pending)!
+    const firstRequestId = errored.client_request_id
+
+    // A different notation is a different request, not a resubmit.
+    await act(async () => {
+      await result.current.sendDiceRoll('2d6', 'parent1', 'warning', 12)
+    })
+
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    const secondRequestId = (mockRpc.mock.calls[1][1] as { p_client_request_id: string }).p_client_request_id
+    expect(typeof secondRequestId).toBe('string')
+    expect(secondRequestId).not.toBe(firstRequestId)
+    // The new roll is a second bubble; the errored one stays errored.
+    expect(result.current.messages.filter(m => m.client_request_id === firstRequestId)).toHaveLength(1)
+    expect(result.current.messages.find(m => m.client_request_id === firstRequestId)!.error).toBe('boom')
+  })
+
   it('marks a message unconfirmed when the RPC returns no id', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
     mockFrom({

@@ -3,18 +3,18 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
 import { subscribeWithRetry } from '../../lib/realtime'
 
-// Catch-up horizon for unresolved X-Card events on GM mount (issue #411).
-const CATCHUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
-
 // Anonymous X-Card safety tool. The presser's identity is never stored (no
 // user_id on the row); the GM alone sees the alert.
 export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean) {
   const { addToast } = useToast()
   const [alertActive, setAlertActive] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
-  // Dismissal latch so an in-flight catch-up SELECT can't re-apply a stale
-  // pre-dismissal count after the GM dismissed.
-  const dismissedRef = useRef(false)
+  // Monotonic generation token for async recounts. Every recount (mount
+  // catch-up, UPDATE-driven) captures it when issued; dismissals and live
+  // INSERTs bump it. A recount completing against a bumped generation is
+  // stale — it snapshot an older table state — and must not resurrect a
+  // banner that a newer clear (or live count) already superseded.
+  const stateGenRef = useRef(0)
 
   useEffect(() => {
     // Only the GM needs the alert stream; non-GMs shouldn't open a realtime
@@ -23,8 +23,7 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     if (!channelId || !isGM) return
 
     let cancelled = false
-    dismissedRef.current = false
-    const since = new Date(Date.now() - CATCHUP_WINDOW_MS).toISOString()
+    stateGenRef.current = 0
 
     const realtimeChannel = supabase
       .channel(`safety-card:${channelId}`)
@@ -34,24 +33,71 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
         table: 'safety_card_events',
         filter: `channel_id=eq.${channelId}`
       }, () => {
+        // Invalidate any in-flight recount that snapshot pre-INSERT state, so
+        // a zero count from it can't erase this flag after the fact.
+        stateGenRef.current++
         setAlertActive(true)
         setAlertCount(c => c + 1)
       })
-    // The catch-up snapshot waits for SUBSCRIBED: a query fired during setup
-    // misses an X-Card INSERT landing in the same window (Postgres Changes
-    // doesn't replay missed events), leaving the alert dark. Merging with the
-    // live count (Math.max) keeps a live-arrived count from being erased by
-    // a snapshot that predates it.
+      // Dismissals persist as UPDATEs (resolved_at), so the GM's other live
+      // tabs/devices learn about them here (finding P2.13): re-count
+      // unresolved events the same way the catch-up does. An error leaves the
+      // state as-is — no toast, this fires per event and self-heals on the
+      // next one or on reconnect. A zero count clears the banner: the event
+      // itself proves a resolved_at transition happened, and a banner over
+      // zero unresolved rows is a false alarm this UI never shows otherwise.
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'safety_card_events',
+        filter: `channel_id=eq.${channelId}`
+      }, () => {
+        // Every realtime event invalidates recounts already in flight: an
+        // earlier event's SELECT may have snapshot a pre-dismissal table
+        // state that would otherwise overwrite this event's fresher view
+        // when it completes late (older positive re-opening over a newer
+        // zero).
+        stateGenRef.current++
+        const gen = stateGenRef.current
+        void supabase
+          .from('safety_card_events')
+          .select('id', { count: 'exact', head: true })
+          .eq('channel_id', channelId)
+          .is('resolved_at', null)
+          .then(({ count, error }) => {
+            if (cancelled || gen !== stateGenRef.current) return
+            if (error) {
+              console.error('Failed to refresh X-Card alerts:', error)
+              return
+            }
+            if (count && count > 0) {
+              setAlertActive(true)
+              setAlertCount(prev => Math.max(prev, count))
+            } else {
+              setAlertActive(false)
+              setAlertCount(0)
+            }
+          })
+      })
+    // The catch-up snapshot (issue #411) waits for SUBSCRIBED: a query fired
+    // during setup misses an X-Card INSERT landing in the same window
+    // (Postgres Changes doesn't replay missed events), leaving the alert
+    // dark. Merging with the live count (Math.max) keeps a live-arrived count
+    // from being erased by a snapshot that predates it. The count covers ALL
+    // unresolved events with no age horizon: unresolved = unhandled, since
+    // rows predating persisted dismissal were backfilled resolved by
+    // migration 20260907131618_xcard_backfill_pre_resolution_rows (issue
+    // #431 — a GM away >7 days no longer misses a flag pressed while away).
     const stopRealtime = subscribeWithRetry(realtimeChannel, `safety-card:${channelId}`, (status) => {
       if (status !== 'SUBSCRIBED') return
+      const gen = stateGenRef.current
       void supabase
         .from('safety_card_events')
         .select('id', { count: 'exact', head: true })
         .eq('channel_id', channelId)
         .is('resolved_at', null)
-        .gt('created_at', since)
         .then(({ count, error }) => {
-          if (cancelled || dismissedRef.current) return
+          if (cancelled || gen !== stateGenRef.current) return
           if (error) {
             console.error('Failed to load X-Card alerts:', error)
             addToast('Failed to load X-Card alerts.', 'error')
@@ -60,6 +106,14 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
           if (count && count > 0) {
             setAlertActive(true)
             setAlertCount(prev => Math.max(prev, count))
+          } else {
+            // A reconnect snapshot of zero unresolved rows heals a stale
+            // banner: Postgres Changes doesn't replay events missed while
+            // the socket was down, so this recount is the only path that
+            // learns a dismissal happened on another device (same authority
+            // as the UPDATE handler's clear).
+            setAlertActive(false)
+            setAlertCount(0)
           }
         })
     })
@@ -91,12 +145,16 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
     // no-ref-current-in-render): the callback is re-created on count changes,
     // so it always sees the count as of its scheduling time.
     const previousCount = alertCount
-    dismissedRef.current = true
+    // Drop any in-flight recount that snapshot pre-dismissal state before the
+    // optimistic clear — it must not resurrect a stale count afterwards.
+    stateGenRef.current++
     setAlertActive(false)
     setAlertCount(0)
     // Persist the dismissal so it survives reloads (issue #411). Fail-safe:
     // if the write fails, bring the alert back — count included, or a
-    // multi-flag alert would lose its tally until reload.
+    // multi-flag alert would lose its tally until reload. On success there is
+    // no latch to hold: the UPDATE echo (ours or another device's) recounts
+    // live state, so the banner stays syncable for the mount's lifetime.
     const { error } = await supabase
       .from('safety_card_events')
       .update({ resolved_at: new Date().toISOString() })
@@ -104,7 +162,6 @@ export function useSafetyCardEvents(channelId: string | undefined, isGM: boolean
       .is('resolved_at', null)
     if (error) {
       console.error('Failed to dismiss X-Card alert:', error)
-      dismissedRef.current = false
       setAlertActive(true)
       setAlertCount(previousCount)
       addToast('Failed to dismiss X-Card alert.', 'error')
