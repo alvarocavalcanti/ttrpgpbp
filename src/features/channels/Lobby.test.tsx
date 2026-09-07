@@ -268,6 +268,33 @@ describe('Lobby', () => {
     expect(screen.getByText('Player')).toBeInTheDocument()
   })
 
+  it('keeps the unread pill on one line next to the truncated name (#428)', () => {
+    // Regression test for #428: on narrow screens the flex row squeezed the
+    // "N new" pill until "new" wrapped onto its own line. The pill must never
+    // shrink below its content (the name truncates instead) and its text must
+    // never wrap.
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: 'A'.repeat(80),
+          gm_id: 'gm-1',
+          member: { character_name: 'Hero' },
+          unread_count: 4
+        } as any
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    const pill = screen.getByText('4 new')
+    expect(pill).toHaveClass('whitespace-nowrap')
+    expect(pill).toHaveClass('flex-shrink-0')
+  })
+
   it('hides unread counts if badge_enabled is false', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       preferences: { badge_enabled: false } as any

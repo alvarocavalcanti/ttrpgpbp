@@ -190,7 +190,7 @@ export function Lobby() {
                               {channel.name}
                             </span>
                             {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
+                              <span className="inline-flex flex-shrink-0 whitespace-nowrap items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
                                 {channel.unread_count} new
                               </span>
                             ) : null}
