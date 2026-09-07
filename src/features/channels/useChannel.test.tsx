@@ -46,9 +46,9 @@ describe('useChannel', () => {
 
   it('returns early if no user or no channel id', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: null } as any)
-    
+
     const { result } = renderHook(() => useChannel('123'))
-    
+
     expect(result.current.loading).toBe(false)
     expect(result.current.channel).toBeNull()
   })
@@ -178,7 +178,7 @@ describe('useChannel', () => {
 
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
-    
+
     vi.mocked(supabase.rpc).mockResolvedValue({ error: new Error('Update failed') } as any)
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
@@ -212,7 +212,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -243,7 +243,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -358,7 +358,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -405,7 +405,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -559,7 +559,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -691,7 +691,7 @@ describe('useChannel', () => {
       .mockResolvedValueOnce({ data: c1members, error: null })
       .mockResolvedValueOnce({ data: c2members, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -732,7 +732,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -768,7 +768,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -814,7 +814,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
@@ -862,7 +862,7 @@ describe('useChannel', () => {
     const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
     const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
 
-    
+
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { select: mockSelectChannel } as any
