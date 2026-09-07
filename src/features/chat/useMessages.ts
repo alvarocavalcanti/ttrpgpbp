@@ -642,20 +642,35 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
+    // Apply locally before the network round-trip: the write succeeds over HTTP
+    // even when the realtime socket is dead (e.g. backgrounded tab), so waiting
+    // for the UPDATE event left the message looking unedited (#448). The
+    // realtime event, if it arrives, reapplies the same server row (idempotent).
+    const updated_at = new Date().toISOString()
+    const previous = messagesRef.current.find(m => m.id === messageId)
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content, is_edited: true, updated_at } : m))
     const { error } = await supabase
       .from('messages')
-      .update({ content, is_edited: true, updated_at: new Date().toISOString() })
+      .update({ content, is_edited: true, updated_at })
       .eq('id', messageId)
-    if (error) throw error
+    if (error) {
+      if (previous) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, ...previous } : m))
+      throw error
+    }
   }, [])
 
   const deleteMessage = useCallback(async (messageId: string) => {
-    // Soft delete
+    // Soft delete; optimistic for the same reason as editMessage (#448).
+    const previous = messagesRef.current.find(m => m.id === messageId)
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: true } : m))
     const { error } = await supabase
       .from('messages')
       .update({ is_deleted: true })
       .eq('id', messageId)
-    if (error) throw error
+    if (error) {
+      if (previous) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, ...previous } : m))
+      throw error
+    }
   }, [])
 
   const addReaction = useCallback(async (messageId: string, emoji: string) => {

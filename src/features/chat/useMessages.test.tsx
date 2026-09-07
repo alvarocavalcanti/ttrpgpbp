@@ -972,6 +972,64 @@ describe('useMessages', () => {
     await expect(result.current.editMessage('m1', 'x'.repeat(4001))).rejects.toThrow('max 4000')
   })
 
+  it('applies edits and deletes locally without waiting for realtime (#448)', async () => {
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ content: 'old content' })], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+
+    mockFrom({
+      tableHandler: (table) => {
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.messages[0].content).toBe('old content')
+
+    await act(async () => {
+      await result.current.editMessage('m1', 'new content')
+    })
+    expect(result.current.messages[0].content).toBe('new content')
+    expect(result.current.messages[0].is_edited).toBe(true)
+
+    await act(async () => {
+      await result.current.deleteMessage('m1')
+    })
+    expect(result.current.messages[0].is_deleted).toBe(true)
+  })
+
+  it('rolls back the local edit echo when the update fails', async () => {
+    const mockEqUpdate = vi.fn().mockResolvedValue({ error: { message: 'update failed' } })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate })
+    const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ content: 'old content' })], error: null })
+    const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+
+    mockFrom({
+      tableHandler: (table) => {
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.editMessage('m1', 'new content')).rejects.toThrow('update failed')
+    })
+    expect(result.current.messages[0].content).toBe('old content')
+    expect(result.current.messages[0].is_edited).toBe(false)
+  })
+
   it('sends reply_to when replying', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
