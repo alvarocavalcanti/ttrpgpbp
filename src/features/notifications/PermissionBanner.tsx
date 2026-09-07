@@ -62,7 +62,7 @@ export function PermissionBanner() {
           type="button"
           onClick={handleEnable}
           disabled={isSubmitting}
-          className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
+          className="min-h-11 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           {isSubmitting ? 'Enabling...' : 'Enable Notifications'}
         </button>
@@ -72,7 +72,7 @@ export function PermissionBanner() {
             persistDismissed()
             setDismissed(true)
           }}
-          className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900"
+          className="min-h-11 px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900"
           aria-label="Dismiss notification banner"
         >
           Dismiss

@@ -1578,7 +1578,11 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     renderView()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load messages. Try again.')
-    fireEvent.click(screen.getByRole('button', { name: 'Retry loading messages' }))
+    const retry = screen.getByRole('button', { name: 'Retry loading messages' })
+    // Literal touch-target requirement (UX-1): ~26px Retry grows to the 44px
+    // floor — it sits in a full-width banner row, so it can afford the height.
+    expect(retry.className).toContain('min-h-11')
+    fireEvent.click(retry)
     expect(refresh).toHaveBeenCalledTimes(1)
   })
 

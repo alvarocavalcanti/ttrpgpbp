@@ -143,6 +143,36 @@ describe('NpcManagementModal', () => {
     })
   })
 
+  it('expands the NPC action buttons to 44px touch targets', () => {
+    render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
+    // Literal touch-target requirement (UX-1): ~28px icon buttons expanded to
+    // 44px via invisible pseudo padding — the cluster sits beside text, so it
+    // cannot grow without crowding the row.
+    const expandedLabels = [
+      'Rename Goblin King',
+      'Choose portrait for Goblin King',
+      'Randomize portrait for Goblin King',
+      'Upload portrait for Goblin King',
+      'Delete Goblin King',
+      'Choose portrait for new NPC',
+      'Randomize new NPC portrait',
+      'Upload new NPC portrait',
+    ]
+    for (const label of expandedLabels) {
+      // Upload inputs are aria-labelled but visually styled on the wrapping
+      // <label> — resolve to it where present.
+      const el = screen.getByLabelText(label)
+      expect((el.closest('label') ?? el).className).toContain('after:-inset-2.5')
+    }
+    // Rename row: Save is a bare text link, Cancel replaces the pencil.
+    fireEvent.click(screen.getByLabelText('Rename Goblin King'))
+    for (const el of [screen.getByLabelText('Cancel rename'), screen.getByText('Save')]) {
+      expect(el.className).toContain('after:-inset-2.5')
+    }
+    // The Add CTA is a row-level button and grows instead.
+    expect(screen.getByText('Add').className).toContain('min-h-11')
+  })
+
   it('closes on backdrop click', () => {
     render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
     fireEvent.click(screen.getByRole('dialog').previousElementSibling!)

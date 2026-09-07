@@ -107,6 +107,22 @@ describe('PermissionBanner', () => {
     expect(screen.getByRole('region')).toBeInTheDocument()
   })
 
+  it('sizes the banner buttons to the 44px touch target', () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    render(<PermissionBanner />)
+    // Literal touch-target requirement (UX-1): ~34px banner buttons grow to
+    // 44px — the rail has room for it.
+    for (const el of [screen.getByText('Enable Notifications'), screen.getByLabelText('Dismiss notification banner')]) {
+      expect(el.className).toContain('min-h-11')
+    }
+  })
+
   it('enables notifications on click', async () => {
     const subscribeToPush = vi.fn().mockResolvedValue(undefined)
     vi.mocked(usePushNotifications).mockReturnValue({

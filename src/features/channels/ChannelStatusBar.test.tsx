@@ -90,6 +90,15 @@ describe('ChannelStatusBar', () => {
     expect(chevron.parentElement?.className).toContain('space-x-3')
   })
 
+  it('expands the GM Edit button to the 44px touch target', () => {
+    render(<ChannelStatusBar channelId="c1" statusText="Short status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
+    const edit = screen.getByText('Edit')
+    // Literal touch-target requirement (UX-1): ~26px text link expanded to
+    // 44px via invisible pseudo padding, matching the chevron next to it.
+    expect(edit.className).toContain('relative')
+    expect(edit.className).toContain('after:-inset-2.5')
+  })
+
   it('applies dark-mode prose variants to the status markdown', () => {
     const { container } = render(<ChannelStatusBar channelId="c1" statusText="**Bold** status" activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
     const prose = container.querySelector('.prose')!

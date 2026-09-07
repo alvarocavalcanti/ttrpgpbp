@@ -334,7 +334,7 @@ export function ChannelView() {
               onClick={refreshMessages}
               disabled={messagesRetrying}
               aria-label="Retry loading messages"
-              className="flex-shrink-0 rounded-md border border-red-300 dark:border-red-700 px-2 py-1 font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 disabled:opacity-50"
+              className="flex-shrink-0 min-h-11 rounded-md border border-red-300 dark:border-red-700 px-2 py-1 font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 disabled:opacity-50"
             >
               Retry
             </button>

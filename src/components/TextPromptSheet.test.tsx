@@ -72,6 +72,13 @@ describe('TextPromptSheet', () => {
     }
   })
 
+  it('sizes the input to the 44px touch target', () => {
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} />)
+
+    // Literal touch-target requirement (UX-1): input matches the buttons.
+    expect(screen.getByLabelText('Message')).toHaveClass('min-h-11')
+  })
+
   it('focuses the input on open', () => {
     render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} />)
 

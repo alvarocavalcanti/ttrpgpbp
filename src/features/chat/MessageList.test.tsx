@@ -72,6 +72,9 @@ describe('MessageList', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Load older messages' })
+    // Literal touch-target requirement (UX-1): ~30px link grows to the 44px
+    // floor — full-width row button.
+    expect(button.className).toContain('min-h-11')
     fireEvent.click(button)
     expect(onLoadOlder).toHaveBeenCalled()
   })

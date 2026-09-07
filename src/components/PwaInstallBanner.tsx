@@ -37,14 +37,14 @@ function PwaInstallBannerInner({ install, dismiss }: BannerActions) {
         <button
           type="button"
           onClick={dismiss}
-          className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="min-h-11 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           No thanks
         </button>
         <button
           type="button"
           onClick={() => { void install() }}
-          className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded focus:outline-none focus:ring-offset-1 focus:ring-2 focus:ring-indigo-500"
+          className="min-h-11 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded focus:outline-none focus:ring-offset-1 focus:ring-2 focus:ring-indigo-500"
         >
           Install
         </button>

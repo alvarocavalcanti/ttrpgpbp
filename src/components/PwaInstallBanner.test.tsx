@@ -53,6 +53,18 @@ describe('PwaInstallBanner', () => {
     expect(screen.getByText('No thanks')).toBeInTheDocument()
   })
 
+  it('sizes the banner buttons to the 44px touch target', () => {
+    render(<PwaInstallBanner />)
+    act(() => {
+      dispatchBeforeInstall()
+    })
+    // Literal touch-target requirement (UX-1): compact banner buttons grow to
+    // 44px — widths already exceed it, so only the height changes.
+    for (const el of [screen.getByText('No thanks'), screen.getByText('Install')]) {
+      expect(el.className).toContain('min-h-11')
+    }
+  })
+
   it('calls prompt() and hides banner on Install', async () => {
     render(<PwaInstallBanner />)
     let evt!: BeforeInstallPromptEvent
