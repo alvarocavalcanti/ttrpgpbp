@@ -31,14 +31,17 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, enable
       )
 
     // Move focus into the dialog unless the surface already did (e.g. a
-    // search modal that focuses its input on mount).
+    // search modal that focuses its input on mount). preventScroll keeps the
+    // browser from scrolling the nearest scrollable ancestor to reveal the
+    // focused element — for always-mounted drawers translated off-screen this
+    // would yank the container's scroll position sideways (issue #436).
     if (!container.contains(document.activeElement)) {
       const first = focusables()[0]
       if (first) {
-        first.focus()
+        first.focus({ preventScroll: true })
       } else {
         container.tabIndex = -1
-        container.focus()
+        container.focus({ preventScroll: true })
       }
     }
 

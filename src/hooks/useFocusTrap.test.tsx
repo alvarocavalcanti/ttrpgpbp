@@ -1,4 +1,4 @@
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useRef } from 'react'
 import { useFocusTrap } from './useFocusTrap'
@@ -22,6 +22,20 @@ describe('useFocusTrap', () => {
   it('moves initial focus into the dialog', () => {
     const { getByRole } = render(<TrapDialog />)
     expect(getByRole('button', { name: 'First' })).toHaveFocus()
+  })
+
+  it('moves initial focus without scrolling any ancestor (#436)', () => {
+    // Regression test for #436: the channel sidebar is always mounted and
+    // translated off-screen when closed, inside an overflow-hidden container.
+    // A plain focus() made the browser scroll that container horizontally to
+    // reveal the focused item — the viewport drift (Safari PWA) and the
+    // instant container scroll that read as "no sidebar animation, chat
+    // slides the other way" (Chrome mobile). preventScroll stops it.
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus')
+    render(<TrapDialog />)
+    expect(spy).toHaveBeenCalledWith({ preventScroll: true })
+    expect(screen.getByRole('button', { name: 'First' })).toHaveFocus()
+    spy.mockRestore()
   })
 
   it('does not steal focus when the surface already focused something inside', () => {
