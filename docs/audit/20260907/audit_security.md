@@ -158,7 +158,7 @@ None.
 
 **Problem:** Not exploitable today — every one of these references `NEW`/`OLD`/`TG_*`, so a direct PostgREST call errors before doing anything — but they are precisely the "server-only helpers lose EXECUTE for every API role" class the sweep was written to close, and a future helper that *doesn't* dereference `NEW` (or a signature change making `NEW` optional) would silently become callable by any authenticated user with definer privileges.
 
-**Fix:** Extend the sweep's revoke list to all trigger-executable functions in `public` (mechanical: `pg_proc.protrftypid`-based or an explicit list), asserting via `has_function_privilege` in the existing sweep test.
+**Fix:** Extend the sweep's revoke list to all trigger-executable functions in `public` (mechanical: `pg_proc.prorettype = 'trigger'::regtype`-based, or an explicit function list), asserting via `has_function_privilege` in the existing sweep test.
 
 **Effort:** One migration + test additions. Half a day.
 
