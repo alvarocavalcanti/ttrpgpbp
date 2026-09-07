@@ -4,10 +4,18 @@
 
 import { z } from 'zod'
 
+// A notification url is focused/opened by the service worker on click, and
+// the payload is attacker-influenceable, so only site-relative paths are
+// allowed (#429): exactly one leading '/', no '//' prefix (which also rules
+// out any scheme like javascript: or https://).
+export function isSiteRelativeUrl(url: string): boolean {
+  return /^\/(?!\/)/.test(url)
+}
+
 export const PushNotificationDataSchema = z.object({
   title: z.string().optional(),
   body: z.string().optional(),
-  url: z.string().optional(),
+  url: z.string().refine(isSiteRelativeUrl).optional(),
   badgeEnabled: z.boolean().optional(),
 // Badge counts must be valid non-negative safe integers: setAppBadge's
   // [EnforceRange] unsigned long long conversion throws synchronously on

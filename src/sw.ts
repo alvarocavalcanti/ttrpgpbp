@@ -2,7 +2,7 @@
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { handlePushEvent } from './lib/swPush'
-import { PushNotificationDataSchema } from './lib/swPush'
+import { PushNotificationDataSchema, isSiteRelativeUrl } from './lib/swPush'
 import type { PushNotificationData } from './lib/swPush'
 
 declare let self: ServiceWorkerGlobalScope
@@ -93,7 +93,10 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = event.notification.data?.url
 
-  if (url) {
+  // Notification data travels with the push payload and may be crafted
+  // outside the schema's parse (e.g. an old notification), so re-check here:
+  // only site-relative urls may be focused or opened (#429).
+  if (url && isSiteRelativeUrl(url)) {
     event.waitUntil(
       self.clients.matchAll({ type: 'window' }).then((clientList) => {
         for (const client of clientList) {

@@ -31,6 +31,19 @@ describe('PushNotificationDataSchema', () => {
   it('rejects an oversized unread count', () => {
     expect(PushNotificationDataSchema.safeParse({ unreadCount: Number.MAX_SAFE_INTEGER + 1 }).success).toBe(false)
   })
+
+  it('accepts site-relative urls', () => {
+    expect(PushNotificationDataSchema.safeParse({ url: '/channel/x' }).success).toBe(true)
+    expect(PushNotificationDataSchema.safeParse({ url: '/' }).success).toBe(true)
+  })
+
+  it('rejects urls that are not site-relative', () => {
+    expect(PushNotificationDataSchema.safeParse({ url: 'https://evil.com' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: '//evil.com' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: 'javascript:alert(1)' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: 'relative-no-slash' }).success).toBe(false)
+    expect(PushNotificationDataSchema.safeParse({ url: '' }).success).toBe(false)
+  })
 })
 
 describe('handlePushEvent', () => {
