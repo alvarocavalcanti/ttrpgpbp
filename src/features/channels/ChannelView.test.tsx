@@ -78,7 +78,7 @@ describe('ChannelView search functionality', () => {
       sendDiceRoll: vi.fn(),
       addReaction: vi.fn().mockResolvedValue(undefined),
       removeReaction: vi.fn().mockResolvedValue(undefined),
-      jumpToMessage: vi.fn().mockResolvedValue(true)
+      jumpToMessage: vi.fn().mockResolvedValue('found')
     } as any)
   })
 
@@ -183,7 +183,7 @@ describe('ChannelView search functionality', () => {
   })
 
   it('highlights the search result after loading its history (#455)', async () => {
-    const jumpToMessage = vi.fn().mockResolvedValue(true)
+    const jumpToMessage = vi.fn().mockResolvedValue('found')
     vi.mocked(useMessages).mockReturnValue({
       messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
       reactions: {},
@@ -221,7 +221,7 @@ describe('ChannelView search functionality', () => {
   })
 
   it('shows a toast when the jump target cannot be loaded (#455)', async () => {
-    const jumpToMessage = vi.fn().mockResolvedValue(false)
+    const jumpToMessage = vi.fn().mockResolvedValue('missing')
     vi.mocked(useMessages).mockReturnValue({
       messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
       reactions: {},
@@ -251,6 +251,39 @@ describe('ChannelView search functionality', () => {
     expect(await screen.findByText('That message is no longer available.')).toBeInTheDocument()
     // No highlight when the target isn't available.
     expect(container.querySelector('.bg-yellow-50')).not.toBeInTheDocument()
+  })
+
+  it('shows a retryable toast when the jump history fetch fails (#455)', async () => {
+    // 'error' (fetch failure) must read differently from 'missing' (deleted
+    // target) so a flaky network doesn't imply the message is gone.
+    const jumpToMessage = vi.fn().mockResolvedValue('error')
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      jumpToMessage
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    fireEvent.click(screen.getByText('Jump to msg1'))
+
+    expect(await screen.findByText('Could not load that message. Try again.')).toBeInTheDocument()
   })
 
   it('renders header-first loading state with message skeletons', () => {

@@ -133,13 +133,16 @@ export function ChannelView() {
 
   // Jump targets (search results, quoted replies) may sit outside the loaded
   // latest-50 window: load history pages until the target is rendered, then
-  // highlight so MessageItem scrolls it into view (#455).
+  // highlight so MessageItem scrolls it into view (#455). A deleted/expired
+  // target and a failed page fetch get different notices.
   const handleJumpToMessage = useCallback((messageId: string) => {
-    void jumpToMessage(messageId).then(found => {
-      if (found) {
+    void jumpToMessage(messageId).then(result => {
+      if (result === 'found') {
         setHighlightMessageId(messageId)
-      } else {
+      } else if (result === 'missing') {
         addToast('That message is no longer available.', 'error')
+      } else {
+        addToast('Could not load that message. Try again.', 'error')
       }
     })
   }, [jumpToMessage, addToast])

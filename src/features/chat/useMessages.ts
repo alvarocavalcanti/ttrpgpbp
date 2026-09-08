@@ -104,6 +104,12 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
+  // Live view of the channel id so in-flight async loops (jumpToMessage) can
+  // detect a channel switch and bail instead of writing old-channel rows
+  // into the new channel's window.
+  const channelIdRef = useRef(channelId)
+  channelIdRef.current = channelId
+
   // Mutation tokens per message id: a failed mutation may only roll back its
   // optimistic state if no newer mutation has started on the same message,
   // otherwise the stale snapshot would clobber fresher edits/deletes (#448).
@@ -469,15 +475,20 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
   // Loads history pages (same composite cursor as loadOlder) until messageId
   // is inside the held window, so jumps from search results and quoted
   // replies land on messages older than the latest-50 page (#455). Returns
-  // true when the message is (now) held; false when history is exhausted,
-  // the window is empty, or a page fetch fails.
-  const jumpToMessage = useCallback(async (messageId: string): Promise<boolean> => {
-    if (!channelId) return false
-    if (messagesRef.current.some(m => m.id === messageId)) return true
-    const oldest = messagesRef.current[0]
-    if (!oldest) return false
-    let cursorCreatedAt = oldest.created_at
-    let cursorId = oldest.id
+  // 'found' when the message is (now) held, 'missing' when history is
+  // exhausted (or the window is empty), and 'error' when a page fetch
+  // fails — so callers can tell a deleted target from a network problem.
+  const jumpToMessage = useCallback(async (messageId: string): Promise<'found' | 'missing' | 'error'> => {
+    if (!channelId) return 'missing'
+    if (messagesRef.current.some(m => m.id === messageId)) return 'found'
+    // Cursor from the oldest real (non-pending) row: optimistic bubbles sort
+    // by client-clock created_at, and a clock skewed early could otherwise
+    // become the cursor — its timestamp would skip the real gap and make a
+    // reachable target look missing (PR review on #455).
+    const oldestReal = messagesRef.current.find(m => !m.pending)
+    if (!oldestReal) return 'missing'
+    let cursorCreatedAt = oldestReal.created_at
+    let cursorId = oldestReal.id
     for (let guard = 0; guard < 100; guard += 1) {
       try {
         const { data, error } = await supabase
@@ -489,25 +500,30 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
           .order('id', { ascending: false })
           .limit(PAGE_SIZE)
         if (error) throw error
+        // The user may have switched channels while this page was in flight:
+        // the channel effect already reset the window for the new channel,
+        // so prepending would leak the old channel's rows into it. Bail the
+        // same way the effect's mounted flag does (PR review on #455).
+        if (channelIdRef.current !== channelId) return 'missing'
         const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
-        if (older.length === 0) return false
+        if (older.length === 0) return 'missing'
         setMessages(prev => {
           const existing = new Set(prev.map(m => m.id))
           return [...older.filter(m => !existing.has(m.id)), ...prev]
         })
         setHasMore((data || []).length === PAGE_SIZE)
-        if (older.some(m => m.id === messageId)) return true
+        if (older.some(m => m.id === messageId)) return 'found'
         // Continue from the oldest row just loaded (first in ascending order).
         const oldestLoaded = older[0]
         cursorCreatedAt = oldestLoaded.created_at
         cursorId = oldestLoaded.id
-        if ((data || []).length < PAGE_SIZE) return false
+        if ((data || []).length < PAGE_SIZE) return 'missing'
       } catch (err) {
         console.error('Error jumping to message:', err)
-        return false
+        return 'error'
       }
     }
-    return false
+    return 'missing'
   }, [channelId])
 
   // Reconcile an optimistic message with the server-returned id (clears

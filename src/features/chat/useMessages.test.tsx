@@ -1478,7 +1478,7 @@ describe('useMessages', () => {
   })
 
   describe('jumpToMessage (#455)', () => {
-    it('resolves true without an extra fetch when the message is already held', async () => {
+    it("resolves 'found' without an extra fetch when the message is already held", async () => {
       const initial = [baseMessage({ id: 'm1', content: 'held' })]
       const mockLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
       const mockOrder = vi.fn()
@@ -1490,17 +1490,17 @@ describe('useMessages', () => {
       const { result } = renderHook(() => useMessages('c1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
-      let found = false
+      let jump: string | undefined
       await act(async () => {
-        found = await result.current.jumpToMessage('m1')
+        jump = await result.current.jumpToMessage('m1')
       })
 
-      expect(found).toBe(true)
+      expect(jump).toBe('found')
       // Only the initial messages fetch ran — no jump query on top.
       expect(mockEq).toHaveBeenCalledTimes(1)
     })
 
-    it('returns false without fetching when no messages are loaded', async () => {
+    it("returns 'missing' without fetching when no messages are loaded", async () => {
       const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
@@ -1511,16 +1511,46 @@ describe('useMessages', () => {
       const { result } = renderHook(() => useMessages('c1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
-      let found: boolean | undefined
+      let jump: string | undefined
       await act(async () => {
-        found = await result.current.jumpToMessage('m-missing')
+        jump = await result.current.jumpToMessage('m-missing')
       })
 
-      expect(found).toBe(false)
+      expect(jump).toBe('missing')
       expect(mockEq).toHaveBeenCalledTimes(1)
     })
 
-    it('loads older pages until the target is in the window', async () => {
+    it("returns 'missing' without fetching when only pending optimistic bubbles are held", async () => {
+      // No real history, one optimistic send that never confirms — the
+      // window's only row is pending, so there is no real cursor to page
+      // from and the jump must bail instead of paging from client-clock
+      // timestamps (PR review on #455).
+      const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+      vi.mocked(supabase.rpc).mockReturnValue(new Promise(() => {}) as any)
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      act(() => {
+        void result.current.sendMessage({ content: 'pending', type: 'regular' })
+      })
+      expect(result.current.messages.some(m => m.pending)).toBe(true)
+
+      let jump: string | undefined
+      await act(async () => {
+        jump = await result.current.jumpToMessage('m-old')
+      })
+
+      expect(jump).toBe('missing')
+      expect(mockEq).toHaveBeenCalledTimes(1)
+    })
+
+    it("loads older pages until the target is in the window, then returns 'found'", async () => {
       const initial = [baseMessage({ id: 'm-new', content: 'newest', created_at: '2023-01-02T00:00:00Z' })]
       const older = [baseMessage({ id: 'm-old', content: 'target', created_at: '2023-01-01T00:00:00Z' })]
       const mockLimit = vi.fn()
@@ -1536,12 +1566,12 @@ describe('useMessages', () => {
       const { result } = renderHook(() => useMessages('c1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
-      let found = false
+      let jump: string | undefined
       await act(async () => {
-        found = await result.current.jumpToMessage('m-old')
+        jump = await result.current.jumpToMessage('m-old')
       })
 
-      expect(found).toBe(true)
+      expect(jump).toBe('found')
       expect(result.current.messages.map((m: { id: string }) => m.id)).toEqual(['m-old', 'm-new'])
       // Composite cursor matches loadOlder's scheme.
       expect(mockOr).toHaveBeenCalledWith('created_at.lt.2023-01-02T00:00:00Z,and(created_at.eq.2023-01-02T00:00:00Z,id.lt.m-new)')
@@ -1549,7 +1579,7 @@ describe('useMessages', () => {
       expect(result.current.hasMore).toBe(false)
     })
 
-    it('pages through history until it finds the target', async () => {
+    it("pages through history until it finds the target, then returns 'found'", async () => {
       const initial = [baseMessage({ id: 'm-new', created_at: '2023-01-03T00:00:00Z' })]
       // One full page (newest first after the query; reversed on apply).
       const page1 = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `p1-${i}`, created_at: `2023-01-02T00:00:${String(49 - i).padStart(2, '0')}Z` }))
@@ -1568,12 +1598,12 @@ describe('useMessages', () => {
       const { result } = renderHook(() => useMessages('c1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
-      let found = false
+      let jump: string | undefined
       await act(async () => {
-        found = await result.current.jumpToMessage('m-target')
+        jump = await result.current.jumpToMessage('m-target')
       })
 
-      expect(found).toBe(true)
+      expect(jump).toBe('found')
       expect(mockLimit).toHaveBeenCalledTimes(3)
       expect(result.current.messages.some((m: { id: string }) => m.id === 'm-target')).toBe(true)
       // The second jump page continues from the oldest row of the first page.
@@ -1581,7 +1611,7 @@ describe('useMessages', () => {
       expect(result.current.hasMore).toBe(false)
     })
 
-    it('returns false when history is exhausted without finding the target', async () => {
+    it("returns 'missing' when history is exhausted without finding the target", async () => {
       const initial = [baseMessage({ id: 'm-new', created_at: '2023-01-02T00:00:00Z' })]
       const mockLimit = vi.fn()
         .mockResolvedValueOnce({ data: initial, error: null })
@@ -1596,15 +1626,15 @@ describe('useMessages', () => {
       const { result } = renderHook(() => useMessages('c1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
-      let found: boolean | undefined
+      let jump: string | undefined
       await act(async () => {
-        found = await result.current.jumpToMessage('m-missing')
+        jump = await result.current.jumpToMessage('m-missing')
       })
 
-      expect(found).toBe(false)
+      expect(jump).toBe('missing')
     })
 
-    it('returns false when a jump page query fails', async () => {
+    it("returns 'error' when a jump page query fails", async () => {
       const initial = [baseMessage({ id: 'm-new', created_at: '2023-01-02T00:00:00Z' })]
       const mockLimit = vi.fn()
         .mockResolvedValueOnce({ data: initial, error: null })
@@ -1619,12 +1649,50 @@ describe('useMessages', () => {
       const { result } = renderHook(() => useMessages('c1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
-      let found: boolean | undefined
+      let jump: string | undefined
       await act(async () => {
-        found = await result.current.jumpToMessage('m-old')
+        jump = await result.current.jumpToMessage('m-old')
       })
 
-      expect(found).toBe(false)
+      expect(jump).toBe('error')
+    })
+
+    it("bails with 'missing' and writes nothing when the channel switches mid-jump", async () => {
+      // PR review on #455: the jump loop runs outside the channel effect, so
+      // a slow jump on the old channel must not prepend its rows onto the
+      // new channel's window.
+      const initialC1 = [baseMessage({ id: 'm-c1', created_at: '2023-01-02T00:00:00Z' })]
+      let resolveJumpPage: (value: { data: unknown; error: unknown }) => void = () => {}
+      const jumpPage = new Promise<{ data: unknown; error: unknown }>(resolve => { resolveJumpPage = resolve })
+      const initialC2 = [baseMessage({ id: 'm-c2', created_at: '2023-02-02T00:00:00Z' })]
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce({ data: initialC1, error: null })   // c1 initial fetch
+        .mockReturnValueOnce(jumpPage)                             // c1 jump page, held in flight
+        .mockResolvedValueOnce({ data: initialC2, error: null })   // c2 initial fetch
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result, rerender } = renderHook(({ id }) => useMessages(id), { initialProps: { id: 'c1' } })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let jump!: Promise<string | undefined>
+      act(() => {
+        jump = result.current.jumpToMessage('m-old')
+      })
+      // Channel switch while the first jump page is still in flight.
+      act(() => {
+        rerender({ id: 'c2' })
+      })
+      await waitFor(() => expect(result.current.messages.some((m: { id: string }) => m.id === 'm-c2')).toBe(true))
+      resolveJumpPage({ data: [baseMessage({ id: 'm-old-page', created_at: '2023-01-01T00:00:00Z' })], error: null })
+
+      expect(await jump).toBe('missing')
+      // The old channel's jump page was dropped, not prepended onto c2.
+      expect(result.current.messages.map((m: { id: string }) => m.id)).toEqual(['m-c2'])
     })
   })
 })
