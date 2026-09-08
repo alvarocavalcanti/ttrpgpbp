@@ -33,7 +33,7 @@
 - **Lobby shows your role per channel** — a "GM" badge when you run the channel, a "Player" badge otherwise
 - **Channel avatar** — GMs can upload an image avatar (WhatsApp/Signal-style) from Channel Settings; it shows in the channel list and the channel header. Images are downscaled client-side to ~512 px JPEG before upload into Supabase Storage, and uploads require the server admin to enable image uploads (off by default)
 - **Image uploads (GM-only)** — when enabled, GMs can upload images into messages (inserted as markdown at the cursor), as the channel Map or Resources (Channel Settings), or as an NPC portrait. All uploads are downscaled client-side (JPEG) before hitting Supabase Storage, capped by the admin's size limit, and stored under `{channel_id}/{kind}/{uuid}.jpg`
-- **Tap-to-zoom message images** — tap any image in a channel message to open it fullscreen: pinch on mobile (or the +/− controls) zooms in up to 800%, drag to pan around, and double-tap (or double-click) snaps it back to fit. Close with the ✕ button or Escape
+- **Tap-to-zoom message images** — tap any image in a channel message to open it fullscreen: pinch on mobile (or the +/− controls) zooms in up to 800%, scroll or trackpad-pans around while zoomed, and double-tap (or double-click) snaps it back to fit. Close with the ✕ button or Escape
 - **Private image access** — the image bucket is private. Only members of a channel can view its images (enforced by storage policies and short-lived signed URLs), and the admin's enable/size limits are re-enforced server-side on every upload.
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name

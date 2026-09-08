@@ -1074,3 +1074,18 @@ it('keeps the secure image attributes on inline message images', () => {
   expect(img).toHaveAttribute('loading', 'lazy')
   expect(img).toHaveAttribute('referrerPolicy', 'no-referrer')
 })
+
+it('opens the image viewer from scene message images too', () => {
+  const msg: any = {
+    id: 'm-scene',
+    type: 'scene',
+    content: '![battlemap](https://example.com/battlemap.png)',
+    created_at: new Date().toISOString(),
+    sender_id: 'gm1',
+  }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'View battlemap fullscreen' }))
+  expect(screen.getByRole('dialog', { name: 'battlemap' })).toBeInTheDocument()
+  fireEvent.click(screen.getByLabelText('Close'))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})

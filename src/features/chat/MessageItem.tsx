@@ -436,6 +436,16 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     />
   ) : null
 
+  // Shared by both render branches that use `renderers` (regular and scene) —
+  // the img renderer sets viewingImage in either, so both must show the modal.
+  const imageViewer = viewingImage ? (
+    <ImageViewerModal
+      src={viewingImage.src}
+      alt={viewingImage.alt}
+      onClose={() => setViewingImage(null)}
+    />
+  ) : null
+
   const replyBlock = message.reply?.id ? (
     <button
       type="button"
@@ -561,6 +571,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
         {actionsSheet}
         {deleteConfirmDialog}
+        {imageViewer}
       </div>
     )
   }
@@ -728,13 +739,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       )}
       {actionsSheet}
       {deleteConfirmDialog}
-      {viewingImage && (
-        <ImageViewerModal
-          src={viewingImage.src}
-          alt={viewingImage.alt}
-          onClose={() => setViewingImage(null)}
-        />
-      )}
+      {imageViewer}
     </div>
   )
 })
