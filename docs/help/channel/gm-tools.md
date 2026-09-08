@@ -47,5 +47,6 @@ Uploaded images (message images, channel avatars, NPC portraits, and map/resourc
 
 - GMs can post **Scene** and **NPC** messages
 - **Upload images** — with image uploads enabled, the GM composer has an **Upload** button (in the "+" options) that uploads an image and inserts it into the message at the cursor
+- **Tap an image to zoom** — any image in a message opens fullscreen: pinch or use the +/− buttons to zoom, drag to pan, and double-tap (or double-click) to fit it back on screen. Close with ✕ or Escape
 - Send **whispers** to a single player, visible only to them
 - Scene messages can be edited or deleted at any time by the GM

@@ -1041,3 +1041,36 @@ it('smooth-scrolls highlighted messages into view when motion is allowed (UX-6)'
   render(<MessageItem message={msg} currentUserId="u1" isGM={false} isHighlighted onEdit={vi.fn()} onDelete={vi.fn()} />)
   expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
 })
+
+it('opens the fullscreen image viewer when a message image is clicked', () => {
+  const msg: any = {
+    id: 'm-img',
+    type: 'regular',
+    content: '![sunset](https://example.com/sunset.png)',
+    created_at: new Date().toISOString(),
+    sender_id: 'u1',
+  }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const trigger = screen.getByRole('button', { name: 'View sunset fullscreen' })
+  expect(trigger).toHaveClass('cursor-zoom-in')
+  fireEvent.click(trigger)
+  expect(screen.getByRole('dialog', { name: 'sunset' })).toBeInTheDocument()
+  fireEvent.click(screen.getByLabelText('Close'))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  // Closing returns to the message list intact.
+  expect(screen.getByRole('button', { name: 'View sunset fullscreen' })).toBeInTheDocument()
+})
+
+it('keeps the secure image attributes on inline message images', () => {
+  const msg: any = {
+    id: 'm-img2',
+    type: 'regular',
+    content: '![sunset](https://example.com/sunset.png)',
+    created_at: new Date().toISOString(),
+    sender_id: 'u1',
+  }
+  render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const img = screen.getByAltText('sunset')
+  expect(img).toHaveAttribute('loading', 'lazy')
+  expect(img).toHaveAttribute('referrerPolicy', 'no-referrer')
+})
