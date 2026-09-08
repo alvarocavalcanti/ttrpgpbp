@@ -26,6 +26,8 @@ You can link an optional **character sheet URL** (up to 500 characters) per user
 
 Server administrators also see a **Server Admin** item in the app menu, where they can manage users, channels, and the maximum number of channels per user. Channels whose GM deleted their account show an **Orphaned** badge in the Channels tab — **Claim** to become the GM.
 
+In the **Users** tab you can search by name or email, and filter by status (All, Active, Inactive, Suspended — Inactive means no sign-in in the last 30 days, or never). Tap any user to see their details: email and whether it's verified, sign-in method, last login and last activity, how many messages they've sent, which channels they're in (including any they're blocked from), and any past suspension history. You can suspend or un-suspend a user from that same view, with an optional reason.
+
 ## Download your data
 
 From **Settings → Account & Data → Download My Data** you can export your profile, channel memberships, authored messages (including your whispers), dice rolls, reactions, and notification preferences as a JSON file.

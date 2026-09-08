@@ -13,7 +13,7 @@
 - Optional **character sheet URL** per user per channel
 - **Server admin flag** (`profiles.server_admin`, managed via DB) — exempts the user from the channel limit; enforced to a single admin
 - **Server Admin view** (`/admin`, via the "Server Admin" menu item, visible only to `server_admin`):
-  - **Users tab** — display name, total active channels, joined date
+  - **Users tab** — display name, total active channels, joined date. Search by name or email and filter by status (All / Active / Inactive / Suspended; Inactive = no login in 30+ days or never). Click a row to open a detail view with email + verification, identity provider, role/status badges, last login, last activity, message count, channel memberships (character name + blocked flag), moderation history, and the suspend/unsuspend action with an optional reason.
   - **Channels tab** — name, game system, member count, created and last-active dates; orphaned channels (GM deleted their account) show an **Orphaned** badge with a **Claim** action that makes the admin the new GM
   - **Sortable tables** — click any Users/Channels column header to sort asc/desc (toggle on repeat click); tables scroll horizontally on mobile instead of cropping
   - **Settings tab** — edit **Maximum Channels per user** (minimum 10; persists in `app_settings`). Users already over a lowered limit keep their channels. Also configures **Image Uploads**: a master **allow image uploads** toggle (off by default to keep the server at near-zero cost), a **maximum image size** (1–50 MB), and an **auto-delete images older than (days)** retention (0 = keep forever; a daily `cleanup-images` edge function prunes older uploads).

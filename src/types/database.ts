@@ -1007,12 +1007,36 @@ export type Database = {
       admin_list_users: {
         Args: never
         Returns: {
+          avatar_url: string
           channel_count: number
+          channels: {
+            character_name: string
+            is_active_player: boolean
+            is_blocked: boolean
+            joined_at: string
+            name: string
+          }[]
           created_at: string
           display_name: string
           email: string
+          email_verified: boolean
           id: string
           is_suspended: boolean
+          last_login_at: string
+          last_message_at: string
+          message_count: number
+          provider: string
+          server_admin: boolean
+        }[]
+      }
+      admin_get_user_history: {
+        Args: { p_user_id: string }
+        Returns: {
+          action: string
+          admin_name: string
+          created_at: string
+          id: string
+          reason: string
         }[]
       }
       admin_suspend_user: {
