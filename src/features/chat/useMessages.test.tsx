@@ -1657,10 +1657,10 @@ describe('useMessages', () => {
       expect(jump).toBe('error')
     })
 
-    it("bails with 'missing' and writes nothing when the channel switches mid-jump", async () => {
+    it("bails with 'cancelled' and writes nothing when the channel switches mid-jump", async () => {
       // PR review on #455: the jump loop runs outside the channel effect, so
       // a slow jump on the old channel must not prepend its rows onto the
-      // new channel's window.
+      // new channel's window — and must not toast on the new channel.
       const initialC1 = [baseMessage({ id: 'm-c1', created_at: '2023-01-02T00:00:00Z' })]
       let resolveJumpPage: (value: { data: unknown; error: unknown }) => void = () => {}
       const jumpPage = new Promise<{ data: unknown; error: unknown }>(resolve => { resolveJumpPage = resolve })
@@ -1690,9 +1690,43 @@ describe('useMessages', () => {
       await waitFor(() => expect(result.current.messages.some((m: { id: string }) => m.id === 'm-c2')).toBe(true))
       resolveJumpPage({ data: [baseMessage({ id: 'm-old-page', created_at: '2023-01-01T00:00:00Z' })], error: null })
 
-      expect(await jump).toBe('missing')
+      expect(await jump).toBe('cancelled')
       // The old channel's jump page was dropped, not prepended onto c2.
       expect(result.current.messages.map((m: { id: string }) => m.id)).toEqual(['m-c2'])
+    })
+
+    it('keeps paging past 100 pages when the target is deep in history', async () => {
+      // PR review on #457: the jump must not report a real target as missing
+      // just because it sits beyond an arbitrary page cap — the loop runs
+      // until an empty/short page proves history is exhausted.
+      const pages: unknown[][] = [[baseMessage({ id: 'm-new', created_at: '2023-12-01T00:00:00Z' })]]
+      for (let p = 0; p < 100; p += 1) {
+        pages.push(Array.from({ length: 50 }, (_, j) => baseMessage({
+          id: `pg${p}-${j}`,
+          created_at: new Date(Date.UTC(2023, 0, 1 + (100 - p) * 2)).toISOString()
+        })))
+      }
+      pages.push([baseMessage({ id: 'm-deep', created_at: '2020-01-01T00:00:00Z' })])
+      const mockLimit = vi.fn()
+      pages.forEach(pageData => mockLimit.mockResolvedValueOnce({ data: pageData, error: null }))
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let jump: string | undefined
+      await act(async () => {
+        jump = await result.current.jumpToMessage('m-deep')
+      })
+
+      expect(jump).toBe('found')
+      expect(mockLimit).toHaveBeenCalledTimes(pages.length)
+      expect(result.current.messages.some((m: { id: string }) => m.id === 'm-deep')).toBe(true)
     })
   })
 })
