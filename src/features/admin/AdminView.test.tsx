@@ -336,6 +336,26 @@ describe('AdminView', () => {
     expect(within(dialog).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
   })
 
+  it('handles a rejected history RPC without leaving the modal stuck loading', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    usersRpc({
+      admin_list_users: { data: users, error: null },
+      admin_get_user_history: Promise.reject(new Error('boom')),
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(await within(dialog).findByText('Failed to load audit history.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
+  })
+
   it('closes the modal via the close button', async () => {
     render(
       <MemoryRouter>

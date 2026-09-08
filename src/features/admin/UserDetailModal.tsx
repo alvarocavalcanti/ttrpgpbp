@@ -29,15 +29,26 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: Us
 
   useEffect(() => {
     let mounted = true
-    getUserHistory(user.id).then(result => {
-      if (!mounted) return
-      if (typeof result === 'string') {
-        setHistoryError(result)
-      } else {
-        setHistory(result)
-      }
-      setHistoryLoading(false)
-    })
+    // Reset stale state when a different user opens while this modal is still
+    // mounted, so the previous user's history/error never flashes.
+    setHistory([])
+    setHistoryError(null)
+    setHistoryLoading(true)
+    getUserHistory(user.id)
+      .then(result => {
+        if (!mounted) return
+        if (typeof result === 'string') {
+          setHistoryError(result)
+        } else {
+          setHistory(result)
+        }
+        setHistoryLoading(false)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setHistoryError('Failed to load audit history.')
+        setHistoryLoading(false)
+      })
     return () => { mounted = false }
   }, [user.id, getUserHistory])
 
