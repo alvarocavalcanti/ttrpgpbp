@@ -10,15 +10,28 @@
 -- Two-part pin:
 --   1. Strip the inherited anon grant on the drifted function (same pattern
 --      as 20260907132031 for mark_channel_read).
---   2. Revoke anon from postgres's default function privileges in public, so
---      no future function inherits the grant — the sweep's baseline becomes
---      forward-idempotent instead of per-migration whack-a-mole.
---      authenticated/service_role keep their default EXECUTE (explicit
---      per-function grants and revokes still pin the end state); the stored
---      default ACL replaces Postgres's built-in PUBLIC EXECUTE, so PUBLIC
---      stays out too.
+--   2. Pin default privileges so no future function inherits the grants —
+--      the sweep's baseline becomes forward-idempotent instead of
+--      per-migration whack-a-mole:
+--        * Per-schema (public): revoke anon, keeping the entry's
+--          authenticated/service_role EXECUTE so client RPCs keep their
+--          default access and server-only helpers stay pinned by the
+--          explicit per-function revokes.
+--        * Global: revoke PUBLIC and anon. The global entry is what
+--          suppresses Postgres's built-in PUBLIC EXECUTE on future
+--          functions (verified on PG 17.6.1: a function created with only
+--          the per-schema entry still gets `=X` in proacl; with the global
+--          entry the new function's proacl is exactly
+--          {postgres=X, authenticated=X, service_role=X}). Scope: functions
+--          only — tables/sequences are untouched. Any future
+--          postgres-created function outside public (e.g. from a
+--          CREATE EXTENSION in a migration) that needs EXECUTE for other
+--          roles must grant it explicitly.
 
 REVOKE EXECUTE ON FUNCTION public.resolve_safety_card_events(UUID) FROM anon;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE EXECUTE ON FUNCTIONS FROM anon;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon;
