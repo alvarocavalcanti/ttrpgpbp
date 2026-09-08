@@ -1476,4 +1476,155 @@ describe('useMessages', () => {
     expect(mockOrder).toHaveBeenNthCalledWith(1, 'created_at', { ascending: false })
     expect(mockOrder).toHaveBeenNthCalledWith(2, 'id', { ascending: false })
   })
+
+  describe('jumpToMessage (#455)', () => {
+    it('resolves true without an extra fetch when the message is already held', async () => {
+      const initial = [baseMessage({ id: 'm1', content: 'held' })]
+      const mockLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let found = false
+      await act(async () => {
+        found = await result.current.jumpToMessage('m1')
+      })
+
+      expect(found).toBe(true)
+      // Only the initial messages fetch ran — no jump query on top.
+      expect(mockEq).toHaveBeenCalledTimes(1)
+    })
+
+    it('returns false without fetching when no messages are loaded', async () => {
+      const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let found: boolean | undefined
+      await act(async () => {
+        found = await result.current.jumpToMessage('m-missing')
+      })
+
+      expect(found).toBe(false)
+      expect(mockEq).toHaveBeenCalledTimes(1)
+    })
+
+    it('loads older pages until the target is in the window', async () => {
+      const initial = [baseMessage({ id: 'm-new', content: 'newest', created_at: '2023-01-02T00:00:00Z' })]
+      const older = [baseMessage({ id: 'm-old', content: 'target', created_at: '2023-01-01T00:00:00Z' })]
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce({ data: initial, error: null })
+        .mockResolvedValueOnce({ data: older, error: null })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let found = false
+      await act(async () => {
+        found = await result.current.jumpToMessage('m-old')
+      })
+
+      expect(found).toBe(true)
+      expect(result.current.messages.map((m: { id: string }) => m.id)).toEqual(['m-old', 'm-new'])
+      // Composite cursor matches loadOlder's scheme.
+      expect(mockOr).toHaveBeenCalledWith('created_at.lt.2023-01-02T00:00:00Z,and(created_at.eq.2023-01-02T00:00:00Z,id.lt.m-new)')
+      // A short page means no older history remains.
+      expect(result.current.hasMore).toBe(false)
+    })
+
+    it('pages through history until it finds the target', async () => {
+      const initial = [baseMessage({ id: 'm-new', created_at: '2023-01-03T00:00:00Z' })]
+      // One full page (newest first after the query; reversed on apply).
+      const page1 = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `p1-${i}`, created_at: `2023-01-02T00:00:${String(49 - i).padStart(2, '0')}Z` }))
+      const page2 = [baseMessage({ id: 'm-target', created_at: '2023-01-01T00:00:00Z' })]
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce({ data: initial, error: null })
+        .mockResolvedValueOnce({ data: page1, error: null })
+        .mockResolvedValueOnce({ data: page2, error: null })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let found = false
+      await act(async () => {
+        found = await result.current.jumpToMessage('m-target')
+      })
+
+      expect(found).toBe(true)
+      expect(mockLimit).toHaveBeenCalledTimes(3)
+      expect(result.current.messages.some((m: { id: string }) => m.id === 'm-target')).toBe(true)
+      // The second jump page continues from the oldest row of the first page.
+      expect(mockOr).toHaveBeenNthCalledWith(2, 'created_at.lt.2023-01-02T00:00:00Z,and(created_at.eq.2023-01-02T00:00:00Z,id.lt.p1-49)')
+      expect(result.current.hasMore).toBe(false)
+    })
+
+    it('returns false when history is exhausted without finding the target', async () => {
+      const initial = [baseMessage({ id: 'm-new', created_at: '2023-01-02T00:00:00Z' })]
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce({ data: initial, error: null })
+        .mockResolvedValueOnce({ data: [], error: null })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let found: boolean | undefined
+      await act(async () => {
+        found = await result.current.jumpToMessage('m-missing')
+      })
+
+      expect(found).toBe(false)
+    })
+
+    it('returns false when a jump page query fails', async () => {
+      const initial = [baseMessage({ id: 'm-new', created_at: '2023-01-02T00:00:00Z' })]
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce({ data: initial, error: null })
+        .mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
+      const mockOrder = vi.fn()
+      mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
+      const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let found: boolean | undefined
+      await act(async () => {
+        found = await result.current.jumpToMessage('m-old')
+      })
+
+      expect(found).toBe(false)
+    })
+  })
 })

@@ -148,6 +148,7 @@
 ## Search
 
 - Full-text search within a channel's message history (header magnifier icon or sidebar item)
+- Clicking a result closes the search and scrolls the timeline to that message with a brief highlight, loading older history as needed; quoted-reply links use the same jump
 
 ## Safety Tools (Lines & Veils / X-Card)
 

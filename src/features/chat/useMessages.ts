@@ -466,6 +466,50 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     }
   }, [channelId, loadingOlder, hasMore, messages])
 
+  // Loads history pages (same composite cursor as loadOlder) until messageId
+  // is inside the held window, so jumps from search results and quoted
+  // replies land on messages older than the latest-50 page (#455). Returns
+  // true when the message is (now) held; false when history is exhausted,
+  // the window is empty, or a page fetch fails.
+  const jumpToMessage = useCallback(async (messageId: string): Promise<boolean> => {
+    if (!channelId) return false
+    if (messagesRef.current.some(m => m.id === messageId)) return true
+    const oldest = messagesRef.current[0]
+    if (!oldest) return false
+    let cursorCreatedAt = oldest.created_at
+    let cursorId = oldest.id
+    for (let guard = 0; guard < 100; guard += 1) {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select(MESSAGE_SELECT)
+          .eq('channel_id', channelId)
+          .or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(PAGE_SIZE)
+        if (error) throw error
+        const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
+        if (older.length === 0) return false
+        setMessages(prev => {
+          const existing = new Set(prev.map(m => m.id))
+          return [...older.filter(m => !existing.has(m.id)), ...prev]
+        })
+        setHasMore((data || []).length === PAGE_SIZE)
+        if (older.some(m => m.id === messageId)) return true
+        // Continue from the oldest row just loaded (first in ascending order).
+        const oldestLoaded = older[0]
+        cursorCreatedAt = oldestLoaded.created_at
+        cursorId = oldestLoaded.id
+        if ((data || []).length < PAGE_SIZE) return false
+      } catch (err) {
+        console.error('Error jumping to message:', err)
+        return false
+      }
+    }
+    return false
+  }, [channelId])
+
   // Reconcile an optimistic message with the server-returned id (clears
   // pending + error). Both send_message and roll_dice are idempotent on
   // client_request_id, so a retry that gets here is safe from duplicates.
@@ -767,5 +811,5 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     }
   }, [])
 
-  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
 }

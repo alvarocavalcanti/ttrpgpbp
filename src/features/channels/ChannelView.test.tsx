@@ -77,7 +77,8 @@ describe('ChannelView search functionality', () => {
       deleteMessage: vi.fn(),
       sendDiceRoll: vi.fn(),
       addReaction: vi.fn().mockResolvedValue(undefined),
-      removeReaction: vi.fn().mockResolvedValue(undefined)
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      jumpToMessage: vi.fn().mockResolvedValue(true)
     } as any)
   })
 
@@ -179,6 +180,77 @@ describe('ChannelView search functionality', () => {
     
     // Modal should close
     expect(screen.queryByTestId('search-modal')).not.toBeInTheDocument()
+  })
+
+  it('highlights the search result after loading its history (#455)', async () => {
+    const jumpToMessage = vi.fn().mockResolvedValue(true)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      jumpToMessage
+    } as any)
+
+    const { container } = render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    fireEvent.click(screen.getByText('Jump to msg1'))
+
+    // The jump target is loaded (history pages may be fetched first) and the
+    // message is highlighted once it's in the window.
+    await waitFor(() => {
+      expect(jumpToMessage).toHaveBeenCalledWith('msg1')
+    })
+    await waitFor(() => {
+      expect(container.querySelector('.bg-yellow-50')).toBeInTheDocument()
+    })
+  })
+
+  it('shows a toast when the jump target cannot be loaded (#455)', async () => {
+    const jumpToMessage = vi.fn().mockResolvedValue(false)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      jumpToMessage
+    } as any)
+
+    const { container } = render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    fireEvent.click(screen.getByText('Jump to msg1'))
+
+    expect(await screen.findByText('That message is no longer available.')).toBeInTheDocument()
+    // No highlight when the target isn't available.
+    expect(container.querySelector('.bg-yellow-50')).not.toBeInTheDocument()
   })
 
   it('renders header-first loading state with message skeletons', () => {

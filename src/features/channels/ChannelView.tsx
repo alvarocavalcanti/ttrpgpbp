@@ -69,7 +69,7 @@ export function ChannelView() {
   }, [id])
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, markRead, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead, canMarkRead)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying } = useMessages(id, handleMessagesLoaded)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
@@ -131,9 +131,18 @@ export function ChannelView() {
     markRead()
   }, [messagesLoaded, myMemberInfo?.id, markRead])
 
+  // Jump targets (search results, quoted replies) may sit outside the loaded
+  // latest-50 window: load history pages until the target is rendered, then
+  // highlight so MessageItem scrolls it into view (#455).
   const handleJumpToMessage = useCallback((messageId: string) => {
-    setHighlightMessageId(messageId)
-  }, [])
+    void jumpToMessage(messageId).then(found => {
+      if (found) {
+        setHighlightMessageId(messageId)
+      } else {
+        addToast('That message is no longer available.', 'error')
+      }
+    })
+  }, [jumpToMessage, addToast])
 
   const handleReply = useCallback((message: ChatMessage) => {
     const senderName = members.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name || null

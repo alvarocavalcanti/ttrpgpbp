@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Updated
 
+- **Search results now take you to the message** — clicking a result closes the search panel and scrolls the conversation to that message with a brief highlight, even when it sits far back in the channel's history. If the message can't be shown (for example, it was deleted), a short notice explains that instead of doing nothing.
 - **X-Card resolutions are announced to the table** — when the GM resolves a flagged scene, everyone in the channel now sees a short system note ("A flagged scene has been resolved. Carry on — the X-Card is always there if you need it again."), so whoever raised the flag knows it was handled instead of wondering.
 - **Easier to tap, clearer to hear** — small buttons across the app (the status bar's Edit, the message retry, notification prompts, "Load older messages" and others) now meet the comfortable 44px touch size. The member options menu now announces itself to screen readers (with each member's name), closes on Escape, and the @-mention picker speaks its highlighted choice. If the X-Card alert list ever fails to load, the GM now sees a retry button right in the banner instead of a fleeting notice.
 
