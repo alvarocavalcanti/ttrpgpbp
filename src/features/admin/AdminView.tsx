@@ -340,21 +340,26 @@ export function AdminView() {
                         {filteredUsers.map(user => (
                           <tr
                             key={user.id}
-                            onClick={() => setDetailUser(user)}
-                            className={`cursor-pointer ${user.is_suspended ? "opacity-75 bg-red-50 dark:bg-red-900/10" : "hover:bg-surface-50 dark:hover:bg-surface-700/40"}`}
+                            className={`${user.is_suspended ? "opacity-75 bg-red-50 dark:bg-red-900/10" : "hover:bg-surface-50 dark:hover:bg-surface-700/40"}`}
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100 flex items-center gap-2">
-                              {user.display_name || user.email || 'Unknown'}
-                              {user.is_suspended && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                                  Suspended
-                                </span>
-                              )}
-                              {user.server_admin && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200">
-                                  Admin
-                                </span>
-                              )}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">
+                              <button
+                                type="button"
+                                onClick={() => setDetailUser(user)}
+                                className="inline-flex items-center gap-2 text-left hover:underline focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 rounded cursor-pointer"
+                              >
+                                <span>{user.display_name || user.email || 'Unknown'}</span>
+                                {user.is_suspended && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                                    Suspended
+                                  </span>
+                                )}
+                                {user.server_admin && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200">
+                                    Admin
+                                  </span>
+                                )}
+                              </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{user.channel_count}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">

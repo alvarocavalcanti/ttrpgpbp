@@ -60,12 +60,8 @@ BEGIN
           WHERE cm.user_id = p.id AND NOT c.is_archived),
         '[]'::jsonb) AS channels,
       u.last_sign_in_at AS last_login_at,
-      (SELECT MAX(m.created_at)
-         FROM messages m
-        WHERE m.sender_id = p.id AND NOT m.is_deleted) AS last_message_at,
-      (SELECT COUNT(*)::bigint
-         FROM messages m
-        WHERE m.sender_id = p.id AND NOT m.is_deleted) AS message_count,
+      ms.last_message_at,
+      ms.message_count,
       p.created_at,
       p.is_suspended,
       p.avatar_url,
@@ -76,6 +72,11 @@ BEGIN
                  WHERE i.user_id = p.id ORDER BY i.created_at LIMIT 1)) AS provider
     FROM profiles p
     LEFT JOIN auth.users u ON u.id = p.id
+    LEFT JOIN LATERAL (
+      SELECT MAX(m.created_at) AS last_message_at, COUNT(*)::bigint AS message_count
+      FROM messages m
+      WHERE m.sender_id = p.id AND NOT m.is_deleted
+    ) ms ON true
     ORDER BY p.created_at DESC;
 END;
 $$;
@@ -118,3 +119,9 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_get_user_history(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_get_user_history(UUID) TO authenticated;
+
+-- The admin user list aggregates a sender's messages (count + latest) per
+-- user; this partial index lets that scan only live messages for a sender.
+CREATE INDEX IF NOT EXISTS idx_messages_sender_active
+  ON public.messages (sender_id)
+  WHERE NOT is_deleted;

@@ -112,7 +112,7 @@ describe('AdminView', () => {
 
   const openUserModal = async (name: string) => {
     await screen.findByText(name)
-    fireEvent.click(screen.getByText(name).closest('tr') as HTMLTableRowElement)
+    fireEvent.click(within(screen.getByText(name).closest('tr') as HTMLTableRowElement).getByRole('button', { name: new RegExp(name) }))
   }
 
   it('renders stats row with total users, channels, and image storage', async () => {
@@ -227,6 +227,25 @@ describe('AdminView', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('admin_get_user_history', { p_user_id: 'u1' })
   })
 
+  it('makes the user name a keyboard-reachable button that opens the modal', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    const aliceRow = screen.getByText('Alice').closest('tr') as HTMLTableRowElement
+    const nameButton = within(aliceRow).getByRole('button', { name: /Alice/ })
+    expect(nameButton.tagName).toBe('BUTTON')
+
+    // Native <button> is keyboard-activatable; simulate the click the browser
+    // dispatches on Enter/Space so jsdom covers the keyboard path.
+    fireEvent.click(nameButton)
+
+    expect(screen.getByRole('dialog', { name: 'Alice' })).toBeInTheDocument()
+  })
+
   it('shows empty-state fallbacks for a user with no email, login, or activity', async () => {
     const noData = [makeUser({ id: 'u1', email: null, last_login_at: null, last_message_at: null, message_count: 0 })]
     usersRpc({
@@ -241,7 +260,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByText('Alice').closest('tr') as HTMLTableRowElement)
+    fireEvent.click(within(screen.getByText('Alice').closest('tr') as HTMLTableRowElement).getByRole('button', { name: /Alice/ }))
 
     const dialog = screen.getByRole('dialog', { name: 'Alice' })
     expect(within(dialog).getByText(/No email on file/)).toBeInTheDocument()
@@ -270,7 +289,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    fireEvent.click(screen.getByText('Alice').closest('tr') as HTMLTableRowElement)
+    fireEvent.click(within(screen.getByText('Alice').closest('tr') as HTMLTableRowElement).getByRole('button', { name: /Alice/ }))
 
     const dialog = screen.getByRole('dialog', { name: 'Alice' })
     expect(within(dialog).getByText(/Strahd — Aragorn/)).toBeInTheDocument()
