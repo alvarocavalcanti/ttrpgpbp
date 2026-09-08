@@ -84,7 +84,12 @@ const usersRpc = (overrides: Record<string, any>) => {
     if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
     if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
-    if (overrides[fn] !== undefined) return Promise.resolve(overrides[fn])
+    if (overrides[fn] !== undefined) {
+      // Allow function overrides so a rejection is created at call time
+      // instead of eagerly (which Vitest flags as an unhandled rejection).
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
     return Promise.resolve({ data: null, error: null })
   }) as any)
 }
@@ -340,7 +345,7 @@ describe('AdminView', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     usersRpc({
       admin_list_users: { data: users, error: null },
-      admin_get_user_history: Promise.reject(new Error('boom')),
+      admin_get_user_history: () => Promise.reject(new Error('boom')),
     })
 
     render(
