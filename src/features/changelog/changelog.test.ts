@@ -66,7 +66,7 @@ describe('changelog module', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
     // Most-recent Unreleased "Updated" entry leads the list.
-    expect(items[0].title).toBe('X-Card resolutions are announced to the table')
+    expect(items[0].title).toBe('Search results now take you to the message')
   })
 
   it('getChangelogHash is a non-empty string', () => {
