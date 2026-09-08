@@ -1,5 +1,6 @@
 import { Avatar } from '../../components/Avatar';
 import { SignedImg } from '../../components/SignedImg';
+import { ImageViewerModal } from '../../components/ImageViewerModal';
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { linkifyDice, isValidDiceNotation } from '../dice/parser'
@@ -171,6 +172,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   const [actionsOpen, setActionsOpen] = useState(false)
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Image currently open in the fullscreen viewer (issue #458); null = closed.
+  const [viewingImage, setViewingImage] = useState<{ src: string; alt: string } | null>(null)
   const itemRef = useRef<HTMLDivElement>(null)
 
   const senderName = message.npc_name || members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
@@ -329,14 +332,21 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     },
 img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?: unknown }) => {
       return (
-        <SignedImg 
-          src={src} 
-          alt={alt || "Image"} 
-          className="max-w-full h-auto rounded-lg shadow-sm my-2 object-contain max-h-96" 
-          loading="lazy" 
-          referrerPolicy="no-referrer"
-          {...props} 
-        />
+        <button
+          type="button"
+          onClick={() => src && setViewingImage({ src, alt: alt || 'Image' })}
+          className="block cursor-zoom-in"
+          aria-label={`View ${alt || 'Image'} fullscreen`}
+        >
+          <SignedImg
+            src={src}
+            alt={alt || "Image"}
+            className="max-w-full h-auto rounded-lg shadow-sm my-2 object-contain max-h-96"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            {...props}
+          />
+        </button>
       )
     }
   }), [onRollDice, systemAttributes, members, currentUserId, message.id])
@@ -423,6 +433,16 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       description="This removes the message for everyone and can't be undone."
       onConfirm={runDelete}
       onClose={() => setConfirmDelete(false)}
+    />
+  ) : null
+
+  // Shared by both render branches that use `renderers` (regular and scene) —
+  // the img renderer sets viewingImage in either, so both must show the modal.
+  const imageViewer = viewingImage ? (
+    <ImageViewerModal
+      src={viewingImage.src}
+      alt={viewingImage.alt}
+      onClose={() => setViewingImage(null)}
     />
   ) : null
 
@@ -551,6 +571,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
         {actionsSheet}
         {deleteConfirmDialog}
+        {imageViewer}
       </div>
     )
   }
@@ -718,6 +739,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       )}
       {actionsSheet}
       {deleteConfirmDialog}
+      {imageViewer}
     </div>
   )
 })
