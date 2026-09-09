@@ -112,6 +112,20 @@ describe('PermissionBanner', () => {
     }
   })
 
+  it('keeps top spacing matching the gap below (issue #463)', () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+
+    render(<PermissionBanner />)
+    // The lobby container has pt-0; without this top margin the banner sits
+    // flush against the header while the list below is separated by gap-6.
+    expect(screen.getByRole('region').className).toContain('mt-6')
+  })
+
   it('enables notifications on click', async () => {
     const subscribeToPush = vi.fn().mockResolvedValue(undefined)
     vi.mocked(usePushNotifications).mockReturnValue({
