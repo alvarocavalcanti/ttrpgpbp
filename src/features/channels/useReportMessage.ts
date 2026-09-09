@@ -3,8 +3,10 @@ import { supabase } from '../../lib/supabase'
 import type { ChatMessage } from '../chat/types'
 
 // Data layer for the player-facing report flow (#467, ARCH-1): the insert
-// into abuse_reports lives here; ChannelView keeps the toasts. RLS enforces
-// reporter_id = auth.uid() server-side.
+// into abuse_reports lives here; ChannelView keeps the toasts. The insert
+// policy enforces reporter_id = auth.uid() and an integrity trigger derives
+// channel_id / reported_user_id from message_id (validated against channel
+// membership server-side) — client-supplied values are corrected, not trusted.
 export function useReportMessage() {
   // Stable identity so ChannelView's memoized MessageItem list doesn't
   // re-render on every ChannelView render.
