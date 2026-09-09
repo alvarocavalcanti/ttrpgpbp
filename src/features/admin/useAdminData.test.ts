@@ -15,6 +15,13 @@ vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn(),
 }))
 
+const baseUser = {
+  id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, channels: [],
+  last_login_at: null, last_message_at: null, message_count: 0, created_at: '',
+  is_suspended: false, avatar_url: null, server_admin: false, email_verified: false, provider: null,
+}
+const baseChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice' }
+
 describe('useAdminData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -26,8 +33,8 @@ describe('useAdminData', () => {
   })
 
   it('fetches users, channels, and storage bytes in parallel', async () => {
-    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
-    const channels = [{ id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice' }]
+    const users = [{ ...baseUser }]
+    const channels = [{ ...baseChannel }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
@@ -73,8 +80,8 @@ describe('useAdminData', () => {
   })
 
   it('filters null entries out of the users and channels arrays', async () => {
-    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
-    const channels = [{ id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice' }]
+    const users = [{ ...baseUser }]
+    const channels = [{ ...baseChannel }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: [null, ...users], error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: [null, ...channels], error: null })
@@ -89,12 +96,13 @@ describe('useAdminData', () => {
   })
 
   it('drops rows with malformed fields while valid rows survive', async () => {
-    const validUser = { id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '2024-01-01', is_suspended: false }
+    const validUser = { ...baseUser }
     const badUsers = [
       { ...validUser, channel_count: 'many' },
-      { id: 'u2', display_name: 'Bob', email: 'b@x', channel_count: 2, is_suspended: false },
+      { ...validUser, id: 'u2', channels: 'not-an-array' },
+      { id: 'u3', display_name: 'Bob' },
     ]
-    const validChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '2024-01-01', last_message_at: null, gm_display_name: 'Alice' }
+    const validChannel = { ...baseChannel }
     const badChannels = [
       { ...validChannel, member_count: null },
       { id: 'c2', name: 'Broken' },
@@ -114,8 +122,8 @@ describe('useAdminData', () => {
   })
 
   it('accepts null values in nullable user and channel fields', async () => {
-    const users = [{ id: 'u1', display_name: null, email: null, channel_count: 0, created_at: '2024-01-01', is_suspended: false }]
-    const channels = [{ id: 'c1', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2024-01-01', last_message_at: null, gm_display_name: null }]
+    const users = [{ ...baseUser, display_name: null, email: null, last_login_at: null, last_message_at: null, avatar_url: null, provider: null, channels: [] }]
+    const channels = [{ ...baseChannel, gm_id: null, last_message_at: null, gm_display_name: null }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
@@ -130,12 +138,30 @@ describe('useAdminData', () => {
     expect(result.current.error).toBeNull()
   })
 
+  it('parses channel memberships with their flags', async () => {
+    const users = [{
+      ...baseUser,
+      channels: [
+        { name: 'Strahd', character_name: 'Aragorn', joined_at: '2026-01-01', is_blocked: false, is_active_player: true },
+        { name: 'Loot', character_name: '', joined_at: '2026-02-01', is_blocked: true, is_active_player: false },
+      ],
+    }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.users).toEqual(users)
+  })
+
   it('suspendUser catches a rejected RPC and returns the error', async () => {
-    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
+    const users = [{ ...baseUser }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_suspend_user') return Promise.reject(new Error('boom'))
-      // The load validates payloads as arrays; a null fallback would fail it.
       return Promise.resolve({ data: [], error: null })
     }) as any)
 
@@ -151,11 +177,10 @@ describe('useAdminData', () => {
   })
 
   it('claimChannel catches a rejected RPC and returns the error', async () => {
-    const channels = [{ id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '', last_message_at: null, gm_display_name: null }]
+    const channels = [{ ...baseChannel, gm_id: null }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
       if (fn === 'admin_claim_channel') return Promise.reject(new Error('boom'))
-      // The load validates payloads as arrays; a null fallback would fail it.
       return Promise.resolve({ data: [], error: null })
     }) as any)
 
@@ -171,11 +196,10 @@ describe('useAdminData', () => {
   })
 
   it('suspendUser calls the RPC and flips the user in place', async () => {
-    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
+    const users = [{ ...baseUser }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_suspend_user') return Promise.resolve({ data: null, error: null })
-      // The load validates payloads as arrays; a null fallback would fail it.
       return Promise.resolve({ data: [], error: null })
     }) as any)
 
@@ -194,11 +218,10 @@ describe('useAdminData', () => {
   })
 
   it('suspendUser surfaces the RPC error without mutating the list', async () => {
-    const users = [{ id: 'u1', display_name: 'Alice', email: 'a@x', channel_count: 1, created_at: '', is_suspended: false }]
+    const users = [{ ...baseUser }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_suspend_user') return Promise.resolve({ data: null, error: new Error('nope') })
-      // The load validates payloads as arrays; a null fallback would fail it.
       return Promise.resolve({ data: [], error: null })
     }) as any)
 
@@ -213,11 +236,10 @@ describe('useAdminData', () => {
   })
 
   it('claimChannel calls the RPC and stamps the admin as GM', async () => {
-    const channels = [{ id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '', last_message_at: null, gm_display_name: null }]
+    const channels = [{ ...baseChannel, gm_id: null }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
       if (fn === 'admin_claim_channel') return Promise.resolve({ data: null, error: null })
-      // The load validates payloads as arrays; a null fallback would fail it.
       return Promise.resolve({ data: [], error: null })
     }) as any)
 
@@ -225,19 +247,18 @@ describe('useAdminData', () => {
     await waitFor(() => expect(result.current.channels).toHaveLength(1))
 
     await act(async () => {
-      await expect(result.current.claimChannel('c2')).resolves.toBeNull()
+      await expect(result.current.claimChannel('c1')).resolves.toBeNull()
     })
-    expect(supabase.rpc).toHaveBeenCalledWith('admin_claim_channel', { p_channel_id: 'c2' })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_claim_channel', { p_channel_id: 'c1' })
     expect(result.current.channels[0].gm_id).toBe('admin1')
     expect(result.current.channels[0].gm_display_name).toBe('Admin')
   })
 
   it('claimChannel surfaces the RPC error', async () => {
-    const channels = [{ id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '', last_message_at: null, gm_display_name: null }]
+    const channels = [{ ...baseChannel, gm_id: null }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
       if (fn === 'admin_claim_channel') return Promise.resolve({ data: null, error: new Error('nope') })
-      // The load validates payloads as arrays; a null fallback would fail it.
       return Promise.resolve({ data: [], error: null })
     }) as any)
 
@@ -277,6 +298,70 @@ describe('useAdminData', () => {
 
     await act(async () => {
       await expect(result.current.upsertSettings([{ key: 'max_channels_per_user', value: 15 }])).resolves.toBe(err)
+    })
+  })
+
+  it('getUserHistory returns validated audit entries', async () => {
+    const history = [{ id: 'h1', action: 'suspend_user', reason: 'Spam', admin_name: 'Admin', created_at: '2026-01-01' }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_get_user_history') return Promise.resolve({ data: history, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      const entries = await result.current.getUserHistory('u1')
+      expect(entries).toEqual(history)
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_get_user_history', { p_user_id: 'u1' })
+  })
+
+  it('getUserHistory filters malformed entries and drops non-array payloads', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_get_user_history') return Promise.resolve({ data: [{ id: 'h1', action: 'suspend_user', reason: 'Spam', admin_name: 'Admin', created_at: '2026-01-01' }, { bad: true }], error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      const entries = await result.current.getUserHistory('u1')
+      expect(Array.isArray(entries)).toBe(true)
+      expect((entries as any[]).length).toBe(1)
+      expect((entries as any[])[0].id).toBe('h1')
+    })
+  })
+
+  it('getUserHistory returns an error message when the RPC errors', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_get_user_history') return Promise.resolve({ data: null, error: new Error('nope') })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      const entries = await result.current.getUserHistory('u1')
+      expect(typeof entries).toBe('string')
+    })
+  })
+
+  it('getUserHistory returns an error message for a non-array payload', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_get_user_history') return Promise.resolve({ data: { not: 'array' }, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      const entries = await result.current.getUserHistory('u1')
+      expect(entries).toBe('Failed to load audit history.')
     })
   })
 })

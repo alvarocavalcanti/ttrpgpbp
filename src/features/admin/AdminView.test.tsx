@@ -48,15 +48,51 @@ const adminUser = {
   profile: { id: 'admin1', server_admin: true } as any,
 }
 
+const makeUser = (over: Record<string, unknown> = {}) => ({
+  id: 'u1', display_name: 'Alice', email: 'alice@example.com', channel_count: 3, channels: [],
+  last_login_at: '2026-03-01T00:00:00Z', last_message_at: '2026-03-02T00:00:00Z', message_count: 12,
+  created_at: '2026-01-01T00:00:00Z', is_suspended: false, avatar_url: null,
+  server_admin: false, email_verified: true, provider: 'email',
+  ...over,
+})
+
 const users = [
-  { id: 'u1', display_name: 'Alice', email: 'alice@example.com', channel_count: 3, created_at: '2026-01-01T00:00:00Z', is_suspended: false },
-  { id: 'u2', display_name: null, email: 'bob@example.com', channel_count: 0, created_at: '2026-02-01T00:00:00Z', is_suspended: false },
+  makeUser({ id: 'u1' }),
+  makeUser({ id: 'u2', display_name: null, email: 'bob@example.com', channel_count: 0, is_suspended: false, last_login_at: null, message_count: 0 }),
 ]
 
 const channels = [
   { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', gm_id: 'u1', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice' },
   { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null },
 ]
+
+const defaultRpc = () => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
+    if (fn === 'admin_get_user_history') return Promise.resolve({ data: [], error: null })
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+// Users-focused mock: supplies the empty arrays the loader requires so a
+// custom users payload doesn't trip the malformed-payload guard.
+const usersRpc = (overrides: Record<string, any>) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (overrides[fn] !== undefined) {
+      // Allow function overrides so a rejection is created at call time
+      // instead of eagerly (which Vitest flags as an unhandled rejection).
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
 
 describe('AdminView', () => {
   beforeEach(() => {
@@ -71,19 +107,18 @@ describe('AdminView', () => {
       return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
     })
     vi.mocked(useAuth).mockReturnValue(adminUser as any)
-    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
-      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
-      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
-      return Promise.resolve({ data: null, error: null })
-    }) as any)
+    defaultRpc()
   })
 
   const switchToChannelsTab = () =>
     fireEvent.click(
       within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Channels' })
     )
+
+  const openUserModal = async (name: string) => {
+    await screen.findByText(name)
+    fireEvent.click(within(screen.getByText(name).closest('tr') as HTMLTableRowElement).getByRole('button', { name: new RegExp(name) }))
+  }
 
   it('renders stats row with total users, channels, and image storage', async () => {
     render(
@@ -93,17 +128,13 @@ describe('AdminView', () => {
     )
 
     expect(await screen.findByText('Total Users')).toBeInTheDocument()
-    // users array has 2 items, channels has 2 items
     expect(screen.getAllByText('2', { selector: 'div.text-2xl' })).toHaveLength(2)
-
     expect(screen.getByText('Total Channels')).toBeInTheDocument()
-
     expect(screen.getByText('Image Storage')).toBeInTheDocument()
-    // 1048576 bytes = 1 MB
     expect(screen.getByText('1 MB', { selector: 'div.text-2xl' })).toBeInTheDocument()
   })
 
-  it('renders users tab by default with channel counts', async () => {
+  it('renders users tab by default with channel counts and join dates', async () => {
     render(
       <MemoryRouter>
         <AdminView />
@@ -184,7 +215,24 @@ describe('AdminView', () => {
     })
   })
 
-  it('does not suspend when the reason sheet is cancelled', async () => {
+  it('opens the user detail modal on row click and shows email, login, activity, and message count', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(within(dialog).getByText(/alice@example\.com/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/verified/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/email/)).toBeInTheDocument()
+    expect(within(dialog).getByText('12')).toBeInTheDocument()
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_get_user_history', { p_user_id: 'u1' })
+  })
+
+  it('makes the user name a keyboard-reachable button that opens the modal', async () => {
     render(
       <MemoryRouter>
         <AdminView />
@@ -192,9 +240,150 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Alice')
-    const aliceRow = screen.getByText('Alice').closest('tr')
-    expect(aliceRow).not.toBeNull()
-    fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
+    const aliceRow = screen.getByText('Alice').closest('tr') as HTMLTableRowElement
+    const nameButton = within(aliceRow).getByRole('button', { name: /Alice/ })
+    expect(nameButton.tagName).toBe('BUTTON')
+
+    // Native <button> is keyboard-activatable; simulate the click the browser
+    // dispatches on Enter/Space so jsdom covers the keyboard path.
+    fireEvent.click(nameButton)
+
+    expect(screen.getByRole('dialog', { name: 'Alice' })).toBeInTheDocument()
+  })
+
+  it('shows empty-state fallbacks for a user with no email, login, or activity', async () => {
+    const noData = [makeUser({ id: 'u1', email: null, last_login_at: null, last_message_at: null, message_count: 0 })]
+    usersRpc({
+      admin_list_users: { data: noData, error: null },
+      admin_get_user_history: { data: [], error: null },
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(within(screen.getByText('Alice').closest('tr') as HTMLTableRowElement).getByRole('button', { name: /Alice/ }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(within(dialog).getByText(/No email on file/)).toBeInTheDocument()
+    expect(within(dialog).getAllByText('Never')).toHaveLength(2) // last login + last activity
+    expect(within(dialog).getByText('Not in any channels.')).toBeInTheDocument()
+    expect(await within(dialog).findByText('No moderation history.')).toBeInTheDocument()
+  })
+
+  it('lists channel memberships with character names and blocked badges', async () => {
+    const withChannels = [makeUser({
+      id: 'u1',
+      channels: [
+        { name: 'Strahd', character_name: 'Aragorn', joined_at: '2026-01-01', is_blocked: false, is_active_player: true },
+        { name: 'Loot', character_name: '', joined_at: '2026-02-01', is_blocked: true, is_active_player: false },
+      ],
+    })]
+    usersRpc({
+      admin_list_users: { data: withChannels, error: null },
+      admin_get_user_history: { data: [], error: null },
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(within(screen.getByText('Alice').closest('tr') as HTMLTableRowElement).getByRole('button', { name: /Alice/ }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(within(dialog).getByText(/Strahd — Aragorn/)).toBeInTheDocument()
+    expect(within(dialog).getByText('Blocked')).toBeInTheDocument()
+    expect(within(dialog).getByText('Blocked from 1 channel')).toBeInTheDocument()
+  })
+
+  it('shows moderation history with reasons', async () => {
+    usersRpc({
+      admin_list_users: { data: users, error: null },
+      admin_get_user_history: { data: [{ id: 'h1', action: 'suspend_user', reason: 'Spamming', admin_name: 'Root', created_at: '2026-02-01T00:00:00Z' }], error: null },
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(await within(dialog).findByText('Suspended')).toBeInTheDocument()
+    expect(within(dialog).getByText(/by Root/)).toBeInTheDocument()
+    expect(within(dialog).getByText('Spamming')).toBeInTheDocument()
+  })
+
+  it('shows an error message when history fetch fails but keeps the modal usable', async () => {
+    usersRpc({
+      admin_list_users: { data: users, error: null },
+      admin_get_user_history: { data: null, error: new Error('nope') },
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(await within(dialog).findByText('nope')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
+  })
+
+  it('handles a rejected history RPC without leaving the modal stuck loading', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    usersRpc({
+      admin_list_users: { data: users, error: null },
+      admin_get_user_history: () => Promise.reject(new Error('boom')),
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    expect(await within(dialog).findByText('Failed to load audit history.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
+  })
+
+  it('closes the modal via the close button', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+    expect(screen.getByRole('dialog', { name: 'Alice' })).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Alice' })).getByRole('button', { name: 'Close options' }))
+    expect(screen.queryByRole('dialog', { name: 'Alice' })).not.toBeInTheDocument()
+  })
+
+  it('does not suspend when the reason sheet is cancelled', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await openUserModal('Alice')
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }))
 
     const sheet = screen.getByRole('dialog', { name: 'Suspend Alice?' })
     fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
@@ -212,10 +401,9 @@ describe('AdminView', () => {
       </MemoryRouter>
     )
 
-    await screen.findByText('Alice')
-    const aliceRow = screen.getByText('Alice').closest('tr')
-    expect(aliceRow).not.toBeNull()
-    fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
+    await openUserModal('Alice')
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }))
 
     const sheet = screen.getByRole('dialog', { name: 'Suspend Alice?' })
     fireEvent.change(within(sheet).getByLabelText('Reason'), { target: { value: '  Spamming  ' } })
@@ -229,24 +417,15 @@ describe('AdminView', () => {
       })
     })
 
-    const updatedAliceRow = screen.getByText('Alice').closest('tr')
-    expect(updatedAliceRow).not.toBeNull()
-    expect(within(updatedAliceRow as HTMLTableRowElement).getAllByText('Suspended').length).toBeGreaterThan(0)
-    expect(within(updatedAliceRow as HTMLTableRowElement).getByRole('button', { name: 'Unsuspend' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'Alice' })).getByRole('button', { name: 'Unsuspend' })).toBeInTheDocument()
   })
 
-  it('un-suspends user and updates status UI back to Active', async () => {
-    const suspendedUsers = [
-      { id: 'u1', display_name: 'Alice', email: 'alice@example.com', channel_count: 3, created_at: '2026-01-01T00:00:00Z', is_suspended: true },
-      { id: 'u2', display_name: null, email: 'bob@example.com', channel_count: 0, created_at: '2026-02-01T00:00:00Z', is_suspended: false },
-    ]
-    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-      if (fn === 'admin_list_users') return Promise.resolve({ data: suspendedUsers, error: null })
-      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
-      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
-      return Promise.resolve({ data: null, error: null })
-    }) as any)
+  it('un-suspends a user from the modal', async () => {
+    const suspended = [makeUser({ id: 'u1', is_suspended: true })]
+    usersRpc({
+      admin_list_users: { data: suspended, error: null },
+      admin_get_user_history: { data: [], error: null },
+    })
 
     render(
       <MemoryRouter>
@@ -254,10 +433,9 @@ describe('AdminView', () => {
       </MemoryRouter>
     )
 
-    await screen.findByText('Alice')
-    const aliceRow = screen.getByText('Alice').closest('tr')
-    expect(aliceRow).not.toBeNull()
-    fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Unsuspend' }))
+    await openUserModal('Alice')
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unsuspend' }))
 
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Unsuspend Alice?' })).getByRole('button', { name: 'Unsuspend' }))
 
@@ -269,23 +447,17 @@ describe('AdminView', () => {
       })
     })
 
-    const updatedAliceRow = screen.getByText('Alice').closest('tr')
-    expect(updatedAliceRow).not.toBeNull()
-    expect(within(updatedAliceRow as HTMLTableRowElement).getByText('Active')).toBeInTheDocument()
-    expect(within(updatedAliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'Alice' })).getByRole('button', { name: 'Suspend' })).toBeInTheDocument()
   })
 
   it('shows a toast when suspend action fails', async () => {
     const addToast = vi.fn()
     vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
-    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
-      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
-      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
-      if (fn === 'admin_suspend_user') return Promise.resolve({ data: null, error: new Error('nope') })
-      return Promise.resolve({ data: null, error: null })
-    }) as any)
+    usersRpc({
+      admin_list_users: { data: users, error: null },
+      admin_get_user_history: { data: [], error: null },
+      admin_suspend_user: { data: null, error: new Error('nope') },
+    })
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(
@@ -294,10 +466,9 @@ describe('AdminView', () => {
       </MemoryRouter>
     )
 
-    await screen.findByText('Alice')
-    const aliceRow = screen.getByText('Alice').closest('tr')
-    expect(aliceRow).not.toBeNull()
-    fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
+    await openUserModal('Alice')
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }))
 
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Suspend Alice?' })).getByRole('button', { name: 'Suspend' }))
 
@@ -313,10 +484,9 @@ describe('AdminView', () => {
       </MemoryRouter>
     )
 
-    await screen.findByText('Alice')
-    const aliceRow = screen.getByText('Alice').closest('tr')
-    expect(aliceRow).not.toBeNull()
-    fireEvent.click(within(aliceRow as HTMLTableRowElement).getByRole('button', { name: 'Suspend' }))
+    await openUserModal('Alice')
+    const dialog = screen.getByRole('dialog', { name: 'Alice' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }))
 
     const input = within(screen.getByRole('dialog', { name: 'Suspend Alice?' })).getByLabelText('Reason')
     expect(input).toHaveAttribute('maxLength', '200')
@@ -391,10 +561,6 @@ describe('AdminView', () => {
   })
 
   it('captures a broken admin_list_users (42804) so the admin screen is unusable', async () => {
-    // Regression: admin_list_users() declared email TEXT but returned
-    // auth.users.email (varchar(255)) without a cast, so the API answered
-    // 42804 "Returned type character varying(255) does not match expected
-    // type text in column 3" and the whole admin page failed to load.
     const apiError = { code: '42804', message: 'structure of query does not match function result type' }
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
@@ -411,7 +577,6 @@ describe('AdminView', () => {
     )
 
     expect(await screen.findByText('Failed to load admin data.')).toBeInTheDocument()
-    // No data surfaces, so no admin action (claim, settings, lists) is usable.
     expect(screen.queryByText('Alice')).not.toBeInTheDocument()
     expect(screen.queryByText('Curse of Strahd')).not.toBeInTheDocument()
   })
@@ -665,13 +830,81 @@ describe('AdminView', () => {
     const sortButton = within(nameHeader).getByRole('button', { name: /Name/ })
     expect(sortButton.tagName).toBe('BUTTON')
     expect(sortButton).toHaveClass('focus:ring-2', 'focus:ring-inset')
-
-    // jsdom does not synthesize click from Enter/Space keydown; native <button>
-    // gets that activation for free in real browsers, so simulate the click
-    // event the browser dispatches on keyboard activation.
     expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
     fireEvent.click(sortButton)
-
     expect(nameHeader).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('filters users by search text on name and email', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.change(screen.getByPlaceholderText('Search by name or email…'), { target: { value: 'bob' } })
+    expect(screen.getByText('bob@example.com')).toBeInTheDocument()
+    expect(screen.queryByText('Alice')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty state when search matches nothing', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.change(screen.getByPlaceholderText('Search by name or email…'), { target: { value: 'zzz' } })
+    expect(screen.getByText('No users match your search.')).toBeInTheDocument()
+  })
+
+  it('filters users to the Suspended status', async () => {
+    const mixed = [
+      makeUser({ id: 'u1', is_suspended: true }),
+      makeUser({ id: 'u2', display_name: 'Bob', email: 'bob@x', is_suspended: false, last_login_at: '2026-03-01T00:00:00Z' }),
+    ]
+    usersRpc({
+      admin_list_users: { data: mixed, error: null },
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Suspended', pressed: false }))
+
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+  })
+
+  it('filters users to Inactive based on stale or missing login', async () => {
+    const now = Date.now()
+    const days = 31 * 24 * 60 * 60 * 1000
+    const mixed = [
+      makeUser({ id: 'u1', display_name: 'Alice', email: 'a@x', last_login_at: new Date(now - days).toISOString() }),
+      makeUser({ id: 'u2', display_name: 'Never', email: 'n@x', last_login_at: null }),
+      makeUser({ id: 'u3', display_name: 'Recent', email: 'r@x', last_login_at: new Date(now - 1000).toISOString() }),
+    ]
+    usersRpc({
+      admin_list_users: { data: mixed, error: null },
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    fireEvent.click(screen.getByRole('button', { name: 'Inactive', pressed: false }))
+
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('Never')).toBeInTheDocument()
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument()
   })
 })

@@ -4,13 +4,37 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import type { Json } from '../../types/database'
 
+const AdminChannelMembershipSchema = z.object({
+  name: z.string(),
+  character_name: z.string(),
+  joined_at: z.string(),
+  is_blocked: z.boolean(),
+  is_active_player: z.boolean(),
+})
+
 export const AdminUserRowSchema = z.object({
   id: z.string(),
   display_name: z.string().nullable(),
   email: z.string().nullable(),
   channel_count: z.number(),
+  channels: z.array(AdminChannelMembershipSchema),
+  last_login_at: z.string().nullable(),
+  last_message_at: z.string().nullable(),
+  message_count: z.number(),
   created_at: z.string(),
   is_suspended: z.boolean(),
+  avatar_url: z.string().nullable(),
+  server_admin: z.boolean(),
+  email_verified: z.boolean(),
+  provider: z.string().nullable(),
+})
+
+export const AdminAuditEntrySchema = z.object({
+  id: z.string(),
+  action: z.string(),
+  reason: z.string().nullable(),
+  admin_name: z.string().nullable(),
+  created_at: z.string(),
 })
 
 export const AdminChannelRowSchema = z.object({
@@ -26,6 +50,7 @@ export const AdminChannelRowSchema = z.object({
 
 export type AdminUser = z.infer<typeof AdminUserRowSchema>
 export type AdminChannel = z.infer<typeof AdminChannelRowSchema>
+export type AdminAuditEntry = z.infer<typeof AdminAuditEntrySchema>
 
 // Data layer for the server admin console (ARCH-1): the admin_list_* queries,
 // suspend/claim RPCs, and app_settings upserts live here; AdminView keeps the
@@ -134,5 +159,19 @@ export function useAdminData(isServerAdmin: boolean) {
     return upsertError
   }
 
-  return { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings }
+  // Fetches a single user's audit history (suspend/unsuspend actions). Returns
+  // a validated list on success, or an error message string on failure so the
+  // modal can show a friendly error without crashing.
+  const getUserHistory = async (userId: string): Promise<AdminAuditEntry[] | string> => {
+    const { data, error } = await supabase.rpc('admin_get_user_history', { p_user_id: userId })
+    if (error) return error.message
+    if (!Array.isArray(data)) return 'Failed to load audit history.'
+    const entries = data
+      .map(e => AdminAuditEntrySchema.safeParse(e))
+      .filter(r => r.success)
+      .map(r => r.data)
+    return entries
+  }
+
+  return { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings, getUserHistory }
 }

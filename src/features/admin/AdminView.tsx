@@ -4,12 +4,13 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useAdminData, type AdminUser } from './useAdminData'
-import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
-import { TextPromptSheet } from '../../components/TextPromptSheet'
+import { UserDetailModal } from './UserDetailModal'
 
 type Tab = 'users' | 'channels' | 'settings'
-
 type SortDir = 'asc' | 'desc'
+type UserFilter = 'all' | 'active' | 'inactive' | 'suspended'
+
+const INACTIVE_DAYS = 30
 
 function useSort<T>(data: T[], initialKey: keyof T, initialDir: SortDir = 'asc') {
   const [sortKey, setSortKey] = useState<keyof T>(initialKey)
@@ -62,6 +63,15 @@ function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
   )
 }
 
+// A user is Inactive when they never signed in or their last login predates the
+// cutoff. Suspended takes precedence; anything else is Active.
+function userStatus(u: AdminUser): Exclude<UserFilter, 'all'> {
+  if (u.is_suspended) return 'suspended'
+  const lastLogin = u.last_login_at ? new Date(u.last_login_at).getTime() : 0
+  if (!lastLogin || Date.now() - lastLogin > INACTIVE_DAYS * 24 * 60 * 60 * 1000) return 'inactive'
+  return 'active'
+}
+
 export function AdminView() {
   const navigate = useNavigate()
   const { addToast } = useToast()
@@ -76,11 +86,13 @@ export function AdminView() {
   const [imageMaxSize, setImageMaxSize] = useState('5')
   const [imageRetention, setImageRetention] = useState('0')
   const [isSavingImages, setIsSavingImages] = useState(false)
-  const [suspendPromptUser, setSuspendPromptUser] = useState<AdminUser | null>(null)
+  const [detailUser, setDetailUser] = useState<AdminUser | null>(null)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<UserFilter>('all')
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
-  const { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings } = useAdminData(isServerAdmin)
+  const { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings, getUserHistory } = useAdminData(isServerAdmin)
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
@@ -147,21 +159,17 @@ export function AdminView() {
     }
   }
 
-  const handleToggleSuspend = (targetUser: AdminUser) => {
-    // Reason entry happens in the in-app sheet (capped at input); Cancel
-    // closes it with no status change.
-    setSuspendPromptUser(targetUser)
-  }
-
-  const applySuspend = async (targetUser: AdminUser, reason: string) => {
+  const handleSuspend = async (targetUser: AdminUser, reason: string): Promise<boolean> => {
     const action = targetUser.is_suspended ? 'Unsuspend' : 'Suspend'
     const rpcError = await suspendUser(targetUser.id, !targetUser.is_suspended, reason || 'No reason provided')
     if (rpcError) {
       console.error(`Error ${action.toLowerCase()}ing user:`, rpcError)
       addToast(`Failed to ${action.toLowerCase()} user.`, 'error')
-      return
+      return false
     }
     addToast(`User ${action.toLowerCase()}ed successfully.`, 'success')
+    setDetailUser(prev => (prev && prev.id === targetUser.id ? { ...prev, is_suspended: !prev.is_suspended } : prev))
+    return true
   }
 
   const handleClaimChannel = async (channelId: string) => {
@@ -191,6 +199,23 @@ export function AdminView() {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
+
+  const query = search.trim().toLowerCase()
+  const filteredUsers = userSort.sorted.filter(u => {
+    if (filter !== 'all' && userStatus(u) !== filter) return false
+    if (!query) return true
+    return (
+      (u.display_name?.toLowerCase().includes(query) ?? false) ||
+      (u.email?.toLowerCase().includes(query) ?? false)
+    )
+  })
+
+  const filterOptions: { id: UserFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'active', label: 'Active' },
+    { id: 'inactive', label: 'Inactive' },
+    { id: 'suspended', label: 'Suspended' },
+  ]
 
   return (
     <div className="w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
@@ -266,58 +291,87 @@ export function AdminView() {
       ) : (
         <>
           {tab === 'users' && (
-            <div className="bg-white dark:bg-surface-800 shadow overflow-hidden rounded-md">
-              {userSort.sorted.length === 0 ? (
-                <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No users found.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
-                    <thead className="bg-surface-50 dark:bg-surface-900">
-                      <tr>
-                        <SortHeader label="Name" sortKey="display_name" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
-                        <SortHeader label="Channels" sortKey="channel_count" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
-                        <SortHeader label="Joined" sortKey="created_at" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
-                        <SortHeader label="Status" sortKey="is_suspended" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
-                        <th className="px-6 py-3 text-right text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
-                      {userSort.sorted.map(user => (
-                        <tr key={user.id} className={user.is_suspended ? "opacity-75 bg-red-50 dark:bg-red-900/10" : ""}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100 flex items-center gap-2">
-                            {user.display_name || user.email || 'Unknown'}
-                            {user.is_suspended && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                                Suspended
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{user.channel_count}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
-                            {new Date(user.created_at).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
-                            {user.is_suspended ? 'Suspended' : 'Active'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleSuspend(user)}
-                              className={`px-3 py-1 border rounded-md text-sm font-medium ${
-                                user.is_suspended
-                                  ? 'border-surface-300 text-surface-700 bg-white hover:bg-surface-50 dark:bg-surface-800 dark:text-surface-300 dark:border-surface-600 dark:hover:bg-surface-700'
-                                  : 'border-transparent text-white bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                              } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                            >
-                              {user.is_suspended ? 'Unsuspend' : 'Suspend'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label htmlFor="user-search" className="sr-only">Search users</label>
+                <input
+                  id="user-search"
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name or email…"
+                  className="w-full sm:w-72 bg-white dark:bg-surface-800 rounded-md border-surface-300 dark:border-surface-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+                />
+                <div className="flex items-center gap-1" role="group" aria-label="Filter users by status">
+                  {filterOptions.map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setFilter(f.id)}
+                      aria-pressed={filter === f.id}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        filter === f.id
+                          ? 'bg-primary-600 text-white'
+                          : 'text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              <div className="bg-white dark:bg-surface-800 shadow overflow-hidden rounded-md">
+                {filteredUsers.length === 0 ? (
+                  <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">
+                    {users.length === 0 ? 'No users found.' : 'No users match your search.'}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
+                      <thead className="bg-surface-50 dark:bg-surface-900">
+                        <tr>
+                          <SortHeader label="Name" sortKey="display_name" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                          <SortHeader label="Channels" sortKey="channel_count" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                          <SortHeader label="Joined" sortKey="created_at" activeKey={userSort.sortKey} sortDir={userSort.sortDir} onSort={userSort.handleSort} />
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
+                        {filteredUsers.map(user => (
+                          <tr
+                            key={user.id}
+                            className={`${user.is_suspended ? "opacity-75 bg-red-50 dark:bg-red-900/10" : "hover:bg-surface-50 dark:hover:bg-surface-700/40"}`}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">
+                              <button
+                                type="button"
+                                onClick={() => setDetailUser(user)}
+                                className="inline-flex items-center gap-2 text-left hover:underline focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 rounded cursor-pointer"
+                              >
+                                <span>{user.display_name || user.email || 'Unknown'}</span>
+                                {user.is_suspended && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                                    Suspended
+                                  </span>
+                                )}
+                                {user.server_admin && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200">
+                                    Admin
+                                  </span>
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{user.channel_count}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+                              {new Date(user.created_at).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -463,19 +517,12 @@ export function AdminView() {
         </>
       )}
 
-      {suspendPromptUser && (
-        <TextPromptSheet
-          title={`${suspendPromptUser.is_suspended ? 'Unsuspend' : 'Suspend'} ${suspendPromptUser.display_name?.trim() || suspendPromptUser.email?.trim() || 'Unknown user'}?`}
-          label="Reason"
-          placeholder="Reason (optional)"
-          maxLength={MAX_ADMIN_SUSPEND_REASON_LENGTH}
-          confirmLabel={suspendPromptUser.is_suspended ? 'Unsuspend' : 'Suspend'}
-          onConfirm={(reason) => {
-            const targetUser = suspendPromptUser
-            setSuspendPromptUser(null)
-            void applySuspend(targetUser, reason)
-          }}
-          onClose={() => setSuspendPromptUser(null)}
+      {detailUser && (
+        <UserDetailModal
+          user={detailUser}
+          onClose={() => setDetailUser(null)}
+          onSuspend={handleSuspend}
+          getUserHistory={getUserHistory}
         />
       )}
     </div>
