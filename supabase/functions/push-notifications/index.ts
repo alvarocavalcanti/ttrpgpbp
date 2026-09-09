@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementGmTargets } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
 import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
 import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription } from "./validation.ts"
@@ -185,8 +185,9 @@ async function buildTurnEvent(
 }
 
 // Admin message events: the trigger supplies a message_id. Recipients and copy
-// are read from admin_threads/admin_messages. Announcements go to every active
-// GM; admin DMs go to the non-sender participant (the server admin or the GM).
+// are read from admin_threads/admin_messages. Announcements route by audience
+// ('all_users' = every non-suspended user, 'gms' = active GMs); admin DMs go
+// to the non-sender participant (the server admin or the GM).
 async function buildAdminMessageEvent(
   payload: AdminTrigger,
   serviceClient: ReturnType<typeof createClient>
@@ -204,7 +205,7 @@ async function buildAdminMessageEvent(
   }
 
   const [{ data: thread }, { data: sender }] = await Promise.all([
-    serviceClient.from("admin_threads").select("type, subject, gm_id").eq("id", message.thread_id).maybeSingle(),
+    serviceClient.from("admin_threads").select("type, subject, gm_id, audience").eq("id", message.thread_id).maybeSingle(),
     serviceClient.from("profiles").select("display_name").eq("id", message.sender_id).maybeSingle(),
   ])
 
@@ -214,20 +215,29 @@ async function buildAdminMessageEvent(
 
   let adminTargetUserIds: string[] = []
   if (thread.type === "announcement") {
-    const { data: gms } = await serviceClient
-      .from("channels")
-      .select("gm_id")
-      .neq("gm_id", null)
-      .eq("is_archived", false)
-    const gmIds = [...new Set((gms ?? []).map(r => r.gm_id))]
-    // Suspended GMs can no longer read their channels (is_active_gm parity).
-    const { data: gmProfiles } = gmIds.length > 0
-      ? await serviceClient
-          .from("profiles")
-          .select("id, is_suspended")
-          .in("id", gmIds)
-      : { data: [] }
-    adminTargetUserIds = resolveAnnouncementGmTargets(gms ?? [], gmProfiles ?? [])
+    if (thread.audience === "all_users") {
+      // Every non-suspended user. resolveAnnouncementTargets only reads
+      // (id, is_suspended); profile rows are trusted server-side.
+      const { data: profiles } = await serviceClient
+        .from("profiles")
+        .select("id, is_suspended")
+      adminTargetUserIds = resolveAnnouncementTargets("all_users", profiles ?? [], [])
+    } else {
+      const { data: gms } = await serviceClient
+        .from("channels")
+        .select("gm_id")
+        .neq("gm_id", null)
+        .eq("is_archived", false)
+      const gmIds = [...new Set((gms ?? []).map(r => r.gm_id))]
+      // Suspended GMs can no longer read their channels (is_active_gm parity).
+      const { data: gmProfiles } = gmIds.length > 0
+        ? await serviceClient
+            .from("profiles")
+            .select("id, is_suspended")
+            .in("id", gmIds)
+        : { data: [] }
+      adminTargetUserIds = resolveAnnouncementTargets(thread.audience, gmProfiles ?? [], gmIds)
+    }
   } else {
     const { data: admin } = await serviceClient
       .from("profiles")

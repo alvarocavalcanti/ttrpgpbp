@@ -28,6 +28,7 @@ const mockThread: Thread = {
   type: 'announcement',
   subject: 'Test Announcement',
   gm_id: null,
+  audience: 'gms',
   created_by: 'user-admin',
   last_message_at: new Date().toISOString(),
   created_at: new Date().toISOString(),

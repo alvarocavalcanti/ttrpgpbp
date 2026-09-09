@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Thread } from './types'
 import { useAdminThreads, type CreateThreadInput } from './useAdminThreads'
-import { useActiveGms } from './useActiveGms'
+import { useMessageRecipients } from './useMessageRecipients'
 import { Avatar } from '../../components/Avatar'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useToast } from '../../contexts/ToastContext'
@@ -80,9 +80,18 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
                       {new Date(thread.last_message_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className={`text-sm truncate ${thread.unread ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {thread.type === 'announcement' ? thread.subject : 'Direct Message'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    {thread.type === 'announcement' && (
+                      <span
+                        className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
+                      >
+                        {thread.audience === 'all_users' ? 'All users' : 'GMs'}
+                      </span>
+                    )}
+                    <p className={`text-sm truncate ${thread.unread ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {thread.type === 'announcement' ? thread.subject : 'Direct Message'}
+                    </p>
+                  </div>
                 </div>
                 {thread.unread && <div className="w-2 h-2 bg-indigo-600 rounded-full flex-shrink-0 mt-2"></div>}
               </button>
@@ -110,10 +119,12 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { o
   const [type, setType] = useState<'announcement' | 'dm'>(isServerAdmin ? 'announcement' : 'dm')
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState('')
+  // Announcements default to the GM-only audience.
+  const [audience, setAudience] = useState<'gms' | 'all_users'>('gms')
   const [gmId, setGmId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { addToast } = useToast()
-  const { gms, loading: gmsLoading, error: gmsError, refetch: refetchGms } = useActiveGms(isServerAdmin)
+  const { recipients, loading: recipientsLoading, error: recipientsError, refetch: refetchRecipients } = useMessageRecipients(isServerAdmin)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,6 +133,7 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { o
       type,
       subject,
       content,
+      audience: type === 'announcement' ? audience : null,
       gmId: type === 'dm' && isServerAdmin ? gmId : null
     })
     // On failure the hook has already surfaced a toast; stay in the modal so
@@ -162,23 +174,34 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { o
             )}
 
             {type === 'announcement' ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
-                <input required maxLength={100} value={subject} onChange={e => setSubject(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 text-gray-900 dark:text-white" />
-              </div>
+              <>
+                {isServerAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Audience</label>
+                    <select value={audience} onChange={e => setAudience(e.target.value as 'gms' | 'all_users')} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 text-gray-900 dark:text-white">
+                      <option value="gms">GMs only</option>
+                      <option value="all_users">All users</option>
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
+                  <input required maxLength={100} value={subject} onChange={e => setSubject(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 text-gray-900 dark:text-white" />
+                </div>
+              </>
             ) : (
               isServerAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To GM</label>
-                  {gmsError ? (
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To user</label>
+                  {recipientsError ? (
                     <div className="flex justify-between items-center text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded px-3 py-2">
-                      <span>Couldn't load the GM list.</span>
-                      <button type="button" onClick={() => refetchGms()} className="font-semibold hover:underline">Retry</button>
+                      <span>Couldn't load the recipient list.</span>
+                      <button type="button" onClick={() => refetchRecipients()} className="font-semibold hover:underline">Retry</button>
                     </div>
                   ) : (
-                    <select required value={gmId} onChange={e => setGmId(e.target.value)} disabled={gmsLoading} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
-                      <option value="">{gmsLoading ? 'Loading GMs...' : 'Select GM...'}</option>
-                      {gms.map(g => <option key={g.id} value={g.id}>{g.display_name}</option>)}
+                    <select required value={gmId} onChange={e => setGmId(e.target.value)} disabled={recipientsLoading} className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 text-gray-900 dark:text-white">
+                      <option value="">{recipientsLoading ? 'Loading users...' : 'Select user...'}</option>
+                      {recipients.map(g => <option key={g.id} value={g.id}>{g.display_name}</option>)}
                     </select>
                   )}
                 </div>
@@ -195,7 +218,7 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { o
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 dark:text-gray-300">Cancel</button>
             <button
               type="submit"
-              disabled={submitting || (type === 'dm' && isServerAdmin && (!!gmsError || !gmId))}
+              disabled={submitting || (type === 'dm' && isServerAdmin && (!!recipientsError || !gmId))}
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
             >
               {submitting ? 'Sending...' : 'Send'}

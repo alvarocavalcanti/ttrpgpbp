@@ -33,8 +33,22 @@ describe('PrivacyPage', () => {
     expect(screen.getByText('What we collect')).toBeInTheDocument()
     expect(screen.getByText('Where data is stored')).toBeInTheDocument()
     expect(screen.getByText('Google OAuth scopes')).toBeInTheDocument()
+    expect(screen.getByText('Email updates')).toBeInTheDocument()
     expect(screen.getByText('email')).toBeInTheDocument()
     expect(screen.getByText('profile')).toBeInTheDocument()
+  })
+
+  it('describes the email opt-in consent basis and purposes', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/If you opt in to email updates in Settings/)).toBeInTheDocument()
+    expect(screen.getAllByText(/product updates, beta invitations, and replies to feedback or/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Your email is never shared or sold/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Account\s*and security notices may be sent without consent/)).toBeInTheDocument()
   })
 
   it('links back home', () => {

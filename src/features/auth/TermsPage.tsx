@@ -60,7 +60,17 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">6. Termination</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">6. Communications</h2>
+          <p>
+            In-app messages (announcements and direct messages with the server administrator) are part
+            of the service and do not require additional consent. We will only send you email if you opt
+            in to email updates in Settings; you can opt out at any time there. Account and security
+            notices may be sent to your email without consent. Email addresses are never shared or sold.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">7. Termination</h2>
           <p>
             You may terminate your account at any time via Settings. The server administrator may also terminate or suspend
             access to our service immediately, without prior notice or liability, for any reason whatsoever, including without
@@ -69,7 +79,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">7. Disclaimer of Warranties</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">8. Disclaimer of Warranties</h2>
           <p>
             Role by Post is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. We disclaim all warranties of any
             kind, whether express or implied, including but not limited to the implied warranties of merchantability, fitness
@@ -79,7 +89,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">8. Limitation of Liability</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">9. Limitation of Liability</h2>
           <p>
             In no event shall Role by Post, its creator, or its administrators be liable for any indirect, incidental, special,
             consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other
@@ -88,7 +98,7 @@ export function TermsPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: August 20, 2026. For questions regarding these Terms, contact the server administrator.
+          Last updated: September 9, 2026. For questions regarding these Terms, contact the server administrator.
         </p>
       </div>
     </div>

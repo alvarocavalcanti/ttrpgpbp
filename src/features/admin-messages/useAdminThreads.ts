@@ -28,8 +28,11 @@ export type CreateThreadInput = {
   type: 'announcement' | 'dm'
   subject: string | null
   content: string
+  // Announcement audience (#466): 'gms' or 'all_users'. Required for
+  // announcements; dms carry no audience.
+  audience?: 'all_users' | 'gms' | null
   // Explicit GM for an admin-started DM; null means "the signed-in user" for
-  // GM-started DMs (or no GM for announcements).
+  // user/GM-started support DMs (or no GM for announcements).
   gmId: string | null
 }
 
@@ -48,42 +51,75 @@ export function useAdminThreadActions() {
       addToast('You need to be signed in.', 'error')
       return null
     }
-    const { data: threadRow, error: threadError } = await supabase.from('admin_threads').insert({
-      type: input.type,
-      subject: input.type === 'announcement' ? input.subject : null,
-      gm_id: input.type === 'dm' ? (input.gmId ?? user.id) : null,
-      created_by: user.id
-    }).select().single()
 
-    if (threadError || !threadRow) {
-      addToast("Couldn't start the conversation. Please try again.", 'error')
-      return null
+    let threadRow: Record<string, unknown> | null = null
+    let threadId: string | null = null
+    let isNewThread = true
+
+    if (input.type === 'dm' && input.gmId === null) {
+      // User-initiated support DM: one reused thread per user. A concurrent
+      // duplicate can occur (check-then-create window) — same accepted race
+      // class as the GM flow; the SECOND message lands in whichever thread
+      // the loser's list shows after realtime refresh.
+      const { data: existing } = await supabase
+        .from('admin_threads')
+        .select('*')
+        .eq('type', 'dm')
+        .eq('gm_id', user.id)
+        .limit(1)
+      if (existing && existing.length > 0) {
+        threadRow = existing[0]
+        threadId = (threadRow as { id: string }).id
+        isNewThread = false
+      }
     }
-    const threadId = (threadRow as { id: string }).id
+
+    if (!threadRow) {
+      const { data: inserted, error: threadError } = await supabase.from('admin_threads').insert({
+        type: input.type,
+        subject: input.type === 'announcement' ? input.subject : null,
+        audience: input.type === 'announcement' ? (input.audience ?? 'gms') : null,
+        gm_id: input.type === 'dm' ? (input.gmId ?? user.id) : null,
+        created_by: user.id
+      }).select().single()
+
+      if (threadError || !inserted) {
+        addToast("Couldn't start the conversation. Please try again.", 'error')
+        return null
+      }
+      threadRow = inserted as Record<string, unknown>
+      threadId = (threadRow as { id: string }).id
+    }
 
     const { error: msgError } = await supabase.from('admin_messages').insert({
-      thread_id: threadId,
+      thread_id: threadId as string,
       content: input.content,
       sender_id: user.id
     })
     if (msgError) {
-      // Roll back the empty thread so a failed first message can't strand one.
-      const { error: rollbackError } = await supabase
-        .from('admin_threads')
-        .delete()
-        .eq('id', threadId)
-      addToast(
-        rollbackError
-          ? "Couldn't send your message. An empty conversation may remain — you can delete it from the list."
-          : "Couldn't send your message. Nothing was created — please try again.",
-        'error'
-      )
+      if (isNewThread) {
+        // Roll back the empty thread so a failed first message can't strand
+        // one. A reused support thread is kept (it has history).
+        const { error: rollbackError } = await supabase
+          .from('admin_threads')
+          .delete()
+          .eq('id', threadId as string)
+        addToast(
+          rollbackError
+            ? "Couldn't send your message. An empty conversation may remain — you can delete it from the list."
+            : "Couldn't send your message. Nothing was created — please try again.",
+          'error'
+        )
+      } else {
+        addToast("Couldn't send your message. Please try again.", 'error')
+      }
       return null
     }
 
-    // Mark the newly created thread as read for the creator so they don't see
-    // it as unread. Non-critical: failure only means a spurious unread dot.
-    const { error: readError } = await supabase.rpc('mark_admin_thread_read', { p_thread_id: threadId })
+    // Mark the thread as read for the sender so they don't see their own
+    // message as an unread dot. Non-critical: failure only means a spurious
+    // unread dot.
+    const { error: readError } = await supabase.rpc('mark_admin_thread_read', { p_thread_id: threadId as string })
     if (readError) console.error('Failed to mark new thread as read:', readError)
 
     // Fetch the full thread with creator/gm joins and validate it with the
@@ -95,7 +131,7 @@ export function useAdminThreadActions() {
         gm:profiles!admin_threads_gm_id_fkey(display_name, avatar_url),
         admin_thread_reads!left(last_read_at)
       `)
-      .eq('id', threadId)
+      .eq('id', threadId as string)
       .single()
     // A missing/unparsable row isn't fatal: the thread exists and the list's
     // realtime refresh will show it; we just can't select it right away.

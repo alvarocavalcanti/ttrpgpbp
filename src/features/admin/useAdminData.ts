@@ -27,6 +27,7 @@ export const AdminUserRowSchema = z.object({
   server_admin: z.boolean(),
   email_verified: z.boolean(),
   provider: z.string().nullable(),
+  email_opt_in: z.boolean().nullish(),
 })
 
 export const AdminAuditEntrySchema = z.object({

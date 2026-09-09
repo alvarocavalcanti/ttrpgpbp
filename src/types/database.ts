@@ -165,6 +165,7 @@ export type Database = {
       }
       admin_threads: {
         Row: {
+          audience: Database["public"]["Enums"]["admin_thread_audience"] | null
           created_at: string
           created_by: string
           gm_id: string | null
@@ -175,6 +176,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: Database["public"]["Enums"]["admin_thread_audience"] | null
           created_at?: string
           created_by: string
           gm_id?: string | null
@@ -185,6 +187,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: Database["public"]["Enums"]["admin_thread_audience"] | null
           created_at?: string
           created_by?: string
           gm_id?: string | null
@@ -805,6 +808,8 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email_opt_in: boolean
+          email_opt_in_at: string | null
           id: string
           is_suspended: boolean
           server_admin: boolean
@@ -813,6 +818,8 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email_opt_in?: boolean
+          email_opt_in_at?: string | null
           id: string
           is_suspended?: boolean
           server_admin?: boolean
@@ -821,6 +828,8 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email_opt_in?: boolean
+          email_opt_in_at?: string | null
           id?: string
           is_suspended?: boolean
           server_admin?: boolean
@@ -993,14 +1002,6 @@ export type Database = {
           reason: string
         }[]
       }
-      admin_list_active_gms: {
-        Args: never
-        Returns: {
-          avatar_url: string
-          display_name: string
-          id: string
-        }[]
-      }
       admin_list_channels: {
         Args: never
         Returns: {
@@ -1014,6 +1015,14 @@ export type Database = {
           name: string
         }[]
       }
+      admin_list_message_recipients: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+        }[]
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -1023,6 +1032,7 @@ export type Database = {
           created_at: string
           display_name: string
           email: string
+          email_opt_in: boolean
           email_verified: boolean
           id: string
           is_suspended: boolean
@@ -1239,6 +1249,7 @@ export type Database = {
       url_scheme_allowed: { Args: { p_url: string }; Returns: boolean }
     }
     Enums: {
+      admin_thread_audience: "all_users" | "gms"
       admin_thread_type: "announcement" | "dm"
     }
     CompositeTypes: {
@@ -1370,6 +1381,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      admin_thread_audience: ["all_users", "gms"],
       admin_thread_type: ["announcement", "dm"],
     },
   },

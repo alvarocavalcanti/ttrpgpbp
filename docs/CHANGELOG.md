@@ -35,6 +35,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Messages are for everyone** — the **Messages** item in the app menu is now visible to every player, not just GMs: announcements reach everyone (or GMs only, when they're addressed to GMs — you'll see a small chip on each announcement saying which), and you can always start a conversation with the server admin from the same screen, so support questions have one front door. If a conversation already exists, replying reuses it instead of starting a new one. Suspended players can still message the server admin, but stop seeing announcements while suspended.
+- **Email updates are opt-in** — you can now tell us it's OK to email you (product updates, beta invitations, and replies to your feedback) from a new checkbox in Settings. It's off by default and you can turn it off again at any time. We never share or sell addresses.
 - **Install Role by Post as an app** — when your browser can install the site as a PWA, a small banner at the top of the screen offers to add it to your home screen for one-tap access and offline play. Say "No thanks" and it stays hidden for a month. (Chromium browsers only — iOS Safari and Firefox don't support installing this way.)
 - **Critical rolls call it out** — a d20 that lands on a natural 20 now shows **Critical Success** on the roll, and a natural 1 shows **Critical Failure**. It applies to a single d20 (or the one kept die of an Advantage or Disadvantage roll) — modifiers don't change it — and the roll history marks the same moments.
 - **Character notes in your data export** — the "Download My Data" file now includes the character notes you saved on each channel, so everything you wrote down comes out with the rest of your data.

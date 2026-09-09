@@ -28,6 +28,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   type: 'announcement',
   subject: 'Hi',
   gm_id: null,
+  audience: 'gms',
   created_by: 'a1',
   last_message_at: '2026-08-01T00:00:00Z',
   created_at: '2026-08-01T00:00:00Z',
@@ -212,15 +213,20 @@ describe('useAdminThreads mutations', () => {
     } as any)
   })
 
-  // Wires supabase.from for both the list read (select -> order -> limit) and
-  // the mutation paths (insert -> select -> single, select -> eq -> single,
-  // delete -> eq) so one render covers initial fetch plus mutations.
+  // Wires supabase.from for the list read (select -> order -> limit), the
+  // support-thread reuse check (select -> eq -> eq -> limit 1), the mutation
+  // paths (insert -> select -> single, select -> eq -> single, delete -> eq)
+  // so one render covers initial fetch plus mutations.
   function mockFrom({
+    listData = [],
+    reuseData = [],
     insertSingle = { data: null, error: null },
     fullSingle = { data: null, error: null },
     msgError = null,
     deleteError = null
   }: {
+    listData?: unknown[],
+    reuseData?: unknown[],
     insertSingle?: { data: unknown, error: unknown },
     fullSingle?: { data: unknown, error: unknown },
     msgError?: unknown,
@@ -231,23 +237,36 @@ describe('useAdminThreads mutations', () => {
     const threadDelete = vi.fn(() => ({ eq: threadDeleteEq }))
     const insertSelectSingle = vi.fn().mockResolvedValue(insertSingle)
     const threadInsert = vi.fn(() => ({ select: () => ({ single: insertSelectSingle }) }))
+    // Full-row fetch: select() -> eq('id', ...) -> single().
+    // Support-thread reuse check: select('*') -> eq() -> eq() -> limit(1).
     const fullEqSingle = vi.fn().mockResolvedValue(fullSingle)
-    const listLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const threadSelect = vi.fn(() => ({
-      order: vi.fn(() => ({ order: vi.fn(() => ({ limit: listLimit })) })),
-      eq: () => ({ single: fullEqSingle })
-    }))
+    const reuseLimit = vi.fn().mockResolvedValue({ data: reuseData, error: null })
+    const eqChain: any = {
+      single: fullEqSingle,
+      limit: reuseLimit,
+      eq: () => eqChain
+    }
+    const listLimit = vi.fn().mockResolvedValue({ data: listData, error: null })
+    const threadSelect = vi.fn(() => {
+      const chain: any = {
+        order: () => chain,
+        or: () => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+        limit: listLimit,
+        eq: () => eqChain
+      }
+      return chain
+    })
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'admin_threads') return { select: threadSelect, insert: threadInsert, delete: threadDelete } as any
       if (table === 'admin_messages') return { insert: msgInsert } as any
       return {} as any
     })
-    return { msgInsert, threadDeleteEq, threadInsert, insertSelectSingle, fullEqSingle }
+    return { msgInsert, threadDeleteEq, threadInsert, insertSelectSingle, fullEqSingle, reuseLimit, listLimit }
   }
 
   it('creates a thread, sends the first message, marks it read and returns the parsed row', async () => {
     const bare = {
-      id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null,
+      id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, audience: 'gms',
       created_by: 'u1', last_message_at: '2026-08-01T00:00:00Z',
       created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z'
     }
@@ -273,8 +292,9 @@ describe('useAdminThreads mutations', () => {
     expect(created.id).toBe('t-new')
     expect(created.creator).toEqual({ display_name: 'Admin', avatar_url: null })
     expect(created.unread).toBe(false)
+    // Audience omitted falls back to the GM-only default.
     expect(mocks.threadInsert).toHaveBeenCalledWith({
-      type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1'
+      type: 'announcement', subject: 'Hi', audience: 'gms', gm_id: null, created_by: 'u1'
     })
     expect(mocks.msgInsert).toHaveBeenCalledWith({
       thread_id: 't-new', content: 'Body', sender_id: 'u1'
@@ -282,9 +302,30 @@ describe('useAdminThreads mutations', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('mark_admin_thread_read', { p_thread_id: 't-new' })
   })
 
+  it('forwards an explicit all_users audience for announcements', async () => {
+    const bare = {
+      id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, audience: 'all_users',
+      created_by: 'u1', last_message_at: '2026-08-01T00:00:00Z',
+      created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z',
+      creator: [{ display_name: 'Admin', avatar_url: null }], gm: null, admin_thread_reads: []
+    }
+    const mocks = mockFrom({ insertSingle: { data: bare, error: null }, fullSingle: { data: bare, error: null } })
+
+    const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.createThread({ type: 'announcement', subject: 'Hi', content: 'Body', audience: 'all_users', gmId: null })
+    })
+
+    expect(mocks.threadInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'announcement', audience: 'all_users' })
+    )
+  })
+
   it('maps a dm without an explicit gm to the signed-in user', async () => {
     const bare = {
-      id: 't-dm', type: 'dm', subject: null, gm_id: 'u1',
+      id: 't-dm', type: 'dm', subject: null, gm_id: 'u1', audience: null,
       created_by: 'u1', last_message_at: '2026-08-01T00:00:00Z',
       created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z',
       creator: [{ display_name: 'GM', avatar_url: null }], gm: null,
@@ -296,31 +337,64 @@ describe('useAdminThreads mutations', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
-      await result.current.createThread({ type: 'dm', subject: null, content: 'yo', gmId: null })
+      await result.current.createThread({ type: 'dm', subject: null, content: 'yo', audience: null, gmId: null })
     })
 
     expect(mocks.threadInsert).toHaveBeenCalledWith({
-      type: 'dm', subject: null, gm_id: 'u1', created_by: 'u1'
+      type: 'dm', subject: null, audience: null, gm_id: 'u1', created_by: 'u1'
     })
   })
 
-  it('toasts and returns null when the thread insert fails', async () => {
-    mockFrom({ insertSingle: { data: null, error: { message: 'fail' } } })
+  it('reuses the existing per-user support thread for a user-started dm', async () => {
+    const existing = {
+      id: 't-support', type: 'dm', subject: null, gm_id: 'u1', audience: null,
+      created_by: 'u1', last_message_at: '2026-08-01T00:00:00Z',
+      created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z',
+      creator: [{ display_name: 'GM', avatar_url: null }], gm: null,
+      admin_thread_reads: []
+    }
+    const mocks = mockFrom({ reuseData: [existing], insertSingle: { data: null, error: null }, fullSingle: { data: existing, error: null } })
 
     const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     let created: any
     await act(async () => {
-      created = await result.current.createThread({ type: 'announcement', subject: 'Hi', content: 'Body', gmId: null })
+      created = await result.current.createThread({ type: 'dm', subject: null, content: 'again', audience: null, gmId: null })
+    })
+
+    // No second thread: the existing one is reused and gets the message.
+    expect(mocks.threadInsert).not.toHaveBeenCalled()
+    expect(mocks.msgInsert).toHaveBeenCalledWith({
+      thread_id: 't-support', content: 'again', sender_id: 'u1'
+    })
+    expect(created.id).toBe('t-support')
+  })
+
+  it('keeps a reused support thread when the message fails to send', async () => {
+    const existing = {
+      id: 't-support', type: 'dm', subject: null, gm_id: 'u1', audience: null,
+      created_by: 'u1', last_message_at: '2026-08-01T00:00:00Z'
+    }
+    const mocks = mockFrom({ reuseData: [existing], msgError: { message: 'send failed' } })
+
+    const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createThread({ type: 'dm', subject: null, content: 'oops', audience: null, gmId: null })
     })
 
     expect(created).toBeNull()
-    expect(document.body.textContent).toContain("Couldn't start the conversation")
+    // History must not be deleted: the reuse path never rolls back.
+    expect(mocks.threadDeleteEq).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain("Couldn't send your message")
+    expect(document.body.textContent).not.toContain('empty conversation may remain')
   })
 
   it('rolls back the empty thread and toasts when the first message fails', async () => {
-    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1' }
+    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, audience: 'gms', created_by: 'u1' }
     const mocks = mockFrom({
       insertSingle: { data: bare, error: null },
       msgError: { message: 'send failed' }
@@ -341,7 +415,7 @@ describe('useAdminThreads mutations', () => {
   })
 
   it('warns about the stranded thread when the rollback itself fails', async () => {
-    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1' }
+    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, audience: 'gms', created_by: 'u1' }
     mockFrom({
       insertSingle: { data: bare, error: null },
       msgError: { message: 'send failed' },
@@ -363,7 +437,7 @@ describe('useAdminThreads mutations', () => {
   it('returns the parsed thread from the full-row fetch for validation', async () => {
     // A row that fails AdminThreadRowSchema (missing id) must yield null
     // instead of being cast blindly.
-    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1' }
+    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, audience: 'gms', created_by: 'u1' }
     mockFrom({ insertSingle: { data: bare, error: null }, fullSingle: { data: { nope: true }, error: null } })
 
     const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
@@ -380,7 +454,7 @@ describe('useAdminThreads mutations', () => {
   it("returns 'committed' when the full-row fetch comes back empty", async () => {
     // The thread and message were created (the list's realtime refresh shows
     // them), so a missing full row must not read as a failed submission.
-    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, created_by: 'u1' }
+    const bare = { id: 't-new', type: 'announcement', subject: 'Hi', gm_id: null, audience: 'gms', created_by: 'u1' }
     mockFrom({ insertSingle: { data: bare, error: null }, fullSingle: { data: null, error: null } })
 
     const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })

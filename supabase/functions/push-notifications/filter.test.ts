@@ -1,5 +1,5 @@
 import {describe, it, expect } from 'vitest'
-import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementGmTargets} from './filter.ts'
+import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets} from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -546,35 +546,30 @@ describe('isAllowedOrigin', () => {
   })
 })
 
-describe('resolveAnnouncementGmTargets', () => {
-  it('drops suspended GMs and dedupes multi-channel GMs', () => {
-    const gms = [
-      { gm_id: 'gm1' },
-      { gm_id: 'gm2' },
-      { gm_id: 'gm2' }, // GM of two channels — one push only
-      { gm_id: 'gm3' },
-      { gm_id: null }, // unclaimed channel
-    ]
-    const profiles = [
-      { id: 'gm1', is_suspended: false },
-      { id: 'gm2', is_suspended: true }, // suspended — no announcement push
-      { id: 'gm3', is_suspended: false },
-    ]
+describe('resolveAnnouncementTargets', () => {
+  const profiles = [
+    { id: 'u1', is_suspended: false },
+    { id: 'u2', is_suspended: true },
+    { id: 'u3', is_suspended: false },
+  ]
 
-    expect(resolveAnnouncementGmTargets(gms, profiles)).toEqual(['gm1', 'gm3'])
+  it("the 'all_users' audience returns every non-suspended user, suspension excluded", () => {
+    expect(resolveAnnouncementTargets('all_users', profiles, [])).toEqual(['u1', 'u3'])
   })
 
-  it('returns every GM when no profile is suspended', () => {
-    const gms = [{ gm_id: 'gm1' }, { gm_id: 'gm2' }]
-    const profiles = [
-      { id: 'gm1', is_suspended: false },
-      { id: 'gm2', is_suspended: false },
-    ]
-
-    expect(resolveAnnouncementGmTargets(gms, profiles)).toEqual(['gm1', 'gm2'])
+  it("the 'gms' audience returns distinct non-suspended GMs", () => {
+    expect(resolveAnnouncementTargets('gms', profiles, ['u1', 'u1', 'u2', 'u3'])).toEqual(['u1', 'u3'])
   })
 
-  it('returns nothing for empty channel list', () => {
-    expect(resolveAnnouncementGmTargets([], [{ id: 'gm1', is_suspended: false }])).toEqual([])
+  it('returns nothing when every GM is suspended', () => {
+    expect(resolveAnnouncementTargets('gms', profiles, ['u2'])).toEqual([])
+  })
+
+  it('handles a null audience defensively (empty targets)', () => {
+    expect(resolveAnnouncementTargets(null, profiles, ['u1'])).toEqual([])
+  })
+
+  it('returns nothing for empty profiles', () => {
+    expect(resolveAnnouncementTargets('all_users', [], [])).toEqual([])
   })
 })
