@@ -56,7 +56,8 @@ CREATE TRIGGER abuse_reports_integrity
   EXECUTE FUNCTION enforce_abuse_report_integrity();
 
 -- Protect the derivation from later tampering by admin tooling: reporting is
--- append-only, no UPDATE path needs to change these columns anyway.
+-- append-only, no UPDATE path needs to change these columns anyway (admins
+-- resolve reports via the status column only).
 CREATE OR REPLACE FUNCTION enforce_abuse_report_immutable_report_target()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -65,6 +66,11 @@ BEGIN
   IF NEW.message_id IS DISTINCT FROM OLD.message_id
      OR NEW.reporter_id IS DISTINCT FROM OLD.reporter_id THEN
     RAISE EXCEPTION 'Report linkage (reporter/message) cannot be changed.';
+  END IF;
+  -- Derived columns are equally guarded: admin UPDATEs touch status only.
+  IF NEW.channel_id IS DISTINCT FROM OLD.channel_id
+     OR NEW.reported_user_id IS DISTINCT FROM OLD.reported_user_id THEN
+    RAISE EXCEPTION 'Derived report target (channel/user) cannot be changed.';
   END IF;
   RETURN NEW;
 END;

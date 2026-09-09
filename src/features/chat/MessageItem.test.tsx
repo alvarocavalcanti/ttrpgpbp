@@ -1191,4 +1191,30 @@ describe('MessageItem report action (#467)', () => {
     await waitFor(() => expect(onReport).toHaveBeenCalled())
     expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
   })
+
+  // Post-then-delete abuse: a deleted message can still be reported, and the
+  // deleted marker exposes ONLY the Report action (no Reply/Reactions).
+  it('shows a report-only action row on a deleted message from another player', () => {
+    renderMsg({ ...baseMsg, is_deleted: true })
+    expect(screen.getByLabelText('Report')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Reply')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Reactions')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument()
+  })
+
+  it('submits a report for a deleted message end to end', async () => {
+    const onReport = vi.fn().mockResolvedValue(undefined)
+    const msg = { ...baseMsg, is_deleted: true }
+    renderMsg(msg, { onReport })
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
+      target: { value: 'posted harassment then deleted it' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+    await waitFor(() => expect(onReport).toHaveBeenCalledWith(msg, 'posted harassment then deleted it'))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Report this message' })).not.toBeInTheDocument(),
+    )
+  })
 })

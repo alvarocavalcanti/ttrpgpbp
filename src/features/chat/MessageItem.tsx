@@ -372,7 +372,8 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   // so touch users get one large target instead of several tiny ones.
   const actions = useMemo(() => {
     const list: { id: string; label: string; danger?: boolean; onClick: () => void; icon: React.ReactNode }[] = []
-    if (onReply) {
+    // Reply targets the live message; a deleted one offers nothing to quote.
+    if (onReply && !message.is_deleted) {
       list.push({
         id: 'reply', label: 'Reply', onClick: () => onReply(message),
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>,
@@ -384,13 +385,13 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
       })
     }
-    if (canEdit || isGM) {
+    if (!message.is_deleted && (canEdit || isGM)) {
       list.push({
         id: 'delete', label: 'Delete', danger: true, onClick: () => setConfirmDelete(true),
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
       })
     }
-    if (onToggleReaction && !message.pending && !isScene && !isSystem && message.type !== 'dice_roll') {
+    if (onToggleReaction && !message.pending && !isScene && !isSystem && message.type !== 'dice_roll' && !message.is_deleted) {
       list.push({
         id: 'reactions', label: 'Reactions', onClick: () => setReactionsOpen(true),
         icon: (
@@ -401,8 +402,9 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       })
     }
     // Report another player (#467): only real, non-pending messages from
-    // someone else. NPC messages have no sender_id, so they're auto-hidden;
-    // the system branch never renders actions at all.
+    // someone else. NPC messages have no sender_id, so they're auto-hidden.
+    // Deleted messages stay reportable (post-then-delete abuse) and end up
+    // alone on the action row — for them the row renders report-only.
     if (onReport && !isMe && message.sender_id && !message.pending && !isSystem) {
       list.push({
         id: 'report', label: 'Report', danger: true, onClick: () => setReportOpen(true),
@@ -601,7 +603,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             onClose={() => setCheckDraft(null)}
           />
         )}
-        {!message.is_deleted && !message.pending && !isEditing && actions.length > 0 && (
+        {!message.pending && !isEditing && actions.length > 0 && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} items-center gap-1`}>{actionIcons}</div>
             {mobileMenuButton}
@@ -768,7 +770,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
       </div>
 
-      {!message.is_deleted && !message.pending && !isEditing && actions.length > 0 && (
+      {!message.pending && !isEditing && actions.length > 0 && (
         <div className="flex-shrink-0">
           <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
             {actionIcons}
