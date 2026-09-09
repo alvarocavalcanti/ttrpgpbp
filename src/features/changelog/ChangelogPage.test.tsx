@@ -13,6 +13,8 @@ describe('ChangelogPage', () => {
       </MemoryRouter>
     )
     expect(screen.getByRole('heading', { name: 'Changelog' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '[Unreleased]' })).toBeInTheDocument()
+    // CHANGELOG.md is date-stamped (merges ship immediately, no Unreleased
+    // state) — the top heading is the latest merge date.
+    expect(screen.getByRole('heading', { name: /^\d{4}-\d{2}-\d{2}$/ })).toBeInTheDocument()
   })
 })

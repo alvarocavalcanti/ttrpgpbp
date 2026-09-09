@@ -72,7 +72,8 @@
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)
 - **Deletable** — replaced with "deleted" marker (soft-delete). Deleting asks for confirmation inside the app (no browser popup)
 - **In-app confirmations everywhere** — destructive actions (delete message, kick/block/leave channel, delete NPC, archive channel, delete admin thread/message) all confirm with a styled in-app dialog instead of the browser popup
-- **Message actions** — reply/edit/delete/Reactions appear as hover icons on desktop; on mobile they collapse behind a single **"⋯"** button that opens a bottom sheet with large, easy-to-tap actions
+- **Message actions** — reply/edit/delete/Reactions/Report appear as hover icons on desktop; on mobile they collapse behind a single **"⋯"** button that opens a bottom sheet with large, easy-to-tap actions
+- **Report a message** — any player can report another player's message from the message actions; a free-text reason (up to 1,000 characters) is submitted to the server administrators together with the message and channel context. Success/failure feedback via toast; empty reasons are rejected.
 - Messages are limited to 4,000 characters. URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
 - **Mentions** — `@CharacterName` autocompletes from channel members and renders as a highlight chip; mentioned users get a push notification. Mention targets are verified server-side against the channel's members, so a mention can never be routed to an outsider. GMs can also use **`@all`** to mention every player at once (authorized server-side, GM-only). On desktop, arrow keys move the highlight through suggestions and Enter/Tab selects

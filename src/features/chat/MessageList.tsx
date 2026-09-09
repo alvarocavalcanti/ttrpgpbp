@@ -34,13 +34,14 @@ interface MessageListProps {
   onRemovePending?: (messageId: string) => void
   onRetryLoad?: () => void
   onEditCharacter?: () => void
+  onReport?: (message: Message, reason: string) => Promise<void>
   error?: Error | null
   hasMore?: boolean
   loadingOlder?: boolean
   onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onRetry, onRemovePending, onRetryLoad, onEditCharacter, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -286,6 +287,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onRetry={onRetry}
               onEditCharacter={onEditCharacter}
               onRemovePending={onRemovePending}
+              onReport={onReport}
               />
             </Fragment>
         )
