@@ -51,7 +51,7 @@ Full agent and contributor rules (including the git worktree workflow) live in [
 ## Documentation
 
 - Update `docs/FEATURES.md` when you add/change/remove features.
-- Add a `docs/CHANGELOG.md` entry under [Unreleased] (Added / Changed / Fixed).
+- Add a `docs/CHANGELOG.md` entry under the date-stamped heading at the top (`## YYYY-MM-DD`; open a new heading for the merge date — every merge to `main` ships immediately, so merged entries are always live).
 
 ## Pull request checklist
 
