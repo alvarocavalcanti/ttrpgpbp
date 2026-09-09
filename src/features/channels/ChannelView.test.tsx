@@ -1811,7 +1811,7 @@ describe('ChannelView report a message (#467)', () => {
     // keeps working for sibling hooks rendered inside ChannelView.
     insertMock.mockReset()
     insertMock.mockResolvedValue({ error: null })
-    const originalFrom = supabase.from as unknown as (table: string) => unknown
+    const originalFrom = (supabase.from as (table: string) => unknown).bind(supabase)
     vi.spyOn(supabase, 'from').mockImplementation((table: string) =>
       table === 'abuse_reports' ? ({ insert: insertMock } as any) : (originalFrom(table) as any),
     )
