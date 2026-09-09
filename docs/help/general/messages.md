@@ -50,3 +50,11 @@ The GM can send a **whisper** visible only to themselves and one specific player
 If your connection drops, a banner lets you know while keeping loaded chat available. RoleByPost catches up on new messages and channel changes when your connection returns or when you bring the app back to the foreground.
 
 If your message history fails to load when you open a channel, you'll see a clear error with a **Retry** button instead of being told to refresh the page. Your unread marker ("New messages" divider) is also safe: it only moves after your history has actually loaded, so a failed load never makes messages look read that you never saw.
+
+## Server messages (announcements & the admin inbox)
+
+The **Messages** item in the app menu is a separate space from channel chat:
+
+- **Announcements** from the server administrator appear for everyone, or for GMs only when they're addressed to GMs — a small chip ("All users" / "GMs") on each announcement shows the audience. Suspended players and GMs don't see announcements while suspended (but can still message the server admin).
+- **Message the server admin** — tap **Message Admin** to start a conversation with the server administrator. You keep one support conversation; sending again reuses it (suspended players included).
+- An unread dot on the menu item shows when there's something new for you.

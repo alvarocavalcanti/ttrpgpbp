@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ThreadList } from './ThreadList'
 import { useAdminThreads } from './useAdminThreads'
-import { useActiveGms } from './useActiveGms'
+import { useMessageRecipients } from './useMessageRecipients'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useToast } from '../../contexts/ToastContext'
 import type { Thread } from './types'
@@ -11,8 +11,8 @@ vi.mock('./useAdminThreads', () => ({
   useAdminThreads: vi.fn()
 }))
 
-vi.mock('./useActiveGms', () => ({
-  useActiveGms: vi.fn()
+vi.mock('./useMessageRecipients', () => ({
+  useMessageRecipients: vi.fn()
 }))
 
 vi.mock('../../hooks/useIsServerAdmin', () => ({
@@ -25,6 +25,7 @@ vi.mock('../../contexts/ToastContext', () => ({
 
 const mockThread: Thread = {
   id: 't-1', type: 'announcement', subject: 'Hello', gm_id: null,
+  audience: 'gms',
   created_by: 'admin-1', last_message_at: new Date().toISOString(),
   created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   creator: { display_name: 'Admin', avatar_url: null },
@@ -39,9 +40,9 @@ function mockHookReturn(overrides: Record<string, unknown> = {}) {
   } as any)
 }
 
-function mockGms(overrides: Record<string, unknown> = {}) {
-  vi.mocked(useActiveGms).mockReturnValue({
-    gms: [], loading: false, error: null, refetch: vi.fn(),
+function mockRecipients(overrides: Record<string, unknown> = {}) {
+  vi.mocked(useMessageRecipients).mockReturnValue({
+    recipients: [], loading: false, error: null, refetch: vi.fn(),
     ...overrides
   } as any)
 }
@@ -50,7 +51,7 @@ describe('ThreadList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHookReturn()
-    mockGms()
+    mockRecipients()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
   })
 
@@ -89,6 +90,20 @@ describe('ThreadList', () => {
     expect(screen.getByText('Announcement')).toBeInTheDocument()
   })
 
+  it('shows a GMs audience chip on announcement rows', () => {
+    mockHookReturn({ threads: [mockThread] })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(screen.getByText('GMs')).toBeInTheDocument()
+  })
+
+  it('shows an All users audience chip for an all-users announcement', () => {
+    mockHookReturn({ threads: [{ ...mockThread, audience: 'all_users' }] })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(screen.getByText('All users')).toBeInTheDocument()
+  })
+
   it('calls loadMore when Load more is clicked', () => {
     const loadMore = vi.fn()
     mockHookReturn({ threads: [mockThread], hasMore: true, loadMore })
@@ -124,7 +139,8 @@ describe('ThreadList', () => {
 
     await waitFor(() => {
       expect(createThread).toHaveBeenCalledWith({
-        type: 'announcement', subject: 'My Announcement', content: 'Hello world', gmId: null
+        type: 'announcement', subject: 'My Announcement', content: 'Hello world',
+        audience: 'gms', gmId: null
       })
     })
     expect(onSelectThread).toHaveBeenCalledWith(mockThread)
@@ -154,30 +170,73 @@ describe('ThreadList', () => {
     expect(screen.getByText('New Message')).toBeInTheDocument()
   })
 
-  it('shows a GM list error with retry in the modal', async () => {
-    const refetchGms = vi.fn()
-    mockGms({ error: new Error('boom'), refetch: refetchGms })
+  it('shows a recipient list error with retry in the modal', async () => {
+    const refetchRecipients = vi.fn()
+    mockRecipients({ error: new Error('boom'), refetch: refetchRecipients })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
     await waitFor(() => screen.getByText('New Message'))
 
-    // The GM picker only exists for DMs.
+    // The recipient picker only exists for DMs.
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
-    expect(screen.getByText("Couldn't load the GM list.")).toBeInTheDocument()
+    expect(screen.getByText("Couldn't load the recipient list.")).toBeInTheDocument()
     fireEvent.click(screen.getByText('Retry'))
-    expect(refetchGms).toHaveBeenCalled()
+    expect(refetchRecipients).toHaveBeenCalled()
   })
 
-  it('shows a loading placeholder in the GM picker while GMs load', async () => {
-    mockGms({ loading: true })
+  it('shows a loading placeholder in the recipient picker while users load', async () => {
+    mockRecipients({ loading: true })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
     await waitFor(() => screen.getByText('New Message'))
 
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
-    expect(screen.getByText('Loading GMs...')).toBeInTheDocument()
+    expect(screen.getByText('Loading users...')).toBeInTheDocument()
+  })
+
+  it('offers the audience select for admin announcements with GMs as the default', async () => {
+    const createThread = vi.fn().mockResolvedValue(mockThread)
+    mockHookReturn({ createThread })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    // Two comboboxes for an admin announcement: Type, then Audience.
+    expect(screen.getByText('Audience')).toBeInTheDocument()
+    expect(screen.getAllByRole('combobox').length).toBe(2)
+
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'My Announcement' } })
+    fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: 'Hello all' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(createThread).toHaveBeenCalledWith(
+        expect.objectContaining({ audience: 'gms', type: 'announcement' })
+      )
+    })
+  })
+
+  it('passes an All users audience through to createThread', async () => {
+    const createThread = vi.fn().mockResolvedValue(mockThread)
+    mockHookReturn({ createThread })
+
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    await waitFor(() => screen.getByText('New Message'))
+
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'all_users' } })
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'My Announcement' } })
+    fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: 'Hello all' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(createThread).toHaveBeenCalledWith(
+        expect.objectContaining({ audience: 'all_users', type: 'announcement' })
+      )
+    })
   })
 })
 
@@ -185,14 +244,14 @@ describe('NewThreadModal additional branches', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHookReturn()
-    mockGms()
+    mockRecipients()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
   })
 
-  it('passes the selected GM for an admin-started dm', async () => {
+  it('passes the selected recipient for an admin-started dm', async () => {
     const createThread = vi.fn().mockResolvedValue(mockThread)
     mockHookReturn({ createThread })
-    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
+    mockRecipients({ recipients: [{ id: 'gm-1', display_name: 'GM Alice', avatar_url: null }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
@@ -207,13 +266,14 @@ describe('NewThreadModal additional branches', () => {
     await waitFor(() => {
       // DMs carry no subject; the modal forwards '' and the hook nulls it.
       expect(createThread).toHaveBeenCalledWith({
-        type: 'dm', subject: '', content: 'Body', gmId: 'gm-1'
+        type: 'dm', subject: '', content: 'Body',
+        audience: null, gmId: 'gm-1'
       })
     })
   })
 
-  it('shows GM dropdown when type switched to dm', async () => {
-    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
+  it('shows the recipient dropdown when type switched to dm', async () => {
+    mockRecipients({ recipients: [{ id: 'gm-1', display_name: 'GM Alice', avatar_url: null }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
@@ -225,8 +285,8 @@ describe('NewThreadModal additional branches', () => {
     })
   })
 
-  it('disables Send for an admin dm while the GM list errored', async () => {
-    mockGms({ error: new Error('boom') })
+  it('disables Send for an admin dm while the recipient list errored', async () => {
+    mockRecipients({ error: new Error('boom') })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
@@ -234,13 +294,13 @@ describe('NewThreadModal additional branches', () => {
 
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
     await waitFor(() => {
-      expect(screen.getByText("Couldn't load the GM list.")).toBeInTheDocument()
+      expect(screen.getByText("Couldn't load the recipient list.")).toBeInTheDocument()
     })
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
   })
 
-  it('enables Send for an admin dm once a GM is selected and the list loaded', async () => {
-    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
+  it('enables Send for an admin dm once a recipient is selected and the list loaded', async () => {
+    mockRecipients({ recipients: [{ id: 'gm-1', display_name: 'GM Alice', avatar_url: null }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
@@ -252,14 +312,14 @@ describe('NewThreadModal additional branches', () => {
     expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled()
   })
 
-  it('enables Send for an announcement even while the GM list errored', async () => {
-    mockGms({ error: new Error('boom') })
+  it('enables Send for an announcement even while the recipient list errored', async () => {
+    mockRecipients({ error: new Error('boom') })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
     await waitFor(() => screen.getByText('New Message'))
 
-    // Announcements never need the GM picker, so its error must not block.
+    // Announcements never need the recipient picker, so its error must not block.
     expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled()
   })
 
@@ -293,7 +353,7 @@ describe('ThreadList non-admin and interaction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHookReturn()
-    mockGms()
+    mockRecipients()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
   })
 
@@ -324,14 +384,15 @@ describe('ThreadList non-admin and interaction', () => {
     await waitFor(() => {
       // DMs carry no subject; the modal forwards '' and the hook nulls it.
       expect(createThread).toHaveBeenCalledWith({
-        type: 'dm', subject: '', content: 'Body text', gmId: null
+        type: 'dm', subject: '', content: 'Body text',
+        audience: null, gmId: null
       })
     })
   })
 
-  it('selects GM from dropdown when type is dm', async () => {
+  it('selects recipient from dropdown when type is dm', async () => {
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
-    mockGms({ gms: [{ id: 'gm-1', display_name: 'GM Alice' }] })
+    mockRecipients({ recipients: [{ id: 'gm-1', display_name: 'GM Alice', avatar_url: null }] })
 
     render(<ThreadList onSelectThread={vi.fn()} />)
     fireEvent.click(screen.getByText('New'))
@@ -341,7 +402,7 @@ describe('ThreadList non-admin and interaction', () => {
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'dm' } })
     await waitFor(() => screen.getByText('GM Alice'))
 
-    // Select the GM
+    // Select the recipient
     fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'gm-1' } })
     expect(screen.getByText('GM Alice')).toBeInTheDocument()
   })

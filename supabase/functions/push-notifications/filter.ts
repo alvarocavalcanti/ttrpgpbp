@@ -219,14 +219,26 @@ export function isAllowedOrigin(origin: string, envList?: string[]): boolean {
   return origin.endsWith('.ttrpgpbp.pages.dev')
 }
 
-// Announcement push recipients: the distinct GMs of non-archived channels,
-// minus suspended GMs (is_active_gm parity — suspended GMs can no longer read
-// those channels, and their badge counts would drift). Pure: no IO, so it
-// runs in vitest.
-export function resolveAnnouncementGmTargets(
-  gms: Array<{ gm_id: string | null }>,
+// Announcement push recipients by audience (#466):
+//  - 'all_users' → every non-suspended user
+//  - 'gms' → the distinct GMs of non-archived channels, minus suspended GMs
+//    (is_active_gm parity — suspended GMs can no longer read those channels,
+//    and their badge counts would drift)
+// The sender exclusion happens later in resolvePushTargets, so the GM sending
+// an announcement does not receive it. Pure: no IO, so it runs in vitest.
+export function resolveAnnouncementTargets(
+  audience: 'all_users' | 'gms' | null,
   profiles: Array<{ id: string; is_suspended: boolean }>,
+  gmIds: string[],
 ): string[] {
   const suspended = new Set(profiles.filter(p => p.is_suspended).map(p => p.id))
-  return [...new Set(gms.map(g => g.gm_id).filter((id): id is string => !!id && !suspended.has(id)))]
+  if (audience === 'all_users') {
+    return profiles.filter(p => !p.is_suspended).map(p => p.id)
+  }
+  if (audience !== 'gms') {
+    // Unknown/null audience (cannot happen for persisted announcements — the
+    // type check requires an audience) pushes to nobody.
+    return []
+  }
+  return [...new Set(gmIds.filter(id => !suspended.has(id)))]
 }

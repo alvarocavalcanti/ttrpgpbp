@@ -30,7 +30,7 @@ export async function authSignOut() {
 export async function fetchProfileRow(userId: string) {
   return supabase
     .from('profiles')
-    .select('id, display_name, avatar_url, created_at, is_suspended')
+    .select('id, display_name, avatar_url, created_at, is_suspended, email_opt_in, email_opt_in_at')
     .eq('id', userId)
     .single()
 }
@@ -39,6 +39,16 @@ export async function updateDisplayName(userId: string, displayName: string) {
   return supabase
     .from('profiles')
     .update({ display_name: displayName })
+    .eq('id', userId)
+}
+
+// Email opt-in consent toggle (default false in the DB). The consent
+// timestamp (email_opt_in_at) is stamped by a database trigger whenever the
+// flag changes — the client sends only the flag itself.
+export async function updateEmailOptIn(userId: string, optIn: boolean) {
+  return supabase
+    .from('profiles')
+    .update({ email_opt_in: optIn })
     .eq('id', userId)
 }
 

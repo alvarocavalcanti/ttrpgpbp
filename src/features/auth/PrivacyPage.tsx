@@ -37,14 +37,31 @@ export function PrivacyPage() {
           <p>
             Sign-in uses the Google OAuth <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">email</code> and{' '}
             <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">profile</code> scopes. We do
-            not request access to your contacts, calendar, drive, or other Google data. We only use this information to authenticate you and display your name and profile picture inside the application.
+            not request access to your contacts, calendar, drive, or other Google data. We use this
+            information to authenticate you and display your name and profile picture inside the
+            application. If you opt in to email updates in Settings, we also use your email address for
+            the purposes listed there — product updates, beta invitations, and replies to feedback or
+            reports you submit. Your email is never shared or sold, and you can opt out at any time.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Email updates</h2>
+          <p>
+            We email you only if you opt in (Settings → Email me about Role by Post), and only about
+            product updates, beta invitations, and replies to feedback or reports you submit. Account
+            and security notices may be sent without consent. You can opt out at any time in Settings.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data Sharing &amp; Third Parties</h2>
           <p>
-            We do not sell, rent, or trade your personal information to third parties. We do not use your personal information for advertising or marketing. Your information is shared only with the services below, and only for the purposes described:
+            We do not sell, rent, or trade your personal information to third parties. We do not
+            use your personal information for advertising, and we never send unsolicited marketing:
+            the only emails you can receive are those you explicitly opted into (see
+            <span className="font-semibold"> Email updates</span> above) or necessary account and
+            security notices. Your information is shared only with the services below, and only for the purposes described:
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>
@@ -97,7 +114,7 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: August 28, 2026. This policy describes data handling for the Role by Post application. Contact the server
+          Last updated: September 9, 2026. This policy describes data handling for the Role by Post application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access.
         </p>
       </div>

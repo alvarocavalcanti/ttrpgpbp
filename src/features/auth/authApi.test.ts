@@ -72,7 +72,7 @@ describe('authApi', () => {
   it('fetchProfileRow selects the profile columns for the user', () => {
     fetchProfileRow('u1')
     expect(supabase.from).toHaveBeenCalledWith('profiles')
-    expect(query.select).toHaveBeenCalledWith('id, display_name, avatar_url, created_at, is_suspended')
+    expect(query.select).toHaveBeenCalledWith('id, display_name, avatar_url, created_at, is_suspended, email_opt_in, email_opt_in_at')
     expect(query.eq).toHaveBeenCalledWith('id', 'u1')
     expect(query.single).toHaveBeenCalled()
   })

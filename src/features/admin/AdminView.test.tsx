@@ -908,3 +908,89 @@ describe('AdminView', () => {
     expect(screen.queryByText('Recent')).not.toBeInTheDocument()
   })
 })
+
+describe('AdminView copy opted-in emails', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAppSetting).mockImplementation(((key: string, fallback: any) => {
+      const map: Record<string, any> = {
+        max_channels_per_user: 10,
+        image_uploading_enabled: false,
+        image_max_size_mb: 5,
+        image_retention_days: 0,
+      }
+      return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
+    }) as any)
+    // jsdom lacks a clipboard implementation (and isSecureContext is false),
+    // so stub both to exercise the navigator.clipboard path.
+    Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true })
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    })
+    vi.mocked(useAuth).mockReturnValue(adminUser as any)
+    usersRpc({})
+  })
+
+  it('disables the copy button when nobody has opted in', async () => {
+    usersRpc({ admin_list_users: { data: [makeUser({ email_opt_in: false })] } })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    const copyButton = screen.getByRole('button', { name: 'Copy opted-in emails' })
+    expect(copyButton).toBeDisabled()
+    // Disabled state explains itself.
+    expect(copyButton).toHaveAccessibleDescription('No users have opted in to email updates yet.')
+  })
+
+  it('copies the opt-in list newline-joined onto the clipboard and toasts', async () => {
+    usersRpc({
+      admin_list_users: {
+        data: [
+          makeUser({ id: 'u1', email: 'a@x', email_opt_in: true }),
+          makeUser({ id: 'u2', display_name: 'Bob', email: 'b@x', email_opt_in: false }),
+          makeUser({ id: 'u3', display_name: 'Cara', email: null, email_opt_in: true }), // opted in but no address
+        ],
+      },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy opted-in emails' }))
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('a@x')
+    })
+    expect(useToast().addToast).toHaveBeenCalledWith('Copied 1 opted-in emails.', 'success')
+  })
+
+  it('copies multiple opted-in users one per line', async () => {
+    usersRpc({
+      admin_list_users: {
+        data: [
+          makeUser({ id: 'u1', email: 'a@x', email_opt_in: true }),
+          makeUser({ id: 'u2', display_name: 'Bob', email: 'b@x', email_opt_in: true }),
+        ],
+      },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy opted-in emails' }))
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('a@x\nb@x')
+    })
+  })
+
+  it('toasts a failure when the clipboard write rejects', async () => {
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('denied'))
+    usersRpc({
+      admin_list_users: { data: [makeUser({ email: 'a@x', email_opt_in: true })] },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy opted-in emails' }))
+    await waitFor(() => {
+      expect(useToast().addToast).toHaveBeenCalledWith('Failed to copy opted-in emails.', 'error')
+    })
+  })
+})

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useAuth } from './useAuth'
-import { deleteAccount, updateDisplayName } from './authApi'
+import { deleteAccount, updateDisplayName, updateEmailOptIn } from './authApi'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { useTextSize, TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE, type TextSize } from '../../hooks/useTextSize'
@@ -46,6 +46,25 @@ export function ProfileSettings() {
       setDisplayName(profile.display_name)
     }
   }, [profile])
+
+  const emailOptIn = profile?.email_opt_in ?? false
+
+  // Consent checkbox persists immediately (not on the form's Save button):
+  // unchecking must take effect as soon as the user flips it.
+  const handleEmailOptIn = async (checked: boolean) => {
+    if (!user) return
+    const { error } = await updateEmailOptIn(user.id, checked)
+    if (error) {
+      console.error('Error updating email opt-in:', error)
+      addToast('Failed to update your email preference. Please try again.', 'error')
+      return
+    }
+    await refreshProfile()
+    addToast(
+      checked ? "You're signed up for email updates." : 'Email updates turned off.',
+      'success'
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -163,6 +182,27 @@ export function ProfileSettings() {
                 className="mt-1 block w-full rounded-md border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-surface-500 dark:text-surface-400 px-3 py-2 border"
               />
               <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">Your email is managed by your Google account.</p>
+            </div>
+
+            <div className="flex items-start">
+              <div className="flex h-5 items-center">
+                <input
+                  id="email_opt_in"
+                  type="checkbox"
+                  checked={emailOptIn}
+                  onChange={(e) => handleEmailOptIn(e.target.checked)}
+                  className="h-4 w-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="email_opt_in" className="font-medium text-surface-700 dark:text-surface-300">
+                  Email me about Role by Post — product updates, beta invitations, and replies to my feedback or reports
+                </label>
+                <p className="text-surface-500 dark:text-surface-400">
+                  Off by default; turn off anytime here. See the{' '}
+                  <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline">Privacy Policy</Link>.
+                </p>
+              </div>
             </div>
 
             <div>

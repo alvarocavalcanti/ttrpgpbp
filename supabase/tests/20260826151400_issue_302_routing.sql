@@ -90,19 +90,24 @@ SELECT ok(
 -- ==========================================
 -- 3. Admin RLS: outsiders cannot see announcements
 -- ==========================================
--- Insert the announcement as the server admin (announcements are admin-only).
+-- Insert the announcement as the server admin (announcements are admin-only);
+-- audience defaults to 'gms' for this legacy case.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000501', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000501","role":"authenticated"}', true);
-INSERT INTO public.admin_threads (id, type, subject, created_by)
-VALUES ('00000000-0000-0000-0000-000000000530', 'announcement', 'Maintenance', '00000000-0000-0000-0000-000000000501');
+SET LOCAL ROLE authenticated;
+INSERT INTO public.admin_threads (id, type, subject, created_by, audience)
+VALUES ('00000000-0000-0000-0000-000000000530', 'announcement', 'Maintenance', '00000000-0000-0000-0000-000000000501', 'gms');
+RESET ROLE;
 
 -- A non-admin, non-GM outsider must not see it.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000504', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000504","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
 SELECT ok(
   (SELECT count(*) FROM public.admin_threads WHERE id = '00000000-0000-0000-0000-000000000530') = 0,
   'outsider cannot see an admin announcement'
 );
+RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;

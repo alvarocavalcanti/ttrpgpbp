@@ -25,7 +25,22 @@ describe('TermsPage', () => {
     expect(screen.getByText('2. Description of Service')).toBeInTheDocument()
     expect(screen.getByText('3. User Accounts')).toBeInTheDocument()
     expect(screen.getByText('4. User Content')).toBeInTheDocument()
-    expect(screen.getByText('7. Disclaimer of Warranties')).toBeInTheDocument()
+    expect(screen.getByText('6. Communications')).toBeInTheDocument()
+    expect(screen.getByText('7. Termination')).toBeInTheDocument()
+    expect(screen.getByText('9. Limitation of Liability')).toBeInTheDocument()
+  })
+
+  it('covers in-app messaging and email opt-in consent in the Communications section', () => {
+    render(
+      <MemoryRouter>
+        <TermsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/In-app messages/)).toBeInTheDocument()
+    expect(screen.getByText(/only send you email if you opt in/)).toBeInTheDocument()
+    expect(screen.getByText(/opt out at any time/)).toBeInTheDocument()
+    expect(screen.getByText(/Account and security notices/)).toBeInTheDocument()
   })
 
   it('links back home', () => {

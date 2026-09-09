@@ -90,7 +90,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: 'https://example.com/avatar.jpg',
-        created_at: '', is_suspended: false,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null,
       },
       session: null,
 
@@ -112,7 +112,7 @@ describe('ProfileSettings', () => {
       loading: false,
       error: null,
       user: { id: '123' } as any,
-      profile: { id: '123', display_name: 'Test Player', avatar_url: null, created_at: '', is_suspended: false },
+      profile: { id: '123', display_name: 'Test Player', avatar_url: null, created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null },
       session: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
@@ -152,7 +152,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: null,
-        created_at: '', is_suspended: false,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null,
       },
       session: null,
 
@@ -192,7 +192,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: null,
-        created_at: '', is_suspended: false,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null,
       },
       session: null,
 
@@ -543,6 +543,116 @@ describe('ProfileSettings', () => {
 
     renderWithRouter(<ProfileSettings />)
 
-    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
+    // The privacy policy shows in the Account & Data card (and inline on the
+    // new email-consent checkbox), so assert on all instances.
+    const links = screen.getAllByRole('link', { name: 'Privacy Policy' })
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/privacy')
+    }
+  })
+})
+
+describe('ProfileSettings email consent', () => {
+  const profile = (over: Record<string, unknown> = {}) => ({
+    id: '123', display_name: 'Test Player', avatar_url: null, created_at: '',
+    is_suspended: false, email_opt_in: false, email_opt_in_at: null, ...over
+  })
+
+  const setup = (email_opt_in: boolean) => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: profile({ email_opt_in }),
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+  }
+
+  const updateEq = vi.fn()
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isSupported: false, needsInstall: true, isConfigured: true,
+      permission: 'default', isSubscribed: false, preferences: null,
+      loading: false, subscribeToPush: vi.fn(), unsubscribeFromPush: vi.fn(),
+      updatePreferences: vi.fn()
+    } as any)
+    // profiles.update(...).eq('id', ...) — unchecked by default, error-less.
+    vi.mocked(supabase.from).mockReturnValue({
+      update: vi.fn(() => ({ eq: updateEq }))
+    } as any)
+    updateEq.mockResolvedValue({ error: null })
+  })
+
+  it('renders the consent checkbox unchecked by default', () => {
+    setup(false)
+    render(<MemoryRouter><ProfileSettings /></MemoryRouter>)
+    const box = screen.getByRole('checkbox', { name: /Email me about Role by Post/ })
+    expect(box).not.toBeChecked()
+  })
+
+  it('renders as checked when the profile has opted in', () => {
+    setup(true)
+    render(<MemoryRouter><ProfileSettings /></MemoryRouter>)
+    expect(screen.getByRole('checkbox', { name: /Email me about Role by Post/ })).toBeChecked()
+  })
+
+  it('checking the box persists the opt-in and refreshes the profile', async () => {
+    setup(false)
+    const refreshProfile = vi.fn()
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false, error: null, user: { id: '123' } as any,
+      profile: profile({ email_opt_in: false }), session: null,
+      signInWithGoogle: vi.fn(), signOut: vi.fn(), refreshProfile,
+    })
+
+    render(<MemoryRouter><ProfileSettings /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Email me about Role by Post/ }))
+
+    await waitFor(() => {
+      expect(updateEq).toHaveBeenCalledWith('id', '123')
+    })
+    expect(refreshProfile).toHaveBeenCalled()
+    expect(useToast().addToast).toHaveBeenCalledWith(
+      "You're signed up for email updates.", 'success'
+    )
+  })
+
+  it('unchecking persists the opt-out and toasts', async () => {
+    setup(true)
+    render(<MemoryRouter><ProfileSettings /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Email me about Role by Post/ }))
+
+    await waitFor(() => {
+      expect(updateEq).toHaveBeenCalledWith('id', '123')
+    })
+    expect(useToast().addToast).toHaveBeenCalledWith('Email updates turned off.', 'success')
+  })
+
+  it('toasts on failure without proceeding silently', async () => {
+    setup(false)
+    updateEq.mockResolvedValue({ error: { message: 'rls' } })
+    render(<MemoryRouter><ProfileSettings /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Email me about Role by Post/ }))
+
+    await waitFor(() => {
+      expect(useToast().addToast).toHaveBeenCalledWith(
+        'Failed to update your email preference. Please try again.', 'error'
+      )
+    })
+  })
+
+  it('links the consent copy to the privacy policy', () => {
+    setup(false)
+    render(<MemoryRouter><ProfileSettings /></MemoryRouter>)
+    // At least two privacy links exist (consent copy + Account & Data card).
+    const links = screen.getAllByRole('link', { name: 'Privacy Policy' })
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/privacy')
+    }
   })
 })

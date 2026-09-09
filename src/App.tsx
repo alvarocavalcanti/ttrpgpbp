@@ -32,7 +32,6 @@ const ArchivedChannels = lazy(() => import('./features/channels/ArchivedChannels
 const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ default: m.AdminView })))
 const HelpPage = lazy(() => import('./features/help/HelpPage').then(m => ({ default: m.HelpPage })))
 const ChangelogPage = lazy(() => import('./features/changelog/ChangelogPage').then(m => ({ default: m.ChangelogPage })))
-import { useIsActiveGM } from './hooks/useIsActiveGM'
 import { useAdminUnread } from './features/admin-messages/useAdminUnread'
 
 const AdminMessagesView = lazy(() => import('./features/admin-messages/AdminMessagesView').then(m => ({ default: m.AdminMessagesView })))
@@ -79,7 +78,6 @@ function AppNav() {
   const { user, signOut } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const { isServerAdmin } = useIsServerAdmin()
-  const { isActiveGM } = useIsActiveGM()
   const adminUnreadCount = useAdminUnread()
   const { openChangelog } = useChangelog()
   const location = useLocation()
@@ -205,18 +203,16 @@ function AppNav() {
             >
               Archived Channels
             </Link>
-            {(isServerAdmin || isActiveGM) && (
-              <Link
-                to="/messages"
-                className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
-                onClick={() => setMenuOpen(false)}
-              >
-                <span>Admin Messages</span>
-                {adminUnreadCount > 0 && (
-                  <span className="flex h-2 w-2 rounded-full bg-red-500" />
-                )}
-              </Link>
-            )}
+            <Link
+              to="/messages"
+              className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+              onClick={() => setMenuOpen(false)}
+            >
+              <span>Messages</span>
+              {adminUnreadCount > 0 && (
+                <span className="flex h-2 w-2 rounded-full bg-red-500" />
+              )}
+            </Link>
             <Link 
               to="/help" 
               className={NAV_MENU_ITEM}

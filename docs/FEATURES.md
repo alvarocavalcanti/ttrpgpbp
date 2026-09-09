@@ -98,6 +98,16 @@
 - Messages visible only to GM + one specific player
 - Visible within the same channel timeline (but hidden from others)
 
+## Server Messages (announcements & admin DMs)
+
+- The **Messages** screen (`/messages`, via the menu) is available to every signed-in user
+- **Announcements by audience** — the server admin composes an announcement to **GMs only** or **all users**; each thread row shows an audience chip ("GMs"/"All users"). GMs see both audiences; players see only all-users announcements
+- **Suspended users are excluded** from announcements (in-app and push) but keep DM access so they can reach the admin
+- **Direct messages with the server admin** — GMs can DM the admin (existing), and any user can start a **support thread**; each user's thread is reused, so one conversation per user
+- Unread badge on the menu item counts what you can actually see (RLS-scoped), with realtime updates and server-side push delivery for both announcements and DMs
+- **Email consent** — users can opt in (Settings; off by default, timestamped) to being emailed about product updates, beta invitations, and replies to their feedback. No email is sent automatically yet: exporting a consenting user list is manual
+- **Server admin tools** — the compose picker lists every non-suspended user; the Users console shows each user's opt-in state with a **Copy opted-in emails** export (newline-joined clipboard copy)
+
 ## Dice
 
 - Clickable dice notation in messages (GM writes them, players click)

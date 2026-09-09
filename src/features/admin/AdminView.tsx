@@ -182,6 +182,41 @@ export function AdminView() {
     addToast('Channel claimed. You are now the GM.', 'success')
   }
 
+  // Copy the opted-in email list (newline-joined) onto the clipboard. Mirrors
+  // ChannelSettings' invite-link copy: navigator.clipboard in secure
+  // contexts, execCommand fallback otherwise.
+  const handleCopyOptedInEmails = async () => {
+    const text = optedInEmails.map(email => email.replace(/[\r\n]+/g, '')).join('\n')
+    if (!text) return
+    let textArea: HTMLTextAreaElement | null = null
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        textArea = document.createElement('textarea')
+        textArea.value = text
+        textArea.style.position = 'absolute'
+        textArea.style.left = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
+        const success = document.execCommand('copy')
+        if (!success) {
+          throw new Error('execCommand returned false')
+        }
+      }
+      addToast(`Copied ${optedInEmails.length} opted-in emails.`, 'success')
+    } catch (err) {
+      console.error('Failed to copy opted-in emails:', err)
+      addToast('Failed to copy opted-in emails.', 'error')
+    } finally {
+      if (textArea?.isConnected) {
+        document.body.removeChild(textArea)
+      }
+    }
+  }
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'users', label: 'Users' },
     { id: 'channels', label: 'Channels' },
@@ -192,6 +227,12 @@ export function AdminView() {
   const newUsers = users.filter(u => new Date(u.created_at).getTime() > sevenDaysAgo).length
   const newChannels = channels.filter(c => new Date(c.created_at).getTime() > sevenDaysAgo).length
 
+  // Opt-in email export (#466): copy each consenting user's address onto the
+  // clipboard for bulk sending. Only users with both an opt-in flag AND an
+  // address qualify.
+  const optedInEmails = users
+    .filter(u => u.email_opt_in && u.email)
+    .map(u => u.email as string)
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B'
     const k = 1024
@@ -292,7 +333,7 @@ export function AdminView() {
         <>
           {tab === 'users' && (
             <div>
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <label htmlFor="user-search" className="sr-only">Search users</label>
                 <input
                   id="user-search"
@@ -302,7 +343,8 @@ export function AdminView() {
                   placeholder="Search by name or email…"
                   className="w-full sm:w-72 bg-white dark:bg-surface-800 rounded-md border-surface-300 dark:border-surface-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
                 />
-                <div className="flex items-center gap-1" role="group" aria-label="Filter users by status">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1" role="group" aria-label="Filter users by status">
                   {filterOptions.map(f => (
                     <button
                       key={f.id}
@@ -318,6 +360,19 @@ export function AdminView() {
                       {f.label}
                     </button>
                   ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyOptedInEmails}
+                    disabled={optedInEmails.length === 0}
+                    title={optedInEmails.length === 0
+                      ? 'No users have opted in to email updates yet.'
+                      : 'Copy the email addresses of users who opted in, one per line.'}
+                    aria-label="Copy opted-in emails"
+                    className="inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-1.5 px-3 text-sm font-medium text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Copy opted-in emails
+                  </button>
                 </div>
               </div>
 
