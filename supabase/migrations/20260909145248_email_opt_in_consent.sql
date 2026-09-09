@@ -14,6 +14,31 @@ COMMENT ON COLUMN public.profiles.email_opt_in IS
 COMMENT ON COLUMN public.profiles.email_opt_in_at IS
   'Timestamp of the last consent change (evidence pair with email_opt_in).';
 
+-- Consent evidence is owned by the database, not the client: whenever
+-- email_opt_in changes, email_opt_in_at is stamped to now(); otherwise the
+-- existing timestamp is preserved. Clients cannot forge or clear the
+-- evidence pair.
+CREATE OR REPLACE FUNCTION public.handle_email_opt_in_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.email_opt_in IS DISTINCT FROM OLD.email_opt_in THEN
+    NEW.email_opt_in_at := now();
+  ELSE
+    NEW.email_opt_in_at := OLD.email_opt_in_at;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_email_opt_in_change ON public.profiles;
+CREATE TRIGGER on_email_opt_in_change
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_email_opt_in_change();
+
 -- Extend the admin user list with the opt-in flag (drop+recreate is the
 -- established pattern for this function).
 DROP FUNCTION IF EXISTS public.admin_list_users();

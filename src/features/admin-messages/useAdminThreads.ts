@@ -60,13 +60,18 @@ export function useAdminThreadActions() {
       // User-initiated support DM: one reused thread per user. A concurrent
       // duplicate can occur (check-then-create window) — same accepted race
       // class as the GM flow; the SECOND message lands in whichever thread
-      // the loser's list shows after realtime refresh.
-      const { data: existing } = await supabase
+      // the loser's list shows after realtime refresh. A failed lookup is an
+      // error state, not an empty one — bail out instead of inserting blind.
+      const { data: existing, error: lookupError } = await supabase
         .from('admin_threads')
         .select('*')
         .eq('type', 'dm')
         .eq('gm_id', user.id)
         .limit(1)
+      if (lookupError) {
+        addToast("Couldn't start the conversation. Please try again.", 'error')
+        return null
+      }
       if (existing && existing.length > 0) {
         threadRow = existing[0]
         threadId = (threadRow as { id: string }).id

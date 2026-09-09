@@ -57,7 +57,11 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data Sharing &amp; Third Parties</h2>
           <p>
-            We do not sell, rent, or trade your personal information to third parties. We do not use your personal information for advertising or marketing. Your information is shared only with the services below, and only for the purposes described:
+            We do not sell, rent, or trade your personal information to third parties. We do not
+            use your personal information for advertising, and we never send unsolicited marketing:
+            the only emails you can receive are those you explicitly opted into (see
+            <span className="font-semibold"> Email updates</span> above) or necessary account and
+            security notices. Your information is shared only with the services below, and only for the purposes described:
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>

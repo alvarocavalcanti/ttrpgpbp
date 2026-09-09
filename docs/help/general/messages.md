@@ -55,6 +55,6 @@ If your message history fails to load when you open a channel, you'll see a clea
 
 The **Messages** item in the app menu is a separate space from channel chat:
 
-- **Announcements** from the server administrator appear for everyone, or for GMs only when they're addressed to GMs — a small chip ("All users" / "GMs") on each announcement shows the audience.
-- **Message the server admin** — tap **Message Admin** to start a conversation with the server administrator. You keep one support conversation; sending again reuses it.
+- **Announcements** from the server administrator appear for everyone, or for GMs only when they're addressed to GMs — a small chip ("All users" / "GMs") on each announcement shows the audience. Suspended players and GMs don't see announcements while suspended (but can still message the server admin).
+- **Message the server admin** — tap **Message Admin** to start a conversation with the server administrator. You keep one support conversation; sending again reuses it (suspended players included).
 - An unread dot on the menu item shows when there's something new for you.

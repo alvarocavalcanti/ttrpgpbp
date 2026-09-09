@@ -206,7 +206,8 @@ AS $$
     OR (
       t.type = 'announcement'
       AND (
-        (
+        is_server_admin()
+        OR (
           t.audience = 'all_users'
           AND NOT is_suspended(p_user_id)
         )

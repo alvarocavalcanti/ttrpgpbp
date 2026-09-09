@@ -220,6 +220,7 @@ describe('useAdminThreads mutations', () => {
   function mockFrom({
     listData = [],
     reuseData = [],
+    reuseError = null,
     insertSingle = { data: null, error: null },
     fullSingle = { data: null, error: null },
     msgError = null,
@@ -227,6 +228,7 @@ describe('useAdminThreads mutations', () => {
   }: {
     listData?: unknown[],
     reuseData?: unknown[],
+    reuseError?: unknown,
     insertSingle?: { data: unknown, error: unknown },
     fullSingle?: { data: unknown, error: unknown },
     msgError?: unknown,
@@ -240,7 +242,7 @@ describe('useAdminThreads mutations', () => {
     // Full-row fetch: select() -> eq('id', ...) -> single().
     // Support-thread reuse check: select('*') -> eq() -> eq() -> limit(1).
     const fullEqSingle = vi.fn().mockResolvedValue(fullSingle)
-    const reuseLimit = vi.fn().mockResolvedValue({ data: reuseData, error: null })
+    const reuseLimit = vi.fn().mockResolvedValue({ data: reuseData, error: reuseError })
     const eqChain: any = {
       single: fullEqSingle,
       limit: reuseLimit,
@@ -369,6 +371,24 @@ describe('useAdminThreads mutations', () => {
       thread_id: 't-support', content: 'again', sender_id: 'u1'
     })
     expect(created.id).toBe('t-support')
+  })
+
+  it('bails out with a toast when the support-thread lookup fails', async () => {
+    const mocks = mockFrom({ reuseError: { message: 'boom' } })
+
+    const { result } = renderHook(() => useAdminThreads(), { wrapper: toastWrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let created: any
+    await act(async () => {
+      // A failed lookup must not fall through to a blind insert.
+      created = await result.current.createThread({ type: 'dm', subject: null, content: 'hey', audience: null, gmId: null })
+    })
+
+    expect(created).toBeNull()
+    expect(mocks.threadInsert).not.toHaveBeenCalled()
+    expect(mocks.msgInsert).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain("Couldn't start the conversation")
   })
 
   it('keeps a reused support thread when the message fails to send', async () => {

@@ -218,9 +218,16 @@ async function buildAdminMessageEvent(
     if (thread.audience === "all_users") {
       // Every non-suspended user. resolveAnnouncementTargets only reads
       // (id, is_suspended); profile rows are trusted server-side.
-      const { data: profiles } = await serviceClient
+      //
+      // A failed profile query must throw, not silently resolve to the empty
+      // list: it would DROP the announcement push for everyone (fail-safe
+      // against accidental no-op, but the delivery log would never say why).
+      const { data: profiles, error: profileError } = await serviceClient
         .from("profiles")
         .select("id, is_suspended")
+      if (profileError) {
+        throw new HttpError(500, `Announcement recipient lookup failed: ${profileError.message}`)
+      }
       adminTargetUserIds = resolveAnnouncementTargets("all_users", profiles ?? [], [])
     } else {
       const { data: gms } = await serviceClient
@@ -230,13 +237,18 @@ async function buildAdminMessageEvent(
         .eq("is_archived", false)
       const gmIds = [...new Set((gms ?? []).map(r => r.gm_id))]
       // Suspended GMs can no longer read their channels (is_active_gm parity).
-      const { data: gmProfiles } = gmIds.length > 0
+      // A failed lookup must throw: verifying with []. would treat every GM as
+      // not suspended and push announcements to suspended accounts.
+      const { data: gmProfiles, error: gmProfileError } = gmIds.length > 0
         ? await serviceClient
             .from("profiles")
             .select("id, is_suspended")
             .in("id", gmIds)
-        : { data: [] }
-      adminTargetUserIds = resolveAnnouncementTargets(thread.audience, gmProfiles ?? [], gmIds)
+        : { data: [], error: null }
+      if (gmProfileError) {
+        throw new HttpError(500, `Announcement recipient lookup failed: ${gmProfileError.message}`)
+      }
+      adminTargetUserIds = resolveAnnouncementTargets(thread.audience, gmProfiles, gmIds)
     }
   } else {
     const { data: admin } = await serviceClient

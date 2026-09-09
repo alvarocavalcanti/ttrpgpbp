@@ -33,7 +33,7 @@ describe('PrivacyPage', () => {
     expect(screen.getByText('What we collect')).toBeInTheDocument()
     expect(screen.getByText('Where data is stored')).toBeInTheDocument()
     expect(screen.getByText('Google OAuth scopes')).toBeInTheDocument()
-    expect(screen.getByText('Email updates')).toBeInTheDocument()
+    expect(screen.getAllByText('Email updates').length).toBeGreaterThan(0)
     expect(screen.getByText('email')).toBeInTheDocument()
     expect(screen.getByText('profile')).toBeInTheDocument()
   })

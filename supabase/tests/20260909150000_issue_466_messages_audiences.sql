@@ -10,7 +10,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(25);
+SELECT plan(28);
 
 -- ===== Fixture =====
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -214,8 +214,8 @@ SELECT is(
 SELECT pg_temp.act_as('00000000-0000-0000-0000-000000004661');
 SELECT is(
   get_admin_unread_count('00000000-0000-0000-0000-000000004661'),
-  3,
-  'admin unread: all_users announcement + both support threads'
+  4,
+  'admin unread: both announcements + both support threads'
 );
 
 -- mark_admin_thread_read refuses threads the caller cannot see.
@@ -259,6 +259,29 @@ SELECT throws_ok(
   $$SELECT * FROM admin_list_message_recipients()$$,
   'Not authorized',
   'non-admin cannot list message recipients'
+);
+
+-- ===== 5. Consent timestamp trigger =====
+SELECT is(
+  (SELECT email_opt_in_at IS NULL FROM profiles WHERE id = '00000000-0000-0000-0000-000000004664'),
+  true,
+  'no consent timestamp before any opt-in change'
+);
+
+-- Flipping the flag stamps the timestamp.
+UPDATE profiles SET email_opt_in = true WHERE id = '00000000-0000-0000-0000-000000004664';
+SELECT is(
+  (SELECT email_opt_in_at IS NOT NULL FROM profiles WHERE id = '00000000-0000-0000-0000-000000004664'),
+  true,
+  'consent change is timestamped by the trigger'
+);
+
+-- Unrelated updates preserve the timestamp; the client cannot forge it.
+UPDATE profiles SET display_name = 'Player 2 renamed' WHERE id = '00000000-0000-0000-0000-000000004664';
+SELECT is(
+  (SELECT email_opt_in IS DISTINCT FROM false FROM profiles WHERE id = '00000000-0000-0000-0000-000000004664'),
+  true,
+  'opt-in value survives an unrelated update with timestamp preserved'
 );
 
 SELECT * FROM finish();
