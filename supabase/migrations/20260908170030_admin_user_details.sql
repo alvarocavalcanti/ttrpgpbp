@@ -119,9 +119,3 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_get_user_history(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_get_user_history(UUID) TO authenticated;
-
--- The admin user list aggregates a sender's messages (count + latest) per
--- user; this partial index lets that scan only live messages for a sender.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_messages_sender_active
-  ON public.messages (sender_id)
-  WHERE NOT is_deleted;
