@@ -7,6 +7,7 @@ import { useMessages } from '../chat/useMessages'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead } from '../../lib/channelRead'
+import { supabase } from '../../lib/supabase'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
 
@@ -1741,5 +1742,128 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Retrying')
     const retryButton = screen.getByRole('button', { name: 'Retry loading messages' })
     expect(retryButton).toBeDisabled()
+  })
+})
+
+describe('ChannelView report a message (#467)', () => {
+  const renderView = () =>
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+  const insertMock = vi.fn()
+
+  beforeEach(() => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      catchUpError: false,
+      retryCatchUp: vi.fn(),
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn()
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [{ id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{
+        id: 'msg1',
+        content: 'rude message',
+        type: 'regular',
+        sender_id: 'user2',
+        channel_id: 'c1',
+        created_at: new Date().toISOString(),
+      }],
+      reactions: {},
+      loading: false,
+      error: null,
+      hasMore: false,
+      loadingOlder: false,
+      retrying: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      retryMessage: vi.fn(),
+      removePendingMessage: vi.fn(),
+      refresh: vi.fn().mockResolvedValue(undefined),
+      loadOlder: vi.fn()
+    } as any)
+
+    // Spy on `from` only, so the rest of the real client (rpc, realtime, ...)
+    // keeps working for sibling hooks rendered inside ChannelView.
+    insertMock.mockReset()
+    insertMock.mockResolvedValue({ error: null })
+    const originalFrom = supabase.from
+    vi.spyOn(supabase, 'from').mockImplementation(function (this: unknown, table: string) {
+      return table === 'abuse_reports'
+        ? ({ insert: insertMock } as any)
+        : originalFrom.call(this ?? supabase, table)
+    } as any)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('inserts the report with the exact payload and toasts success', async () => {
+    renderView()
+
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
+      target: { value: 'inappropriate content' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+
+    expect(supabase.from).toHaveBeenCalledWith('abuse_reports')
+    await waitFor(() =>
+      expect(insertMock).toHaveBeenCalledWith({
+        reporter_id: 'user1',
+        reported_user_id: 'user2',
+        channel_id: 'c1',
+        message_id: 'msg1',
+        reason: 'inappropriate content',
+      }),
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Report submitted. Thank you for helping keep the game safe.')).toBeInTheDocument(),
+    )
+    // Sheet closes on success.
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Report this message' })).not.toBeInTheDocument(),
+    )
+  })
+
+  it('toasts an error and keeps the sheet open when the insert fails', async () => {
+    insertMock.mockResolvedValue({ error: { message: 'RLS violation' } })
+    renderView()
+
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
+      target: { value: 'inappropriate content' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+
+    await waitFor(() =>
+      expect(screen.getByText('Failed to submit report. Please try again.')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
   })
 })

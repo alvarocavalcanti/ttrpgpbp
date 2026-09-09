@@ -7,6 +7,7 @@ import { linkifyDice, isValidDiceNotation } from '../dice/parser'
 import { getSystemAttributes, clampModifier, getModifierLimits } from '../../game-systems'
 import { BottomSheet } from '../../components/BottomSheet'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { ModifierInput } from '../../components/ModifierInput'
 import { EmojiPicker } from './EmojiPicker'
 import { proseParchment } from './composerChip'
@@ -48,6 +49,7 @@ interface MessageItemProps {
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
   onEditCharacter?: () => void
+  onReport?: (message: Message, reason: string) => Promise<void>
 }
 
 function snippet(text: string): string {
@@ -163,7 +165,7 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
   )
 }
 
-export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -172,6 +174,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   const [actionsOpen, setActionsOpen] = useState(false)
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   // Image currently open in the fullscreen viewer (issue #458); null = closed.
   const [viewingImage, setViewingImage] = useState<{ src: string; alt: string } | null>(null)
   const itemRef = useRef<HTMLDivElement>(null)
@@ -257,6 +260,19 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   const handleEditCharacter = () => {
     setCheckDraft(null)
     onEditCharacter?.()
+  }
+
+  // Submits the report reason collected by the report sheet. Empty reasons are
+  // rejected before any insert; the parent owns the insert, toasts and error
+  // surface — the sheet closes only on success so a failure can be retried.
+  const submitReport = async (reason: string) => {
+    if (!reason.trim()) return
+    try {
+      await onReport?.(message, reason)
+      setReportOpen(false)
+    } catch {
+      // Parent already toasted the failure.
+    }
   }
 
   // Recreate renderers only when the values the closures capture change, so
@@ -384,8 +400,17 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         ),
       })
     }
+    // Report another player (#467): only real, non-pending messages from
+    // someone else. NPC messages have no sender_id, so they're auto-hidden;
+    // the system branch never renders actions at all.
+    if (onReport && !isMe && message.sender_id && !message.pending && !isSystem) {
+      list.push({
+        id: 'report', label: 'Report', danger: true, onClick: () => setReportOpen(true),
+        icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>,
+      })
+    }
     return list
-  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message])
+  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message, isMe, onReport])
 
   const actionIconClass = (danger?: boolean) =>
     `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-surface-400 dark:text-surface-400 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-primary-600 dark:hover:text-primary-400'}`
@@ -433,6 +458,19 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       description="This removes the message for everyone and can't be undone."
       onConfirm={runDelete}
       onClose={() => setConfirmDelete(false)}
+    />
+  ) : null
+
+  // 1000 = abuse_reports.reason DB cap; enforced at input via maxLength.
+  const reportSheet = reportOpen && onReport ? (
+    <TextPromptSheet
+      title="Report this message"
+      label="Why are you reporting this message?"
+      placeholder="Describe the problem"
+      maxLength={1000}
+      confirmLabel="Submit report"
+      onConfirm={submitReport}
+      onClose={() => setReportOpen(false)}
     />
   ) : null
 
@@ -571,6 +609,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         )}
         {actionsSheet}
         {deleteConfirmDialog}
+        {reportSheet}
         {imageViewer}
       </div>
     )
@@ -739,6 +778,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       )}
       {actionsSheet}
       {deleteConfirmDialog}
+      {reportSheet}
       {imageViewer}
     </div>
   )

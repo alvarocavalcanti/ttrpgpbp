@@ -1089,3 +1089,106 @@ it('opens the image viewer from scene message images too', () => {
   fireEvent.click(screen.getByLabelText('Close'))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
+
+describe('MessageItem report action (#467)', () => {
+  const baseMsg = {
+    id: 'm1',
+    type: 'regular',
+    content: 'I sell cursed dice',
+    created_at: new Date().toISOString(),
+    sender_id: 'u2',
+    channel_id: 'c1',
+  }
+  const renderMsg = (msg: any, props: any = {}) =>
+    render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onReport={vi.fn().mockResolvedValue(undefined)}
+        {...props}
+      />,
+    )
+
+  it('shows the Report action on another player’s regular message', () => {
+    renderMsg({ ...baseMsg })
+    expect(screen.getByLabelText('Report')).toBeInTheDocument()
+  })
+
+  it('shows the Report action on another player’s scene message', () => {
+    renderMsg({ ...baseMsg, type: 'scene', content: 'Scene from the GM' })
+    expect(screen.getByLabelText('Report')).toBeInTheDocument()
+  })
+
+  it('hides the Report action on the viewer’s own message', () => {
+    renderMsg({ ...baseMsg, sender_id: 'u1' })
+    expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
+  })
+
+  it('hides the Report action on system messages', () => {
+    renderMsg({ ...baseMsg, type: 'system' })
+    expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
+  })
+
+  it('hides the Report action on pending messages', () => {
+    renderMsg({ ...baseMsg, pending: true })
+    expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
+  })
+
+  it('hides the Report action on NPC messages (no sender_id)', () => {
+    renderMsg({ ...baseMsg, type: 'npc', sender_id: null, npc_name: 'Goblin King' })
+    expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
+  })
+
+  it('hides the Report action when no onReport handler is given', () => {
+    renderMsg({ ...baseMsg }, { onReport: undefined })
+    expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
+  })
+
+  it('opens the report sheet with title, label and 1000-char cap', () => {
+    renderMsg({ ...baseMsg })
+    fireEvent.click(screen.getByLabelText('Report'))
+    expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
+    expect(screen.getByText('Why are you reporting this message?')).toBeInTheDocument()
+    const input = screen.getByLabelText('Why are you reporting this message?')
+    expect(input).toHaveAttribute('maxLength', '1000')
+  })
+
+  it('rejects an empty reason without calling onReport', () => {
+    const onReport = vi.fn().mockResolvedValue(undefined)
+    renderMsg({ ...baseMsg }, { onReport })
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+    expect(onReport).not.toHaveBeenCalled()
+    // Sheet stays open so the user can fill the reason in.
+    expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
+  })
+
+  it('submits the report with the typed reason and closes the sheet', async () => {
+    const onReport = vi.fn().mockResolvedValue(undefined)
+    const msg = { ...baseMsg }
+    renderMsg(msg, { onReport })
+    fireEvent.click(screen.getByLabelText('Report'))
+    const input = screen.getByLabelText('Why are you reporting this message?')
+    fireEvent.change(input, { target: { value: '  harassment in chat  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+    await waitFor(() => expect(onReport).toHaveBeenCalledWith(msg, 'harassment in chat'))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Report this message' })).not.toBeInTheDocument(),
+    )
+  })
+
+  it('keeps the sheet open when the report submission fails', async () => {
+    const onReport = vi.fn().mockRejectedValue(new Error('insert failed'))
+    renderMsg({ ...baseMsg }, { onReport })
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
+      target: { value: 'spam' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+    await waitFor(() => expect(onReport).toHaveBeenCalled())
+    expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
+  })
+})

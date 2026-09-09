@@ -21,6 +21,10 @@ Messages can contain up to **4,000 characters**, including Markdown. The same li
 - Messages can be **deleted**, and are replaced with a "deleted" marker. Deleting asks you to confirm first.
 - On desktop, hover a message to see its actions (reply, edit, delete, Reactions). On mobile, tap the **"⋯"** button next to a message to open the same actions in a bottom sheet.
 
+## Reporting a message
+
+If another player posts something inappropriate, hover their message (or tap the **"⋯"** button on mobile) and choose **Report**. Describe the problem in your own words and submit — the server administrators will see the report together with the message and channel it came from. You can report any message posted by someone else; your own messages, system notices and GM-run NPC speech can't be reported.
+
 ## Replies
 
 Any message can be **replied to**. A reply renders a quote of the original message; clicking it jumps to the original.

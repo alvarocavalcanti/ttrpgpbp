@@ -23,6 +23,7 @@ import { SafetyToolsModal } from './SafetyToolsModal'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
 import { useToast } from '../../contexts/ToastContext'
+import { useReportMessage } from './useReportMessage'
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
@@ -152,6 +153,21 @@ export function ChannelView() {
     const senderName = members.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name || null
     setReplyTo({ id: message.id, content: message.content, senderName })
   }, [members])
+
+  // Player-facing report (#467): insert into abuse_reports with the message
+  // and channel attached so admins get full context. The toast is the only
+  // feedback; the sheet stays open on failure so the player can retry.
+  const { reportMessage } = useReportMessage()
+  const handleReportMessage = useCallback(async (message: ChatMessage, reason: string) => {
+    if (!user) throw new Error('Not signed in')
+    const error = await reportMessage(user.id, message, reason)
+    if (error) {
+      console.error('Failed to submit report:', error)
+      addToast('Failed to submit report. Please try again.', 'error')
+      throw error
+    }
+    addToast('Report submitted. Thank you for helping keep the game safe.')
+  }, [user, reportMessage, addToast])
 
   // Read the latest reactions through a ref so the callback stays stable
   // (required for React.memo on MessageItem) without going stale.
@@ -401,6 +417,7 @@ export function ChannelView() {
           lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
           onRetry={retryMessage}
           onRemovePending={removePendingMessage}
+          onReport={handleReportMessage}
           onRetryLoad={refreshMessages}
           // Open the mobile sidebar with the editor: the modal renders inside
           // the sidebar, whose translate-x-full transform would otherwise
