@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-10
 
+### Added
+
+- **Server admins can now act on player reports** — the Server Admin console has a new **Reports** tab listing every report with the reporter, the reported player, the reason, the channel, and the date. Open reports can be **resolved** (marked actioned), **dismissed**, or actioned by **suspending** the reported player in one step; the outcome is kept on the report so nothing gets lost.
+
 ### Fixed
 
 - **Reload that actually reloads** — tapping **Reload** on the "New version available" banner now refreshes the app reliably, even after it has been sitting in the background for a while (on Android the button used to do nothing and the banner just stayed put). While the update is being applied the button reads **Updating…**, so you can see it's working rather than wondering if the tap registered.
