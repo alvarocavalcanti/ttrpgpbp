@@ -21,6 +21,11 @@ const baseUser = {
   is_suspended: false, avatar_url: null, server_admin: false, email_verified: false, provider: null,
 }
 const baseChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice' }
+const baseReport = {
+  id: 'r1', reporter_id: 'u1', reporter_display_name: 'Alice', reported_user_id: 'u2',
+  reported_display_name: 'Bob', channel_id: 'c1', channel_name: 'Strahd', message_id: null,
+  reason: 'spam', status: 'pending', created_at: '2026-03-03T00:00:00Z', updated_at: '2026-03-03T00:00:00Z',
+}
 
 describe('useAdminData', () => {
   beforeEach(() => {
@@ -32,12 +37,14 @@ describe('useAdminData', () => {
     } as any)
   })
 
-  it('fetches users, channels, and storage bytes in parallel', async () => {
+  it('fetches users, channels, reports, and storage bytes in parallel', async () => {
     const users = [{ ...baseUser }]
     const channels = [{ ...baseChannel }]
+    const reports = [{ ...baseReport }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reports, error: null })
       return Promise.resolve({ data: 2048, error: null })
     }) as any)
 
@@ -46,9 +53,11 @@ describe('useAdminData', () => {
 
     expect(supabase.rpc).toHaveBeenCalledWith('admin_list_users')
     expect(supabase.rpc).toHaveBeenCalledWith('admin_list_channels')
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_list_abuse_reports')
     expect(supabase.rpc).toHaveBeenCalledWith('admin_get_image_storage_bytes')
     expect(result.current.users).toEqual(users)
     expect(result.current.channels).toEqual(channels)
+    expect(result.current.reports).toEqual(reports)
     expect(result.current.storageBytes).toBe(2048)
     expect(result.current.error).toBeNull()
   })
@@ -85,6 +94,7 @@ describe('useAdminData', () => {
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: [null, ...users], error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: [null, ...channels], error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
       return Promise.resolve({ data: 2048, error: null })
     }) as any)
 
@@ -110,6 +120,7 @@ describe('useAdminData', () => {
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: [validUser, ...badUsers], error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: [validChannel, ...badChannels], error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
       return Promise.resolve({ data: 2048, error: null })
     }) as any)
 
@@ -121,12 +132,90 @@ describe('useAdminData', () => {
     expect(result.current.error).toBeNull()
   })
 
+  it('filters malformed abuse-report rows while valid rows survive', async () => {
+    const reports = [
+      { ...baseReport },
+      { ...baseReport, id: 'r2', reported_user_id: null, channel_name: null },
+      { id: 'r3', reason: 42 },
+    ]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reports, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.reports).toHaveLength(2)
+    expect(result.current.reports[1].id).toBe('r2')
+    expect(result.current.reports[1].reported_user_id).toBeNull()
+  })
+
+  it('resolveReport calls the RPC and updates the report in place', async () => {
+    const reports = [{ ...baseReport }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reports, error: null })
+      if (fn === 'admin_resolve_abuse_report') return Promise.resolve({ data: null, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.reports).toHaveLength(1))
+
+    await act(async () => {
+      await expect(result.current.resolveReport('r1', 'resolved')).resolves.toBeNull()
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_resolve_abuse_report', {
+      p_report_id: 'r1',
+      p_status: 'resolved',
+    })
+    expect(result.current.reports[0].status).toBe('resolved')
+  })
+
+  it('resolveReport surfaces the RPC error without mutating the report', async () => {
+    const reports = [{ ...baseReport }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reports, error: null })
+      if (fn === 'admin_resolve_abuse_report') return Promise.resolve({ data: null, error: new Error('nope') })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.reports).toHaveLength(1))
+
+    await act(async () => {
+      const err = await result.current.resolveReport('r1', 'dismissed')
+      expect(err).toBeInstanceOf(Error)
+    })
+    expect(result.current.reports[0].status).toBe('pending')
+  })
+
+  it('resolveReport catches a rejected RPC and returns the error', async () => {
+    const reports = [{ ...baseReport }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reports, error: null })
+      if (fn === 'admin_resolve_abuse_report') return Promise.reject(new Error('boom'))
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.reports).toHaveLength(1))
+
+    await act(async () => {
+      const err = await result.current.resolveReport('r1', 'resolved')
+      expect(err).toBeInstanceOf(Error)
+      expect((err as Error).message).toBe('boom')
+    })
+    expect(result.current.reports[0].status).toBe('pending')
+  })
+
   it('accepts null values in nullable user and channel fields', async () => {
     const users = [{ ...baseUser, display_name: null, email: null, last_login_at: null, last_message_at: null, avatar_url: null, provider: null, channels: [] }]
     const channels = [{ ...baseChannel, gm_id: null, last_message_at: null, gm_display_name: null }]
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
       return Promise.resolve({ data: 0, error: null })
     }) as any)
 

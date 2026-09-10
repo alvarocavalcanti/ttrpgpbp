@@ -3,14 +3,34 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
-import { useAdminData, type AdminUser } from './useAdminData'
+import { TextPromptSheet } from '../../components/TextPromptSheet'
+import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
+import { useAdminData, type AdminUser, type AdminAbuseReport } from './useAdminData'
 import { UserDetailModal } from './UserDetailModal'
 
-type Tab = 'users' | 'channels' | 'settings'
+type Tab = 'users' | 'channels' | 'reports' | 'settings'
 type SortDir = 'asc' | 'desc'
 type UserFilter = 'all' | 'active' | 'inactive' | 'suspended'
 
 const INACTIVE_DAYS = 30
+
+// DB statuses stay pending/resolved/dismissed; the console speaks player-facing
+// "Open / Actioned / Dismissed".
+const REPORT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Open',
+  resolved: 'Actioned',
+  dismissed: 'Dismissed',
+}
+
+const REPORT_STATUS_CLASSES: Record<string, string> = {
+  pending: 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200',
+  resolved: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+  dismissed: 'bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300',
+}
+
+function reportStatusLabel(status: string): string {
+  return REPORT_STATUS_LABELS[status] ?? status
+}
 
 function useSort<T>(data: T[], initialKey: keyof T, initialDir: SortDir = 'asc') {
   const [sortKey, setSortKey] = useState<keyof T>(initialKey)
@@ -87,12 +107,13 @@ export function AdminView() {
   const [imageRetention, setImageRetention] = useState('0')
   const [isSavingImages, setIsSavingImages] = useState(false)
   const [detailUser, setDetailUser] = useState<AdminUser | null>(null)
+  const [suspendReport, setSuspendReport] = useState<AdminAbuseReport | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<UserFilter>('all')
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
-  const { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings, getUserHistory } = useAdminData(isServerAdmin)
+  const { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory } = useAdminData(isServerAdmin)
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
@@ -182,6 +203,36 @@ export function AdminView() {
     addToast('Channel claimed. You are now the GM.', 'success')
   }
 
+  // Suspend the reported user, then mark the report actioned. A resolve
+  // failure must not hide the successful suspension, so it only warns.
+  const handleSuspendReport = async (report: AdminAbuseReport, reason: string): Promise<boolean> => {
+    if (!report.reported_user_id) return false
+    const rpcError = await suspendUser(report.reported_user_id, true, reason || 'No reason provided')
+    if (rpcError) {
+      console.error('Error suspending reported user:', rpcError)
+      addToast('Failed to suspend user.', 'error')
+      return false
+    }
+    const resolveError = await resolveReport(report.id, 'resolved')
+    if (resolveError) {
+      console.error('Error resolving report:', resolveError)
+      addToast('User suspended, but the report could not be marked actioned.', 'error')
+      return true
+    }
+    addToast('User suspended and report marked actioned.', 'success')
+    return true
+  }
+
+  const handleReportStatus = async (report: AdminAbuseReport, status: 'resolved' | 'dismissed') => {
+    const rpcError = await resolveReport(report.id, status)
+    if (rpcError) {
+      console.error('Error updating report:', rpcError)
+      addToast('Failed to update report.', 'error')
+      return
+    }
+    addToast(status === 'dismissed' ? 'Report dismissed.' : 'Report marked actioned.', 'success')
+  }
+
   // Copy the opted-in email list (newline-joined) onto the clipboard. Mirrors
   // ChannelSettings' invite-link copy: navigator.clipboard in secure
   // contexts, execCommand fallback otherwise.
@@ -220,6 +271,7 @@ export function AdminView() {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'users', label: 'Users' },
     { id: 'channels', label: 'Channels' },
+    { id: 'reports', label: 'Reports' },
     { id: 'settings', label: 'Settings' },
   ]
 
@@ -486,6 +538,77 @@ export function AdminView() {
             </div>
           )}
 
+          {tab === 'reports' && (
+            <div className="bg-white dark:bg-surface-800 shadow overflow-hidden rounded-md">
+              {reports.length === 0 ? (
+                <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No abuse reports yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
+                    <thead className="bg-surface-50 dark:bg-surface-900">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Reporter</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Reported user</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Reason</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
+                      {reports.map(report => (
+                        <tr key={report.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">{report.reporter_display_name || '—'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">{report.reported_display_name || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-surface-500 dark:text-surface-400 max-w-md whitespace-pre-wrap break-words">{report.reason}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${REPORT_STATUS_CLASSES[report.status] ?? REPORT_STATUS_CLASSES.dismissed}`}>
+                              {reportStatusLabel(report.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+                            {new Date(report.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {report.status === 'pending' ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSuspendReport(report)}
+                                  disabled={!report.reported_user_id}
+                                  title={report.reported_user_id ? undefined : 'No user to suspend for this report.'}
+                                  className="inline-flex items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Suspend
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { void handleReportStatus(report, 'resolved') }}
+                                  className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                >
+                                  Resolve
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { void handleReportStatus(report, 'dismissed') }}
+                                  className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-surface-400 dark:text-surface-500">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === 'settings' && (
             <div className="max-w-md bg-white dark:bg-surface-800 shadow rounded-md p-6">
               <label htmlFor="maxChannels" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
@@ -578,6 +701,22 @@ export function AdminView() {
           onClose={() => setDetailUser(null)}
           onSuspend={handleSuspend}
           getUserHistory={getUserHistory}
+        />
+      )}
+
+      {suspendReport && (
+        <TextPromptSheet
+          title={`Suspend ${suspendReport.reported_display_name || 'this user'}?`}
+          label="Reason"
+          placeholder="Reason (optional)"
+          maxLength={MAX_ADMIN_SUSPEND_REASON_LENGTH}
+          confirmLabel="Suspend"
+          onConfirm={(reason) => {
+            void handleSuspendReport(suspendReport, reason).then(ok => {
+              if (ok) setSuspendReport(null)
+            })
+          }}
+          onClose={() => setSuspendReport(null)}
         />
       )}
     </div>

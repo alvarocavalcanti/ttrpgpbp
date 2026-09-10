@@ -38,6 +38,21 @@ export const AdminAuditEntrySchema = z.object({
   created_at: z.string(),
 })
 
+export const AdminAbuseReportRowSchema = z.object({
+  id: z.string(),
+  reporter_id: z.string().nullable(),
+  reporter_display_name: z.string().nullable(),
+  reported_user_id: z.string().nullable(),
+  reported_display_name: z.string().nullable(),
+  channel_id: z.string().nullable(),
+  channel_name: z.string().nullable(),
+  message_id: z.string().nullable(),
+  reason: z.string(),
+  status: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+})
+
 export const AdminChannelRowSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -52,6 +67,7 @@ export const AdminChannelRowSchema = z.object({
 export type AdminUser = z.infer<typeof AdminUserRowSchema>
 export type AdminChannel = z.infer<typeof AdminChannelRowSchema>
 export type AdminAuditEntry = z.infer<typeof AdminAuditEntrySchema>
+export type AdminAbuseReport = z.infer<typeof AdminAbuseReportRowSchema>
 
 // Data layer for the server admin console (ARCH-1): the admin_list_* queries,
 // suspend/claim RPCs, and app_settings upserts live here; AdminView keeps the
@@ -60,6 +76,7 @@ export function useAdminData(isServerAdmin: boolean) {
   const { user, profile } = useAuth()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [channels, setChannels] = useState<AdminChannel[]>([])
+  const [reports, setReports] = useState<AdminAbuseReport[]>([])
   const [storageBytes, setStorageBytes] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,19 +92,22 @@ export function useAdminData(isServerAdmin: boolean) {
         const [
           { data: userData, error: userError },
           { data: channelData, error: channelError },
+          { data: reportData, error: reportError },
           { data: storageData, error: storageError }
         ] = await Promise.all([
           supabase.rpc('admin_list_users'),
           supabase.rpc('admin_list_channels'),
+          supabase.rpc('admin_list_abuse_reports'),
           supabase.rpc('admin_get_image_storage_bytes'),
         ])
         if (userError) throw userError
         if (channelError) throw channelError
+        if (reportError) throw reportError
         if (storageError) throw storageError
         // RPC payloads aren't runtime-validated; malformed data would crash
         // AdminView's useSort during render, so treat it as a load error
         // instead of trusting the cast.
-        if (!Array.isArray(userData) || !Array.isArray(channelData)) {
+        if (!Array.isArray(userData) || !Array.isArray(channelData) || !Array.isArray(reportData)) {
           throw new Error('Malformed admin data payload.')
         }
         if (mounted) {
@@ -100,6 +120,12 @@ export function useAdminData(isServerAdmin: boolean) {
           setChannels(
             channelData
               .map(c => AdminChannelRowSchema.safeParse(c))
+              .filter(r => r.success)
+              .map(r => r.data)
+          )
+          setReports(
+            reportData
+              .map(r => AdminAbuseReportRowSchema.safeParse(r))
               .filter(r => r.success)
               .map(r => r.data)
           )
@@ -153,6 +179,25 @@ export function useAdminData(isServerAdmin: boolean) {
     return null
   }
 
+  // Resolves or dismisses an abuse report; row updated in place. Mirrors
+  // suspendUser's error contract so a rejected RPC promise still surfaces.
+  const resolveReport = async (reportId: string, status: 'resolved' | 'dismissed') => {
+    let rpcError: { message: string } | null = null
+    try {
+      rpcError = (await supabase.rpc('admin_resolve_abuse_report', {
+        p_report_id: reportId,
+        p_status: status
+      })).error
+    } catch (err) {
+      rpcError = err as { message: string }
+    }
+    if (rpcError) return rpcError
+    setReports(prev => prev.map(r =>
+      r.id === reportId ? { ...r, status } : r
+    ))
+    return null
+  }
+
   const upsertSettings = async (entries: { key: string; value: Json }[]) => {
     const { error: upsertError } = await supabase
       .from('app_settings')
@@ -174,5 +219,5 @@ export function useAdminData(isServerAdmin: boolean) {
     return entries
   }
 
-  return { users, channels, storageBytes, loading, error, suspendUser, claimChannel, upsertSettings, getUserHistory }
+  return { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory }
 }

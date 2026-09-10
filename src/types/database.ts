@@ -1002,6 +1002,23 @@ export type Database = {
           reason: string
         }[]
       }
+      admin_list_abuse_reports: {
+        Args: never
+        Returns: {
+          channel_id: string
+          channel_name: string
+          created_at: string
+          id: string
+          message_id: string
+          reason: string
+          reported_display_name: string
+          reported_user_id: string
+          reporter_display_name: string
+          reporter_id: string
+          status: string
+          updated_at: string
+        }[]
+      }
       admin_list_channels: {
         Args: never
         Returns: {
@@ -1042,6 +1059,10 @@ export type Database = {
           provider: string
           server_admin: boolean
         }[]
+      }
+      admin_resolve_abuse_report: {
+        Args: { p_report_id: string; p_status: string }
+        Returns: undefined
       }
       admin_suspend_user: {
         Args: { p_reason?: string; p_suspend: boolean; p_user_id: string }
