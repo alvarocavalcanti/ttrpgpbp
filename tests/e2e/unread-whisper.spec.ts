@@ -74,8 +74,8 @@ test.describe('Unread counts and whispers', () => {
     await dismissWhatsNew(page);
 
     // Lobby pill counts the regular message only — the whisper never appears.
-    await expect(page.getByText('1 new')).toBeVisible();
-    await expect(page.getByText('2 new')).not.toBeVisible();
+    await expect(page.getByLabel('1 unanswered')).toBeVisible();
+    await expect(page.getByLabel('2 unanswered')).not.toBeVisible();
 
     // The per-user RPC agrees (1, not 2).
     const unreadBefore = await page.evaluate(async () => {
@@ -105,7 +105,7 @@ test.describe('Unread counts and whispers', () => {
     await page.reload();
     await dismissWhatsNew(page);
 
-    await expect(page.getByText('1 new')).not.toBeVisible();
+    await expect(page.getByLabel('1 unanswered')).not.toBeVisible();
     const unreadAfter = await page.evaluate(async () => {
       // @ts-expect-error - exposed in dev for E2E
       const client = window.__supabase;

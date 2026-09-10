@@ -32,6 +32,11 @@ function channelTimestamp(iso?: string | null): string {
   return `${dd}/${mm}/${d.getFullYear()}`
 }
 
+// Compact unread count: exact up to 99, then capped.
+function unreadBadgeLabel(count: number): string {
+  return count > 99 ? '99+' : String(count)
+}
+
 // Plain-text preview of the most recent message; CSS `truncate` adds the ellipsis.
 function channelPreview(preview?: string | null): string {
   if (!preview) return 'No messages yet'
@@ -189,29 +194,29 @@ export function Lobby() {
                             <span className="text-sm font-medium text-primary-600 dark:text-primary-400 truncate">
                               {channel.name}
                             </span>
-                            {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
-                              <span className="inline-flex flex-shrink-0 whitespace-nowrap items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
-                                {channel.unread_count} new
+                            {channel.gm_id === user?.id && (
+                              <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded text-[10px] leading-4 font-semibold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
+                                GM
                               </span>
-                            ) : null}
+                            )}
                           </span>
                           <span className="text-xs text-surface-400 dark:text-surface-400 flex-shrink-0">
                             {channelTimestamp(channel.last_message_at)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm text-surface-500 dark:text-surface-400 truncate">
+                          <span className="text-[15px] text-surface-500 dark:text-surface-400 truncate">
                             {channelPreview(channel.last_message_preview)}
                           </span>
-                          {channel.gm_id === user?.id ? (
-                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 flex-shrink-0">
-                              GM
-                            </p>
-                          ) : (
-                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 flex-shrink-0">
-                              Player
-                            </p>
-                          )}
+                          {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
+                            <span
+                              role="img"
+                              aria-label={`${unreadBadgeLabel(channel.unread_count)} unanswered`}
+                              className="inline-flex flex-shrink-0 items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold bg-red-600 text-white"
+                            >
+                              {unreadBadgeLabel(channel.unread_count)}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

@@ -39,7 +39,7 @@ VALUES ('00000000-0000-0000-0000-000000000432', '00000000-0000-0000-0000-0000000
 
 SELECT is(
   (SELECT last_message_preview FROM channels WHERE id = '00000000-0000-0000-0000-000000000413'),
-  'pin check',
+  'P1: pin check',
   'regular message still fills the preview after the redefinition'
 );
 
