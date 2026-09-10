@@ -223,7 +223,23 @@ describe('Lobby', () => {
     // No last message yet → placeholder preview.
     expect(screen.getByText('No messages yet')).toBeInTheDocument()
     // Unread shows as a compact count-only pill (#468).
-    expect(screen.getByLabelText('5 unanswered')).toHaveTextContent('5')
+    expect(screen.getByLabelText('5 unread messages')).toHaveTextContent('5')
+  })
+
+  it('labels a single unread message in the singular', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'One', unread_count: 1 } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    const pill = screen.getByLabelText('1 unread message')
+    expect(pill).toHaveTextContent('1')
+    expect(pill).toHaveAttribute('role', 'img')
   })
 
   it('caps the unread count pill at 99+', () => {
@@ -237,7 +253,7 @@ describe('Lobby', () => {
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    const pill = screen.getByLabelText('99+ unanswered')
+    const pill = screen.getByLabelText('99+ unread messages')
     expect(pill).toHaveTextContent('99+')
     // role=img makes the aria-label meaningful to SRs; red-600 keeps the count
     // at WCAG AA contrast on white/red (#496 review).
@@ -326,7 +342,7 @@ describe('Lobby', () => {
     const nameContainer = nameEl.parentElement as HTMLElement
     expect(nameContainer).toHaveClass('min-w-0')
 
-    expect(screen.getByLabelText('5 unanswered')).toHaveTextContent('5')
+    expect(screen.getByLabelText('5 unread messages')).toHaveTextContent('5')
     expect(screen.queryByText('Player')).not.toBeInTheDocument()
   })
 
@@ -351,7 +367,7 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
 
-    const pill = screen.getByLabelText('4 unanswered')
+    const pill = screen.getByLabelText('4 unread messages')
     expect(pill).toHaveTextContent('4')
     expect(pill).toHaveClass('flex-shrink-0')
   })
@@ -376,7 +392,7 @@ describe('Lobby', () => {
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    expect(screen.queryByLabelText('5 unanswered')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('5 unread messages')).not.toBeInTheDocument()
   })
 
   it('updates app badge correctly based on unread counts', () => {

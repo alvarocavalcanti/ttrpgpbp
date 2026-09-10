@@ -37,6 +37,12 @@ function unreadBadgeLabel(count: number): string {
   return count > 99 ? '99+' : String(count)
 }
 
+// Screen-reader label for the count pill: "1 unread message" /
+// "N unread messages" (the capped "99+" form stays plural).
+function unreadBadgeAria(count: number): string {
+  return `${unreadBadgeLabel(count)} unread ${count === 1 ? 'message' : 'messages'}`
+}
+
 // Plain-text preview of the most recent message; CSS `truncate` adds the ellipsis.
 function channelPreview(preview?: string | null): string {
   if (!preview) return 'No messages yet'
@@ -211,7 +217,7 @@ export function Lobby() {
                           {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
                             <span
                               role="img"
-                              aria-label={`${unreadBadgeLabel(channel.unread_count)} unanswered`}
+                              aria-label={unreadBadgeAria(channel.unread_count)}
                               className="inline-flex flex-shrink-0 items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold bg-red-600 text-white"
                             >
                               {unreadBadgeLabel(channel.unread_count)}
