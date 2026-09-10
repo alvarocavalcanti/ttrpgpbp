@@ -3,7 +3,8 @@
 -- channels row, bypassing messages RLS. Locks the trigger contract:
 --   * a whisper insert leaves last_message_preview NULL (no leak)
 --   * last_message_at still advances on whisper inserts (unread counts)
---   * a non-whisper insert fills the preview as before (capped at 120 chars)
+--   * a non-whisper insert fills the preview (sender-prefixed since #468,
+--     capped at 120 chars total)
 --   * a whisper arriving after a regular message clears the preview rather
 --     than leaving stale (but non-leaking) content behind
 --   * the historical scrub NULLs only previews produced by a whisper: a later
@@ -26,14 +27,14 @@ VALUES
   ('00000000-0000-0000-0000-000000000420', '00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000400', 'GM', now()),
   ('00000000-0000-0000-0000-000000000421', '00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000401', 'P1', now());
 
--- Regular message fills the preview.
+-- Regular message fills the preview (sender label from character_name, #468).
 INSERT INTO messages (id, channel_id, sender_id, type, content)
 VALUES ('00000000-0000-0000-0000-000000000430', '00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000401', 'regular', 'I attack the darkness!');
 
 SELECT is(
   (SELECT last_message_preview FROM channels WHERE id = '00000000-0000-0000-0000-000000000410'),
-  'I attack the darkness!',
-  'regular message fills the preview'
+  'P1: I attack the darkness!',
+  'regular message fills the preview with the sender label'
 );
 
 -- Whisper insert: preview goes NULL, timestamp still advances.
@@ -52,14 +53,14 @@ SELECT ok(
   'whisper insert still advances last_message_at for unread counts'
 );
 
--- Long content is capped at 120 chars.
+-- Long content: sender prefix counts toward the 120-char cap.
 INSERT INTO messages (id, channel_id, sender_id, type, content)
 VALUES ('00000000-0000-0000-0000-000000000432', '00000000-0000-0000-0000-000000000410', '00000000-0000-0000-0000-000000000401', 'regular', repeat('x', 200));
 
 SELECT is(
   (SELECT last_message_preview FROM channels WHERE id = '00000000-0000-0000-0000-000000000410'),
-  repeat('x', 120),
-  'regular preview stays capped at 120 chars'
+  'P1: ' || repeat('x', 116),
+  'regular preview stays capped at 120 chars including the sender label'
 );
 
 -- Historical scrub (mirrors the migration's UPDATE): the backfill copied the

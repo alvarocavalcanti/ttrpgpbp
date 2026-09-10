@@ -31,7 +31,7 @@
 - Channel names are limited to 80 characters
 - **Channel limit** — non-server-admins are capped at **N active channels**, where N is the admin-configured `app_settings.max_channels_per_user` (default 10). Server-enforced in `join_channel`; the "Create Channel" button greys out at the cap with an explanatory toast. Existing members over a lowered limit are never kicked.
 - **Lobby** lists only the private channels the user has joined
-- **Lobby shows your role per channel** — a "GM" badge when you run the channel, a "Player" badge otherwise
+- **Lobby row** — the most-recent-message preview leads with the sender (NPC name, else the sender's character name, else their display name), and a small amber **GM** chip sits inline next to the channel name when you run it
 - **Channel avatar** — GMs can upload an image avatar (WhatsApp/Signal-style) from Channel Settings; it shows in the channel list and the channel header. Images are downscaled client-side to ~512 px JPEG before upload into Supabase Storage, and uploads require the server admin to enable image uploads (off by default)
 - **Image uploads (GM-only)** — when enabled, GMs can upload images into messages (inserted as markdown at the cursor), as the channel Map or Resources (Channel Settings), or as an NPC portrait. All uploads are downscaled client-side (JPEG) before hitting Supabase Storage, capped by the admin's size limit, and stored under `{channel_id}/{kind}/{uuid}.jpg`
 - **Tap-to-zoom message images** — tap any image in a channel message to open it fullscreen: pinch on mobile (or the +/− controls) zooms in up to 800%, scroll or trackpad-pans around while zoomed, and double-tap (or double-click) snaps it back to fit. Close with the ✕ button or Escape
@@ -81,7 +81,7 @@
 - **Draft persistence** — the composer saves text automatically per-channel. Closing the app or navigating away preserves the draft, which is only cleared after a message successfully sends
 - **Reliable sending** — messages and rolls are sent with a client-generated idempotency key. If the connection drops during sending, the message is kept in a "Pending/Failed" state. Users can click **Retry** to safely resend it without duplicating the message, or **Remove** to discard the pending bubble (the draft text remains safe in the composer)
 - **Emoji reactions** — react to a message from the **Reactions** action; counts update live and toggle per user
-- **Unread badges** — Lobby shows a "N new" badge per channel counting messages since the member's `last_read_at`; excludes the user's own and deleted messages
+- **Unread badges** — Lobby shows a compact count-only pill per channel for messages since the member's `last_read_at` (capped at 99+); excludes the user's own and deleted messages
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read. The read mark only advances after your message history has actually loaded, so a failed load never hides the divider for messages you haven't seen; if loading fails, the banner and empty state offer a **Retry** button
 
 ## NPCs (GM-only)

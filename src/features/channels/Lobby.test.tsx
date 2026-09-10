@@ -222,7 +222,38 @@ describe('Lobby', () => {
     expect(screen.getByText('My Channel')).toBeInTheDocument()
     // No last message yet → placeholder preview.
     expect(screen.getByText('No messages yet')).toBeInTheDocument()
-    expect(screen.getByText('5 new')).toBeInTheDocument()
+    // Unread shows as a compact count-only pill (#468).
+    expect(screen.getByLabelText('5 unanswered')).toHaveTextContent('5')
+  })
+
+  it('caps the unread count pill at 99+', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'Busy', unread_count: 150 } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    const pill = screen.getByLabelText('99+ unanswered')
+    expect(pill).toHaveTextContent('99+')
+  })
+
+  it('renders the sender-prefixed preview as plain text at the larger size', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'Talk', last_message_preview: 'Hero: *waves*', unread_count: 0 } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    const preview = screen.getByText('Hero: waves')
+    expect(preview).toHaveClass('text-[15px]')
   })
 
   it('shows a short timestamp and a stripped message preview per channel', () => {
@@ -291,15 +322,14 @@ describe('Lobby', () => {
     const nameContainer = nameEl.parentElement as HTMLElement
     expect(nameContainer).toHaveClass('min-w-0')
 
-    expect(screen.getByText('5 new')).toBeInTheDocument()
-    expect(screen.getByText('Player')).toBeInTheDocument()
+    expect(screen.getByLabelText('5 unanswered')).toHaveTextContent('5')
+    expect(screen.queryByText('Player')).not.toBeInTheDocument()
   })
 
   it('keeps the unread pill on one line next to the truncated name (#428)', () => {
     // Regression test for #428: on narrow screens the flex row squeezed the
-    // "N new" pill until "new" wrapped onto its own line. The pill must never
-    // shrink below its content (the name truncates instead) and its text must
-    // never wrap.
+    // unread badge until its text wrapped. The count pill must never shrink
+    // below its content (the name truncates instead).
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [
         {
@@ -317,8 +347,8 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
 
-    const pill = screen.getByText('4 new')
-    expect(pill).toHaveClass('whitespace-nowrap')
+    const pill = screen.getByLabelText('4 unanswered')
+    expect(pill).toHaveTextContent('4')
     expect(pill).toHaveClass('flex-shrink-0')
   })
 
@@ -342,7 +372,7 @@ describe('Lobby', () => {
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    expect(screen.queryByText('5 new')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('5 unanswered')).not.toBeInTheDocument()
   })
 
   it('updates app badge correctly based on unread counts', () => {
@@ -489,7 +519,7 @@ describe('Lobby', () => {
     expect(screen.getByText('Create a New Channel')).toBeInTheDocument()
   })
 
-  it('shows GM badge for channels the user runs and Player badge otherwise', () => {
+  it('shows a GM chip inline on channels the user runs and no Player badge', () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 'u1' },
       profile: { server_admin: false }
@@ -507,14 +537,13 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
 
-    const gmBadges = screen.getAllByText('GM')
-    expect(gmBadges).toHaveLength(1)
-    const playerBadges = screen.getAllByText('Player')
-    expect(playerBadges).toHaveLength(1)
+    expect(screen.getAllByText('GM')).toHaveLength(1)
+    expect(screen.queryByText('Player')).not.toBeInTheDocument()
 
     const gmLink = screen.getByText('My GM Channel').closest('a')
     expect(gmLink).toHaveTextContent('GM')
-    expect(gmLink).not.toHaveTextContent('Player')
+    const playerChannelLink = screen.getByText('Someone Elses').closest('a')
+    expect(playerChannelLink).not.toHaveTextContent('GM')
   })
 
   it('renders the channel avatar image when set', () => {
