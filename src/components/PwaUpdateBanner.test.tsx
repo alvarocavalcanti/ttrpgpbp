@@ -38,4 +38,25 @@ describe('PwaUpdateBanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
     expect(mock.reloadToUpdate).toHaveBeenCalledTimes(1)
   })
+
+  it('shows an updating message and relabels the CTA while the reload is in flight', () => {
+    mock.status = 'updating'
+    render(<PwaUpdateBanner />)
+    expect(screen.getByTestId('pwa-update-banner')).toHaveTextContent('Updating…')
+    expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Updating…' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('keeps keyboard focus on the CTA while the reload is in flight', () => {
+    mock.status = 'update-available'
+    const { rerender } = render(<PwaUpdateBanner />)
+    const button = screen.getByRole('button', { name: 'Reload' })
+    button.focus()
+    expect(button).toHaveFocus()
+
+    mock.status = 'updating'
+    rerender(<PwaUpdateBanner />)
+
+    expect(screen.getByRole('button', { name: 'Updating…' })).toHaveFocus()
+  })
 })

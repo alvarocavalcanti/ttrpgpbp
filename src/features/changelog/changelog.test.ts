@@ -65,8 +65,8 @@ describe('changelog module', () => {
   it('getRecentItems returns the 5 most recent items from the real changelog', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
-    // Most-recent Unreleased "Updated" entry leads the list.
-    expect(items[0].title).toBe('Search results now take you to the message')
+    // Newest entry at the top of the file leads the list.
+    expect(items[0].title).toBe('Reload that actually reloads')
   })
 
   it('getChangelogHash is a non-empty string', () => {

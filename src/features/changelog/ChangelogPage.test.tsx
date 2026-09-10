@@ -14,7 +14,8 @@ describe('ChangelogPage', () => {
     )
     expect(screen.getByRole('heading', { name: 'Changelog' })).toBeInTheDocument()
     // CHANGELOG.md is date-stamped (merges ship immediately, no Unreleased
-    // state) — the top heading is the latest merge date.
-    expect(screen.getByRole('heading', { name: /^\d{4}-\d{2}-\d{2}$/ })).toBeInTheDocument()
+    // state) — it carries one or more dated headings, newest first.
+    const dateHeadings = screen.getAllByRole('heading', { name: /^\d{4}-\d{2}-\d{2}$/ })
+    expect(dateHeadings.length).toBeGreaterThan(0)
   })
 })
