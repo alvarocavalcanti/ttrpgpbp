@@ -37,7 +37,7 @@ Boundaries: code/commits/PRs written normal.
 
 ## Project Rules
 
-- **Planning → TODO list**: After planning (once a plan is proposed/approved), always create a TODO list so the User can keep track of the plan's current status. Keep exactly one item in progress, mark items completed as they finish, and add follow-ups to the list as soon as they surface — update it in real time, never in a batch at the end.
+- **Planning → TODO list**: After planning (once a plan is proposed/approved), always create a TODO list so the User can keep track of the plan's current status. Keep exactly one item in progress while unfinished work remains; allow zero active items after all items are completed. Mark items completed as they finish, and add follow-ups to the list as soon as they surface — update it in real time, never in a batch at the end.
 
 - **Branching & PRs — git worktrees**: ALL work happens in a dedicated `git worktree`. Never start working on `main`, never work in the main repo directory — every session gets its own worktree to prevent branch collisions and uncommitted-change bleed. Never push directly to `main` (protected against rewrites).
 
