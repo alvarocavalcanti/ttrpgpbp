@@ -9,6 +9,15 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    groups:
+      # Bundle routine minor/patch bumps into one PR per dependency type;
+      # majors still arrive individually so breaking changes get reviewed.
+      production-dependencies:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-dependencies:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
     ignore:
       # vitest and its coverage provider must bump majors together (a
       # coverage-v8 major can't run against vitest from the previous line)
