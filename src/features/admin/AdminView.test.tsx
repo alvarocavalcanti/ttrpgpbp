@@ -66,11 +66,20 @@ const channels = [
   { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null },
 ]
 
+const makeReport = (over: Record<string, unknown> = {}) => ({
+  id: 'r1', reporter_id: 'u1', reporter_display_name: 'Alice', reported_user_id: 'u2',
+  reported_display_name: 'Bob', channel_id: 'c1', channel_name: 'Curse of Strahd', message_id: 'm1',
+  reason: 'Inappropriate content', status: 'pending',
+  created_at: '2026-03-03T00:00:00Z', updated_at: '2026-03-03T00:00:00Z',
+  ...over,
+})
+
 const defaultRpc = () => {
   vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
     if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
     if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
     if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
     if (fn === 'admin_get_user_history') return Promise.resolve({ data: [], error: null })
     return Promise.resolve({ data: null, error: null })
@@ -83,6 +92,7 @@ const usersRpc = (overrides: Record<string, any>) => {
   vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
     if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
     if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
     if (overrides[fn] !== undefined) {
       // Allow function overrides so a rejection is created at call time
@@ -92,6 +102,30 @@ const usersRpc = (overrides: Record<string, any>) => {
     }
     return Promise.resolve({ data: null, error: null })
   }) as any)
+}
+
+// Reports-focused mock: supplies the reports payload under test and empty
+// users/channels so the loader's malformed-payload guard stays happy.
+const reportsRpc = (reportData: any[], overrides: Record<string, any> = {}) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reportData, error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (overrides[fn] !== undefined) {
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+const switchToReportsTab = async () => {
+  await screen.findByRole('navigation', { name: 'Admin sections' })
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Reports' })
+  )
 }
 
 describe('AdminView', () => {
@@ -196,6 +230,7 @@ describe('AdminView', () => {
       if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
       if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
       if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
       if (fn === 'admin_claim_channel') return Promise.resolve({ data: null, error: new Error('nope') })
       return Promise.resolve({ data: null, error: null })
     }) as any)
@@ -992,5 +1027,110 @@ describe('AdminView copy opted-in emails', () => {
     await waitFor(() => {
       expect(useToast().addToast).toHaveBeenCalledWith('Failed to copy opted-in emails.', 'error')
     })
+  })
+
+  it('renders the reports tab with reporter, reported user, reason, and status', async () => {
+    reportsRpc([makeReport({ id: 'r1' })])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    const reason = await screen.findByText('Inappropriate content')
+    const row = reason.closest('tr') as HTMLTableRowElement
+    expect(within(row).getByText('Alice')).toBeInTheDocument()
+    expect(within(row).getByText('Bob')).toBeInTheDocument()
+    expect(within(row).getByText('Open')).toBeInTheDocument()
+  })
+
+  it('shows the reports empty state', async () => {
+    reportsRpc([])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    expect(await screen.findByText('No abuse reports yet.')).toBeInTheDocument()
+  })
+
+  it('suspends the reported user from a report and marks it actioned', async () => {
+    reportsRpc([makeReport({ id: 'r1', reported_user_id: 'u2' })], {
+      admin_suspend_user: { data: null, error: null },
+      admin_resolve_abuse_report: { data: null, error: null },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Suspend' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Suspend Bob?')).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'harassment' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_suspend_user', {
+        p_user_id: 'u2',
+        p_suspend: true,
+        p_reason: 'harassment',
+      })
+    })
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_resolve_abuse_report', {
+        p_report_id: 'r1',
+        p_status: 'resolved',
+      })
+    })
+    expect(useToast().addToast).toHaveBeenCalledWith('User suspended and report marked actioned.', 'success')
+  })
+
+  it('marks a report actioned without suspending', async () => {
+    reportsRpc([makeReport({ id: 'r1' })], { admin_resolve_abuse_report: { data: null, error: null } })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Resolve' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_resolve_abuse_report', {
+        p_report_id: 'r1',
+        p_status: 'resolved',
+      })
+    })
+    expect(useToast().addToast).toHaveBeenCalledWith('Report marked actioned.', 'success')
+    expect(await screen.findByText('Actioned')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Resolve' })).not.toBeInTheDocument()
+  })
+
+  it('dismisses a report', async () => {
+    reportsRpc([makeReport({ id: 'r1' })], { admin_resolve_abuse_report: { data: null, error: null } })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_resolve_abuse_report', {
+        p_report_id: 'r1',
+        p_status: 'dismissed',
+      })
+    })
+    expect(useToast().addToast).toHaveBeenCalledWith('Report dismissed.', 'success')
+  })
+
+  it('toasts when resolving a report fails and keeps it open', async () => {
+    reportsRpc([makeReport({ id: 'r1' })], { admin_resolve_abuse_report: { data: null, error: new Error('nope') } })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Resolve' }))
+
+    await waitFor(() => {
+      expect(useToast().addToast).toHaveBeenCalledWith('Failed to update report.', 'error')
+    })
+    expect(screen.getByText('Open')).toBeInTheDocument()
+  })
+
+  it('disables Suspend when the report has no reported user', async () => {
+    reportsRpc([makeReport({ reported_user_id: null, reported_display_name: null })])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    expect(await screen.findByRole('button', { name: 'Suspend' })).toBeDisabled()
   })
 })

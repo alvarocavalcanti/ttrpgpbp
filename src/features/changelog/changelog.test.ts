@@ -66,7 +66,7 @@ describe('changelog module', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
     // Newest entry at the top of the file leads the list.
-    expect(items[0].title).toBe('Reload that actually reloads')
+    expect(items[0].title).toBe('Server admins can now act on player reports')
   })
 
   it('getChangelogHash is a non-empty string', () => {
