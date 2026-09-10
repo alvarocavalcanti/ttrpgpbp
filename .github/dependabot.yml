@@ -25,3 +25,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitest/coverage-v8"
         update-types: ["version-update:semver-major"]
+      # Tailwind 4 moved the PostCSS plugin into @tailwindcss/postcss and
+      # changed the config/directive syntax — a breaking migration we do by
+      # hand when ready, not a version bump dependabot can land green.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
