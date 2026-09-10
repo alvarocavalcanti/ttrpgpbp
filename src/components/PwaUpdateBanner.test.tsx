@@ -38,4 +38,11 @@ describe('PwaUpdateBanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
     expect(mock.reloadToUpdate).toHaveBeenCalledTimes(1)
   })
+
+  it('shows an updating message and hides the CTA while the reload is in flight', () => {
+    mock.status = 'updating'
+    render(<PwaUpdateBanner />)
+    expect(screen.getByTestId('pwa-update-banner')).toHaveTextContent('Updating…')
+    expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument()
+  })
 })
