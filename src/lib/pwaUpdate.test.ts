@@ -84,7 +84,7 @@ describe('reloadToUpdate', () => {
     expect(installing.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
   })
 
-  it('does not throw when no registration exists', async () => {
+  it('still wires the controllerchange listener when no registration exists', async () => {
     capture.getRegistration.mockResolvedValue(undefined)
     await act(async () => pwaUpdate.reloadToUpdate())
     expect(capture.addEventListener).toHaveBeenCalledWith(
@@ -106,6 +106,29 @@ describe('reloadToUpdate', () => {
     vi.useFakeTimers()
     await act(async () => pwaUpdate.reloadToUpdate())
     expect(capture.reload).not.toHaveBeenCalled()
+    await act(async () => vi.advanceTimersByTime(3000))
+    expect(capture.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the 3s reload when a registration has no waiting or installing worker', async () => {
+    // The frozen-page case: the worker already activated while we were away, so
+    // there is nothing left to skip and no controllerchange will ever fire.
+    vi.useFakeTimers()
+    capture.getRegistration.mockResolvedValue({ waiting: null, installing: null })
+    await act(async () => pwaUpdate.reloadToUpdate())
+    expect(capture.reload).not.toHaveBeenCalled()
+    await act(async () => vi.advanceTimersByTime(2999))
+    expect(capture.reload).not.toHaveBeenCalled()
+    await act(async () => vi.advanceTimersByTime(1))
+    expect(capture.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels the 3s fallback once the new worker takes control', async () => {
+    vi.useFakeTimers()
+    await act(async () => pwaUpdate.reloadToUpdate())
+    const onChange = capture.addEventListener.mock.calls.find(([type]) => type === 'controllerchange')?.[1]
+    await act(async () => onChange())
+    expect(capture.reload).toHaveBeenCalledTimes(1)
     await act(async () => vi.advanceTimersByTime(3000))
     expect(capture.reload).toHaveBeenCalledTimes(1)
   })

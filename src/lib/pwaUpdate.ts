@@ -44,25 +44,30 @@ let reloading = false
 // handler (src/sw.ts) does the actual skip.
 export function reloadToUpdate() {
   if (reloading) return
+  // ponytail: page-lifetime singleton guard, never reset; a fresh load
+  // re-imports the module. If a reload were ever blocked forever the banner
+  // would stay "Updating…" instead of silently dropping a second tap.
   reloading = true
   setStatus('updating')
+
+  let timer: number | undefined
+  const finish = () => {
+    window.clearTimeout(timer)
+    window.location.reload()
+  }
 
   void navigator.serviceWorker.getRegistration().then((reg) => {
     const waiting = reg?.waiting ?? reg?.installing
     waiting?.postMessage({ type: 'SKIP_WAITING' })
   })
 
-  navigator.serviceWorker.addEventListener(
-    'controllerchange',
-    () => window.location.reload(),
-    { once: true },
-  )
+  navigator.serviceWorker.addEventListener('controllerchange', finish, { once: true })
 
   // Safety net: if the worker never takes control (frozen page, pending fetch
   // requests, already-claimed worker), force the reload anyway so the button
-  // can't stay dead. Worst case the old shell loads again and the prompt
-  // reappears, at which point the next tap goes through.
-  window.setTimeout(() => window.location.reload(), 3000)
+  // can't stay dead. `finish` cancels this the moment `controllerchange`
+  // arrives, so a slow worker near the 3s mark can't trigger both paths.
+  timer = window.setTimeout(finish, 3000)
 }
 
 export function usePwaUpdate() {
