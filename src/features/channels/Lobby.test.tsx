@@ -239,6 +239,10 @@ describe('Lobby', () => {
     render(<Lobby />, { wrapper: MemoryRouter })
     const pill = screen.getByLabelText('99+ unanswered')
     expect(pill).toHaveTextContent('99+')
+    // role=img makes the aria-label meaningful to SRs; red-600 keeps the count
+    // at WCAG AA contrast on white/red (#496 review).
+    expect(pill).toHaveAttribute('role', 'img')
+    expect(pill).toHaveClass('bg-red-600')
   })
 
   it('renders the sender-prefixed preview as plain text at the larger size', () => {

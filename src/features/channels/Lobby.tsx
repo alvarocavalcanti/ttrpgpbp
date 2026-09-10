@@ -210,8 +210,9 @@ export function Lobby() {
                           </span>
                           {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
                             <span
+                              role="img"
                               aria-label={`${unreadBadgeLabel(channel.unread_count)} unanswered`}
-                              className="inline-flex flex-shrink-0 items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold bg-red-500 text-white"
+                              className="inline-flex flex-shrink-0 items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold bg-red-600 text-white"
                             >
                               {unreadBadgeLabel(channel.unread_count)}
                             </span>
