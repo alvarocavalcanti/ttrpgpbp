@@ -1,0 +1,41 @@
+name: Cleanup Images
+
+# Daily image-retention cleanup. The edge function authenticates the caller with
+# the CLEANUP_IMAGES_SECRET header and no-ops while app_settings.image_retention_days
+# is 0. Runs from the default branch; GitHub disables scheduled runs after 60 days
+# of repository inactivity.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+# The job only makes an outbound HTTP call and never uses GITHUB_TOKEN.
+permissions: {}
+
+# At most one cleanup at a time: overlapping runs would list the same expired
+# objects and write duplicate audit batches. Queue, don't cancel.
+concurrency:
+  group: cleanup-images
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke cleanup-images
+        env:
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_IMAGES_SECRET }}
+          PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        # Accept only 2xx (curl -f alone lets a 3xx pass) and bound the request
+        # so a hung endpoint cannot stall the step indefinitely.
+        run: |
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            --connect-timeout 10 --max-time 300 \
+            -X POST \
+            -H "x-cleanup-secret: $CLEANUP_SECRET" \
+            "https://${PROJECT_ID}.supabase.co/functions/v1/cleanup-images")"
+          echo "cleanup-images returned HTTP $status"
+          case "$status" in
+            2??) ;;
+            *) exit 1 ;;
+          esac

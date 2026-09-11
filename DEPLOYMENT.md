@@ -110,19 +110,25 @@ browser, so no user JWT is involved.
 
 - [ ] Deploy the image-retention cleanup function. It requires a server-to-server
   secret and no-ops while `app_settings.image_retention_days` is 0 (the default).
-  Store secret in Supabase Edge Function secrets, never in frontend code:
+  Store the secret in Supabase Edge Function secrets, never in frontend code:
 
   ```bash
   supabase secrets set CLEANUP_IMAGES_SECRET=<generated-secret>
   supabase functions deploy cleanup-images --project-ref <project-ref>
   ```
 
-  Schedule a daily `POST` from a trusted server scheduler. It must send
-  `x-cleanup-secret: <generated-secret>`; unauthorized requests are rejected.
-  For Supabase `pg_cron`/`pg_net`, keep the secret in Vault and pass it as a
-  request header. Do not use the browser or expose the secret to users.
-  Each deletion batch is recorded in `image_cleanup_audit` before removal and
-  marked `deleted` or `failed` afterward.
+- [ ] Store the same secret as a GitHub Actions repository secret named
+  `CLEANUP_IMAGES_SECRET` (Settings → Secrets and variables → Actions). The
+  `.github/workflows/cleanup-images.yml` workflow POSTs to the function daily at
+  03:00 UTC (and on manual `workflow_dispatch`) with the `x-cleanup-secret`
+  header; unauthorized requests are rejected and a non-2xx response fails the
+  job. It reuses the existing `SUPABASE_PROJECT_ID` secret to build the function
+  URL. Do not use the browser or expose the secret to users. Each deletion batch
+  is recorded in `image_cleanup_audit` before removal and marked `deleted` or
+  `failed` afterward.
+
+  The `migrate` workflow redeploys the function on every merge to `main`; no
+  manual deploy step is needed once the secrets above are in place.
 
 ## 7. Deploy the frontend
 
