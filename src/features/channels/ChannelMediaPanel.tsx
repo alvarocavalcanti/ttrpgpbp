@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BottomSheet } from '../../components/BottomSheet'
 import { SignedImg } from '../../components/SignedImg'
 import { ImageViewerModal } from '../../components/ImageViewerModal'
@@ -6,19 +6,28 @@ import { useChannelMedia } from '../../hooks/useChannelMedia'
 
 interface ChannelMediaPanelProps {
   channelId: string
-  isGM: boolean
-  /** GM only: append one `![](path)` line per path at the composer cursor. */
+  /**
+   * Whether selection/insertion is offered. True only for the GM of a
+   * non-archived channel; players and archived channels are browse-only.
+   */
+  canInsert: boolean
+  /** Append one `![](path)` line per path at the composer cursor. */
   onInsert: (paths: string[]) => void
   onClose: () => void
 }
 
 // Channel Media browser (#465). Everyone can browse the channel's message
-// images and open one fullscreen; the GM can additionally multi-select and
-// insert them into the composer. No delete, no upload from here.
-export function ChannelMediaPanel({ channelId, isGM, onInsert, onClose }: ChannelMediaPanelProps) {
+// images and open one fullscreen; the GM of a live channel can additionally
+// multi-select and insert them into the composer. No delete, no upload.
+export function ChannelMediaPanel({ channelId, canInsert, onInsert, onClose }: ChannelMediaPanelProps) {
   const { items, loading, error, refetch } = useChannelMedia(channelId)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [viewing, setViewing] = useState<{ src: string; alt: string } | null>(null)
+
+  // A channel switch must not carry selections into the new channel's grid.
+  useEffect(() => {
+    setSelected(new Set())
+  }, [channelId])
 
   const toggle = (path: string) => {
     setSelected(prev => {
@@ -83,7 +92,7 @@ export function ChannelMediaPanel({ channelId, isGM, onInsert, onClose }: Channe
                     className="aspect-square w-full rounded-md object-cover bg-gray-100 dark:bg-gray-700"
                   />
                 </button>
-                {isGM && (
+                {canInsert && (
                   <button
                     type="button"
                     role="checkbox"
@@ -104,7 +113,7 @@ export function ChannelMediaPanel({ channelId, isGM, onInsert, onClose }: Channe
           </div>
         )}
 
-        {isGM && !loading && !error && items.length > 0 && (
+        {canInsert && !loading && !error && items.length > 0 && (
           <div className="mt-4 flex justify-end">
             <button
               type="button"

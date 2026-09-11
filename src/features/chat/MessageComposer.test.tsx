@@ -815,6 +815,40 @@ describe('MessageComposer', () => {
     })
   })
 
+  it('reports both failed uploads and rejected files in one batch', async () => {
+    mockUploadImage.mockRejectedValueOnce(new Error('storage down'))
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const dropzone = screen.getByTestId('composer-dropzone')
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [
+          new File(['a'], 'one.png', { type: 'image/png' }),
+          new File(['x'], 'notes.txt', { type: 'text/plain' }),
+        ],
+      },
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to upload image. Please choose an image file.')
+    )
+  })
+
+  it('refuses an insertion that would exceed the message length limit', async () => {
+    const ref = { current: null as any }
+    render(
+      <MessageComposer ref={ref} channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    const nearMax = 'x'.repeat(3999)
+    fireEvent.change(textarea, { target: { value: nearMax } })
+
+    ref.current.insertImages(['c1/message/a.jpg'])
+
+    expect(await screen.findByText('Message is too long (max 4000 characters).')).toBeInTheDocument()
+    expect(textarea).toHaveValue(nearMax)
+  })
+
   it('shows the drag highlight and clears it on drop', () => {
     render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
 

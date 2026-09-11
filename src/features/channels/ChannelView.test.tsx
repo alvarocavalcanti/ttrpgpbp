@@ -656,6 +656,43 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByLabelText('Scene Description')).not.toBeInTheDocument()
   })
 
+  it('keeps the Channel Media panel browse-only for an archived channel', async () => {
+    const fromSpy = vi.spyOn(supabase.storage, 'from').mockReturnValue({
+      list: vi.fn().mockResolvedValue({ data: [{ name: 'a.jpg' }], error: null }),
+      createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed/a.jpg' }, error: null }),
+    } as any)
+
+    try {
+      vi.mocked(useChannel).mockReturnValue({
+        channel: { id: 'c1', name: 'Test Channel', is_archived: true, game_system: 'none' },
+        members: [],
+        loading: false,
+        error: null,
+        isGM: true,
+        myMemberInfo: { user_id: 'user1' },
+        gmOnlyResourcesUrl: null,
+        refetch: vi.fn()
+      } as any)
+
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Channel Media' }))
+      expect(await screen.findByRole('dialog', { name: 'Channel Media' })).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Insert/ })).not.toBeInTheDocument()
+    } finally {
+      fromSpy.mockRestore()
+    }
+  })
+
   it('renders new messages divider from myMemberInfo.last_read_at', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },

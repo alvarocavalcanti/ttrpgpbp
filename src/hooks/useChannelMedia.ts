@@ -15,11 +15,12 @@ export interface ChannelMediaApi {
   refetch: () => void
 }
 
-// Newest-first is the useful order for a media browser; 100 is plenty for a
-// channel's message images without paginating. ponytail: raise limit or add
-// paging only if a channel ever holds more than 100 message images.
+// Newest-first is the useful order for a media browser. Supabase caps a list
+// call at 100 objects, so page with `offset` until a short page ends the set.
+// MAX_PAGES is a safety cap (a runaway loop is worse than a truncated grid).
 const MESSAGE_FOLDER = 'message'
-const MAX_ITEMS = 100
+const PAGE_SIZE = 100
+const MAX_PAGES = 50
 
 // Lists the channel's `message/` images from the private 'images' bucket.
 // Storage RLS already scopes reads to channel members, so players can browse;
@@ -40,24 +41,34 @@ export function useChannelMedia(channelId: string | undefined): ChannelMediaApi 
     let cancelled = false
     setLoading(true)
     setError(null)
-    supabase.storage
-      .from('images')
-      .list(`${channelId}/${MESSAGE_FOLDER}`, {
-        limit: MAX_ITEMS,
-        sortBy: { column: 'created_at', order: 'desc' },
-      })
-      .then(({ data, error: listError }) => {
+    const prefix = `${channelId}/${MESSAGE_FOLDER}`
+    const collected: ChannelMediaItem[] = []
+
+    const load = async () => {
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const { data, error: listError } = await supabase.storage
+          .from('images')
+          .list(prefix, {
+            limit: PAGE_SIZE,
+            offset: page * PAGE_SIZE,
+            sortBy: { column: 'created_at', order: 'desc' },
+          })
         if (cancelled) return
         if (listError) {
           setItems([])
           setError(listError.message)
           return
         }
-        setItems((data ?? []).map(o => ({ path: `${channelId}/${MESSAGE_FOLDER}/${o.name}`, name: o.name })))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+        const batch = data ?? []
+        collected.push(...batch.map(o => ({ path: `${prefix}/${o.name}`, name: o.name })))
+        if (batch.length < PAGE_SIZE) break
+      }
+      setItems(collected)
+    }
+
+    load().finally(() => {
+      if (!cancelled) setLoading(false)
+    })
     return () => {
       cancelled = true
     }

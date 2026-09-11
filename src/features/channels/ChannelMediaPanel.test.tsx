@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChannelMediaPanel } from './ChannelMediaPanel'
 import { useChannelMedia } from '../../hooks/useChannelMedia'
@@ -38,8 +38,8 @@ describe('ChannelMediaPanel', () => {
     })
   })
 
-  const renderPanel = (isGM: boolean, onInsert = vi.fn()) =>
-    render(<ChannelMediaPanel channelId="c1" isGM={isGM} onInsert={onInsert} onClose={vi.fn()} />)
+  const renderPanel = (canInsert: boolean, onInsert = vi.fn()) =>
+    render(<ChannelMediaPanel channelId="c1" canInsert={canInsert} onInsert={onInsert} onClose={vi.fn()} />)
 
   it('shows a spinner while loading', () => {
     vi.mocked(useChannelMedia).mockReturnValue({ items: [], loading: true, error: null, refetch: mockRefetch })
@@ -82,7 +82,7 @@ describe('ChannelMediaPanel', () => {
   it('lets the GM select images and insert them, then closes', () => {
     const onInsert = vi.fn()
     const onClose = vi.fn()
-    render(<ChannelMediaPanel channelId="c1" isGM={true} onInsert={onInsert} onClose={onClose} />)
+    render(<ChannelMediaPanel channelId="c1" canInsert={true} onInsert={onInsert} onClose={onClose} />)
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select a.jpg' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select b.jpg' }))
@@ -102,6 +102,21 @@ describe('ChannelMediaPanel', () => {
     renderPanel(true)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select a.jpg' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select a.jpg' }))
+    expect(screen.getByRole('button', { name: 'Insert' })).toBeDisabled()
+  })
+
+  it('clears selections when the channel changes', async () => {
+    const { rerender } = render(
+      <ChannelMediaPanel channelId="c1" canInsert={true} onInsert={vi.fn()} onClose={vi.fn()} />
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select a.jpg' }))
+    expect(screen.getByRole('checkbox', { name: 'Select a.jpg' })).toHaveAttribute('aria-checked', 'true')
+
+    rerender(<ChannelMediaPanel channelId="c2" canInsert={true} onInsert={vi.fn()} onClose={vi.fn()} />)
+
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: 'Select a.jpg' })).toHaveAttribute('aria-checked', 'false')
+    )
     expect(screen.getByRole('button', { name: 'Insert' })).toBeDisabled()
   })
 })

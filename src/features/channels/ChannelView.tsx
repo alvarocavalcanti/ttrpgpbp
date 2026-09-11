@@ -642,7 +642,7 @@ export function ChannelView() {
       {showMedia && (
         <ChannelMediaPanel
           channelId={channel.id}
-          isGM={isGM}
+          canInsert={isGM && !channel.is_archived}
           onInsert={(paths) => composerRef.current?.insertImages(paths)}
           onClose={() => setShowMedia(false)}
         />

@@ -187,13 +187,23 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
   // Single insertion path shared by the Upload button, drag-and-drop and the
   // Channel Media panel (#465): insert at the cursor, keep focus and move the
-  // caret past the inserted markdown. Uses a functional update so an async
-  // caller (an in-flight upload) never writes a stale content snapshot.
+  // caret past the inserted markdown. Reads/writes contentRef so an async
+  // caller (an in-flight upload) never writes a stale snapshot, and refuses
+  // an insertion that would push the draft past MAX_MESSAGE_LENGTH (the
+  // textarea maxLength only guards typed input).
   const insertAtCursor = useCallback((insertion: string) => {
     if (!insertion) return
     const ta = textareaRef.current
     const cursor = ta?.selectionStart ?? contentRef.current.length
-    setContent(prev => prev.slice(0, cursor) + insertion + prev.slice(cursor))
+    const current = contentRef.current
+    const next = current.slice(0, cursor) + insertion + current.slice(cursor)
+    if (next.length > MAX_MESSAGE_LENGTH) {
+      setError(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
+      return
+    }
+    setError(null)
+    contentRef.current = next
+    setContent(next)
     setMentionState(null)
     requestAnimationFrame(() => {
       const nextTa = textareaRef.current
@@ -268,10 +278,13 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         failed += 1
       }
     }
-    // Successful files still insert; failures/rejections report inline.
+    // Successful files still insert; failures/rejections report inline. Both
+    // can happen in one batch, so report them together.
     if (paths.length) insertImagePaths(paths)
-    if (failed > 0) setImageError(failed === 1 ? 'Failed to upload image.' : `Failed to upload ${failed} images.`)
-    else if (rejected > 0) setImageError('Please choose an image file.')
+    const problems: string[] = []
+    if (failed > 0) problems.push(failed === 1 ? 'Failed to upload image.' : `Failed to upload ${failed} images.`)
+    if (rejected > 0) problems.push('Please choose an image file.')
+    if (problems.length) setImageError(problems.join(' '))
   }
 
   const handleNpcImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
