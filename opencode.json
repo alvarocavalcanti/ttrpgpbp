@@ -4,7 +4,7 @@
   "provider": {
     "opencode-go": {
       "models": {
-        "deepseek-v4-flash": {
+        "deepseek-v4.1-flash": {
           "variants": {
             "low": { "reasoningEffort": "low" },
             "medium": { "reasoningEffort": "medium" },
@@ -33,7 +33,7 @@
   },
   "agent": {
     "plan": { "model": "opencode-go/deepseek-v4-flash-vision-exp", "variant": "high" },
-    "build": { "model": "opencode-go/deepseek-v4-flash", "variant": "low" },
+    "build": { "model": "opencode-go/deepseek-v4.1-flash", "variant": "low" },
     "cavecrew-builder": {
       "mode": "subagent"
     },
