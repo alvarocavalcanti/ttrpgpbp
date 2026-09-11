@@ -9,6 +9,15 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch:
 
+# The job only makes an outbound HTTP call and never uses GITHUB_TOKEN.
+permissions: {}
+
+# At most one cleanup at a time: overlapping runs would list the same expired
+# objects and write duplicate audit batches. Queue, don't cancel.
+concurrency:
+  group: cleanup-images
+  cancel-in-progress: false
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
@@ -17,9 +26,16 @@ jobs:
         env:
           CLEANUP_SECRET: ${{ secrets.CLEANUP_IMAGES_SECRET }}
           PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        # -f makes the step fail on a non-2xx response so a rejected or broken
-        # run is visible in CI rather than silently ignored.
+        # Accept only 2xx (curl -f alone lets a 3xx pass) and bound the request
+        # so a hung endpoint cannot stall the step indefinitely.
         run: |
-          curl -sfS -X POST \
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            --connect-timeout 10 --max-time 300 \
+            -X POST \
             -H "x-cleanup-secret: $CLEANUP_SECRET" \
-            "https://${PROJECT_ID}.supabase.co/functions/v1/cleanup-images"
+            "https://${PROJECT_ID}.supabase.co/functions/v1/cleanup-images")"
+          echo "cleanup-images returned HTTP $status"
+          case "$status" in
+            2??) ;;
+            *) exit 1 ;;
+          esac
