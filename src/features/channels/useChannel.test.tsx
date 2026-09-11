@@ -1033,4 +1033,102 @@ describe('useChannel', () => {
     const channelIds = vi.mocked(supabase.rpc).mock.calls.map(c => (c[1] as { p_channel_id: string }).p_channel_id)
     expect(channelIds).toEqual(['c1', 'c2'])
   })
+
+  it('tells the owner whether a read was a live message advance (#502)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const onRead = vi.fn()
+    renderHook(() => useChannel('c1', onRead))
+
+    // Mount-time read is not a live message advance.
+    await waitFor(() => expect(onRead).toHaveBeenCalledWith(false))
+
+    // A message arriving while visible advances the read as a live read.
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(onRead).toHaveBeenCalledWith(true))
+  })
+
+  it('re-anchors the divider to the hide-time boundary when the tab returns (#502)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let membersCallback: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'channel_members') membersCallback = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+
+    // While visible, the read mark advances (realtime echo) to 18:00 but the
+    // frozen boundary stays at 12:00.
+    await act(async () => {
+      membersCallback({ eventType: 'UPDATE', new: { id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T18:00:00Z' }, old: null })
+    })
+    expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+
+    // Background and return: the boundary re-anchors to the hide-time value so
+    // messages that arrived while away are flagged.
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    await waitFor(() => expect(result.current.lastReadAt).toBe('2023-01-01T18:00:00Z'))
+    // The return also bumps the revision so the divider re-anchors even if the
+    // boundary value had not changed.
+    expect(result.current.boundaryRevision).toBe(1)
+  })
 })

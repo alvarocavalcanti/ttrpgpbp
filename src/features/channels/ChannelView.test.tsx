@@ -6,7 +6,7 @@ import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../notifications/usePushNotifications'
-import { notifyChannelRead } from '../../lib/channelRead'
+import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { supabase } from '../../lib/supabase'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
@@ -28,7 +28,8 @@ vi.mock('../notifications/usePushNotifications', () => ({
 }))
 
 vi.mock('../../lib/channelRead', () => ({
-  notifyChannelRead: vi.fn()
+  notifyChannelRead: vi.fn(),
+  refreshAppBadge: vi.fn()
 }))
 
 vi.mock('../search/SearchModal', () => ({
@@ -1422,6 +1423,47 @@ describe('ChannelView search functionality', () => {
     await waitFor(() => {
       expect(notifyChannelRead).toHaveBeenCalledWith('c1', 'user1', true)
     })
+  })
+
+  it('refreshes the badge on a non-live re-read but not on a live message read (#502)', async () => {
+    let onRead: ((live?: boolean) => void) | undefined
+    vi.mocked(useChannel).mockImplementation((_id: string | undefined, cb?: (live?: boolean) => void) => {
+      onRead = cb
+      return {
+        channel: { id: 'c1', name: 'Test Channel' },
+        members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+        loading: false,
+        error: null,
+        isGM: false,
+        myMemberInfo: { user_id: 'user1' },
+        refetch: vi.fn()
+      } as any
+    })
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    await screen.findByText('Test Channel')
+
+    // First read of the visit: notifications dismissed, no separate refresh.
+    act(() => onRead?.())
+    await waitFor(() => expect(notifyChannelRead).toHaveBeenCalled())
+
+    // Return-to-foreground read: badge refreshed.
+    act(() => onRead?.(false))
+    await waitFor(() => expect(refreshAppBadge).toHaveBeenCalledWith('user1', true))
+
+    // Live message read: total unchanged, so no extra unread fetch.
+    vi.mocked(refreshAppBadge).mockClear()
+    act(() => onRead?.(true))
+    expect(refreshAppBadge).not.toHaveBeenCalled()
   })
 
   it('replaces the channel entry when returning to lobby so back does not re-enter the channel', () => {
