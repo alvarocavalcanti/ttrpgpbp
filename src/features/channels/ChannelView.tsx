@@ -6,7 +6,8 @@ import { ChannelStatusBar } from './ChannelStatusBar'
 import { MemberList } from './MemberList'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
-import { MessageComposer, type ReplyTarget } from '../chat/MessageComposer'
+import { MessageComposer, type MessageComposerHandle, type ReplyTarget } from '../chat/MessageComposer'
+import { ChannelMediaPanel } from './ChannelMediaPanel'
 import type { ChatMessage, Member } from '../chat/types'
 import { useAuth } from '../auth/useAuth'
 import { SignedImg } from '../../components/SignedImg'
@@ -79,6 +80,7 @@ export function ChannelView() {
   const [showSearch, setShowSearch] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showSafetyTools, setShowSafetyTools] = useState(false)
+  const [showMedia, setShowMedia] = useState(false)
   const [showNpcs, setShowNpcs] = useState(false)
   const [showActivePlayer, setShowActivePlayer] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -103,6 +105,9 @@ export function ChannelView() {
   // Which member's character sheet is being edited; shared by MemberList and
   // the chat's check sheet ("Set it in your character sheet" deep link).
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
+  // Channel Media panel inserts into the composer (GM only); the ref is the
+  // single shared panel instance talking to whichever composer is mounted.
+  const composerRef = useRef<MessageComposerHandle>(null)
 
   // Clear highlight after a few seconds
   useEffect(() => {
@@ -117,10 +122,10 @@ export function ChannelView() {
   // Overlay modals open on top of the sidebar; close the mobile sidebar so it
   // doesn't stay open behind them.
   useEffect(() => {
-    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer) {
+    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer || showMedia) {
       setShowMobileSidebar(false)
     }
-  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer])
+  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer, showMedia])
 
   // Deferred read-mark (#412): the mount-time markRead in useChannel is gated
   // off until history loads; this fires it once the gate opens (tab visible).
@@ -431,6 +436,7 @@ export function ChannelView() {
         
         {!channel.is_archived && (
           <MessageComposer 
+            ref={composerRef}
             channelId={channel.id}
             isGM={isGM} 
             members={whisperableMembers} 
@@ -536,6 +542,13 @@ export function ChannelView() {
             </button>
             <button
               type="button"
+              onClick={() => setShowMedia(true)}
+              className={SIDEBAR_MENU_ITEM}
+            >
+              Channel Media
+            </button>
+            <button
+              type="button"
               onClick={() => setShowHelp(true)}
               className={SIDEBAR_MENU_ITEM}
             >
@@ -623,6 +636,15 @@ export function ChannelView() {
           safetyToolsUrl={channel.safety_tools_url}
           isGM={isGM}
           onClose={() => setShowSafetyTools(false)}
+        />
+      )}
+
+      {showMedia && (
+        <ChannelMediaPanel
+          channelId={channel.id}
+          canInsert={isGM && !channel.is_archived}
+          onInsert={(paths) => composerRef.current?.insertImages(paths)}
+          onClose={() => setShowMedia(false)}
         />
       )}
 
