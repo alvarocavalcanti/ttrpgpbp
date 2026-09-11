@@ -14,10 +14,11 @@
 // Run:  node scripts/help-screenshots/capture.mjs
 // Output: public/help/*.png (overwritten).
 import { chromium } from '@playwright/test'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 
 const BASE = process.env.SHOT_BASE_URL || 'http://localhost:5173'
 const OUT = process.env.SHOT_OUT || 'public/help'
+const PROFILE_DIR = process.env.SHOT_PROFILE_DIR || '/tmp/ttrpg-pw-profile'
 const PASS = 'shots-pass-1'
 
 const env = Object.fromEntries(
@@ -43,11 +44,17 @@ async function getSession(email) {
 const ref = new URL(env.VITE_SUPABASE_URL).hostname.split('.')[0]
 const KEY = `sb-${ref}-auth-token`
 
-const ctx = await chromium.launchPersistentContext('/tmp/ttrpg-pw-profile', {
+// Fresh profile every run: a persisted userDataDir would leak theme, text
+// size, "what's new seen" and session state from a previous run, which would
+// silently change the captured images. colorScheme pins prefers-color-scheme
+// to light so the app can't fall back to dark.
+rmSync(PROFILE_DIR, { recursive: true, force: true })
+const ctx = await chromium.launchPersistentContext(PROFILE_DIR, {
   viewport: { width: 360, height: 780 },
   deviceScaleFactor: 3,
   isMobile: true,
   hasTouch: true,
+  colorScheme: 'light',
 })
 
 const page = await ctx.newPage()

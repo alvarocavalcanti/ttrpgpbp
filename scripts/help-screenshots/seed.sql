@@ -76,8 +76,10 @@ begin
     (gm,'Mira GM'),(p1,'Dorn'),(p2,'Kess'),(p3,'Pip')
   on conflict (id) do update set display_name = excluded.display_name;
 
-  -- Recreate the screenshot channel so re-runs stay deterministic.
-  delete from public.channels where name = 'The Sunless Citadel';
+  -- Recreate the screenshot channel so re-runs stay deterministic. Constrain
+  -- by the fixture-only invite code too, so a real channel that happens to
+  -- share the name is never deleted.
+  delete from public.channels where name = 'The Sunless Citadel' and invite_code = 'A1B2C3D4';
 
   insert into public.channels (id, name, gm_id, invite_code, game_system, status_text, map_url, resources_url)
   values (gen_random_uuid(), 'The Sunless Citadel', gm, 'A1B2C3D4', 'shadowdark',
