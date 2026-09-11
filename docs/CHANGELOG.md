@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **The unread badge clears when you return to an open channel** — if you leave a channel open and new messages arrive while you're away, coming back now clears the app icon's unread badge and shows the **New messages** divider instead of waiting until you visit the Lobby.
+- **Dice rolls read like every other message** — a dice roll's result text was showing up bigger than normal chat text; it now matches the rest of the conversation.
 
 ## 2026-09-10
 
