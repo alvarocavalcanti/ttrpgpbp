@@ -30,6 +30,7 @@ interface MessageListProps {
   onReply?: (message: Message) => void
   onJumpToMessage?: (messageId: string) => void
   lastReadAt?: string | null
+  boundaryRevision?: number
   onRetry?: (messageId: string) => void
   onRemovePending?: (messageId: string) => void
   onRetryLoad?: () => void
@@ -41,7 +42,7 @@ interface MessageListProps {
   onLoadOlder?: () => void
 }
 
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -90,23 +91,26 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     }
   }, [])
 
-  // Returning to the foreground can move the read boundary to the hide-time
-  // value (#502). When the user was at the bottom, anchor to the "New
-  // messages" divider so messages that arrived while away are actually shown;
-  // history readers keep their position (#338).
-  const prevBoundaryRef = useRef(lastReadTimestamp)
+  // Returning to the foreground bumps the boundary revision (#502). When the
+  // user was at the bottom, anchor to the "New messages" divider so messages
+  // that arrived while away are actually shown; history readers keep their
+  // position (#338). The revision (not the timestamp) drives this, so a return
+  // where the read boundary value did not change still re-anchors.
+  const prevBoundaryRevisionRef = useRef(boundaryRevision ?? 0)
   const pendingBoundaryAnchorRef = useRef(false)
   useEffect(() => {
-    if (prevBoundaryRef.current === lastReadTimestamp) return
-    prevBoundaryRef.current = lastReadTimestamp
-    if (!atBottomRef.current) return
-    if (newMessagesDividerRef.current) {
-      scrollToUnread()
-    } else {
-      // The divider may not exist until the catch-up messages render; defer.
-      pendingBoundaryAnchorRef.current = true
+    if (boundaryRevision === undefined || boundaryRevision <= prevBoundaryRevisionRef.current) {
+      if (boundaryRevision !== undefined) prevBoundaryRevisionRef.current = boundaryRevision
+      return
     }
-  }, [lastReadTimestamp, scrollToUnread])
+    prevBoundaryRevisionRef.current = boundaryRevision
+    if (!atBottomRef.current) return
+    pendingBoundaryAnchorRef.current = true
+    if (newMessagesDividerRef.current) {
+      pendingBoundaryAnchorRef.current = false
+      scrollToUnread()
+    }
+  }, [boundaryRevision, scrollToUnread])
 
   // Auto-scroll on initial load or when new messages arrive, unless we are
   // highlighting a message. Loading older history (prepending) preserves the
@@ -125,13 +129,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
 
     if (highlightMessageId) return
 
-    if (pendingBoundaryAnchorRef.current) {
+    if (pendingBoundaryAnchorRef.current && newMessagesDividerRef.current) {
       pendingBoundaryAnchorRef.current = false
-      if (newMessagesDividerRef.current) {
-        scrollToUnread()
-        if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
-        return
-      }
+      scrollToUnread()
+      if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
+      return
     }
 
     if (prepended && list) {

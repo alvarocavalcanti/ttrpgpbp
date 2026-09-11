@@ -481,14 +481,14 @@ describe('MessageList scroll anchoring', () => {
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
   })
 
-  it('anchors to the unread divider when the read boundary moves on return (#502)', () => {
+  it('anchors to the unread divider when the boundary revision bumps on return (#502)', () => {
     scrollHeight = 1000
     const msgs: any[] = [
       { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
       { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
     ]
     const { container, rerender } = render(
-      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={0} />
     )
     const list = container.firstChild as HTMLElement
     // Sit at the bottom, as the player had before backgrounding.
@@ -496,10 +496,40 @@ describe('MessageList scroll anchoring', () => {
     fireEvent.scroll(list)
     vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
 
-    // Returning moves the read boundary forward; the list should show the
-    // divider for the messages that were previously below it.
+    // Same read-boundary value, but a return bumps the revision.
     rerender(
-      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T14:00:00Z" />
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={1} />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('holds the return anchor until the unread divider renders (#502)', () => {
+    scrollHeight = 1000
+    const old: any[] = [{ id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' }]
+    const { container, rerender } = render(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={0} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // The return lands before catch-up: no unread message renders yet.
+    rerender(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={1} />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Catch-up renders the unread message and the divider; now anchor to it.
+    rerender(
+      <MessageList
+        messages={[...old, { id: 'm2', content: 'New', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T12:00:00Z"
+        boundaryRevision={1}
+      />
     )
 
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })

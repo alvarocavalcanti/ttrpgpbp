@@ -28,6 +28,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
   // would otherwise move the boundary to "now" before the history renders,
   // hiding the divider for messages that were unread when the channel opened.
   const [lastReadAt, setLastReadAt] = useState<string | null>(null)
+  // Bumped on every foreground return so consumers can re-anchor the unread
+  // divider even when the read boundary value itself did not change (#502).
+  const [boundaryRevision, setBoundaryRevision] = useState(0)
   const boundaryCapturedRef = useRef(false)
   // My channel_members row id, set once members load. Lets the messages INSERT
   // listener below advance last_read_at without re-deriving membership.
@@ -90,6 +93,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     setError(null)
     setLoading(true)
     setLastReadAt(null)
+    setBoundaryRevision(0)
     boundaryCapturedRef.current = false
     hiddenReadBoundaryRef.current = null
     myMemberIdRef.current = null
@@ -237,6 +241,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       const boundary = hiddenReadBoundaryRef.current
       hiddenReadBoundaryRef.current = null
       if (boundary) setLastReadAt(boundary)
+      setBoundaryRevision(v => v + 1)
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
@@ -253,5 +258,5 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   // markRead is exposed so the owner (ChannelView) can fire the deferred
   // history-first read-mark once the messages-loaded gate opens (#412).
-  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, markRead, refetch }
+  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch }
 }

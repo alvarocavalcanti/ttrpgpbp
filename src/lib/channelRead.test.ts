@@ -57,11 +57,11 @@ describe('notifyChannelRead', () => {
     expect(updateAppBadge).toHaveBeenCalledWith(0, false)
   })
 
-  it('still posts the close message when the unread fetch fails', async () => {
+  it('still posts the close message but leaves the badge alone when the unread fetch fails', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('down') } as any)
     await notifyChannelRead('c1', 'u1', true)
     expect(postMessage).toHaveBeenCalled()
-    expect(updateAppBadge).toHaveBeenCalledWith(0, true)
+    expect(updateAppBadge).not.toHaveBeenCalled()
   })
 
   it('refreshes the badge without posting the close message', async () => {
@@ -74,5 +74,13 @@ describe('notifyChannelRead', () => {
 
     expect(postMessage).not.toHaveBeenCalled()
     expect(updateAppBadge).toHaveBeenCalledWith(4, true)
+  })
+
+  it('leaves the badge alone when the refresh fetch fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('down') } as any)
+
+    await refreshAppBadge('u1', true)
+
+    expect(updateAppBadge).not.toHaveBeenCalled()
   })
 })

@@ -1127,5 +1127,8 @@ describe('useChannel', () => {
     })
 
     await waitFor(() => expect(result.current.lastReadAt).toBe('2023-01-01T18:00:00Z'))
+    // The return also bumps the revision so the divider re-anchors even if the
+    // boundary value had not changed.
+    expect(result.current.boundaryRevision).toBe(1)
   })
 })

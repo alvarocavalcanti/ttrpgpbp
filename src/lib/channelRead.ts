@@ -5,9 +5,16 @@ import { updateAppBadge } from './appBadge'
 // so a re-read that happened after the tab was away (when the badge may have
 // grown) can update the badge without dismissing notifications again (#502).
 export async function refreshAppBadge(userId: string, badgeEnabled: boolean): Promise<void> {
-  const { data } = await supabase.rpc('get_user_channels_unread', { p_user_id: userId })
-  const total = (data || []).reduce((sum: number, row: { unread_count: number }) => sum + row.unread_count, 0)
-  updateAppBadge(total, badgeEnabled)
+  try {
+    const { data, error } = await supabase.rpc('get_user_channels_unread', { p_user_id: userId })
+    // Leave the badge untouched when the count can't be read: showing a stale
+    // number is better than clearing a badge that may still be accurate.
+    if (error) return
+    const total = (data || []).reduce((sum: number, row: { unread_count: number }) => sum + row.unread_count, 0)
+    updateAppBadge(total, badgeEnabled)
+  } catch (err) {
+    console.error('Failed to refresh app badge', err)
+  }
 }
 
 // Called once a channel has been read (last_read_at committed). Asks the
