@@ -16,6 +16,7 @@ The sidebar groups items by who uses them:
 - **Member List** — everyone in the channel, with role badges, AFK states, and character info
 - **Notifications** — configure what you're notified about for this channel
 - **Safety Tools** — view the channel's Lines & Veils, or press the X-Card
+- **Channel Media** — browse every image shared in this channel and view one fullscreen
 - **Rolls** — the channel's dice roll history
 - **Search** — find messages in the channel history
 - **Help** — channel-specific help

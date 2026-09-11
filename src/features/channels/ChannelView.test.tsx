@@ -656,6 +656,43 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByLabelText('Scene Description')).not.toBeInTheDocument()
   })
 
+  it('keeps the Channel Media panel browse-only for an archived channel', async () => {
+    const fromSpy = vi.spyOn(supabase.storage, 'from').mockReturnValue({
+      list: vi.fn().mockResolvedValue({ data: [{ name: 'a.jpg' }], error: null }),
+      createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed/a.jpg' }, error: null }),
+    } as any)
+
+    try {
+      vi.mocked(useChannel).mockReturnValue({
+        channel: { id: 'c1', name: 'Test Channel', is_archived: true, game_system: 'none' },
+        members: [],
+        loading: false,
+        error: null,
+        isGM: true,
+        myMemberInfo: { user_id: 'user1' },
+        gmOnlyResourcesUrl: null,
+        refetch: vi.fn()
+      } as any)
+
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Channel Media' }))
+      expect(await screen.findByRole('dialog', { name: 'Channel Media' })).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Insert/ })).not.toBeInTheDocument()
+    } finally {
+      fromSpy.mockRestore()
+    }
+  })
+
   it('renders new messages divider from myMemberInfo.last_read_at', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel' },
@@ -849,6 +886,7 @@ describe('ChannelView search functionality', () => {
       'Notifications',
       'Resources',
       'Safety Tools',
+      'Channel Media',
       'Help',
       'GM Resources',
       'NPCs',
@@ -888,6 +926,86 @@ describe('ChannelView search functionality', () => {
     expect(items).toContain('Notifications')
     expect(items).not.toContain('Settings')
     expect(items).not.toContain('GM Resources')
+  })
+
+  it('opens the Channel Media panel for players as browse-only', async () => {
+    const fromSpy = vi.spyOn(supabase.storage, 'from').mockReturnValue({
+      list: vi.fn().mockResolvedValue({
+        data: [{ name: 'a.jpg' }],
+        error: null,
+      }),
+      createSignedUrl: vi.fn().mockResolvedValue({
+        data: { signedUrl: 'https://signed/a.jpg' },
+        error: null,
+      }),
+    } as any)
+
+    try {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Channel Media' }))
+      expect(await screen.findByRole('dialog', { name: 'Channel Media' })).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Insert/ })).not.toBeInTheDocument()
+    } finally {
+      fromSpy.mockRestore()
+    }
+  })
+
+  it('lets a GM insert media panel selections into the composer', async () => {
+    const fromSpy = vi.spyOn(supabase.storage, 'from').mockReturnValue({
+      list: vi.fn().mockResolvedValue({
+        data: [{ name: 'a.jpg' }, { name: 'b.jpg' }],
+        error: null,
+      }),
+      createSignedUrl: vi.fn().mockResolvedValue({
+        data: { signedUrl: 'https://signed/a.jpg' },
+        error: null,
+      }),
+    } as any)
+
+    try {
+      vi.mocked(useChannel).mockReturnValue({
+        channel: { id: 'c1', name: 'Test Channel' },
+        members: [],
+        loading: false,
+        error: null,
+        isGM: true,
+        myMemberInfo: { user_id: 'user1' },
+        gmOnlyResourcesUrl: null,
+        refetch: vi.fn()
+      } as any)
+
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Channel Media' }))
+      const checkboxes = await screen.findAllByRole('checkbox')
+      fireEvent.click(checkboxes[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Insert (1)' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('![](c1/message/a.jpg)\n')
+      })
+      expect(screen.queryByRole('dialog', { name: 'Channel Media' })).not.toBeInTheDocument()
+    } finally {
+      fromSpy.mockRestore()
+    }
   })
 
   it('shows the NPCs sidebar item and opens the management modal for GMs', () => {
