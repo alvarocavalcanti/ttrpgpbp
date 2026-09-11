@@ -156,6 +156,20 @@ describe('MessageItem', () => {
     expect(screen.getByText('15').tagName).toBe('STRONG')
   })
 
+  it('renders dice roll content at the same font size as regular messages (#500)', () => {
+    const msg: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20: **15**',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    // The dice card wrapper must use the normal message text scale, not a
+    // larger one (regression #500).
+    const content = screen.getByText('15').closest('div')
+    expect(content?.className).toContain('text-sm')
+    expect(content?.className).not.toContain('text-lg')
+  })
+
   it('shows the reply context on a dice_roll message and jumps to the source', () => {
     const mockOnJump = vi.fn()
     const msg: any = {
