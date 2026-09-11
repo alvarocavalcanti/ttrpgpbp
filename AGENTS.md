@@ -161,7 +161,7 @@ Every UI change must follow these conventions:
 
 - Don't leave untracked and uncommitted files, confirm with me before creating commit
 - If changes should not be committed, check with the user what to do. Add to .gitignore? Delete?
-- Clean up scratch files (`patch*.mjs`, temp scripts, etc.) before committing. Never commit them — they are tooling artifacts, not source
+- Clean up scratch files (`patch*.mjs`, temp scripts, etc.) before committing. Never commit them — they are tooling artifacts, not source. (Exception: the deliberately-maintained help-screenshot tooling in `scripts/help-screenshots/` **is** committed source.)
 - **Proactive issue handling** — when you spot a bug, misconfiguration, or awkwardness during any task, act on it rather than ignoring it. If it fits the current body of work, fix it in that branch. If it doesn't, file it as a separate PR (NOT auto-merged) and tag the user for review. Never silently leave a found issue unfixed.
 - **Never `--no-verify` a commit or push** — husky hooks are the last line of defense (lint, build, tests). If a hook fails, fix the real cause. The only escape hatch is CI, which runs the same checks — but a green PR does not excuse skipping hooks locally. If hooks crash on startup, the usual cause is a dangling `NODE_OPTIONS=--import=...` (e.g. a stale headroom hook-shim); the `.husky/_sanitize-node-options.sh` helper strips it — upgrade/repair the tool instead of bypassing the hook.
 
@@ -170,6 +170,7 @@ Every UI change must follow these conventions:
 - Keep [FEATURES.md](docs/FEATURES.md) up to date on new, updated and removed features
 - Keep the in-app help content in [docs/help/](docs/help/) up to date on new, updated and removed features
 - After any UI change, check whether the help screenshots in `public/help/` need updating; regenerate and commit them when they do
+  - Screenshot tooling lives in [`scripts/help-screenshots/`](scripts/help-screenshots/): `seed.sql` (idempotent local fixtures, password `shots-pass-1`) + `capture.mjs` (Playwright, 360×780 @3x light mode). See its [README](scripts/help-screenshots/README.md) for the run steps. Review the regenerated PNGs and commit only the ones that changed.
 - **Every user-facing feature** (new or changed behavior visible to players) gets an entry in [docs/CHANGELOG.md](docs/CHANGELOG.md) in the same PR, under the top date-stamped heading (`## YYYY-MM-DD` — open a new heading for the merge date; merges to `main` ship immediately, so there is no "Unreleased:" state)
 - **User-facing copy must be player-friendly** — any text shown to app users (What's New modal, `/changelog` page, help docs, error messages) is written for RPG players, not developers. No schema/table names, RLS/SQL/API internals, function/column names, storage details, or error codes — say what the player gains, in plain words. [docs/CHANGELOG.md](docs/CHANGELOG.md) feeds the What's New UI directly, so keep its entries human-readable even when they summarize technical work.
 
