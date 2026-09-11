@@ -1,0 +1,25 @@
+name: Cleanup Images
+
+# Daily image-retention cleanup. The edge function authenticates the caller with
+# the CLEANUP_IMAGES_SECRET header and no-ops while app_settings.image_retention_days
+# is 0. Runs from the default branch; GitHub disables scheduled runs after 60 days
+# of repository inactivity.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke cleanup-images
+        env:
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_IMAGES_SECRET }}
+          PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        # -f makes the step fail on a non-2xx response so a rejected or broken
+        # run is visible in CI rather than silently ignored.
+        run: |
+          curl -sfS -X POST \
+            -H "x-cleanup-secret: $CLEANUP_SECRET" \
+            "https://${PROJECT_ID}.supabase.co/functions/v1/cleanup-images"
