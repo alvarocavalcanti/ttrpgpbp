@@ -749,6 +749,130 @@ describe('MessageComposer', () => {
     expect(screen.getByLabelText('Upload Image')).toBeDisabled()
   })
 
+  it('drops multiple images and inserts one markdown line per file at the cursor', async () => {
+    mockUploadImage.mockResolvedValueOnce('img1.jpg').mockResolvedValueOnce('img2.jpg')
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'See ' } })
+    const dropzone = screen.getByTestId('composer-dropzone')
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [
+          new File(['a'], 'one.png', { type: 'image/png' }),
+          new File(['b'], 'two.png', { type: 'image/png' }),
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      expect(mockUploadImage).toHaveBeenCalledTimes(2)
+      expect(mockUploadImage).toHaveBeenCalledWith(expect.any(File), 'message', 1200)
+      expect(textarea).toHaveValue('See ![](img1.jpg)\n![](img2.jpg)\n')
+    })
+  })
+
+  it('rejects non-image files with an inline error and still inserts the image files', async () => {
+    mockUploadImage.mockResolvedValueOnce('img1.jpg')
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    const dropzone = screen.getByTestId('composer-dropzone')
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [
+          new File(['x'], 'notes.txt', { type: 'text/plain' }),
+          new File(['a'], 'one.png', { type: 'image/png' }),
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      expect(mockUploadImage).toHaveBeenCalledTimes(1)
+      expect(textarea).toHaveValue('![](img1.jpg)\n')
+      expect(screen.getByRole('alert')).toHaveTextContent('Please choose an image file.')
+    })
+  })
+
+  it('keeps successful insertions and reports failed uploads in a batch', async () => {
+    mockUploadImage.mockRejectedValueOnce(new Error('storage down')).mockResolvedValueOnce('ok.jpg')
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    const dropzone = screen.getByTestId('composer-dropzone')
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [
+          new File(['a'], 'one.png', { type: 'image/png' }),
+          new File(['b'], 'two.png', { type: 'image/png' }),
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      expect(textarea).toHaveValue('![](ok.jpg)\n')
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to upload image.')
+    })
+  })
+
+  it('shows the drag highlight and clears it on drop', () => {
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const dropzone = screen.getByTestId('composer-dropzone')
+    expect(dropzone).toHaveAttribute('data-dragging', 'false')
+    fireEvent.dragEnter(dropzone, { dataTransfer: {} })
+    expect(dropzone).toHaveAttribute('data-dragging', 'true')
+    fireEvent.drop(dropzone, { dataTransfer: { files: [] } })
+    expect(dropzone).toHaveAttribute('data-dragging', 'false')
+  })
+
+  it('ignores drops for non-GM composers', () => {
+    render(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={vi.fn()} />)
+
+    const dropzone = screen.getByTestId('composer-dropzone')
+    fireEvent.dragEnter(dropzone, { dataTransfer: {} })
+    expect(dropzone).toHaveAttribute('data-dragging', 'false')
+    fireEvent.drop(dropzone, {
+      dataTransfer: { files: [new File(['a'], 'one.png', { type: 'image/png' })] },
+    })
+    expect(mockUploadImage).not.toHaveBeenCalled()
+  })
+
+  it('ignores drops when uploads are disabled by the admin', () => {
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: false,
+      settingsLoading: false,
+      uploading: false,
+      uploadImage: mockUploadImage,
+    })
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    const dropzone = screen.getByTestId('composer-dropzone')
+    fireEvent.drop(dropzone, {
+      dataTransfer: { files: [new File(['a'], 'one.png', { type: 'image/png' })] },
+    })
+    expect(mockUploadImage).not.toHaveBeenCalled()
+  })
+
+  it('inserts images from the Channel Media panel through the imperative handle', async () => {
+    const ref = { current: null as any }
+    render(
+      <MessageComposer
+        ref={ref}
+        channelId="c1"
+        isGM={true}
+        members={members}
+        onSendMessage={vi.fn()}
+      />
+    )
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'Go ' } })
+
+    ref.current.insertImages(['c1/message/a.jpg', 'c1/message/b.jpg'])
+
+    await waitFor(() => expect(textarea).toHaveValue('Go ![](c1/message/a.jpg)\n![](c1/message/b.jpg)\n'))
+  })
+
   it('uploads an NPC portrait image and previews it', async () => {
     mockUploadImage.mockResolvedValue('https://supabase/images/c1/npc/u.jpg')
     render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)

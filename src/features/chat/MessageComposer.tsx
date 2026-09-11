@@ -1,5 +1,5 @@
 import { Avatar } from '../../components/Avatar';
-import { useState, useRef, useEffect, useId } from 'react'
+import { useState, useRef, useEffect, useId, useCallback, useImperativeHandle, forwardRef } from 'react'
 import type { Database } from '../../types/database'
 import type { MessageSendPayload } from './types'
 import { DiceRoller } from '../dice/DiceRoller'
@@ -38,7 +38,14 @@ interface MessageComposerProps {
   onXCard?: () => void
 }
 
-export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps) {
+// Imperative surface for the Channel Media panel (#465): the GM picks images
+// in a panel that lives in ChannelView and asks the composer to insert their
+// markdown at the cursor, without lifting the composer's draft state up.
+export interface MessageComposerHandle {
+  insertImages: (paths: string[]) => void
+}
+
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
 
@@ -97,6 +104,8 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragDepth = useRef(0)
   const [isExpanded, setIsExpanded] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
@@ -176,6 +185,30 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
     })
   }
 
+  // Single insertion path shared by the Upload button, drag-and-drop and the
+  // Channel Media panel (#465): insert at the cursor, keep focus and move the
+  // caret past the inserted markdown. Uses a functional update so an async
+  // caller (an in-flight upload) never writes a stale content snapshot.
+  const insertAtCursor = useCallback((insertion: string) => {
+    if (!insertion) return
+    const ta = textareaRef.current
+    const cursor = ta?.selectionStart ?? contentRef.current.length
+    setContent(prev => prev.slice(0, cursor) + insertion + prev.slice(cursor))
+    setMentionState(null)
+    requestAnimationFrame(() => {
+      const nextTa = textareaRef.current
+      if (!nextTa) return
+      nextTa.focus()
+      nextTa.setSelectionRange(cursor + insertion.length, cursor + insertion.length)
+    })
+  }, [])
+
+  const insertImagePaths = useCallback((paths: string[]) => {
+    insertAtCursor(paths.map(p => `![](${p})\n`).join(''))
+  }, [insertAtCursor])
+
+  useImperativeHandle(ref, () => ({ insertImages: insertImagePaths }), [insertImagePaths])
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -185,23 +218,60 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       // ~1200px keeps maps/handouts legible; storage cost stays tiny after the
       // JPEG re-encode.
       const publicUrl = await uploadImage(file, 'message', 1200)
-      if (publicUrl) {
-        const ta = textareaRef.current
-        const cursor = ta?.selectionStart ?? content.length
-        const insertion = `![](${publicUrl})\n`
-        const next = content.slice(0, cursor) + insertion + content.slice(cursor)
-        setContent(next)
-        setMentionState(null)
-        requestAnimationFrame(() => {
-          const nextTa = textareaRef.current
-          if (!nextTa) return
-          nextTa.focus()
-          nextTa.setSelectionRange(cursor + insertion.length, cursor + insertion.length)
-        })
-      }
+      if (publicUrl) insertImagePaths([publicUrl])
     } catch (err) {
       setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
     }
+  }
+
+  // Drag-and-drop is a desktop-only entry point for the same upload flow,
+  // available only when a GM may actually upload. Non-GM/no-op leaves the
+  // browser's default drop behavior untouched (acceptance #4).
+  const canDropImages = isGM && uploadEnabled && !settingsLoading
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!canDropImages) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setIsDragging(true)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!canDropImages) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleDragLeave = () => {
+    if (!canDropImages) return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    if (!canDropImages) return
+    e.preventDefault()
+    dragDepth.current = 0
+    setIsDragging(false)
+    const files = Array.from(e.dataTransfer?.files ?? [])
+    if (!files.length) return
+    setImageError(null)
+    const images = files.filter(f => f.type.startsWith('image/'))
+    const rejected = files.length - images.length
+    const paths: string[] = []
+    let failed = 0
+    for (const file of images) {
+      try {
+        const path = await uploadImage(file, 'message', 1200)
+        if (path) paths.push(path)
+      } catch {
+        failed += 1
+      }
+    }
+    // Successful files still insert; failures/rejections report inline.
+    if (paths.length) insertImagePaths(paths)
+    if (failed > 0) setImageError(failed === 1 ? 'Failed to upload image.' : `Failed to upload ${failed} images.`)
+    else if (rejected > 0) setImageError('Please choose an image file.')
   }
 
   const handleNpcImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -445,7 +515,16 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
 
   return (
     <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2 sm:p-4">
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        data-testid="composer-dropzone"
+        data-dragging={isDragging}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={isDragging ? 'rounded-lg ring-2 ring-inset ring-indigo-400' : undefined}
+      >
         <div className="flex flex-col space-y-2">
           {/* Reply target bar */}
           {replyTo && (
@@ -670,4 +749,4 @@ export function MessageComposer({ channelId, isGM, members, npcs = [], onSendMes
       </form>
     </div>
   )
-}
+})
