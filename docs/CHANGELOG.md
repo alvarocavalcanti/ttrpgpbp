@@ -9,6 +9,10 @@ All notable changes to this project are documented in this file.
 - **Drag images straight into a message** — on desktop, a GM can drag one or more image files from their computer onto the message box and they upload right where you're typing. Non-image files are politely rejected, and if one upload in a batch fails, the rest still go in.
 - **Channel Media browser** — the channel sidebar now has a **Channel Media** item (for players and GMs) that shows every image shared in the channel as a thumbnail grid. Tap any image to view it fullscreen. GMs can also pick several images and insert them into a message at the cursor — handy for lining up maps and handouts before a session.
 
+### Fixed
+
+- **Dice rolls read like every other message** — a dice roll's result text was showing up bigger than normal chat text; it now matches the rest of the conversation.
+
 ## 2026-09-10
 
 ### Added

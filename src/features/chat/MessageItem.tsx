@@ -663,7 +663,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </span>
             )}
           </div>
-          <div className="text-surface-900 dark:text-surface-100 text-lg">
+          <div className="text-surface-900 dark:text-surface-100 text-sm">
             <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
