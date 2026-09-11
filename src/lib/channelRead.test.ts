@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { notifyChannelRead } from './channelRead'
+import { notifyChannelRead, refreshAppBadge } from './channelRead'
 import { supabase } from './supabase'
 import { updateAppBadge } from './appBadge'
 
@@ -62,5 +62,17 @@ describe('notifyChannelRead', () => {
     await notifyChannelRead('c1', 'u1', true)
     expect(postMessage).toHaveBeenCalled()
     expect(updateAppBadge).toHaveBeenCalledWith(0, true)
+  })
+
+  it('refreshes the badge without posting the close message', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [{ channel_id: 'c2', unread_count: 4 }],
+      error: null,
+    } as any)
+
+    await refreshAppBadge('u1', true)
+
+    expect(postMessage).not.toHaveBeenCalled()
+    expect(updateAppBadge).toHaveBeenCalledWith(4, true)
   })
 })

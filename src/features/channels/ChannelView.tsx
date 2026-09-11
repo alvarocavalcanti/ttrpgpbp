@@ -12,7 +12,7 @@ import type { ChatMessage, Member } from '../chat/types'
 import { useAuth } from '../auth/useAuth'
 import { SignedImg } from '../../components/SignedImg'
 import { usePushNotifications } from '../notifications/usePushNotifications'
-import { notifyChannelRead } from '../../lib/channelRead'
+import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
@@ -41,13 +41,20 @@ export function ChannelView() {
   const { user } = useAuth()
   const { preferences } = usePushNotifications()
 
-  // Fire once per channel visit: once the read (last_read_at) has committed,
-  // dismiss the channel's system notifications and refresh the launcher badge.
+  // Dismiss the channel's system notifications once per visit, and keep the
+  // launcher badge in sync with the total unread. A later non-live read (the
+  // tab came back after a gap) refreshes the badge; live message reads don't
+  // change the total, so they skip the extra fetch (#502).
   const readHandledRef = useRef<string | null>(null)
-  const handleChannelRead = useCallback(() => {
-    if (!id || !user?.id || readHandledRef.current === id) return
-    readHandledRef.current = id
-    void notifyChannelRead(id, user.id, preferences?.badge_enabled !== false)
+  const handleChannelRead = useCallback((live?: boolean) => {
+    if (!id || !user?.id) return
+    const badgeEnabled = preferences?.badge_enabled !== false
+    if (readHandledRef.current !== id) {
+      readHandledRef.current = id
+      void notifyChannelRead(id, user.id, badgeEnabled)
+      return
+    }
+    if (!live) void refreshAppBadge(user.id, badgeEnabled)
   }, [id, user?.id, preferences?.badge_enabled])
 
   // History-first read-mark (#412). The ref is the call-time gate handed to

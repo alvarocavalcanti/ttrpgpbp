@@ -90,6 +90,24 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     }
   }, [])
 
+  // Returning to the foreground can move the read boundary to the hide-time
+  // value (#502). When the user was at the bottom, anchor to the "New
+  // messages" divider so messages that arrived while away are actually shown;
+  // history readers keep their position (#338).
+  const prevBoundaryRef = useRef(lastReadTimestamp)
+  const pendingBoundaryAnchorRef = useRef(false)
+  useEffect(() => {
+    if (prevBoundaryRef.current === lastReadTimestamp) return
+    prevBoundaryRef.current = lastReadTimestamp
+    if (!atBottomRef.current) return
+    if (newMessagesDividerRef.current) {
+      scrollToUnread()
+    } else {
+      // The divider may not exist until the catch-up messages render; defer.
+      pendingBoundaryAnchorRef.current = true
+    }
+  }, [lastReadTimestamp, scrollToUnread])
+
   // Auto-scroll on initial load or when new messages arrive, unless we are
   // highlighting a message. Loading older history (prepending) preserves the
   // current scroll position instead of snapping back to the bottom.
@@ -106,6 +124,15 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     lastIdRef.current = lastId
 
     if (highlightMessageId) return
+
+    if (pendingBoundaryAnchorRef.current) {
+      pendingBoundaryAnchorRef.current = false
+      if (newMessagesDividerRef.current) {
+        scrollToUnread()
+        if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
+        return
+      }
+    }
 
     if (prepended && list) {
       const addedHeight = list.scrollHeight - scrollInfoRef.current.height

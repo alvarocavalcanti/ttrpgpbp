@@ -15,7 +15,7 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
 // once message history has loaded for this channel. The read mark (mount-time
 // and live-advance) is suppressed until then, so a failed messages fetch can
 // never destroy the "New messages" boundary for posts the player never saw.
-export function useChannel(channelId: string | undefined, onRead?: () => void, canMarkRead?: () => boolean) {
+export function useChannel(channelId: string | undefined, onRead?: (live?: boolean) => void, canMarkRead?: () => boolean) {
   const { user } = useAuth()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
@@ -41,8 +41,19 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
   // (mark_channel_read uses DB now()), so the persisted value is monotonic and
   // immune to client clock skew (issue #437).
   const readWriteChainRef = useRef<Promise<unknown>>(Promise.resolve())
+  // Latest members, readable from event handlers that outlive the render they
+  // were created in (the visibilitychange handler captures the read boundary).
+  const membersRef = useRef<ChannelMember[]>([])
+  // Read boundary as of the moment the tab was hidden. On return, the divider
+  // is anchored here so messages that arrived while away are flagged even
+  // though the live read mark kept advancing (#502).
+  const hiddenReadBoundaryRef = useRef<string | null>(null)
 
-  const markRead = useCallback(() => {
+  useEffect(() => {
+    membersRef.current = members
+  }, [members])
+
+  const markRead = useCallback((live = false) => {
     // Capture the member id and channel at scheduling time: the write runs
     // later, after other queued writes, and must never adopt the member id or
     // channel of one the user switched to in the meantime.
@@ -61,7 +72,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
         if (canMarkRead && !canMarkRead()) return
         const { error } = await supabase.rpc('mark_channel_read', { p_channel_id: channelId })
         if (error) console.error('Failed to update last_read_at', error)
-        else onRead?.()
+        else onRead?.(live)
       })
       .catch(() => {})
   }, [onRead, canMarkRead])
@@ -80,6 +91,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
     setLoading(true)
     setLastReadAt(null)
     boundaryCapturedRef.current = false
+    hiddenReadBoundaryRef.current = null
     myMemberIdRef.current = null
     channelIdRef.current = channelId ?? null
 
@@ -138,7 +150,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
         const myMember = formattedMembers.find(m => m.user_id === user?.id)
         if (myMember) {
           myMemberIdRef.current = myMember.id
-          if (document.visibilityState === 'visible') markRead()
+          if (document.visibilityState === 'visible') markRead(false)
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
@@ -177,7 +189,7 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
         filter: `channel_id=eq.${channelId}`
       }, () => {
         if (!mounted || document.visibilityState !== 'visible' || !myMemberIdRef.current) return
-        markRead()
+        markRead(true)
       })
       .on('postgres_changes', {
         // '*' so joins (INSERT) and kicks/leaves (DELETE) propagate. A kicked
@@ -211,7 +223,20 @@ export function useChannel(channelId: string | undefined, onRead?: () => void, c
     })
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') void fetchChannelData()
+      if (document.visibilityState === 'hidden') {
+        // Remember what we had seen when leaving; messages that arrive while
+        // the app is away must stay on the "new" side of the divider (#502).
+        hiddenReadBoundaryRef.current = membersRef.current
+          .find(m => m.user_id === user?.id)?.last_read_at ?? null
+        return
+      }
+      void fetchChannelData()
+      // Re-anchor the divider to the boundary captured at hide time. The read
+      // mark inside fetchChannelData advances to "now", so without this the
+      // divider would move past the messages that arrived while away (#502).
+      const boundary = hiddenReadBoundaryRef.current
+      hiddenReadBoundaryRef.current = null
+      if (boundary) setLastReadAt(boundary)
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 

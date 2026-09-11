@@ -480,4 +480,28 @@ describe('MessageList scroll anchoring', () => {
 
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1000)
   })
+
+  it('anchors to the unread divider when the read boundary moves on return (#502)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container, rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    const list = container.firstChild as HTMLElement
+    // Sit at the bottom, as the player had before backgrounding.
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Returning moves the read boundary forward; the list should show the
+    // divider for the messages that were previously below it.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T14:00:00Z" />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
 })
