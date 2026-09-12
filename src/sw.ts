@@ -30,7 +30,13 @@ self.addEventListener('activate', (event) => {
     await self.clients.claim()
     if (!skipWaitingRequested) return
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    await Promise.all(clients.map((client) => (client as WindowClient).navigate(client.url).catch(() => {})))
+    await Promise.all(clients.map((client) => {
+      const win = client as WindowClient
+      // `navigate` is Chrome/Firefox-only; Safari lacks it, so the page-side
+      // `controllerchange`/fallback reload is what updates those clients.
+      if (typeof win.navigate !== 'function') return
+      return win.navigate(win.url).catch(() => {})
+    }))
   })())
 })
 

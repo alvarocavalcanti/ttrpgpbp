@@ -284,6 +284,17 @@ describe('sw activate handler reloads clients on update', () => {
     activateHandler?.({ waitUntil })
     await expect(waitUntil.mock.calls[0][0]).resolves.toBeUndefined()
   })
+
+  it('skips reloading when a client has no navigate support (Safari)', async () => {
+    messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
+    // Safari WindowClient lacks `navigate`; the page-side reload covers it.
+    matchAll.mockResolvedValue([{ url: 'https://app.example/channel/c1' }])
+
+    const waitUntil = vi.fn((p: Promise<unknown>) => p)
+    activateHandler?.({ waitUntil })
+    await expect(waitUntil.mock.calls[0][0]).resolves.toBeUndefined()
+    expect(navigate).not.toHaveBeenCalled()
+  })
 })
 
 describe('sw notificationclick focuses the exact channel', () => {
