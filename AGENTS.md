@@ -107,6 +107,21 @@ Boundaries: code/commits/PRs written normal.
 - **Testing strategy**: TDD is preferred, and also keep DAMP vs DRY in mind. For instance, if the SRC uses constants, the TST should use string literals so the tests can break on an accidental change to the constants.
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
+## Optional PR Workflow: Monitor & Review (opt-in)
+
+Default remains the **Standard** path above — no auto-merge, no CI monitoring. Opt in only when the user explicitly asks (e.g. "monitor this PR").
+
+1. **Create PR** — push the branch, open the PR, report the link.
+2. **Monitor CI and review** — watch CI status and reviewer feedback until checks settle and reviewers weigh in.
+3. **Assess, address, reply** — read every review comment (CodeRabbit, Copilot, human). Fix what's valid, push follow-up commits, and reply to each thread (fix applied, or reason for the no-op).
+4. **Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review exists yet, request one manually:
+
+   ```bash
+   gh pr edit --add-reviewer @copilot
+   ```
+
+   Manual `@copilot` review is free (a single request). The automated Copilot review workflow is **not** enabled here — it requires a paid Copilot subscription (Pro/Business/Enterprise), so it is intentionally skipped.
+
 ## UI Best Practices
 
 Every UI change must follow these conventions:
