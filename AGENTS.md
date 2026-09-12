@@ -117,8 +117,11 @@ Default remains the **Standard** path above — no auto-merge, no CI monitoring.
 4. **Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review exists yet, request one manually:
 
    ```bash
-   gh pr edit --add-reviewer @copilot
+   gh api --method POST "repos/{owner}/{repo}/pulls/{pr}/requested_reviewers" \
+     -f "reviewers[]=copilot-pull-request-reviewer[bot]"
    ```
+
+   (`gh pr edit --add-reviewer @copilot` also works, but only on gh ≥2.88 — the raw API form above works on any gh version. Copilot is an app reviewer, so it appears in the PR timeline and reviews, not in the `requested_reviewers` user list.)
 
    Manual `@copilot` review is free (a single request). The automated Copilot review workflow is **not** enabled here — it requires a paid Copilot subscription (Pro/Business/Enterprise), so it is intentionally skipped.
 
