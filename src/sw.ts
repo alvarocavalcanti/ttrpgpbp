@@ -9,12 +9,35 @@ declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST || [])
 
+// Set when the update prompt's CTA is tapped (the page posts SKIP_WAITING), so
+// activate can distinguish an update from a first install. On first install no
+// SKIP_WAITING is ever sent, so this stays false and clients are only claimed,
+// never reloaded.
+let skipWaitingRequested = false
+
 // Take control of the page as soon as this worker activates. Without
 // clients.claim() the updated worker skips waiting and activates, but the open
 // page stays under the old worker — workbox-window's `controlling` event (which
 // triggers the update prompt's reload) would never fire (issue #385).
+//
+// On an update (issue #507) also reload every open window from here: Android
+// Chrome can drop the page-side `controllerchange` event, so the reload must be
+// driven by the worker itself. Navigating after claim guarantees the reload
+// runs under this (new) worker and serves the fresh pre-cached shell instead of
+// the stale one.
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil((async () => {
+    await self.clients.claim()
+    if (!skipWaitingRequested) return
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    await Promise.all(clients.map((client) => {
+      const win = client as WindowClient
+      // `navigate` is Chrome/Firefox-only; Safari lacks it, so the page-side
+      // `controllerchange`/fallback reload is what updates those clients.
+      if (typeof win.navigate !== 'function') return
+      return win.navigate(win.url).catch(() => {})
+    }))
+  })())
 })
 
 // SPA navigation fallback: deep links like /channel/:id serve the pre-cached
@@ -125,6 +148,7 @@ self.addEventListener('message', (event) => {
   // available" prompt's CTA is tapped, and without skipWaiting the new worker
   // stays in the waiting state forever — the cached old shell keeps serving.
   if (data?.type === 'SKIP_WAITING') {
+    skipWaitingRequested = true
     self.skipWaiting()
     return
   }

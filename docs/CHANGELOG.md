@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-12
+
+### Fixed
+
+- **App updates land on the first tap** — the "New version available" banner's **Reload** button now refreshes reliably on Android, so the update applies right away instead of the banner coming back again and again.
+
 ## 2026-09-11
 
 ### Added

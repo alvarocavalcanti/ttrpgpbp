@@ -26,7 +26,6 @@ interface PushEventLike {
 let pushHandler: (event: PushEventLike) => void
 let messageHandler: ((event: any) => void) | undefined
 let notificationClickHandler: ((event: any) => void) | undefined
-let activateHandler: ((event: any) => void) | undefined
 
 beforeAll(async () => {
   const origAdd = self.addEventListener.bind(self)
@@ -37,7 +36,6 @@ beforeAll(async () => {
   pushHandler = find('push') as (event: PushEventLike) => void
   messageHandler = find('message') as ((event: any) => void) | undefined
   notificationClickHandler = find('notificationclick') as ((event: any) => void) | undefined
-  activateHandler = find('activate') as ((event: any) => void) | undefined
 })
 
 function dispatchPush(payload: Record<string, unknown> | null, jsonImpl?: () => Record<string, unknown>) {
@@ -229,23 +227,73 @@ describe('sw message handler skips waiting on update prompt', () => {
   })
 })
 
-describe('sw activate handler claims clients', () => {
+describe('sw activate handler reloads clients on update', () => {
   let claim: ReturnType<typeof vi.fn>
+  let matchAll: ReturnType<typeof vi.fn>
+  let navigate: ReturnType<typeof vi.fn>
+  let skipWaiting: ReturnType<typeof vi.fn>
+  let activateHandler: ((event: { waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
+  let messageHandler: ((event: { data: unknown; waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Re-import the worker so its module-level `skipWaitingRequested` flag
+    // starts false each test, then drive it through the captured handlers.
+    vi.resetModules()
     vi.clearAllMocks()
     claim = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(self, 'clients', {
-      value: { claim },
-      configurable: true,
-    })
+    navigate = vi.fn().mockResolvedValue(undefined)
+    matchAll = vi.fn().mockResolvedValue([{ url: 'https://app.example/channel/c1', navigate }])
+    skipWaiting = vi.fn()
+    Object.defineProperty(self, 'clients', { value: { claim, matchAll }, configurable: true })
+    Object.defineProperty(self, 'skipWaiting', { value: skipWaiting, configurable: true })
+
+    const addEventListener = vi.fn(self.addEventListener.bind(self) as unknown as (type: string, listener: unknown) => void)
+    Object.defineProperty(self, 'addEventListener', { value: addEventListener, configurable: true })
+    await import('./sw')
+    const find = (type: string) => addEventListener.mock.calls.find(([t]) => t === type)?.[1]
+    activateHandler = find('activate') as ((event: { waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
+    messageHandler = find('message') as ((event: { data: unknown; waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
   })
 
-  it('calls clients.claim() on activation so the new worker controls the page', () => {
-    const waitUntil = vi.fn()
+  it('claims clients without reloading on first install', async () => {
+    const waitUntil = vi.fn((p: Promise<unknown>) => p)
     activateHandler?.({ waitUntil })
+    await waitUntil.mock.calls[0][0]
     expect(claim).toHaveBeenCalledTimes(1)
-    expect(waitUntil).toHaveBeenCalledWith(claim.mock.results[0].value)
+    expect(matchAll).not.toHaveBeenCalled()
+  })
+
+  it('reloads every open window after the update prompt CTA', async () => {
+    messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
+    expect(skipWaiting).toHaveBeenCalledTimes(1)
+
+    const waitUntil = vi.fn((p: Promise<unknown>) => p)
+    activateHandler?.({ waitUntil })
+    await waitUntil.mock.calls[0][0]
+
+    expect(claim).toHaveBeenCalledTimes(1)
+    expect(matchAll).toHaveBeenCalledWith({ type: 'window', includeUncontrolled: true })
+    expect(navigate).toHaveBeenCalledWith('https://app.example/channel/c1')
+  })
+
+  it('swallows a navigation failure so activation still completes', async () => {
+    messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
+    navigate.mockRejectedValue(new Error('navigate failed'))
+
+    const waitUntil = vi.fn((p: Promise<unknown>) => p)
+    activateHandler?.({ waitUntil })
+    await expect(waitUntil.mock.calls[0][0]).resolves.toBeUndefined()
+  })
+
+  it('skips reloading when a client has no navigate support (Safari)', async () => {
+    messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
+    // Safari WindowClient lacks `navigate`; the page-side reload covers it.
+    matchAll.mockResolvedValue([{ url: 'https://app.example/channel/c1' }])
+
+    const waitUntil = vi.fn((p: Promise<unknown>) => p)
+    activateHandler?.({ waitUntil })
+    await expect(waitUntil.mock.calls[0][0]).resolves.toBeUndefined()
+    expect(navigate).not.toHaveBeenCalled()
   })
 })
 
