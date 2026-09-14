@@ -88,7 +88,7 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
       aria-label={alt}
       className="fixed inset-0 z-50 bg-black/90"
     >
-      <div className="absolute right-0 top-0 z-10 flex items-center gap-1 p-2">
+      <div className="absolute right-0 top-0 z-10 flex items-center gap-1 rounded-bl bg-black/50 p-2">
         <button
           type="button"
           aria-label="Zoom out"
