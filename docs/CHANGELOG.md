@@ -7,6 +7,8 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **New messages open where you left off** — opening a channel with unread messages now lands on the **New messages** divider every time, even in a busy channel full of images. The view could previously stop short of the divider while pictures were still loading in.
+- **Edit Character is readable in dark mode** — the character editor no longer renders behind its own dimmed backdrop, so the form is no longer swallowed into near-black.
+- **Tapping a reaction shows who reacted** — tapping a reaction under a message now lists the players who reacted instead of adding or removing your own reaction by accident. Adding and removing reactions still lives in the message's **Reactions** action.
 
 ## 2026-09-12
 

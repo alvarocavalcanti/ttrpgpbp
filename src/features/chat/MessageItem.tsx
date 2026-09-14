@@ -11,6 +11,8 @@ import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { ModifierInput } from '../../components/ModifierInput'
 import { EmojiPicker } from './EmojiPicker'
 import { proseParchment } from './composerChip'
+import { useClickOutside } from '../../hooks/useClickOutside'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import type { ReactionSummary } from './useMessages'
 import type { ChatMessage, Member } from './types'
 import { isNpcIconUrl } from './npcIcons'
@@ -173,11 +175,25 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   const [checkDraft, setCheckDraft] = useState<CheckDraft | null>(null)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [reactionsOpen, setReactionsOpen] = useState(false)
+  // Emoji of the reaction chip whose "who reacted" popover is open (#510).
+  const [reactorsFor, setReactorsFor] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   // Image currently open in the fullscreen viewer (issue #458); null = closed.
   const [viewingImage, setViewingImage] = useState<{ src: string; alt: string } | null>(null)
   const itemRef = useRef<HTMLDivElement>(null)
+
+  // Reaction "who reacted" popover dismisses on outside tap/click or Escape
+  // (issue #510). The ref wraps the whole chip row so tapping one chip does
+  // not dismiss the popover before that chip's own toggle runs.
+  const reactionsRowRef = useClickOutside<HTMLDivElement>(() => setReactorsFor(null), reactorsFor !== null)
+  useEscapeToClose(() => setReactorsFor(null), reactorsFor !== null)
+
+  // Resolves a reactor's user id to a display name via the channel member list
+  // the component already receives; unknown users still get a readable label.
+  const reactorName = (userId: string): string =>
+    members?.find(m => m.user_id === userId)?.character_name
+    || (userId === currentUserId ? 'You' : 'Someone')
 
   const senderName = message.npc_name || members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
   const replySenderName = message.reply?.sender_id ? members?.find(m => m.user_id === message.reply?.sender_id)?.character_name : undefined
@@ -503,18 +519,38 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   ) : null
 
   const reactionsRow = reactions && reactions.length > 0 ? (
-    <div className="flex flex-wrap gap-1">
+    <div ref={reactionsRowRef} className="flex flex-wrap gap-1">
       {reactions.map(r => (
-        <button
-          key={r.emoji}
-          type="button"
-          onClick={() => handleToggleReaction(r.emoji)}
-          className={`relative inline-flex min-w-11 items-center justify-center px-1.5 py-0.5 rounded-full text-xs border transition-colors after:content-[''] after:absolute after:inset-x-1 after:-inset-y-3 ${r.hasReacted ? 'bg-primary-100 dark:bg-primary-900 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700'}`}
-          aria-label={`Reaction ${r.emoji}, ${r.count}`}
-        >
-          <span className="mr-0.5">{r.emoji}</span>
-          <span>{r.count}</span>
-        </button>
+        <div key={r.emoji} className="relative">
+          <button
+            type="button"
+            onClick={() => setReactorsFor(prev => (prev === r.emoji ? null : r.emoji))}
+            className={`relative inline-flex min-w-11 items-center justify-center px-1.5 py-0.5 rounded-full text-xs border transition-colors after:content-[''] after:absolute after:inset-x-1 after:-inset-y-3 ${r.hasReacted ? 'bg-primary-100 dark:bg-primary-900 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700'}`}
+            aria-label={`Reaction ${r.emoji}, ${r.count}. Show who reacted`}
+            aria-haspopup="true"
+            aria-expanded={reactorsFor === r.emoji}
+            title={r.userIds.map(reactorName).join(', ')}
+          >
+            <span className="mr-0.5">{r.emoji}</span>
+            <span>{r.count}</span>
+          </button>
+          {/* Who-reacted popover. Anchored above the chip; reacting itself stays
+              in the Reactions menu (issue #510). */}
+          {reactorsFor === r.emoji && (
+            <div
+              role="group"
+              aria-label={`People who reacted ${r.emoji}`}
+              className="absolute bottom-full mb-1 left-0 z-20 min-w-max max-w-[16rem] rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-xl px-3 py-2"
+            >
+              <p className="text-xs font-medium text-surface-500 dark:text-surface-400 mb-1">{r.emoji} {r.count}</p>
+              <ul className="space-y-0.5">
+                {r.userIds.map(id => (
+                  <li key={id} className="text-xs text-surface-800 dark:text-surface-200 truncate">{reactorName(id)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       ))}
     </div>
   ) : null
