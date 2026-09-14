@@ -1180,9 +1180,9 @@ describe('useMessages', () => {
     })
 
     const thumbsUp = result.current.reactions['m1'].find(r => r.emoji === '👍')
-    expect(thumbsUp).toMatchObject({ count: 2, hasReacted: true })
+    expect(thumbsUp).toMatchObject({ count: 2, hasReacted: true, userIds: ['u1', 'u2'] })
     const fire = result.current.reactions['m1'].find(r => r.emoji === '🔥')
-    expect(fire).toMatchObject({ count: 1, hasReacted: false })
+    expect(fire).toMatchObject({ count: 1, hasReacted: false, userIds: ['u2'] })
   })
 
   it('drops malformed initial reaction rows before aggregation', async () => {
@@ -1221,12 +1221,36 @@ describe('useMessages', () => {
     await act(async () => {
       await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' }) })
     })
-    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false }])
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false, userIds: ['u2'] }])
 
     await act(async () => {
       await callbacks['message_reactions']({ eventType: 'DELETE', old: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' }) })
     })
     expect(result.current.reactions['m1']).toBeUndefined()
+  })
+
+  it('tracks each reactor separately when one of several un-reacts', async () => {
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u1' }) })
+    })
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r2', message_id: 'm1', user_id: 'u2' }) })
+    })
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 2, hasReacted: true, userIds: ['u1', 'u2'] }])
+
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'DELETE', old: validReaction({ id: 'r2', message_id: 'm1', user_id: 'u2' }) })
+    })
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: true, userIds: ['u1'] }])
   })
 
   it('adds and removes reactions', async () => {

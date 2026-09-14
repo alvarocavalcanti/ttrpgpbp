@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-14
+
+### Fixed
+
+- **Edit Character is readable in dark mode** — the character editor no longer renders behind its own dimmed backdrop, so the form is no longer swallowed into near-black.
+- **Tapping a reaction shows who reacted** — tapping a reaction under a message now lists the players who reacted instead of adding or removing your own reaction by accident. Adding and removing reactions still lives in the message's **Reactions** action.
+
 ## 2026-09-12
 
 ### Fixed

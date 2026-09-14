@@ -73,6 +73,7 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
             <button
               key={emoji}
               type="button"
+              aria-label={`React with ${emoji}`}
               onClick={() => {
                 setOpen(false)
                 onPick(emoji)

@@ -19,6 +19,13 @@ describe('EditCharacterModal', () => {
     expect(screen.getByLabelText('Notes')).toBeInTheDocument()
   })
 
+  it('lays the dialog panel above the dark backdrop (#510)', () => {
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
+    // The panel must be positioned (`relative`), otherwise the fixed backdrop
+    // paints over it and the dark-mode panel renders near-black.
+    expect(screen.getByTestId('edit-character-panel').className).toContain('relative')
+  })
+
   it('renders as a bottom sheet when asSheet is set', () => {
     const onClose = vi.fn()
     render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={onClose} onUpdate={vi.fn()} asSheet />)

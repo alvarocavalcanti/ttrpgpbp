@@ -1253,7 +1253,7 @@ describe('ChannelView search functionality', () => {
   it('adds a reaction when not already reacted', async () => {
     vi.mocked(useMessages).mockReturnValue({
       messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
-      reactions: { msg1: [{ emoji: '👍', count: 1, hasReacted: false }] },
+      reactions: { msg1: [{ emoji: '👍', count: 1, hasReacted: false, userIds: ['u2'] }] },
       loading: false,
       sendMessage: vi.fn(),
       editMessage: vi.fn(),
@@ -1273,7 +1273,8 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Reaction 👍, 1/ }))
+    fireEvent.click(screen.getByLabelText('Reactions'))
+    fireEvent.click(screen.getByRole('button', { name: 'React with 👍' }))
     await waitFor(() => {
       expect(useMessagesMock().addReaction).toHaveBeenCalledWith('msg1', '👍')
     })
@@ -1282,7 +1283,7 @@ describe('ChannelView search functionality', () => {
   it('removes a reaction when already reacted', async () => {
     vi.mocked(useMessages).mockReturnValue({
       messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
-      reactions: { msg1: [{ emoji: '👍', count: 1, hasReacted: true }] },
+      reactions: { msg1: [{ emoji: '👍', count: 1, hasReacted: true, userIds: ['user1'] }] },
       loading: false,
       sendMessage: vi.fn(),
       editMessage: vi.fn(),
@@ -1302,7 +1303,8 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Reaction 👍, 1/ }))
+    fireEvent.click(screen.getByLabelText('Reactions'))
+    fireEvent.click(screen.getByRole('button', { name: 'React with 👍' }))
     await waitFor(() => {
       expect(useMessagesMock().removeReaction).toHaveBeenCalledWith('msg1', '👍')
     })

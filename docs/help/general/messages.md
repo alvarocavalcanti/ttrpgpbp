@@ -43,7 +43,7 @@ If a message or dice roll fails to send because of a network drop, it will appea
 
 ## Reactions
 
-React to a message with an **emoji** from the **Reactions** action. The quick-emoji picker covers common reactions, and counts update live. Existing reactions show under the message.
+React to a message with an **emoji** from the **Reactions** action. The quick-emoji picker covers common reactions, and counts update live. Existing reactions show under the message. Tap a reaction to see **who reacted**; adding or removing your own reaction is done from the **Reactions** action (pick the same emoji again to take it back).
 
 ## Whispers
 
