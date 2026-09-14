@@ -86,6 +86,7 @@ function AppNav() {
   // Track how the menu is opened/closed (issue #511): usage counts decide
   // later which dismissal methods are worth keeping.
   const openMenu = (method: string) => {
+    if (menuOpen) return
     setMenuOpen(true)
     trackEvent('menu_open', { menu: 'main', method })
   }
@@ -190,7 +191,7 @@ function AppNav() {
             </button>            <Link
               to="/settings"
               className={NAV_MENU_ITEM}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               Profile
             </Link>
@@ -223,14 +224,14 @@ function AppNav() {
             <Link 
               to="/archived" 
               className={NAV_MENU_ITEM}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               Archived Channels
             </Link>
             <Link
               to="/messages"
               className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               <span>Messages</span>
               {adminUnreadCount > 0 && (
@@ -240,21 +241,21 @@ function AppNav() {
             <Link 
               to="/help" 
               className={NAV_MENU_ITEM}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               Help
             </Link>
             <Link
               to="/about"
               className={NAV_MENU_ITEM}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               About
             </Link>
             <button
               type="button"
               onClick={() => {
-                setMenuOpen(false)
+                closeMenu('action')
                 openChangelog()
               }}
               className={NAV_MENU_ITEM}
@@ -264,14 +265,14 @@ function AppNav() {
             <Link 
               to="/privacy" 
               className={NAV_MENU_ITEM}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               Privacy Policy
             </Link>
             <Link 
               to="/terms" 
               className={NAV_MENU_ITEM}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('action')}
             >
               Terms of Service
             </Link>
@@ -279,7 +280,7 @@ function AppNav() {
               <Link 
                 to="/admin" 
                 className={NAV_MENU_ITEM}
-                onClick={() => setMenuOpen(false)}
+                onClick={() => closeMenu('action')}
               >
                 Server Admin
               </Link>
@@ -288,7 +289,7 @@ function AppNav() {
             <button
               type="button"
               onClick={() => {
-                setMenuOpen(false)
+                closeMenu('action')
                 signOut()
               }}
               className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-surface-100 dark:hover:bg-surface-700"

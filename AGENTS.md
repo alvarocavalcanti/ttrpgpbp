@@ -113,7 +113,7 @@ Default remains the **Standard** path above — no auto-merge, no CI monitoring.
 
 1. **Create PR** — push the branch, open the PR, report the link.
 2. **Monitor CI and review** — watch CI status and reviewer feedback until checks settle and reviewers weigh in.
-3. **Assess, address, reply** — read every review comment (CodeRabbit, Copilot, human). Fix what's valid, push follow-up commits, and reply to each thread (fix applied, or reason for the no-op).
+3. **AAR (`AAR <PR comment link>`)** — "Assess, address and reply": read every review comment (CodeRabbit, Copilot, human). Fix what's valid, push follow-up commits, and reply to each thread (fix applied, or reason for the no-op).
 4. **Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review exists yet, request one manually:
 
    ```bash

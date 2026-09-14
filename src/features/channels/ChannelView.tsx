@@ -94,16 +94,21 @@ export function ChannelView() {
   const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   // Track how the sidebar is opened/closed (issue #511): usage counts decide
-  // later which dismissal methods are worth keeping.
-  const openSidebar = (method: string) => {
+  // later which dismissal methods are worth keeping. Open/close are guarded
+  // through a ref mirror (not the state closure) so they keep a stable
+  // identity, and event-driven paths can emit an analytics event only on an
+  // actual closed<->open transition (#511 review).
+  const sidebarOpenRef = useRef(false)
+  const openSidebar = useCallback((method: string) => {
+    if (sidebarOpenRef.current) return
     setShowMobileSidebar(true)
     trackEvent('menu_open', { menu: 'sidebar', method })
-  }
-  const closeSidebar = (method: string) => {
-    if (!showMobileSidebar) return
+  }, [])
+  const closeSidebar = useCallback((method: string) => {
+    if (!sidebarOpenRef.current) return
     setShowMobileSidebar(false)
     trackEvent('menu_close', { menu: 'sidebar', method })
-  }
+  }, [])
   // Right-edge swipe opens/closes the sidebar on touch devices, matching the
   // lobby menu drawer. Desktop keeps the persistent lg: layout.
   useEdgeSwipe({ open: showMobileSidebar, onOpen: () => openSidebar('swipe'), onClose: () => closeSidebar('swipe') })
@@ -139,13 +144,19 @@ export function ChannelView() {
   }, [highlightMessageId])
 
   // Overlay modals open on top of the sidebar; close the mobile sidebar so it
-  // doesn't stay open behind them.
+  // doesn't stay open behind them. Only a real mobile-sidebar close is
+  // tracked: modals opened from the persistent desktop sidebar emit no event.
   useEffect(() => {
-    if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer || showMedia) {
+    if ((showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer || showMedia) && sidebarOpenRef.current) {
       setShowMobileSidebar(false)
       trackEvent('menu_close', { menu: 'sidebar', method: 'modal' })
     }
-  }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer, showMedia])
+  }, [showMobileSidebar, showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer, showMedia])
+
+  // Ref mirror of the drawer's open flag (see openSidebar/closeSidebar above).
+  useEffect(() => {
+    sidebarOpenRef.current = showMobileSidebar
+  }, [showMobileSidebar])
 
   // Deferred read-mark (#412): the mount-time markRead in useChannel is gated
   // off until history loads; this fires it once the gate opens (tab visible).
@@ -230,11 +241,9 @@ export function ChannelView() {
   // with no arguments, so the member id is closed over here.
   const handleEditCharacter = useCallback(() => {
     if (!myMemberInfo?.id) return
-    // Inline (not openSidebar) to keep this callback identity stable (#408).
-    setShowMobileSidebar(true)
-    trackEvent('menu_open', { menu: 'sidebar', method: 'action' })
+    openSidebar('action')
     setEditingMemberId(myMemberInfo.id)
-  }, [myMemberInfo?.id])
+  }, [myMemberInfo?.id, openSidebar])
 
   // Progressive paint (#346): header first (skeleton name while the channel
   // itself loads) plus skeleton message bubbles, instead of a full-screen
