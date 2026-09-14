@@ -973,4 +973,24 @@ describe('MessageList scroll anchoring', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
   })
+
+  it('releases the keyboard guard when the window loses focus (#338)', () => {
+    scrollHeight = 1000
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // A no-op scroll key sets the guard, then the window loses focus before the
+    // matching keyup can arrive.
+    fireEvent.keyDown(list, { key: 'End' })
+    fireEvent.blur(window)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    // The guard was released, so content growth still re-pins to the bottom.
+    expect(list.scrollTop).toBe(1400)
+  })
 })

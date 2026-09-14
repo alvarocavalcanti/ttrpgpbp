@@ -76,6 +76,27 @@ describe('SignedImg', () => {
     expect(screen.queryByTestId('signed-img-loading')).not.toBeInTheDocument()
   })
 
+  it('keeps the reserved dimensions when a caller also passes width/height', async () => {
+    mockInfo.mockResolvedValue({ data: { metadata: { width: 512, height: 288 } }, error: null })
+    render(
+      <SignedImg
+        src={`${CHANNEL_ID}/message/props.jpg`}
+        alt="props"
+        className="max-h-96"
+        reserveBox
+        width={999}
+        height={999}
+      />
+    )
+    await act(async () => {})
+
+    // The reserved box must win, or the loaded image would not match the
+    // placeholder's box.
+    const img = screen.getByRole('img', { name: 'props' })
+    expect(img).toHaveAttribute('width', '512')
+    expect(img).toHaveAttribute('height', '288')
+  })
+
   it('sets the intrinsic width/height and aspect ratio on the loaded image', async () => {
     mockInfo.mockResolvedValue({ data: { metadata: { width: 512, height: 288 } }, error: null })
     render(<SignedImg src={`${CHANNEL_ID}/message/map.jpg`} alt="map" className="max-h-96" reserveBox />)

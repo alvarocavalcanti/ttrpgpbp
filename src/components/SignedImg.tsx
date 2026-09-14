@@ -45,13 +45,15 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
     )
   }
 
+  // Caller props first: the reserved dimensions below win when known, so the
+  // loaded <img> can never differ from the placeholder's box.
   return (
     <img
       src={resolved}
       alt={alt}
       className={className}
-      {...(dims ? { width: dims.width, height: dims.height } : {})}
       {...props}
+      {...(dims ? { width: dims.width, height: dims.height } : {})}
       style={dims ? { aspectRatio: `${dims.width} / ${dims.height}`, ...style } : style}
     />
   )

@@ -306,11 +306,13 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     list.addEventListener('keydown', onKeyDown)
     list.addEventListener('keyup', onKeyUp)
     // End/cancel live on the window: a scrollbar drag or touch commonly ends
-    // outside the list, and a stuck guard would skip every later re-pin.
+    // outside the list, and a stuck guard would skip every later re-pin. `blur`
+    // covers losing focus mid-gesture, before the matching keyup/pointerup.
     window.addEventListener('touchend', onGestureEnd)
     window.addEventListener('touchcancel', onGestureEnd)
     window.addEventListener('pointerup', onGestureEnd)
     window.addEventListener('pointercancel', onGestureEnd)
+    window.addEventListener('blur', onGestureEnd)
     return () => {
       list.removeEventListener('scroll', onScroll)
       list.removeEventListener('wheel', onWheel)
@@ -323,6 +325,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       window.removeEventListener('touchcancel', onGestureEnd)
       window.removeEventListener('pointerup', onGestureEnd)
       window.removeEventListener('pointercancel', onGestureEnd)
+      window.removeEventListener('blur', onGestureEnd)
     }
   }, [hasMessages])
 
