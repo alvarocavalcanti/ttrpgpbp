@@ -3,7 +3,7 @@ title: Channel Sidebar & Menus
 screenshot: /help/sidebar.png
 ---
 
-The **channel sidebar** holds everything you need while in a channel. Open it with the person icon on mobile; it's always visible on larger screens.
+The **channel sidebar** holds everything you need while in a channel. Open it with the person icon on mobile; it's always visible on larger screens. On mobile, close it with the ✕ at the sidebar's top-right corner, by tapping anywhere outside it, or by pressing Escape — you can also swipe it away.
 
 Two shortcuts sit right in the channel header so they're always one tap away: **Search** (magnifying glass) and **Rolls** (dice).
 
