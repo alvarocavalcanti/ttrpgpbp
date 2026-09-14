@@ -39,28 +39,28 @@ describe('useSignedImageUrl', () => {
 
   it('passes external URLs through unchanged', () => {
     const { result } = renderHook(() => useSignedImageUrl('https://game-icons.net/x.svg'))
-    expect(result.current).toEqual({ src: 'https://game-icons.net/x.svg', loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: 'https://game-icons.net/x.svg', loading: false, width: null, height: null, dimensionsPending: false })
     expect(mockCreateSignedUrl).not.toHaveBeenCalled()
   })
 
   it('passes relative in-app URLs through unchanged (not a bucket path)', () => {
     const { result } = renderHook(() => useSignedImageUrl('/assets/map.png'))
-    expect(result.current).toEqual({ src: '/assets/map.png', loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: '/assets/map.png', loading: false, width: null, height: null, dimensionsPending: false })
     expect(mockCreateSignedUrl).not.toHaveBeenCalled()
   })
 
   it('passes through a null value', () => {
     const { result } = renderHook(() => useSignedImageUrl(null))
-    expect(result.current).toEqual({ src: null, loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: null, loading: false, width: null, height: null, dimensionsPending: false })
     expect(mockCreateSignedUrl).not.toHaveBeenCalled()
   })
 
   it('signs a private-bucket object path and shows loading while pending', async () => {
     deferred()
     const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/avatar/u.jpg`))
-    expect(result.current).toEqual({ src: null, loading: true, width: null, height: null })
+    expect(result.current).toEqual({ src: null, loading: true, width: null, height: null, dimensionsPending: false })
     await act(async () => resolveCreateSignedUrl({ data: { signedUrl: 'https://signed/x.jpg' }, error: null }))
-    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: false })
     expect(mockCreateSignedUrl).toHaveBeenCalledWith(`${CHANNEL_ID}/avatar/u.jpg`, expect.any(Number))
   })
 
@@ -70,7 +70,7 @@ describe('useSignedImageUrl', () => {
     await act(async () => {})
 
     expect(mockInfo).toHaveBeenCalledWith(`${CHANNEL_ID}/message/dims.jpg`)
-    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 512, height: 288 })
+    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 512, height: 288, dimensionsPending: false })
   })
 
   it('falls back to null dimensions when the metadata read fails', async () => {
@@ -79,16 +79,16 @@ describe('useSignedImageUrl', () => {
     await act(async () => {})
 
     // The image still resolves; only the reserved box is lost.
-    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: false })
   })
 
-  it('resolves the signed URL even while the metadata read is still pending', async () => {
-    // Critical: a slow/hanging info() must not keep the image on its placeholder.
+  it('resolves the signed URL while the metadata read is still pending, flagging dimensionsPending', async () => {
+    // Critical: a slow/hanging info() must not keep the image's src unresolved.
     mockInfo.mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/hanging.jpg`, true))
     await act(async () => {})
 
-    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: true })
   })
 
   it('skips the metadata request for callers that do not reserve the box', async () => {
@@ -98,6 +98,7 @@ describe('useSignedImageUrl', () => {
     expect(result.current.src).toBe('https://signed/x.jpg')
     expect(result.current.width).toBeNull()
     expect(result.current.height).toBeNull()
+    expect(result.current.dimensionsPending).toBe(false)
     expect(mockInfo).not.toHaveBeenCalled()
   })
 
@@ -115,7 +116,7 @@ describe('useSignedImageUrl', () => {
     const second = renderHook(() => useSignedImageUrl(path, true))
     await act(async () => {})
 
-    expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 400, height: 300 })
+    expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 400, height: 300, dimensionsPending: false })
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1) // URL reused from cache
     expect(mockInfo).toHaveBeenCalledTimes(1)
     second.unmount()
@@ -125,14 +126,14 @@ describe('useSignedImageUrl', () => {
     deferred()
     const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/u.jpg`))
     await act(async () => resolveCreateSignedUrl({ data: null, error: new Error('denied') }))
-    expect(result.current).toEqual({ src: null, loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: null, loading: false, width: null, height: null, dimensionsPending: false })
   })
 
   it('returns null src when signedUrl is empty', async () => {
     deferred()
     const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/u.jpg`))
     await act(async () => resolveCreateSignedUrl({ data: { signedUrl: null }, error: null }))
-    expect(result.current).toEqual({ src: null, loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: null, loading: false, width: null, height: null, dimensionsPending: false })
   })
 
   it('ignores a late signing result after unmount', async () => {
@@ -141,7 +142,7 @@ describe('useSignedImageUrl', () => {
     unmount()
     await act(async () => resolveCreateSignedUrl({ data: { signedUrl: 'https://signed/x.jpg' }, error: null }))
     // No state update on an unmounted hook; still shows the pending state.
-    expect(result.current).toEqual({ src: null, loading: true, width: null, height: null })
+    expect(result.current).toEqual({ src: null, loading: true, width: null, height: null, dimensionsPending: false })
   })
 
   it('does not let a stale signing result overwrite a newer source', async () => {
@@ -157,10 +158,10 @@ describe('useSignedImageUrl', () => {
 
     await act(async () => resolveOld({ data: { signedUrl: 'https://signed/OLD.jpg' }, error: null }))
     // Old request cancelled; src stays pending for the new path.
-    expect(result.current).toEqual({ src: null, loading: true, width: null, height: null })
+    expect(result.current).toEqual({ src: null, loading: true, width: null, height: null, dimensionsPending: false })
 
     await act(async () => resolveNew({ data: { signedUrl: 'https://signed/NEW.jpg' }, error: null }))
-    expect(result.current).toEqual({ src: 'https://signed/NEW.jpg', loading: false, width: null, height: null })
+    expect(result.current).toEqual({ src: 'https://signed/NEW.jpg', loading: false, width: null, height: null, dimensionsPending: false })
   })
 
   it('serves a remount of the same path from cache with exactly one createSignedUrl call', async () => {
@@ -174,7 +175,7 @@ describe('useSignedImageUrl', () => {
     // Remount: no RPC, no loading flicker — the cached URL and dimensions are
     // already there on the very first render.
     const second = renderHook(() => useSignedImageUrl(path, true))
-    expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 300, height: 200 })
+    expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 300, height: 200, dimensionsPending: false })
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1)
     expect(mockInfo).toHaveBeenCalledTimes(1)
     second.unmount()
@@ -188,7 +189,7 @@ describe('useSignedImageUrl', () => {
 
     vi.advanceTimersByTime(3600 * 1000 + 1)
     const second = renderHook(() => useSignedImageUrl(path))
-    expect(second.result.current).toEqual({ src: null, loading: true, width: null, height: null })
+    expect(second.result.current).toEqual({ src: null, loading: true, width: null, height: null, dimensionsPending: false })
     await act(async () => {})
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(2)
   })
@@ -197,15 +198,15 @@ describe('useSignedImageUrl', () => {
     const a = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/cache/a.jpg`))
     await act(async () => {})
     const b = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/cache/b.jpg`))
-    expect(b.result.current).toEqual({ src: null, loading: true, width: null, height: null })
+    expect(b.result.current).toEqual({ src: null, loading: true, width: null, height: null, dimensionsPending: false })
     await act(async () => {})
 
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(2)
     expect(mockCreateSignedUrl).toHaveBeenNthCalledWith(1, `${CHANNEL_ID}/cache/a.jpg`, expect.any(Number))
     expect(mockCreateSignedUrl).toHaveBeenNthCalledWith(2, `${CHANNEL_ID}/cache/b.jpg`, expect.any(Number))
     // Each path got its own cached URL.
-    expect(a.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
-    expect(b.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
+    expect(a.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: false })
+    expect(b.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: false })
     a.unmount()
     b.unmount()
   })
@@ -228,7 +229,7 @@ describe('useSignedImageUrl', () => {
 
     // The first path was pushed out of the cache, so it signs again.
     const again = renderHook(() => useSignedImageUrl(evictedPath))
-    expect(again.result.current).toEqual({ src: null, loading: true, width: null, height: null })
+    expect(again.result.current).toEqual({ src: null, loading: true, width: null, height: null, dimensionsPending: false })
     await act(async () => {})
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(102)
     expect(mockCreateSignedUrl).toHaveBeenLastCalledWith(evictedPath, expect.any(Number))

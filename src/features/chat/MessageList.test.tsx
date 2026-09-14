@@ -702,4 +702,106 @@ describe('MessageList scroll anchoring', () => {
 
     expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
+
+  it('makes the scroll region keyboard-focusable so scroll keys reach it', () => {
+    // Without a tabIndex the div cannot be focused, so PageUp/Arrow/PageDown
+    // never reach the keydown release handler (review on #513).
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect((container.firstChild as HTMLElement).tabIndex).toBe(0)
+  })
+
+  it('anchors to the unread divider when the read boundary arrives after the messages (#284)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    // No read boundary yet: the initial load lands at the bottom (no divider).
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // The boundary arrives afterwards and inserts the divider: the initial
+    // unread landing must still run.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('does not re-center a new divider once the anchored one has gone (#338)', () => {
+    scrollHeight = 1000
+    const old: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // The read boundary advances: the anchored divider disappears.
+    rerender(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T16:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A new unread message mounts a fresh divider while the reader is up in
+    // history; the stale anchor must not pull them back.
+    rerender(
+      <MessageList
+        messages={[...old, { id: 'm3', content: 'New', created_at: '2023-01-01T17:00:00Z', sender_id: 'other' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T16:00:00Z"
+      />
+    )
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('does not re-center the divider while a highlighted jump is active (#455)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // A jump highlights an older message; MessageItem owns the scroll position.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" highlightMessageId="m1" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('does not snap to the bottom during a gesture that has not scrolled yet (#338)', () => {
+    scrollHeight = 1000
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const list = container.firstChild as HTMLElement
+    // At the bottom after the initial landing.
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // The reader grabs the scrollbar and a lazy image resizes the list before
+    // the drag has produced a scroll event.
+    fireEvent.pointerDown(list)
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(list.scrollTop).toBe(1000)
+  })
 })

@@ -17,7 +17,7 @@ interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
 // shown so the image area stays mounted and late-arriving images don't shift
 // the surrounding layout. Nothing renders when there is no value at all.
 export function SignedImg({ src, alt, className, style, reserveBox = false, ...props }: SignedImgProps) {
-  const { src: resolved, loading, width, height } = useSignedImageUrl(src, reserveBox)
+  const { src: resolved, loading, width, height, dimensionsPending } = useSignedImageUrl(src, reserveBox)
 
   if (!src) return null
 
@@ -26,7 +26,10 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
   // min(intrinsic width, container width).
   const dims = reserveBox && width && height ? { width, height } : null
 
-  if (loading || !resolved) {
+  // For reserving callers, keep the placeholder until the dimensions lookup
+  // settles: the box is then applied together with the image's first render
+  // instead of resizing an already-mounted <img> (a layout shift).
+  if (loading || !resolved || (reserveBox && dimensionsPending)) {
     return (
       <div
         className={className}

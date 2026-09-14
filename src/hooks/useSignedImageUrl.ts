@@ -31,6 +31,10 @@ export interface SignedImageResolution {
   // reserve the image's box before the bytes load (no layout shift).
   width: number | null
   height: number | null
+  // True while a reserving caller's dimensions lookup is still in flight. The
+  // caller should keep its placeholder until this clears, so the reserved box
+  // is applied atomically with the image's first render (no post-mount shift).
+  dimensionsPending: boolean
 }
 
 interface Dimensions {
@@ -119,44 +123,62 @@ export function useSignedImageUrl(
     if (value && isBucketImagePath(value)) {
       const cachedUrl = getCachedUrl(value)
       const dims = getCachedDims(value)
-      return { src: cachedUrl, loading: !cachedUrl, width: dims?.width ?? null, height: dims?.height ?? null }
+      return {
+        src: cachedUrl,
+        loading: !cachedUrl,
+        width: dims?.width ?? null,
+        height: dims?.height ?? null,
+        dimensionsPending: false,
+      }
     }
     return {
       src: value && !isBucketImagePath(value) ? value : null,
       loading: isBucketImagePath(value),
       width: null,
       height: null,
+      dimensionsPending: false,
     }
   })
 
   useEffect(() => {
     if (!value) {
-      setState({ src: null, loading: false, width: null, height: null })
+      setState({ src: null, loading: false, width: null, height: null, dimensionsPending: false })
       return
     }
     if (!isBucketImagePath(value)) {
-      setState({ src: value, loading: false, width: null, height: null })
+      setState({ src: value, loading: false, width: null, height: null, dimensionsPending: false })
       return
     }
 
     let cancelled = false
     const cachedUrl = getCachedUrl(value)
     const cachedDims = getCachedDims(value)
+    const needsDims = reserveDimensions && !cachedDims
     setState({
       src: cachedUrl,
       loading: !cachedUrl,
       width: cachedDims?.width ?? null,
       height: cachedDims?.height ?? null,
+      dimensionsPending: needsDims,
     })
 
     // Signing and metadata are independent: a slow/failed metadata read must
-    // never keep the image on its placeholder. Dimensions only update state
-    // once they land.
-    if (reserveDimensions && !cachedDims) {
+    // never keep the image's `src` unresolved. The caller holds its placeholder
+    // until `dimensionsPending` clears, so the reserved box is applied together
+    // with the image's first render rather than shifting it afterwards.
+    if (needsDims) {
       void fetchImageDimensions(value).then((dims) => {
-        if (cancelled || dims.width === null || dims.height === null) return
-        cacheDims(value, { width: dims.width, height: dims.height })
-        setState((prev) => (prev.width === null ? { ...prev, width: dims.width, height: dims.height } : prev))
+        if (cancelled) return
+        if (dims.width !== null && dims.height !== null) {
+          cacheDims(value, { width: dims.width, height: dims.height })
+        }
+        setState((prev) => ({
+          ...prev,
+          dimensionsPending: false,
+          ...(dims.width !== null && dims.height !== null && prev.width === null
+            ? { width: dims.width, height: dims.height }
+            : {}),
+        }))
       })
     }
 

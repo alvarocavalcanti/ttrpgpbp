@@ -62,6 +62,17 @@ describe('SignedImg', () => {
     expect(placeholder.style.width).toBe('min(100%, 512px)')
   })
 
+  it('holds the placeholder until the dimensions lookup settles (reserving callers)', async () => {
+    // src resolves but the size is still unknown: rendering the <img> now would
+    // shift the layout when dimensions arrive, so the placeholder is held.
+    mockInfo.mockReturnValue(new Promise(() => {}))
+    const { container } = render(<SignedImg src={`${CHANNEL_ID}/message/slow.jpg`} alt="slow" className="max-h-96" reserveBox />)
+    await act(async () => {})
+
+    expect(screen.getByTestId('signed-img-loading')).toBeInTheDocument()
+    expect(container.querySelector('img')).toBeNull()
+  })
+
   it('sets the intrinsic width/height and aspect ratio on the loaded image', async () => {
     mockInfo.mockResolvedValue({ data: { metadata: { width: 512, height: 288 } }, error: null })
     render(<SignedImg src={`${CHANNEL_ID}/message/map.jpg`} alt="map" className="max-h-96" reserveBox />)
