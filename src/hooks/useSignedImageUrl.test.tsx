@@ -64,9 +64,9 @@ describe('useSignedImageUrl', () => {
     expect(mockCreateSignedUrl).toHaveBeenCalledWith(`${CHANNEL_ID}/avatar/u.jpg`, expect.any(Number))
   })
 
-  it('returns the stored dimensions alongside the signed URL', async () => {
+  it('returns the stored dimensions when the caller reserves the box', async () => {
     mockInfo.mockResolvedValue({ data: { metadata: { width: 512, height: 288 } }, error: null })
-    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/dims.jpg`))
+    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/dims.jpg`, true))
     await act(async () => {})
 
     expect(mockInfo).toHaveBeenCalledWith(`${CHANNEL_ID}/message/dims.jpg`)
@@ -75,11 +75,50 @@ describe('useSignedImageUrl', () => {
 
   it('falls back to null dimensions when the metadata read fails', async () => {
     mockInfo.mockRejectedValue(new Error('info unavailable'))
-    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/unknown-size.jpg`))
+    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/unknown-size.jpg`, true))
     await act(async () => {})
 
     // The image still resolves; only the reserved box is lost.
     expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
+  })
+
+  it('resolves the signed URL even while the metadata read is still pending', async () => {
+    // Critical: a slow/hanging info() must not keep the image on its placeholder.
+    mockInfo.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/hanging.jpg`, true))
+    await act(async () => {})
+
+    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null })
+  })
+
+  it('skips the metadata request for callers that do not reserve the box', async () => {
+    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/avatar/plain.jpg`))
+    await act(async () => {})
+
+    expect(result.current.src).toBe('https://signed/x.jpg')
+    expect(result.current.width).toBeNull()
+    expect(result.current.height).toBeNull()
+    expect(mockInfo).not.toHaveBeenCalled()
+  })
+
+  it('fetches dimensions for a reserving caller even when the URL is already cached', async () => {
+    const path = `${CHANNEL_ID}/message/late-dims.jpg`
+    // A non-reserving caller (e.g. avatar/thumbnail) signs and caches the URL,
+    // but never reads metadata.
+    const first = renderHook(() => useSignedImageUrl(path))
+    await act(async () => {})
+    expect(mockInfo).not.toHaveBeenCalled()
+    first.unmount()
+
+    // A reserving caller (message image) then needs the dimensions.
+    mockInfo.mockResolvedValue({ data: { metadata: { width: 400, height: 300 } }, error: null })
+    const second = renderHook(() => useSignedImageUrl(path, true))
+    await act(async () => {})
+
+    expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 400, height: 300 })
+    expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1) // URL reused from cache
+    expect(mockInfo).toHaveBeenCalledTimes(1)
+    second.unmount()
   })
 
   it('returns null src when signing fails', async () => {
@@ -127,14 +166,14 @@ describe('useSignedImageUrl', () => {
   it('serves a remount of the same path from cache with exactly one createSignedUrl call', async () => {
     mockInfo.mockResolvedValue({ data: { metadata: { width: 300, height: 200 } }, error: null })
     const path = `${CHANNEL_ID}/cache/u.jpg`
-    const first = renderHook(() => useSignedImageUrl(path))
+    const first = renderHook(() => useSignedImageUrl(path, true))
     await act(async () => {})
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1)
     first.unmount()
 
     // Remount: no RPC, no loading flicker — the cached URL and dimensions are
     // already there on the very first render.
-    const second = renderHook(() => useSignedImageUrl(path))
+    const second = renderHook(() => useSignedImageUrl(path, true))
     expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 300, height: 200 })
     expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1)
     expect(mockInfo).toHaveBeenCalledTimes(1)

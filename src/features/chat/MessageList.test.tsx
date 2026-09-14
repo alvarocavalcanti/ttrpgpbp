@@ -457,6 +457,27 @@ describe('MessageList scroll anchoring', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 
+  it('stops re-centering the divider when the user drags the scrollbar (pointerdown)', () => {
+    // Dragging the native scrollbar thumb fires pointerdown, not wheel/touch.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.pointerDown(container.firstChild as HTMLElement)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
   it('releases the divider anchor on a keyboard scroll key', () => {
     scrollHeight = 1000
     const msgs: any[] = [
@@ -645,5 +666,40 @@ describe('MessageList scroll anchoring', () => {
     )
 
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('cancels the pending return anchor when the user scrolls during the gap (#502)', () => {
+    scrollHeight = 1000
+    const old: any[] = [{ id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' }]
+    const { container, rerender } = render(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={0} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // A return bumps the revision before catch-up: no divider yet, so the
+    // anchor is held pending.
+    rerender(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={1} />
+    )
+    // The reader takes over during the gap.
+    fireEvent.wheel(list)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Catch-up renders the unread message and the divider, but the user's
+    // gesture already cancelled the pending anchor — no yank back.
+    rerender(
+      <MessageList
+        messages={[...old, { id: 'm2', content: 'New', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T12:00:00Z"
+        boundaryRevision={1}
+      />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 })

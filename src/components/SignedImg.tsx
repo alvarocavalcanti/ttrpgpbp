@@ -17,7 +17,7 @@ interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
 // shown so the image area stays mounted and late-arriving images don't shift
 // the surrounding layout. Nothing renders when there is no value at all.
 export function SignedImg({ src, alt, className, style, reserveBox = false, ...props }: SignedImgProps) {
-  const { src: resolved, loading, width, height } = useSignedImageUrl(src)
+  const { src: resolved, loading, width, height } = useSignedImageUrl(src, reserveBox)
 
   if (!src) return null
 

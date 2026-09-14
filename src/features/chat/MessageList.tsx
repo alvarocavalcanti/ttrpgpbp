@@ -181,20 +181,28 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       }
     }
     list.addEventListener('scroll', onScroll)
-    // A real user scroll gesture releases the divider anchor so late content
-    // cannot yank a reader back (#338). Programmatic scrollIntoView/scrollTop
-    // never fire these, so our own re-centers keep the anchor.
-    const releaseDividerAnchor = () => { dividerAnchorRef.current = false }
+    // A real user scroll takeover releases both anchors so late content cannot
+    // yank a reader back (#338). `pointerdown` covers dragging the native
+    // scrollbar (and mouse/touch/pen); programmatic scrollIntoView/scrollTop
+    // never fire these gestures, so our own re-centers keep the anchor. The
+    // pending foreground-return anchor is cleared too: if the divider has not
+    // rendered yet, a gesture during that gap must cancel it.
+    const releaseDividerAnchor = () => {
+      dividerAnchorRef.current = false
+      pendingBoundaryAnchorRef.current = false
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (SCROLL_KEYS.has(event.key)) releaseDividerAnchor()
     }
     list.addEventListener('wheel', releaseDividerAnchor, { passive: true })
     list.addEventListener('touchstart', releaseDividerAnchor, { passive: true })
+    list.addEventListener('pointerdown', releaseDividerAnchor)
     list.addEventListener('keydown', onKeyDown)
     return () => {
       list.removeEventListener('scroll', onScroll)
       list.removeEventListener('wheel', releaseDividerAnchor)
       list.removeEventListener('touchstart', releaseDividerAnchor)
+      list.removeEventListener('pointerdown', releaseDividerAnchor)
       list.removeEventListener('keydown', onKeyDown)
     }
   }, [])
