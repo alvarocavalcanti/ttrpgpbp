@@ -17,32 +17,27 @@ interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
 // shown so the image area stays mounted and late-arriving images don't shift
 // the surrounding layout. Nothing renders when there is no value at all.
 export function SignedImg({ src, alt, className, style, reserveBox = false, ...props }: SignedImgProps) {
-  const { src: resolved, loading, width, height, dimensionsPending } = useSignedImageUrl(src, reserveBox)
+  const { src: resolved, loading, width, height } = useSignedImageUrl(src, reserveBox)
 
   if (!src) return null
 
   // Known intrinsic size → reserve the exact box. `width: min(100%, Wpx)` makes
   // the placeholder match the loaded <img>, which renders at
   // min(intrinsic width, container width).
+  //
+  // Unknown size (external/legacy image, or a failed lookup) reserves nothing:
+  // a fallback box would reflow when the real size replaced it, which is the
+  // shift this prop exists to avoid. The message list's scroll anchoring
+  // absorbs those cases instead.
   const dims = reserveBox && width && height ? { width, height } : null
 
-  // Stable loading box: the exact box when dimensions are known, otherwise a
-  // neutral aspect box so the reserving placeholder never collapses to zero
-  // height (and the content below keeps its footprint while the metadata lands).
-  const placeholderStyle = dims
-    ? { aspectRatio: `${dims.width} / ${dims.height}`, width: `min(100%, ${dims.width}px)` }
-    : reserveBox
-      ? { aspectRatio: '4 / 3', width: '100%' }
-      : undefined
-
-  // For reserving callers, keep the placeholder until the dimensions lookup
-  // settles: the box is then applied together with the image's first render
-  // instead of resizing an already-mounted <img> (a layout shift).
-  if (loading || !resolved || (reserveBox && dimensionsPending)) {
+  if (loading || !resolved) {
     return (
       <div
         className={className}
-        style={placeholderStyle}
+        style={dims
+          ? { aspectRatio: `${dims.width} / ${dims.height}`, width: `min(100%, ${dims.width}px)` }
+          : undefined}
         role="img"
         aria-label={alt || 'Image'}
         data-testid="signed-img-loading"

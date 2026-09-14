@@ -53,6 +53,9 @@ interface MessageListProps {
 export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
+  // The list (and its refs) only exist once there is at least one message, so
+  // the effects that target them must re-run when it mounts, not just once.
+  const hasMessages = messages.length > 0
   const contentRef = useRef<HTMLDivElement>(null)
   const newMessagesDividerRef = useRef<HTMLDivElement>(null)
   const atBottomRef = useRef(true)
@@ -258,16 +261,23 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       releaseAnchors()
     }
     const onGestureEnd = () => { gestureActiveRef.current = false }
-    const onKeyDown = (event: KeyboardEvent) => {
-      // Keys bubble from focused descendants (links, inline editors) that do not
-      // scroll the list.
-      if (event.target === list && SCROLL_KEYS.has(event.key)) onGestureStart()
+    // Arrow/Page/Home/End scroll the nearest overflow container even while a
+    // link or button inside it has focus, so those release from a descendant
+    // too. Editing controls consume the key; Space activates a focused control
+    // and only scrolls when the list itself is focused.
+    const isListScrollKey = (event: KeyboardEvent) => {
+      if (!SCROLL_KEYS.has(event.key)) return false
+      if (event.target === list) return true
+      const target = event.target
+      if (!(target instanceof HTMLElement) || !list.contains(target)) return false
+      const tag = target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return false
+      return event.key !== ' '
     }
-    const onKeyUp = (event: KeyboardEvent) => {
-      // A scroll key can be a no-op (e.g. End while already at the bottom), so
-      // no scroll event arrives to clear the guard — end it on release.
-      if (event.target === list && SCROLL_KEYS.has(event.key)) onGestureEnd()
-    }
+    const onKeyDown = (event: KeyboardEvent) => { if (isListScrollKey(event)) onGestureStart() }
+    // A no-op scroll key (e.g. End while already at the bottom) produces no
+    // scroll event, so the guard is also ended on release.
+    const onKeyUp = (event: KeyboardEvent) => { if (isListScrollKey(event)) onGestureEnd() }
     const onPointerDown = (event: PointerEvent) => {
       // Only grabbing the native scrollbar (the gutter right of the client box)
       // is a scroll takeover; a pointerdown on the content is not.
@@ -295,10 +305,12 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     list.addEventListener('pointerdown', onPointerDown)
     list.addEventListener('keydown', onKeyDown)
     list.addEventListener('keyup', onKeyUp)
-    list.addEventListener('touchend', onGestureEnd)
-    list.addEventListener('touchcancel', onGestureEnd)
-    list.addEventListener('pointerup', onGestureEnd)
-    list.addEventListener('pointercancel', onGestureEnd)
+    // End/cancel live on the window: a scrollbar drag or touch commonly ends
+    // outside the list, and a stuck guard would skip every later re-pin.
+    window.addEventListener('touchend', onGestureEnd)
+    window.addEventListener('touchcancel', onGestureEnd)
+    window.addEventListener('pointerup', onGestureEnd)
+    window.addEventListener('pointercancel', onGestureEnd)
     return () => {
       list.removeEventListener('scroll', onScroll)
       list.removeEventListener('wheel', onWheel)
@@ -307,12 +319,12 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       list.removeEventListener('pointerdown', onPointerDown)
       list.removeEventListener('keydown', onKeyDown)
       list.removeEventListener('keyup', onKeyUp)
-      list.removeEventListener('touchend', onGestureEnd)
-      list.removeEventListener('touchcancel', onGestureEnd)
-      list.removeEventListener('pointerup', onGestureEnd)
-      list.removeEventListener('pointercancel', onGestureEnd)
+      window.removeEventListener('touchend', onGestureEnd)
+      window.removeEventListener('touchcancel', onGestureEnd)
+      window.removeEventListener('pointerup', onGestureEnd)
+      window.removeEventListener('pointercancel', onGestureEnd)
     }
-  }, [])
+  }, [hasMessages])
 
   // Late-loading content (lazy images with unknown heights) grows the list
   // without a message-array change; while pinned to the bottom, keep the
@@ -341,7 +353,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     })
     observer.observe(content)
     return () => observer.disconnect()
-  }, [])
+  }, [hasMessages])
 
   // Restore the scroll position the browser dropped while the app was hidden,
   // instead of re-anchoring to the unread divider: a return from background

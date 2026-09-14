@@ -62,26 +62,18 @@ describe('SignedImg', () => {
     expect(placeholder.style.width).toBe('min(100%, 512px)')
   })
 
-  it('holds the placeholder until the dimensions lookup settles (reserving callers)', async () => {
-    // src resolves but the size is still unknown: rendering the <img> now would
-    // shift the layout when dimensions arrive, so the placeholder is held.
+  it('renders the image without a reserved box when dimensions are unknown', async () => {
+    // The signed URL resolves independently of the metadata lookup, so the
+    // image renders (unreserved) rather than waiting on a size that may never
+    // come — and no guessed box is applied that would reflow when replaced.
     mockInfo.mockReturnValue(new Promise(() => {}))
     const { container } = render(<SignedImg src={`${CHANNEL_ID}/message/slow.jpg`} alt="slow" className="max-h-96" reserveBox />)
     await act(async () => {})
 
-    expect(screen.getByTestId('signed-img-loading')).toBeInTheDocument()
-    expect(container.querySelector('img')).toBeNull()
-  })
-
-  it('reserves a stable fallback box while dimensions are pending', async () => {
-    mockInfo.mockReturnValue(new Promise(() => {}))
-    render(<SignedImg src={`${CHANNEL_ID}/message/pending.jpg`} alt="pending" className="max-h-96" reserveBox />)
-    await act(async () => {})
-
-    // The placeholder must not collapse to zero height while the size is unknown.
-    const placeholder = screen.getByTestId('signed-img-loading')
-    expect(placeholder.style.aspectRatio).toBe('4 / 3')
-    expect(placeholder.style.width).toBe('100%')
+    const img = container.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img).not.toHaveAttribute('width')
+    expect(screen.queryByTestId('signed-img-loading')).not.toBeInTheDocument()
   })
 
   it('sets the intrinsic width/height and aspect ratio on the loaded image', async () => {
