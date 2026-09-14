@@ -12,6 +12,9 @@ export interface ReactionSummary {
   emoji: string
   count: number
   hasReacted: boolean
+  // User ids of everyone who reacted with this emoji, in the order the rows
+  // were seen. Used to list who reacted (issue #510).
+  userIds: string[]
 }
 
 type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
@@ -41,10 +44,11 @@ function buildReactionMap(rows: ReactionRow[], userId: string | undefined): Reco
     const list = (map[row.message_id] ??= [])
     let entry = list.find(e => e.emoji === row.emoji)
     if (!entry) {
-      entry = { emoji: row.emoji, count: 0, hasReacted: false }
+      entry = { emoji: row.emoji, count: 0, hasReacted: false, userIds: [] }
       list.push(entry)
     }
     entry.count += 1
+    entry.userIds.push(row.user_id)
     if (row.user_id === userId) entry.hasReacted = true
   }
   return map
@@ -57,10 +61,10 @@ function upsertReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow
   const list = map[row.message_id] ?? []
   const idx = list.findIndex(e => e.emoji === row.emoji)
   if (idx === -1) {
-    return { ...map, [row.message_id]: [...list, { emoji: row.emoji, count: 1, hasReacted: row.user_id === userId }] }
+    return { ...map, [row.message_id]: [...list, { emoji: row.emoji, count: 1, hasReacted: row.user_id === userId, userIds: [row.user_id] }] }
   }
   const entry = list[idx]
-  const nextEntry = { ...entry, count: entry.count + 1, hasReacted: entry.hasReacted || row.user_id === userId }
+  const nextEntry = { ...entry, count: entry.count + 1, userIds: [...entry.userIds, row.user_id], hasReacted: entry.hasReacted || row.user_id === userId }
   return { ...map, [row.message_id]: list.map((e, i) => (i === idx ? nextEntry : e)) }
 }
 
@@ -70,8 +74,10 @@ function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, 
   const idx = list.findIndex(e => e.emoji === row.emoji)
   if (idx === -1) return map
   const entry = list[idx]
-  const count = Math.max(0, entry.count - 1)
-  const nextEntry = { ...entry, count, hasReacted: row.user_id === userId ? false : entry.hasReacted }
+  const userIdx = entry.userIds.indexOf(row.user_id)
+  const nextUserIds = userIdx === -1 ? entry.userIds : [...entry.userIds.slice(0, userIdx), ...entry.userIds.slice(userIdx + 1)]
+  const count = nextUserIds.length
+  const nextEntry = { ...entry, count, userIds: nextUserIds, hasReacted: row.user_id === userId ? false : entry.hasReacted }
   if (count === 0) {
     const remaining = list.filter((_, i) => i !== idx)
     if (remaining.length === 0) {

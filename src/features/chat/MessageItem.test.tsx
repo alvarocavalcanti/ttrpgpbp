@@ -731,7 +731,7 @@ describe('MessageItem', () => {
     expect(screen.getByText('This message was deleted.')).toBeInTheDocument()
   })
 
-  it('renders reactions and toggles on click', () => {
+  it('lists who reacted on chip tap without toggling the reaction', () => {
     const mockOnToggle = vi.fn()
     const msg: any = {
       id: 'm1',
@@ -747,12 +747,68 @@ describe('MessageItem', () => {
         isGM={false}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
-        reactions={[{ emoji: '👍', count: 2, hasReacted: true }]}
+        members={[{ user_id: 'u1', character_name: 'Aria' }, { user_id: 'u2', character_name: 'Bard' }]}
+        reactions={[{ emoji: '👍', count: 2, hasReacted: true, userIds: ['u1', 'u2'] }]}
         onToggleReaction={mockOnToggle}
       />
     )
+    expect(screen.queryByRole('group', { name: /People who reacted/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Reaction 👍, 2/ }))
-    expect(mockOnToggle).toHaveBeenCalledWith('m1', '👍')
+    const popover = screen.getByRole('group', { name: /People who reacted 👍/ })
+    expect(within(popover).getByText('Aria')).toBeInTheDocument()
+    expect(within(popover).getByText('Bard')).toBeInTheDocument()
+    // Reacting is menu-only now (#510): tapping the chip never toggles.
+    expect(mockOnToggle).not.toHaveBeenCalled()
+  })
+
+  it('closes the who-reacted popover on a second chip tap', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(
+      <MessageItem
+        message={msg}
+        currentUserId="u2"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        reactions={[{ emoji: '👍', count: 1, hasReacted: false, userIds: ['u1'] }]}
+        onToggleReaction={vi.fn()}
+      />
+    )
+    const chip = screen.getByRole('button', { name: /Reaction 👍, 1/ })
+    fireEvent.click(chip)
+    expect(screen.getByRole('group', { name: /People who reacted 👍/ })).toBeInTheDocument()
+    fireEvent.click(chip)
+    expect(screen.queryByRole('group', { name: /People who reacted 👍/ })).not.toBeInTheDocument()
+  })
+
+  it('labels a reactor with no channel member row as Someone', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(
+      <MessageItem
+        message={msg}
+        currentUserId="u3"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        reactions={[{ emoji: '🔥', count: 1, hasReacted: false, userIds: ['ghost'] }]}
+        onToggleReaction={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Reaction 🔥, 1/ }))
+    const popover = screen.getByRole('group', { name: /People who reacted 🔥/ })
+    expect(within(popover).getByText('Someone')).toBeInTheDocument()
   })
 
   it('opens emoji picker and adds reaction', () => {
@@ -937,7 +993,7 @@ describe('MessageItem', () => {
       created_at: new Date().toISOString(),
       sender_id: 'u1'
     }
-    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} reactions={[{ emoji: '👍', count: 2, hasReacted: true }]} />)
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} reactions={[{ emoji: '👍', count: 2, hasReacted: true, userIds: ['u1'] }]} />)
     const chip = screen.getByRole('button', { name: /Reaction 👍, 2/ })
     // Literal touch-target requirement (UX-1): ~24px pill expanded to 44px
     // via invisible pseudo padding — asserted literally so a sizing
@@ -949,9 +1005,10 @@ describe('MessageItem', () => {
     expect(chip.className).toContain('min-w-11')
     // The 12px hit-expansion must land in whitespace, not claim taps on
     // interactive content above (inline dice buttons): the row wrapper needs
-    // mt-3 (chip → gap-1 row → mt-3 wrapper).
-    expect(chip.parentElement?.className).toContain('gap-1')
-    expect(chip.parentElement?.parentElement?.className).toContain('mt-3')
+    // mt-3 (chip → relative chip wrapper → gap-1 row → mt-3 wrapper).
+    expect(chip.parentElement?.className).toContain('relative')
+    expect(chip.parentElement?.parentElement?.className).toContain('gap-1')
+    expect(chip.parentElement?.parentElement?.parentElement?.className).toContain('mt-3')
   })
 
   it('expands CheckSheet buttons to 44px touch targets', () => {
