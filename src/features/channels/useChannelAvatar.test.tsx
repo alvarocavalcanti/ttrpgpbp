@@ -39,7 +39,11 @@ describe('useChannelAvatar', () => {
       if (table === 'channels') return { update: mockUpdate } as any
       return {} as any
     })
-    vi.mocked(resizeImageFile).mockResolvedValue(new File(['resized'], 'photo.jpg', { type: 'image/jpeg' }))
+    vi.mocked(resizeImageFile).mockResolvedValue({
+      file: new File(['resized'], 'photo.jpg', { type: 'image/jpeg' }),
+      width: 512,
+      height: 288,
+    })
     vi.mocked(useAppSetting).mockImplementation((key: string, fallback: any) => {
       if (key === 'image_uploading_enabled') return { value: true, loading: false, error: null, refresh: vi.fn() }
       if (key === 'image_max_size_mb') return { value: 5, loading: false, error: null, refresh: vi.fn() }

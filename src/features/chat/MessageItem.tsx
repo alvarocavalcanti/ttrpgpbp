@@ -376,6 +376,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             className="max-w-full h-auto rounded-lg shadow-sm my-2 object-contain max-h-96"
             loading="lazy"
             referrerPolicy="no-referrer"
+            reserveBox
             {...props}
           />
         </button>

@@ -43,14 +43,18 @@ describe('resizeImageFile', () => {
     vi.restoreAllMocks()
   })
 
-  it('scales down, re-encodes as JPEG, and returns a File', async () => {
+  it('scales down, re-encodes as JPEG, and returns the file with its stored dimensions', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' })
     const resized = await resizeImageFile(file)
 
     expect(createBitmap).toHaveBeenCalledWith(file)
     expect(drawImage).toHaveBeenCalled()
-    expect(resized.type).toBe('image/jpeg')
-    expect(resized.name).toBe('photo.jpg')
+    expect(resized.file.type).toBe('image/jpeg')
+    expect(resized.file.name).toBe('photo.jpg')
+    // 1600x900 capped at 512 -> 512x288. The stored size is what reserves the
+    // chat box before the image loads.
+    expect(resized.width).toBe(512)
+    expect(resized.height).toBe(288)
   })
 
   it('throws when the canvas context is unavailable', async () => {

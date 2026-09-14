@@ -16,6 +16,14 @@ const SCROLL_BOTTOM_THRESHOLD = 24
 // button, otherwise the initial scrollTop=0 render would chain-load history.
 const AUTO_LOAD_TOP_THRESHOLD = 80
 
+// Keys that scroll a focused list. Pressing one releases the divider anchor so
+// the keyboard user's own scroll is never overridden by the re-center.
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])
+
+// Vertical touch movement (px) before a gesture counts as scrolling rather than
+// a tap, so a tap on a message does not release the scroll anchors.
+const TOUCH_SCROLL_THRESHOLD = 8
+
 interface MessageListProps {
   messages: Message[]
   isGM: boolean
@@ -45,9 +53,33 @@ interface MessageListProps {
 export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
+  // The list (and its refs) only exist once there is at least one message, so
+  // the effects that target them must re-run when it mounts, not just once.
+  const hasMessages = messages.length > 0
   const contentRef = useRef<HTMLDivElement>(null)
   const newMessagesDividerRef = useRef<HTMLDivElement>(null)
   const atBottomRef = useRef(true)
+  // True while the view is anchored to the "New messages" divider. Late-loading
+  // images grow content under the smooth scroll's stale target and drift the
+  // divider off-screen; while anchored, the ResizeObserver re-centers it with a
+  // fresh position (cold start / lots of history, #284). A genuine user scroll
+  // releases it so a reader is never yanked back (#338).
+  const dividerAnchorRef = useRef(false)
+  // Set once the user takes over (scroll gesture, or a jump to a highlighted
+  // message); the view is then never auto-anchored again (#338).
+  const userTookOverRef = useRef(false)
+  // True from a scroll-gesture start until the gesture is recognized by a
+  // scroll event (or ends). A ResizeObserver callback firing inside that window
+  // must not snap the view back to the bottom/divider before the gesture lands.
+  const gestureActiveRef = useRef(false)
+  // Previous read boundary: detects the divider appearing AFTER the messages
+  // already rendered (the channel and message loads are independent), so the
+  // initial unread landing still runs (#284).
+  const prevLastReadTimestampRef = useRef<number | null | undefined>(undefined)
+  // The divider element the current divider anchor refers to. If the read
+  // boundary moves the divider to a different message, the anchored node
+  // changes and the stale anchor is dropped (#338).
+  const anchoredDividerRef = useRef<HTMLDivElement | null>(null)
 
   // Latest load-older props for the scroll handler (registered once below).
   const loadOlderStateRef = useRef({ hasMore: false, loadingOlder: false, onLoadOlder })
@@ -80,10 +112,14 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   // app comes back to the foreground, so both behave the same.
   const scrollToUnread = useCallback(() => {
     if (newMessagesDividerRef.current) {
+      dividerAnchorRef.current = true
+      anchoredDividerRef.current = newMessagesDividerRef.current
       newMessagesDividerRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
       atBottomRef.current = false
       return
     }
+    dividerAnchorRef.current = false
+    anchoredDividerRef.current = null
     const list = listRef.current
     if (list) {
       list.scrollTop = list.scrollHeight
@@ -148,12 +184,52 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
   }, [messages, highlightMessageId, scrollToUnread])
 
+  // A jump to a highlighted message owns the scroll position (search results,
+  // quoted replies): drop the anchors so a later resize cannot yank the view
+  // back to the unread divider (#455).
+  useEffect(() => {
+    if (!highlightMessageId) return
+    dividerAnchorRef.current = false
+    pendingBoundaryAnchorRef.current = false
+    userTookOverRef.current = true
+  }, [highlightMessageId])
+
+  // The divider can disappear or move to a different message (the read boundary
+  // advances, a message edit changes it). Either way the previous anchor is
+  // stale, so drop it rather than re-centering a *new* divider for a reader who
+  // never re-anchored (#338).
+  useEffect(() => {
+    if (!newMessagesDividerRef.current) {
+      dividerAnchorRef.current = false
+      return
+    }
+    if (dividerAnchorRef.current && newMessagesDividerRef.current !== anchoredDividerRef.current) {
+      dividerAnchorRef.current = false
+    }
+  }, [messages, lastReadTimestamp])
+
+  // The channel and the messages load independently: the messages can render
+  // first (no divider yet, so the initial load scrolls to the bottom), then the
+  // read boundary arrives and inserts the divider. Run the initial unread
+  // landing then, unless the user has already taken over (#284).
+  useEffect(() => {
+    const prev = prevLastReadTimestampRef.current
+    prevLastReadTimestampRef.current = lastReadTimestamp
+    if (prev === undefined) return
+    if (prev === null && lastReadTimestamp !== null && !userTookOverRef.current && newMessagesDividerRef.current) {
+      scrollToUnread()
+    }
+  }, [lastReadTimestamp, scrollToUnread])
+
   // Track whether the user is at the bottom. Also keeps the prepend-anchoring
   // bookkeeping fresh on manual scrolling.
   useEffect(() => {
     const list = listRef.current
     if (!list) return
     const onScroll = () => {
+      // The gesture has been recognized by an actual scroll: the live position
+      // is authoritative again.
+      gestureActiveRef.current = false
       atBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < SCROLL_BOTTOM_THRESHOLD
       scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
       // Scroll-to-top auto-load: fetch older messages when the user scrolls
@@ -169,8 +245,89 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       }
     }
     list.addEventListener('scroll', onScroll)
-    return () => list.removeEventListener('scroll', onScroll)
-  }, [])
+    // A real user scroll takeover releases both anchors so late content cannot
+    // yank a reader back (#338). Only input that actually scrolls the list
+    // counts: a click/tap on a link, button, or image control, or a key press
+    // from a focused descendant, must not cancel the unread landing or the
+    // resize correction. `gestureActiveRef` also blocks the ResizeObserver
+    // re-pin until the gesture is recognized by a scroll event.
+    const releaseAnchors = () => {
+      dividerAnchorRef.current = false
+      pendingBoundaryAnchorRef.current = false
+      userTookOverRef.current = true
+    }
+    const onGestureStart = () => {
+      gestureActiveRef.current = true
+      releaseAnchors()
+    }
+    const onGestureEnd = () => { gestureActiveRef.current = false }
+    // Arrow/Page/Home/End scroll the nearest overflow container even while a
+    // link or button inside it has focus, so those release from a descendant
+    // too. Editing controls consume the key; Space activates a focused control
+    // and only scrolls when the list itself is focused.
+    const isListScrollKey = (event: KeyboardEvent) => {
+      if (!SCROLL_KEYS.has(event.key)) return false
+      if (event.target === list) return true
+      const target = event.target
+      if (!(target instanceof HTMLElement) || !list.contains(target)) return false
+      const tag = target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return false
+      return event.key !== ' '
+    }
+    const onKeyDown = (event: KeyboardEvent) => { if (isListScrollKey(event)) onGestureStart() }
+    // A no-op scroll key (e.g. End while already at the bottom) produces no
+    // scroll event, so the guard is also ended on release.
+    const onKeyUp = (event: KeyboardEvent) => { if (isListScrollKey(event)) onGestureEnd() }
+    const onPointerDown = (event: PointerEvent) => {
+      // Only grabbing the native scrollbar (the gutter right of the client box)
+      // is a scroll takeover; a pointerdown on the content is not.
+      if (event.clientX >= list.getBoundingClientRect().left + list.clientWidth) onGestureStart()
+    }
+    // Wheel has no end event: drop the guard on the next frame so image growth
+    // can resume re-pinning once the wheel has been applied.
+    const onWheel = () => {
+      onGestureStart()
+      requestAnimationFrame(onGestureEnd)
+    }
+    let touchStartY = 0
+    const onTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? 0
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      // A touch is scrolling only once it has moved vertically; a tap must not
+      // cancel the anchors.
+      const y = event.touches[0]?.clientY ?? touchStartY
+      if (Math.abs(y - touchStartY) > TOUCH_SCROLL_THRESHOLD) onGestureStart()
+    }
+    list.addEventListener('wheel', onWheel, { passive: true })
+    list.addEventListener('touchstart', onTouchStart, { passive: true })
+    list.addEventListener('touchmove', onTouchMove, { passive: true })
+    list.addEventListener('pointerdown', onPointerDown)
+    list.addEventListener('keydown', onKeyDown)
+    list.addEventListener('keyup', onKeyUp)
+    // End/cancel live on the window: a scrollbar drag or touch commonly ends
+    // outside the list, and a stuck guard would skip every later re-pin. `blur`
+    // covers losing focus mid-gesture, before the matching keyup/pointerup.
+    window.addEventListener('touchend', onGestureEnd)
+    window.addEventListener('touchcancel', onGestureEnd)
+    window.addEventListener('pointerup', onGestureEnd)
+    window.addEventListener('pointercancel', onGestureEnd)
+    window.addEventListener('blur', onGestureEnd)
+    return () => {
+      list.removeEventListener('scroll', onScroll)
+      list.removeEventListener('wheel', onWheel)
+      list.removeEventListener('touchstart', onTouchStart)
+      list.removeEventListener('touchmove', onTouchMove)
+      list.removeEventListener('pointerdown', onPointerDown)
+      list.removeEventListener('keydown', onKeyDown)
+      list.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('touchend', onGestureEnd)
+      window.removeEventListener('touchcancel', onGestureEnd)
+      window.removeEventListener('pointerup', onGestureEnd)
+      window.removeEventListener('pointercancel', onGestureEnd)
+      window.removeEventListener('blur', onGestureEnd)
+    }
+  }, [hasMessages])
 
   // Late-loading content (lazy images with unknown heights) grows the list
   // without a message-array change; while pinned to the bottom, keep the
@@ -179,15 +336,35 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     const list = listRef.current
     const content = contentRef.current
     if (!list || !content) return
+    // ResizeObserver delivers one observation as soon as it starts observing,
+    // before any growth. Acting on it would replace the smooth initial landing
+    // with an instant jump, so the first notification is ignored.
+    let initialObservation = true
     const observer = new ResizeObserver(() => {
-      if (!atBottomRef.current) return
-      // Setting scrollTop does not resize the content wrapper, so this cannot
-      // loop back into the observer.
-      list.scrollTop = list.scrollHeight - list.clientHeight
+      if (initialObservation) {
+        initialObservation = false
+        return
+      }
+      // A scroll gesture just started: let it take over before re-anchoring, so
+      // a resize cannot snap the view back before the gesture lands.
+      if (gestureActiveRef.current) return
+      if (atBottomRef.current) {
+        // Setting scrollTop does not resize the content wrapper, so this cannot
+        // loop back into the observer.
+        list.scrollTop = list.scrollHeight - list.clientHeight
+        return
+      }
+      // Anchored to the "New messages" divider: late images grow the content
+      // under the smooth scroll's stale target, so re-center instantly with a
+      // fresh position (#284). 'auto' keeps it a silent correction, not a
+      // second animation.
+      if (dividerAnchorRef.current && newMessagesDividerRef.current) {
+        newMessagesDividerRef.current.scrollIntoView({ behavior: 'auto', block: 'center' })
+      }
     })
     observer.observe(content)
     return () => observer.disconnect()
-  }, [])
+  }, [hasMessages])
 
   // Restore the scroll position the browser dropped while the app was hidden,
   // instead of re-anchoring to the unread divider: a return from background
@@ -253,6 +430,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       ref={listRef}
       role="log"
       aria-live="polite"
+      tabIndex={0}
       className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 space-y-2"
     >
       <div ref={contentRef}>

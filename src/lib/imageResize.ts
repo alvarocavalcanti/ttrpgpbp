@@ -18,10 +18,19 @@ export function computeResizedDimensions(
   }
 }
 
+export interface ResizedImage {
+  file: File
+  // Intrinsic size of the STORED image (post-downscale). Persisted alongside the
+  // object so the chat can reserve the image's box before it loads (no layout
+  // shift / CLS).
+  width: number
+  height: number
+}
+
 // Client-side downscale + JPEG re-encode before upload. Runs in the browser so
 // a multi-MB phone photo becomes ~100-200 KB at zero server cost (Supabase's
 // server-side transforms require the paid plan).
-export async function resizeImageFile(file: File, maxDimension = DEFAULT_MAX_DIMENSION): Promise<File> {
+export async function resizeImageFile(file: File, maxDimension = DEFAULT_MAX_DIMENSION): Promise<ResizedImage> {
   const bitmap = await createImageBitmap(file)
   const { width, height } = computeResizedDimensions(bitmap.width, bitmap.height, maxDimension)
   const canvas = document.createElement('canvas')
@@ -41,5 +50,5 @@ export async function resizeImageFile(file: File, maxDimension = DEFAULT_MAX_DIM
   if (!blob) throw new Error('Image encoding failed')
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
-  return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' })
+  return { file: new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' }), width, height }
 }

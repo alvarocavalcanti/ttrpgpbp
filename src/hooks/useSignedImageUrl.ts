@@ -25,83 +25,185 @@ export interface SignedImageResolution {
   // a placeholder instead of collapsing so late-arriving images don't shift
   // the layout.
   loading: boolean
+  // Intrinsic size of the stored image, when known (bucket images whose upload
+  // wrote width/height into the object's metadata). Null for external URLs and
+  // for images uploaded before dimensions were stored. Callers use it to
+  // reserve the image's box before the bytes load (no layout shift).
+  width: number | null
+  height: number | null
 }
 
-// Module-scoped TTL cache so remounts reuse the same signed URL instead of
-// firing a new createSignedUrl RPC for the same path in the same session.
-const cache = new Map<string, { url: string; expiresAt: number }>()
+interface Dimensions {
+  width: number
+  height: number
+}
+
+// Signed URLs are short-lived (per the TTL); dimensions are immutable, so they
+// live in their own cache with no expiry — re-signing never re-reads metadata.
+const urlCache = new Map<string, { url: string; expiresAt: number }>()
+const dimsCache = new Map<string, Dimensions>()
 const CACHE_MAX_ENTRIES = 100
 
-function getCachedSignedUrl(path: string): string | null {
-  const hit = cache.get(path)
+function getCachedUrl(path: string): string | null {
+  const hit = urlCache.get(path)
   if (!hit) return null
   if (Date.now() >= hit.expiresAt) {
-    cache.delete(path)
+    urlCache.delete(path)
     return null
   }
   return hit.url
 }
 
 function cacheSignedUrl(path: string, url: string) {
-  if (cache.size >= CACHE_MAX_ENTRIES) {
+  if (urlCache.size >= CACHE_MAX_ENTRIES) {
     // Evict expired entries first, then oldest insertion (Map keeps order).
-    for (const [key, hit] of cache) {
-      if (Date.now() >= hit.expiresAt) cache.delete(key)
+    for (const [key, hit] of urlCache) {
+      if (Date.now() >= hit.expiresAt) urlCache.delete(key)
     }
-    while (cache.size >= CACHE_MAX_ENTRIES) {
-      for (const key of cache.keys()) {
-        cache.delete(key)
+    while (urlCache.size >= CACHE_MAX_ENTRIES) {
+      for (const key of urlCache.keys()) {
+        urlCache.delete(key)
         break
       }
     }
   }
-  cache.set(path, { url, expiresAt: Date.now() + SIGN_TTL_SECONDS * 1000 })
+  urlCache.set(path, { url, expiresAt: Date.now() + SIGN_TTL_SECONDS * 1000 })
+}
+
+function getCachedDims(path: string): Dimensions | null {
+  return dimsCache.get(path) ?? null
+}
+
+function cacheDims(path: string, dims: Dimensions) {
+  if (dimsCache.size >= CACHE_MAX_ENTRIES) {
+    for (const key of dimsCache.keys()) {
+      dimsCache.delete(key)
+      break
+    }
+  }
+  dimsCache.set(path, dims)
+}
+
+// Object metadata is untrusted input (the upload trigger validates size and
+// mimetype, not these). Only whole pixels within a sane range are used for
+// layout, so a hand-crafted value can never reserve an absurd image box.
+const MAX_IMAGE_DIMENSION = 20000
+
+function positiveDimension(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null
+  if (value < 1 || value > MAX_IMAGE_DIMENSION) return null
+  return value
+}
+
+// Bound the metadata lookup: if info() never settles the caller should not wait
+// on it. The timeout handle is cleared on the success path too, so a channel
+// full of images does not leave a timer per image.
+const DIMENSIONS_TIMEOUT_MS = 3000
+
+// Dimensions ride in the object's metadata (written at upload). Best-effort: a
+// failure, a test double without `info`, an image uploaded before dimensions
+// were stored, or a hung request yields nulls and must never block the signed
+// URL.
+async function fetchImageDimensions(path: string): Promise<{ width: number | null; height: number | null }> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const result = await Promise.race([
+      supabase.storage.from(IMAGES_BUCKET).info(path),
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), DIMENSIONS_TIMEOUT_MS) }),
+    ])
+    if (!result) return { width: null, height: null }
+    return {
+      width: positiveDimension(result.data?.metadata?.width),
+      height: positiveDimension(result.data?.metadata?.height),
+    }
+  } catch {
+    return { width: null, height: null }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // Resolves a stored image value to a usable src. External/relative URLs pass
 // through unchanged; bucket paths are exchanged for a fresh signed URL (the
 // bucket is private, so the public URL no longer resolves). Returns a null src
 // until a bucket path is signed.
-export function useSignedImageUrl(value: string | null | undefined): SignedImageResolution {
+//
+// `reserveDimensions` opts in to reading the stored intrinsic size (one extra
+// info() request per uncached path). Callers that don't reserve the box —
+// fixed-size avatars, thumbnails — leave it off and skip the lookup entirely.
+export function useSignedImageUrl(
+  value: string | null | undefined,
+  reserveDimensions = false
+): SignedImageResolution {
   const [state, setState] = useState<SignedImageResolution>(() => {
     if (value && isBucketImagePath(value)) {
-      const cached = getCachedSignedUrl(value)
-      if (cached) return { src: cached, loading: false }
+      const cachedUrl = getCachedUrl(value)
+      const dims = getCachedDims(value)
+      return {
+        src: cachedUrl,
+        loading: !cachedUrl,
+        width: dims?.width ?? null,
+        height: dims?.height ?? null,
+      }
     }
     return {
       src: value && !isBucketImagePath(value) ? value : null,
       loading: isBucketImagePath(value),
+      width: null,
+      height: null,
     }
   })
 
   useEffect(() => {
     if (!value) {
-      setState({ src: null, loading: false })
+      setState({ src: null, loading: false, width: null, height: null })
       return
     }
     if (!isBucketImagePath(value)) {
-      setState({ src: value, loading: false })
+      setState({ src: value, loading: false, width: null, height: null })
       return
     }
-    const cached = getCachedSignedUrl(value)
-    if (cached) {
-      setState({ src: cached, loading: false })
-      return
-    }
+
     let cancelled = false
-    setState({ src: null, loading: true })
-    supabase.storage
-      .from(IMAGES_BUCKET)
-      .createSignedUrl(value, SIGN_TTL_SECONDS)
-      .then(({ data, error }) => {
-        if (!error && data?.signedUrl) cacheSignedUrl(value, data.signedUrl)
-        if (cancelled) return
-        setState({ src: error || !data?.signedUrl ? null : data.signedUrl, loading: false })
+    const cachedUrl = getCachedUrl(value)
+    const cachedDims = getCachedDims(value)
+    setState({
+      src: cachedUrl,
+      loading: !cachedUrl,
+      width: cachedDims?.width ?? null,
+      height: cachedDims?.height ?? null,
+    })
+
+    // Signing and metadata are independent: a slow/failed metadata read must
+    // never keep the image's src unresolved. Dimensions only update state once
+    // they land; the caller reserves nothing until they do.
+    if (reserveDimensions && !cachedDims) {
+      void fetchImageDimensions(value).then((dims) => {
+        if (cancelled || dims.width === null || dims.height === null) return
+        cacheDims(value, { width: dims.width, height: dims.height })
+        setState((prev) => (prev.width === null ? { ...prev, width: dims.width, height: dims.height } : prev))
       })
+    }
+
+    if (!cachedUrl) {
+      supabase.storage
+        .from(IMAGES_BUCKET)
+        .createSignedUrl(value, SIGN_TTL_SECONDS)
+        .then(({ data, error }) => {
+          if (cancelled) return
+          if (error || !data?.signedUrl) {
+            setState((prev) => ({ ...prev, src: null, loading: false }))
+            return
+          }
+          cacheSignedUrl(value, data.signedUrl)
+          setState((prev) => ({ ...prev, src: data.signedUrl, loading: false }))
+        })
+    }
+
     return () => {
       cancelled = true
     }
-  }, [value])
+  }, [value, reserveDimensions])
 
   return state
 }

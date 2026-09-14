@@ -31,7 +31,11 @@ describe('useImageUpload', () => {
     vi.mocked(supabase.storage.from).mockReturnValue({
       upload: mockUpload,
     } as any)
-    vi.mocked(resizeImageFile).mockResolvedValue(new File(['resized'], 'photo.jpg', { type: 'image/jpeg' }))
+    vi.mocked(resizeImageFile).mockResolvedValue({
+      file: new File(['resized'], 'photo.jpg', { type: 'image/jpeg' }),
+      width: 512,
+      height: 288,
+    })
     vi.mocked(useAppSetting).mockImplementation((key: string, fallback: any) => {
       if (key === 'image_uploading_enabled') return { value: true, loading: false, error: null, refresh: vi.fn() }
       if (key === 'image_max_size_mb') return { value: 5, loading: false, error: null, refresh: vi.fn() }
@@ -49,6 +53,19 @@ describe('useImageUpload', () => {
     expect(uploadPath).toMatch(/^c1\/message\/.+\.jpg$/)
     expect(path).toBe(uploadPath)
     expect(result.current.uploading).toBe(false)
+  })
+
+  it('stores the resized dimensions as object metadata so the chat can reserve space', async () => {
+    const { result } = renderHook(() => useImageUpload('c1'))
+
+    await result.current.uploadImage(makeFile(1024), 'message', 1200)
+
+    const uploadPath = mockUpload.mock.calls[0][0]
+    expect(mockUpload).toHaveBeenCalledWith(
+      uploadPath,
+      expect.any(File),
+      expect.objectContaining({ metadata: { width: 512, height: 288 } })
+    )
   })
 
   it('rejects non-image files', async () => {

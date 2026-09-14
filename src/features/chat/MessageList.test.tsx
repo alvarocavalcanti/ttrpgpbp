@@ -410,6 +410,139 @@ describe('MessageList scroll anchoring', () => {
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 300)
   })
 
+  it('re-centers the unread divider when content grows while anchored to it (cold start)', () => {
+    // #284/#285 regression: the initial smooth scroll to the divider computes
+    // its target before lazy images size the messages, so the divider drifts
+    // off-screen and nothing corrects it. The ResizeObserver must re-center the
+    // divider (instantly, with a fresh target) while the divider is the anchor.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // Drop the initial smooth scroll so only the growth re-center is asserted.
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Lazy images finish loading and grow the content under the divider.
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('stops re-centering the divider once the user scrolls (history readers keep their place)', () => {
+    // #338: a user who takes over scrolling must not be yanked back to the
+    // divider as late content loads.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A real user gesture (not a programmatic scroll) releases the anchor.
+    fireEvent.wheel(container.firstChild as HTMLElement)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('stops re-centering the divider when the user drags the scrollbar (pointerdown)', () => {
+    // Dragging the native scrollbar thumb fires pointerdown, not wheel/touch.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.pointerDown(container.firstChild as HTMLElement)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('releases the divider anchor on a keyboard scroll key', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.keyDown(container.firstChild as HTMLElement, { key: 'PageDown' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('keeps the divider anchor on a non-scroll keypress', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.keyDown(container.firstChild as HTMLElement, { key: 'a' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('does not re-center once the divider is gone while anchored', () => {
+    // Unread messages can be read live (divider unmounts) while the anchor is
+    // still set; the re-center must no-op instead of throwing on a null ref.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Everything is now read: the divider is gone, but the anchor is still set.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T16:00:00Z" />
+    )
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
   it('restores the scroll position the browser dropped while hidden', () => {
     const setVisibility = (state: string) =>
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
@@ -533,5 +666,331 @@ describe('MessageList scroll anchoring', () => {
     )
 
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('cancels the pending return anchor when the user scrolls during the gap (#502)', () => {
+    scrollHeight = 1000
+    const old: any[] = [{ id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' }]
+    const { container, rerender } = render(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={0} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // A return bumps the revision before catch-up: no divider yet, so the
+    // anchor is held pending.
+    rerender(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" boundaryRevision={1} />
+    )
+    // The reader takes over during the gap.
+    fireEvent.wheel(list)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Catch-up renders the unread message and the divider, but the user's
+    // gesture already cancelled the pending anchor — no yank back.
+    rerender(
+      <MessageList
+        messages={[...old, { id: 'm2', content: 'New', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T12:00:00Z"
+        boundaryRevision={1}
+      />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('makes the scroll region keyboard-focusable so scroll keys reach it', () => {
+    // Without a tabIndex the div cannot be focused, so PageUp/Arrow/PageDown
+    // never reach the keydown release handler (review on #513).
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect((container.firstChild as HTMLElement).tabIndex).toBe(0)
+  })
+
+  it('anchors to the unread divider when the read boundary arrives after the messages (#284)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    // No read boundary yet: the initial load lands at the bottom (no divider).
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // The boundary arrives afterwards and inserts the divider: the initial
+    // unread landing must still run.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('does not re-center a new divider once the anchored one has gone (#338)', () => {
+    scrollHeight = 1000
+    const old: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // The read boundary advances: the anchored divider disappears.
+    rerender(
+      <MessageList messages={old} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T16:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A new unread message mounts a fresh divider while the reader is up in
+    // history; the stale anchor must not pull them back.
+    rerender(
+      <MessageList
+        messages={[...old, { id: 'm3', content: 'New', created_at: '2023-01-01T17:00:00Z', sender_id: 'other' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T16:00:00Z"
+      />
+    )
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('does not re-center the divider while a highlighted jump is active (#455)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // A jump highlights an older message; MessageItem owns the scroll position.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" highlightMessageId="m1" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('does not snap to the bottom during a gesture that has not scrolled yet (#338)', () => {
+    scrollHeight = 1000
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const list = container.firstChild as HTMLElement
+    // At the bottom after the initial landing.
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // The reader grabs the scrollbar and a lazy image resizes the list before
+    // the drag has produced a scroll event.
+    fireEvent.pointerDown(list)
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(list.scrollTop).toBe(1000)
+  })
+
+  it('releases the anchor for a scroll key from a descendant that scrolls the list', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // PageUp/Down from a focused link or button still scrolls the container.
+    fireEvent.keyDown(screen.getAllByTestId('msg-item')[0], { key: 'PageDown' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('does not release the anchor for a scroll key inside a text control', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    const list = container.firstChild as HTMLElement
+    const input = document.createElement('input')
+    list.appendChild(input)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Editing consumes the key: it must not release the divider anchor.
+    fireEvent.keyDown(input, { key: 'PageDown' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('starts tracking resize once the first message mounts (empty state first)', () => {
+    scrollHeight = 1000
+
+    // A channel that opens empty renders the empty state, so the list (and its
+    // refs) do not exist on the first pass.
+    const { container, rerender } = render(
+      <MessageList messages={[]} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    expect(container.firstChild).not.toBeNull()
+
+    // The first message arrives and mounts the list; the observer must now run.
+    const msgs: any[] = [{ id: 'm1', content: 'Hi', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' }]
+    rerender(
+      <MessageList
+        messages={msgs}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 1400)
+  })
+
+  it('does not release the divider anchor on a touch tap', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    const list = container.firstChild as HTMLElement
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A tap: touchstart + touchend with no vertical movement.
+    fireEvent.touchStart(list, { touches: [{ clientY: 200 }] })
+    fireEvent.touchEnd(list, { touches: [] })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    // Still anchored: a tap must not cancel the unread landing.
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('releases the divider anchor once a touch scrolls', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    const list = container.firstChild as HTMLElement
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.touchStart(list, { touches: [{ clientY: 200 }] })
+    fireEvent.touchMove(list, { touches: [{ clientY: 150 }] })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('does not re-center when the divider moves to a different message (#338)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+      { id: 'm3', content: 'Also unread', created_at: '2023-01-01T17:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // Anchored to the divider before m2.
+
+    // The boundary advances; the divider moves to before m3 (a different node).
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T16:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('re-pins after a keyboard scroll key is released, even when it did not scroll (#338)', () => {
+    scrollHeight = 1000
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // `End` pressed while already at the boundary: a scroll key that produces no
+    // scroll event, so only keyup releases the guard.
+    fireEvent.keyDown(list, { key: 'End' })
+    fireEvent.keyUp(list, { key: 'End' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(list.scrollTop).toBe(1400)
+  })
+
+  it('ignores the observer start-up notification so the smooth landing survives (#284)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+
+    // The observer's start-up notification repeats the current size; acting on
+    // it would downgrade the smooth landing to an instant jump.
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
+
+  it('releases the keyboard guard when the window loses focus (#338)', () => {
+    scrollHeight = 1000
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // A no-op scroll key sets the guard, then the window loses focus before the
+    // matching keyup can arrive.
+    fireEvent.keyDown(list, { key: 'End' })
+    fireEvent.blur(window)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    // The guard was released, so content growth still re-pins to the bottom.
+    expect(list.scrollTop).toBe(1400)
   })
 })
