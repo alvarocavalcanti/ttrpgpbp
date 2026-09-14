@@ -37,11 +37,14 @@ export function useImageUpload(channelId: string | undefined): ImageUploadApi {
 
     setUploading(true)
     try {
-      const resized = await resizeImageFile(file, maxDimension)
+      const { file: resized, width, height } = await resizeImageFile(file, maxDimension)
       const path = `${channelId}/${folder}/${crypto.randomUUID()}.jpg`
       const { error: uploadError } = await supabase.storage.from('images').upload(path, resized, {
         cacheControl: '3600',
         upsert: false,
+        // Persist the intrinsic size so the chat can reserve the image's box
+        // before it loads. The storage server still adds size/mimetype.
+        metadata: { width, height },
       })
       if (uploadError) throw uploadError
 
