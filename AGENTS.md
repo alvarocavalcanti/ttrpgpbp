@@ -37,6 +37,8 @@ Boundaries: code/commits/PRs written normal.
 
 ## Project Rules
 
+- **Industry standard first**: When researching how to build something, identify the industry-standard / platform-native / framework-idiomatic approach (or the consensus library) during the initial investigation, and default to it. Only fall back to a non-standard shortcut, or take on known technical debt, after flagging the tradeoff and getting the User's explicit sign-off; when you do, say so and why. Standards exist for a reason — don't silently reinvent or regress.
+
 - **Planning → TODO list**: After planning (once a plan is proposed/approved), always create a TODO list so the User can keep track of the plan's current status. Keep exactly one item in progress while unfinished work remains; allow zero active items after all items are completed. Mark items completed as they finish, and add follow-ups to the list as soon as they surface — update it in real time, never in a batch at the end.
 
 - **Branching & PRs — git worktrees**: ALL work happens in a dedicated `git worktree`. Never start working on `main`, never work in the main repo directory — every session gets its own worktree to prevent branch collisions and uncommitted-change bleed. Never push directly to `main` (protected against rewrites).
