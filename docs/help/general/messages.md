@@ -55,6 +55,8 @@ If your connection drops, a banner lets you know while keeping loaded chat avail
 
 If your message history fails to load when you open a channel, you'll see a clear error with a **Retry** button instead of being told to refresh the page. Your unread marker ("New messages" divider) is also safe: it only moves after your history has actually loaded, so a failed load never makes messages look read that you never saw.
 
+Opening a channel with unread messages takes you straight to that divider, so you pick up where you left off — or to the newest message when you're all caught up. The view stays put while pictures finish loading in, and once you scroll yourself it never pulls you back.
+
 ## Server messages (announcements & the admin inbox)
 
 The **Messages** item in the app menu is a separate space from channel chat:

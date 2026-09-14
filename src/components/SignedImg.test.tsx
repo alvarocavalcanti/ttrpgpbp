@@ -73,6 +73,17 @@ describe('SignedImg', () => {
     expect(container.querySelector('img')).toBeNull()
   })
 
+  it('reserves a stable fallback box while dimensions are pending', async () => {
+    mockInfo.mockReturnValue(new Promise(() => {}))
+    render(<SignedImg src={`${CHANNEL_ID}/message/pending.jpg`} alt="pending" className="max-h-96" reserveBox />)
+    await act(async () => {})
+
+    // The placeholder must not collapse to zero height while the size is unknown.
+    const placeholder = screen.getByTestId('signed-img-loading')
+    expect(placeholder.style.aspectRatio).toBe('4 / 3')
+    expect(placeholder.style.width).toBe('100%')
+  })
+
   it('sets the intrinsic width/height and aspect ratio on the loaded image', async () => {
     mockInfo.mockResolvedValue({ data: { metadata: { width: 512, height: 288 } }, error: null })
     render(<SignedImg src={`${CHANNEL_ID}/message/map.jpg`} alt="map" className="max-h-96" reserveBox />)

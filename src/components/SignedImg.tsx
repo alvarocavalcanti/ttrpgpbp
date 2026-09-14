@@ -26,6 +26,15 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
   // min(intrinsic width, container width).
   const dims = reserveBox && width && height ? { width, height } : null
 
+  // Stable loading box: the exact box when dimensions are known, otherwise a
+  // neutral aspect box so the reserving placeholder never collapses to zero
+  // height (and the content below keeps its footprint while the metadata lands).
+  const placeholderStyle = dims
+    ? { aspectRatio: `${dims.width} / ${dims.height}`, width: `min(100%, ${dims.width}px)` }
+    : reserveBox
+      ? { aspectRatio: '4 / 3', width: '100%' }
+      : undefined
+
   // For reserving callers, keep the placeholder until the dimensions lookup
   // settles: the box is then applied together with the image's first render
   // instead of resizing an already-mounted <img> (a layout shift).
@@ -33,9 +42,7 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
     return (
       <div
         className={className}
-        style={dims
-          ? { aspectRatio: `${dims.width} / ${dims.height}`, width: `min(100%, ${dims.width}px)` }
-          : undefined}
+        style={placeholderStyle}
         role="img"
         aria-label={alt || 'Image'}
         data-testid="signed-img-loading"

@@ -865,4 +865,48 @@ describe('MessageList scroll anchoring', () => {
 
     expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
+
+  it('does not re-center when the divider moves to a different message (#338)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+      { id: 'm3', content: 'Also unread', created_at: '2023-01-01T17:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // Anchored to the divider before m2.
+
+    // The boundary advances; the divider moves to before m3 (a different node).
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T16:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('re-pins after a keyboard scroll key is released, even when it did not scroll (#338)', () => {
+    scrollHeight = 1000
+    const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 1000
+    fireEvent.scroll(list)
+
+    // `End` pressed while already at the boundary: a scroll key that produces no
+    // scroll event, so only keyup releases the guard.
+    fireEvent.keyDown(list, { key: 'End' })
+    fireEvent.keyUp(list, { key: 'End' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(list.scrollTop).toBe(1400)
+  })
 })

@@ -438,6 +438,7 @@ export function ChannelView() {
         )}
 
         <MessageList 
+          key={channel.id}
           messages={messages} 
           isGM={isGM} 
           onEdit={editMessage} 

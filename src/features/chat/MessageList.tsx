@@ -73,6 +73,10 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   // already rendered (the channel and message loads are independent), so the
   // initial unread landing still runs (#284).
   const prevLastReadTimestampRef = useRef<number | null | undefined>(undefined)
+  // The divider element the current divider anchor refers to. If the read
+  // boundary moves the divider to a different message, the anchored node
+  // changes and the stale anchor is dropped (#338).
+  const anchoredDividerRef = useRef<HTMLDivElement | null>(null)
 
   // Latest load-older props for the scroll handler (registered once below).
   const loadOlderStateRef = useRef({ hasMore: false, loadingOlder: false, onLoadOlder })
@@ -106,11 +110,13 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   const scrollToUnread = useCallback(() => {
     if (newMessagesDividerRef.current) {
       dividerAnchorRef.current = true
+      anchoredDividerRef.current = newMessagesDividerRef.current
       newMessagesDividerRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
       atBottomRef.current = false
       return
     }
     dividerAnchorRef.current = false
+    anchoredDividerRef.current = null
     const list = listRef.current
     if (list) {
       list.scrollTop = list.scrollHeight
@@ -185,11 +191,18 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     userTookOverRef.current = true
   }, [highlightMessageId])
 
-  // The divider can disappear for reasons other than scrollToUnread (the read
-  // boundary advances, a message edit changes it). A stale divider anchor would
-  // then re-center a *new* divider for a reader who never re-anchored (#338).
+  // The divider can disappear or move to a different message (the read boundary
+  // advances, a message edit changes it). Either way the previous anchor is
+  // stale, so drop it rather than re-centering a *new* divider for a reader who
+  // never re-anchored (#338).
   useEffect(() => {
-    if (!newMessagesDividerRef.current) dividerAnchorRef.current = false
+    if (!newMessagesDividerRef.current) {
+      dividerAnchorRef.current = false
+      return
+    }
+    if (dividerAnchorRef.current && newMessagesDividerRef.current !== anchoredDividerRef.current) {
+      dividerAnchorRef.current = false
+    }
   }, [messages, lastReadTimestamp])
 
   // The channel and the messages load independently: the messages can render
@@ -250,6 +263,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       // scroll the list.
       if (event.target === list && SCROLL_KEYS.has(event.key)) onGestureStart()
     }
+    const onKeyUp = (event: KeyboardEvent) => {
+      // A scroll key can be a no-op (e.g. End while already at the bottom), so
+      // no scroll event arrives to clear the guard — end it on release.
+      if (event.target === list && SCROLL_KEYS.has(event.key)) onGestureEnd()
+    }
     const onPointerDown = (event: PointerEvent) => {
       // Only grabbing the native scrollbar (the gutter right of the client box)
       // is a scroll takeover; a pointerdown on the content is not.
@@ -276,6 +294,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     list.addEventListener('touchmove', onTouchMove, { passive: true })
     list.addEventListener('pointerdown', onPointerDown)
     list.addEventListener('keydown', onKeyDown)
+    list.addEventListener('keyup', onKeyUp)
     list.addEventListener('touchend', onGestureEnd)
     list.addEventListener('touchcancel', onGestureEnd)
     list.addEventListener('pointerup', onGestureEnd)
@@ -287,6 +306,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       list.removeEventListener('touchmove', onTouchMove)
       list.removeEventListener('pointerdown', onPointerDown)
       list.removeEventListener('keydown', onKeyDown)
+      list.removeEventListener('keyup', onKeyUp)
       list.removeEventListener('touchend', onGestureEnd)
       list.removeEventListener('touchcancel', onGestureEnd)
       list.removeEventListener('pointerup', onGestureEnd)
