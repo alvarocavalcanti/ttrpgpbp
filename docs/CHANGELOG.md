@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-14
 
+### Added
+
+- **Close button on the menu sidebars** — the Lobby menu and the channel sidebar now show a dedicated ✕ button at their top-right corner (the same spot as the menu button) so you can close them with one clear tap. Swiping and tapping outside still work too.
+
 ### Fixed
 
 - **New messages open where you left off** — opening a channel with unread messages now lands on the **New messages** divider every time, even in a busy channel full of images. The view could previously stop short of the divider while pictures were still loading in.

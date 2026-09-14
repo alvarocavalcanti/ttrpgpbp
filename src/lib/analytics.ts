@@ -43,6 +43,12 @@ export function initAnalytics(): void {
   window.gtag('config', id, { send_page_view: false })
 }
 
+// Fires a custom event with optional parameters. Guards against gtag being
+// unavailable (analytics disabled or script not yet loaded).
+export function trackEvent(name: string, params?: Record<string, unknown>): void {
+  push('event', name, params)
+}
+
 // Fires a page_view for SPA route changes. Guards against gtag being
 // unavailable (analytics disabled or script not yet loaded). Only the
 // pathname is reported — the query string and fragment are stripped so
