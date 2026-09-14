@@ -959,4 +959,18 @@ describe('MessageList scroll anchoring', () => {
 
     expect(list.scrollTop).toBe(1400)
   })
+
+  it('ignores the observer start-up notification so the smooth landing survives (#284)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+
+    // The observer's start-up notification repeats the current size; acting on
+    // it would downgrade the smooth landing to an instant jump.
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+  })
 })

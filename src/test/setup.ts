@@ -46,7 +46,12 @@ if (!(globalThis as any).ResizeObserver) {
       this.cb = cb
       ;(globalThis as any).__resizeObservers.push(this)
     }
-    observe() {}
+    observe() {
+      // A real ResizeObserver delivers an initial observation as soon as it
+      // starts observing; mirror that so tests exercise the "ignore the first
+      // notification" path and later trigger() calls map to real changes.
+      this.cb([], this)
+    }
     unobserve() {}
     disconnect() {}
     trigger() {

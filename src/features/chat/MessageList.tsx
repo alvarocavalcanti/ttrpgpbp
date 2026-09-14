@@ -333,7 +333,15 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     const list = listRef.current
     const content = contentRef.current
     if (!list || !content) return
+    // ResizeObserver delivers one observation as soon as it starts observing,
+    // before any growth. Acting on it would replace the smooth initial landing
+    // with an instant jump, so the first notification is ignored.
+    let initialObservation = true
     const observer = new ResizeObserver(() => {
+      if (initialObservation) {
+        initialObservation = false
+        return
+      }
       // A scroll gesture just started: let it take over before re-anchoring, so
       // a resize cannot snap the view back before the gesture lands.
       if (gestureActiveRef.current) return
