@@ -20,6 +20,10 @@ const AUTO_LOAD_TOP_THRESHOLD = 80
 // the keyboard user's own scroll is never overridden by the re-center.
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])
 
+// Vertical touch movement (px) before a gesture counts as scrolling rather than
+// a tap, so a tap on a message does not release the scroll anchors.
+const TOUCH_SCROLL_THRESHOLD = 8
+
 interface MessageListProps {
   messages: Message[]
   isGM: boolean
@@ -226,11 +230,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     }
     list.addEventListener('scroll', onScroll)
     // A real user scroll takeover releases both anchors so late content cannot
-    // yank a reader back (#338). `pointerdown` covers dragging the native
-    // scrollbar; programmatic scrollIntoView/scrollTop never fire these
-    // gestures, so our own re-centers keep the anchor. `gestureActiveRef` also
-    // blocks the ResizeObserver re-pin until the gesture is recognized by a
-    // scroll event, so it cannot snap back in that window.
+    // yank a reader back (#338). Only input that actually scrolls the list
+    // counts: a click/tap on a link, button, or image control, or a key press
+    // from a focused descendant, must not cancel the unread landing or the
+    // resize correction. `gestureActiveRef` also blocks the ResizeObserver
+    // re-pin until the gesture is recognized by a scroll event.
     const releaseAnchors = () => {
       dividerAnchorRef.current = false
       pendingBoundaryAnchorRef.current = false
@@ -242,7 +246,14 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     }
     const onGestureEnd = () => { gestureActiveRef.current = false }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (SCROLL_KEYS.has(event.key)) onGestureStart()
+      // Keys bubble from focused descendants (links, inline editors) that do not
+      // scroll the list.
+      if (event.target === list && SCROLL_KEYS.has(event.key)) onGestureStart()
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      // Only grabbing the native scrollbar (the gutter right of the client box)
+      // is a scroll takeover; a pointerdown on the content is not.
+      if (event.clientX >= list.getBoundingClientRect().left + list.clientWidth) onGestureStart()
     }
     // Wheel has no end event: drop the guard on the next frame so image growth
     // can resume re-pinning once the wheel has been applied.
@@ -250,9 +261,20 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       onGestureStart()
       requestAnimationFrame(onGestureEnd)
     }
+    let touchStartY = 0
+    const onTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? 0
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      // A touch is scrolling only once it has moved vertically; a tap must not
+      // cancel the anchors.
+      const y = event.touches[0]?.clientY ?? touchStartY
+      if (Math.abs(y - touchStartY) > TOUCH_SCROLL_THRESHOLD) onGestureStart()
+    }
     list.addEventListener('wheel', onWheel, { passive: true })
-    list.addEventListener('touchstart', onGestureStart, { passive: true })
-    list.addEventListener('pointerdown', onGestureStart)
+    list.addEventListener('touchstart', onTouchStart, { passive: true })
+    list.addEventListener('touchmove', onTouchMove, { passive: true })
+    list.addEventListener('pointerdown', onPointerDown)
     list.addEventListener('keydown', onKeyDown)
     list.addEventListener('touchend', onGestureEnd)
     list.addEventListener('touchcancel', onGestureEnd)
@@ -261,8 +283,9 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     return () => {
       list.removeEventListener('scroll', onScroll)
       list.removeEventListener('wheel', onWheel)
-      list.removeEventListener('touchstart', onGestureStart)
-      list.removeEventListener('pointerdown', onGestureStart)
+      list.removeEventListener('touchstart', onTouchStart)
+      list.removeEventListener('touchmove', onTouchMove)
+      list.removeEventListener('pointerdown', onPointerDown)
       list.removeEventListener('keydown', onKeyDown)
       list.removeEventListener('touchend', onGestureEnd)
       list.removeEventListener('touchcancel', onGestureEnd)

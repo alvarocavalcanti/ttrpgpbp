@@ -804,4 +804,65 @@ describe('MessageList scroll anchoring', () => {
 
     expect(list.scrollTop).toBe(1000)
   })
+
+  it('ignores key events from a descendant of the list (only direct list keys count)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A key press on a focused descendant must not release the divider anchor.
+    fireEvent.keyDown(screen.getAllByTestId('msg-item')[0], { key: 'PageDown' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('does not release the divider anchor on a touch tap', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    const list = container.firstChild as HTMLElement
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A tap: touchstart + touchend with no vertical movement.
+    fireEvent.touchStart(list, { touches: [{ clientY: 200 }] })
+    fireEvent.touchEnd(list, { touches: [] })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    // Still anchored: a tap must not cancel the unread landing.
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('releases the divider anchor once a touch scrolls', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(<MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />)
+    const list = container.firstChild as HTMLElement
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.touchStart(list, { touches: [{ clientY: 200 }] })
+    fireEvent.touchMove(list, { touches: [{ clientY: 150 }] })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
 })

@@ -82,13 +82,19 @@ describe('useSignedImageUrl', () => {
     expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: false })
   })
 
-  it('resolves the signed URL while the metadata read is still pending, flagging dimensionsPending', async () => {
+  it('resolves the signed URL while metadata is pending, then gives up after the timeout', async () => {
     // Critical: a slow/hanging info() must not keep the image's src unresolved.
     mockInfo.mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/hanging.jpg`, true))
     await act(async () => {})
 
+    // src is ready; the reserved box is still pending.
     expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: true })
+
+    // The lookup is bounded: after the timeout it falls back to unknown
+    // dimensions so the image can render rather than holding the placeholder.
+    await act(async () => { vi.advanceTimersByTime(3000) })
+    expect(result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: false })
   })
 
   it('skips the metadata request for callers that do not reserve the box', async () => {
@@ -114,6 +120,10 @@ describe('useSignedImageUrl', () => {
     // A reserving caller (message image) then needs the dimensions.
     mockInfo.mockResolvedValue({ data: { metadata: { width: 400, height: 300 } }, error: null })
     const second = renderHook(() => useSignedImageUrl(path, true))
+    // The URL is cached but the dimensions are not: the first render must
+    // already be pending, so the caller shows its placeholder rather than the
+    // image without a reserved box.
+    expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: null, height: null, dimensionsPending: true })
     await act(async () => {})
 
     expect(second.result.current).toEqual({ src: 'https://signed/x.jpg', loading: false, width: 400, height: 300, dimensionsPending: false })

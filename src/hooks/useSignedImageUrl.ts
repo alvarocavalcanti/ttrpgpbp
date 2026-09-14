@@ -92,15 +92,25 @@ function positiveDimension(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null
 }
 
+// Bound the metadata lookup: if info() never settles the reserving caller would
+// hold its placeholder forever. On timeout we give up the reserved box (null
+// dimensions) and let the image render.
+const DIMENSIONS_TIMEOUT_MS = 3000
+
 // Dimensions ride in the object's metadata (written at upload). Best-effort: a
-// failure, a test double without `info`, or an image uploaded before dimensions
-// were stored yields nulls and must never block the signed URL.
+// failure, a test double without `info`, an image uploaded before dimensions
+// were stored, or a hung request yields nulls and must never block the signed
+// URL.
 async function fetchImageDimensions(path: string): Promise<{ width: number | null; height: number | null }> {
   try {
-    const { data } = await supabase.storage.from(IMAGES_BUCKET).info(path)
+    const result = await Promise.race([
+      supabase.storage.from(IMAGES_BUCKET).info(path),
+      new Promise<null>((resolve) => { setTimeout(() => resolve(null), DIMENSIONS_TIMEOUT_MS) }),
+    ])
+    if (!result) return { width: null, height: null }
     return {
-      width: positiveDimension(data?.metadata?.width),
-      height: positiveDimension(data?.metadata?.height),
+      width: positiveDimension(result.data?.metadata?.width),
+      height: positiveDimension(result.data?.metadata?.height),
     }
   } catch {
     return { width: null, height: null }
@@ -128,7 +138,9 @@ export function useSignedImageUrl(
         loading: !cachedUrl,
         width: dims?.width ?? null,
         height: dims?.height ?? null,
-        dimensionsPending: false,
+        // A cached URL with uncached dimensions still needs the placeholder on
+        // the very first render, or the image renders before its box is known.
+        dimensionsPending: reserveDimensions && !dims,
       }
     }
     return {
