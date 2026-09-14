@@ -13,6 +13,7 @@ import { useAuth } from '../auth/useAuth'
 import { SignedImg } from '../../components/SignedImg'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
+import { trackEvent } from '../../lib/analytics'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { SearchModal } from '../search/SearchModal'
@@ -92,12 +93,23 @@ export function ChannelView() {
   const [showActivePlayer, setShowActivePlayer] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
+  // Track how the sidebar is opened/closed (issue #511): usage counts decide
+  // later which dismissal methods are worth keeping.
+  const openSidebar = (method: string) => {
+    setShowMobileSidebar(true)
+    trackEvent('menu_open', { menu: 'sidebar', method })
+  }
+  const closeSidebar = (method: string) => {
+    if (!showMobileSidebar) return
+    setShowMobileSidebar(false)
+    trackEvent('menu_close', { menu: 'sidebar', method })
+  }
   // Right-edge swipe opens/closes the sidebar on touch devices, matching the
   // lobby menu drawer. Desktop keeps the persistent lg: layout.
-  useEdgeSwipe({ open: showMobileSidebar, onOpen: () => setShowMobileSidebar(true), onClose: () => setShowMobileSidebar(false) })
-  // No header X in the drawer (issue #382): close via backdrop tap, edge
-  // swipe, the header toggle, or Escape.
-  useEscapeToClose(() => setShowMobileSidebar(false))
+  useEdgeSwipe({ open: showMobileSidebar, onOpen: () => openSidebar('swipe'), onClose: () => closeSidebar('swipe') })
+  // Header X (issue #511); also closes via backdrop tap, edge swipe, the
+  // header toggle, or Escape — every method is tracked (#511).
+  useEscapeToClose(() => closeSidebar('escape'))
   // Focus containment while the drawer is open (UX-4): the sidebar element is
   // always mounted (translate-x-full when closed), so the trap is gated on
   // the open state instead of conditional rendering. On desktop the sidebar
@@ -131,6 +143,7 @@ export function ChannelView() {
   useEffect(() => {
     if (showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer || showMedia) {
       setShowMobileSidebar(false)
+      trackEvent('menu_close', { menu: 'sidebar', method: 'modal' })
     }
   }, [showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer, showMedia])
 
@@ -217,7 +230,9 @@ export function ChannelView() {
   // with no arguments, so the member id is closed over here.
   const handleEditCharacter = useCallback(() => {
     if (!myMemberInfo?.id) return
+    // Inline (not openSidebar) to keep this callback identity stable (#408).
     setShowMobileSidebar(true)
+    trackEvent('menu_open', { menu: 'sidebar', method: 'action' })
     setEditingMemberId(myMemberInfo.id)
   }, [myMemberInfo?.id])
 
@@ -343,7 +358,7 @@ export function ChannelView() {
               type="button"
               aria-label="Toggle sidebar menu"
               aria-expanded={showMobileSidebar}
-              onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+              onClick={() => (showMobileSidebar ? closeSidebar('toggle') : openSidebar('toggle'))}
               className="lg:hidden text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 rounded-md bg-surface-50 dark:bg-surface-900 hover:bg-primary-50 dark:hover:bg-primary-950"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -464,7 +479,7 @@ export function ChannelView() {
           data-testid="sidebar-overlay"
           aria-hidden="true"
           className="fixed inset-0 bg-surface-600 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80 z-20 lg:hidden"
-          onClick={() => setShowMobileSidebar(false)}
+          onClick={() => closeSidebar('backdrop')}
         />
       )}
 
@@ -475,7 +490,25 @@ export function ChannelView() {
         lg:relative lg:translate-x-0
         ${showMobileSidebar ? 'translate-x-0' : 'translate-x-full'}
       `}>
-        <MemberList 
+        {/* Dedicated close X (issue #511), positioned like the header hamburger.
+            Rendered only while the drawer is open: when closed the sidebar
+            (and its focus target) sits behind transform, and an always-mounted
+            off-screen "Close sidebar" button leaks into a11y queries and the
+            help-screenshot Close-dismissal flow (#511). */}
+        {showMobileSidebar && (
+          <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => closeSidebar('button')}
+          data-testid="sidebar-close"
+          className="lg:hidden absolute top-2 right-2 p-2 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        )}
+        <MemberList
           members={members} 
           isGM={isGM} 
           gmId={channel.gm_id}

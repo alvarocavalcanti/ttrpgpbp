@@ -4,7 +4,7 @@ const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: '' }))
 
 vi.mock('../env', () => ({ env: mockEnv }))
 
-import { initAnalytics, trackPageView } from './analytics'
+import { initAnalytics, trackEvent, trackPageView } from './analytics'
 
 describe('analytics', () => {
   beforeEach(() => {
@@ -81,6 +81,27 @@ describe('analytics', () => {
       expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
         page_path: '/channel/abc',
         page_location: `${window.location.origin}/channel/abc`,
+      })
+    })
+  })
+
+  describe('trackEvent', () => {
+    it('no-ops when gtag is not loaded', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = ''
+      expect(() => trackEvent('menu_close', { method: 'button' })).not.toThrow()
+    })
+
+    it('fires the event with its parameters', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      trackEvent('menu_close', { method: 'button', menu: 'main' })
+
+      expect(gtag).toHaveBeenCalledWith('event', 'menu_close', {
+        method: 'button',
+        menu: 'main',
       })
     })
   })

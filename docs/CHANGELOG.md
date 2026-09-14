@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-14
 
+### Added
+
+- **Close button on the menu sidebars** — the Lobby menu and the channel sidebar now show a dedicated ✕ button at their top-right corner (the same spot as the menu button) so you can close them with one clear tap. Swiping and tapping outside still work too.
+
 ### Fixed
 
 - **Edit Character is readable in dark mode** — the character editor no longer renders behind its own dimmed backdrop, so the form is no longer swallowed into near-black.

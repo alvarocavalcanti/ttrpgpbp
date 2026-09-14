@@ -8,6 +8,7 @@ import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { supabase } from '../../lib/supabase'
+import { trackEvent } from '../../lib/analytics'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
 
@@ -30,6 +31,10 @@ vi.mock('../notifications/usePushNotifications', () => ({
 vi.mock('../../lib/channelRead', () => ({
   notifyChannelRead: vi.fn(),
   refreshAppBadge: vi.fn()
+}))
+
+vi.mock('../../lib/analytics', () => ({
+  trackEvent: vi.fn(),
 }))
 
 vi.mock('../search/SearchModal', () => ({
@@ -1621,6 +1626,69 @@ describe('ChannelView search functionality', () => {
       } finally {
         window.matchMedia = originalMatchMedia
       }
+    })
+
+    it('closes the sidebar via the dedicated close button (issue #511)', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+      expect(screen.getByTestId('sidebar-overlay')).toBeInTheDocument()
+      expect(screen.getByTestId('sidebar-close')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('sidebar-close'))
+      expect(screen.queryByTestId('sidebar-overlay')).not.toBeInTheDocument()
+    })
+
+    it('tracks how the sidebar is opened and closed (issue #511)', () => {
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/channel/c1']}>
+            <Routes>
+              <Route path="/channel/:id" element={<ChannelView />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      )
+
+      // Open via right-edge swipe...
+      swipe('touchstart', 380)
+      swipe('touchend', 260)
+      expect(trackEvent).toHaveBeenCalledWith('menu_open', { menu: 'sidebar', method: 'swipe' })
+
+      // ...close via the dedicated close button...
+      fireEvent.click(screen.getByTestId('sidebar-close'))
+      expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'sidebar', method: 'button' })
+
+      // ...reopen via the header toggle, close via backdrop tap.
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle sidebar menu' }))
+      expect(trackEvent).toHaveBeenCalledWith('menu_open', { menu: 'sidebar', method: 'toggle' })
+
+      fireEvent.click(screen.getByTestId('sidebar-overlay'))
+      expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'sidebar', method: 'backdrop' })
+
+      // Escape close without a stray event when nothing is open.
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(trackEvent).not.toHaveBeenCalledWith('menu_close', { menu: 'sidebar', method: 'escape' })
+
+      // Rightward swipe closes (tracked) and toggling closed again is a no-op.
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle sidebar menu' }))
+      swipe('touchstart', 100)
+      swipe('touchend', 220)
+      expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'sidebar', method: 'swipe' })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle sidebar menu' }))
+      // Close button click always reports its own method, never the opener's.
+      fireEvent.click(screen.getByTestId('sidebar-close'))
+      expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'sidebar', method: 'button' })
     })
 
     it('closes the sidebar on Escape', () => {

@@ -18,7 +18,7 @@ import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { trackPageView } from './lib/analytics'
+import { trackEvent, trackPageView } from './lib/analytics'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -83,12 +83,23 @@ function AppNav() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
+  // Track how the menu is opened/closed (issue #511): usage counts decide
+  // later which dismissal methods are worth keeping.
+  const openMenu = (method: string) => {
+    setMenuOpen(true)
+    trackEvent('menu_open', { menu: 'main', method })
+  }
+  const closeMenu = (method: string) => {
+    if (!menuOpen) return
+    setMenuOpen(false)
+    trackEvent('menu_close', { menu: 'main', method })
+  }
   // Right-edge swipe opens the menu drawer (touch devices); same gesture as
   // the channel sidebar so both menus behave identically.
-  useEdgeSwipe({ open: menuOpen, onOpen: () => setMenuOpen(true), onClose: () => setMenuOpen(false) })
-  // No header X in the drawer (issue #382): close via backdrop tap, edge
-  // swipe, the hamburger toggle, or Escape.
-  useEscapeToClose(() => setMenuOpen(false))
+  useEdgeSwipe({ open: menuOpen, onOpen: () => openMenu('swipe'), onClose: () => closeMenu('swipe') })
+  // Dedicated close X (issue #511); also closes via backdrop tap, edge
+  // swipe, the hamburger toggle, or Escape — every method is tracked.
+  useEscapeToClose(() => closeMenu('escape'))
   // Focus containment while the drawer is open (UX-4).
   const menuRef = useRef<HTMLElement>(null)
   useFocusTrap(menuRef, menuOpen)
@@ -134,7 +145,7 @@ function AppNav() {
         <span className="hidden md:inline-flex"><ThemeToggle /></span>
         <button
           type="button"
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={() => (menuOpen ? closeMenu('toggle') : openMenu('toggle'))}
           className="relative p-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           aria-label="Menu"
         >
@@ -153,7 +164,7 @@ function AppNav() {
             <div
               data-testid="menu-backdrop"
               className="fixed inset-0 bg-surface-600 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80 z-40"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu('backdrop')}
               aria-hidden="true"
             />
             {/* Right drawer, same layout as the channel sidebar. Rendered
@@ -163,7 +174,20 @@ function AppNav() {
               aria-label="Main menu"
               className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-surface-800 overflow-y-auto border-l border-surface-200 dark:border-surface-700 shadow-lg motion-safe:animate-slide-in-right"
             >
-            <Link
+
+            {/* Close X (issue #511): same size/position as the header
+                hamburger, not its own row (per the #382 vertical-space rule). */}
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => closeMenu('button')}
+              data-testid="menu-close"
+              className="absolute top-2 right-2 p-2 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>            <Link
               to="/settings"
               className={NAV_MENU_ITEM}
               onClick={() => setMenuOpen(false)}

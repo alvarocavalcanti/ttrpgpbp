@@ -2,6 +2,12 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App'
 import { supabase } from './lib/supabase'
+import { trackEvent } from './lib/analytics'
+
+vi.mock('./lib/analytics', () => ({
+  trackEvent: vi.fn(),
+  trackPageView: vi.fn(),
+}))
 
 vi.mock('./lib/supabase', () => ({
   supabase: {
@@ -468,6 +474,45 @@ describe('App main menu drawer', () => {
     expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
   })
 
+  it('closes the drawer via the dedicated close button (issue #511)', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByRole('navigation', { name: 'Main menu' })).toBeInTheDocument()
+    expect(screen.getByTestId('menu-close')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('menu-close'))
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
+  })
+
+  it('tracks how the main menu is opened and closed (issue #511)', async () => {
+    await renderLobby()
+
+    // Open via hamburger toggle...
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(trackEvent).toHaveBeenCalledWith('menu_open', { menu: 'main', method: 'toggle' })
+
+    // ...close via the dedicated close button...
+    fireEvent.click(screen.getByTestId('menu-close'))
+    expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'main', method: 'button' })
+
+    // ...reopen via right-edge swipe, close via backdrop tap.
+    swipe('touchstart', 380)
+    swipe('touchend', 260)
+    expect(trackEvent).toHaveBeenCalledWith('menu_open', { menu: 'main', method: 'swipe' })
+
+    fireEvent.click(screen.getByTestId('menu-backdrop'))
+    expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'main', method: 'backdrop' })
+
+    // Escape close without a stray event when nothing is open.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(trackEvent).not.toHaveBeenCalledWith('menu_close', { menu: 'main', method: 'escape' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(trackEvent).toHaveBeenCalledWith('menu_close', { menu: 'main', method: 'escape' })
+  })
+
   it('hides the backdrop from the a11y tree and traps focus in the drawer (UX-4)', async () => {
     await renderLobby()
 
@@ -482,12 +527,13 @@ describe('App main menu drawer', () => {
     expect(backdrop).toHaveAttribute('aria-hidden', 'true')
     expect(backdrop).not.toHaveAttribute('role')
 
-    // The trap moves focus into the drawer on open, Tab wraps from the last
-    // item back to the first, and closing hands focus back to the trigger.
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveFocus()
+    // The trap moves focus into the drawer on open (the new close X is the
+    // first focusable), Tab wraps from the last item back to the first, and
+    // closing hands focus back to the trigger.
+    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveFocus()
     screen.getByRole('button', { name: 'Sign Out' }).focus()
     fireEvent.keyDown(window, { key: 'Tab' })
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveFocus()
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(trigger).toHaveFocus()
