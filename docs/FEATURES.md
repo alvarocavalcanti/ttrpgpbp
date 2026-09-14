@@ -83,7 +83,7 @@
 - **Reliable sending** — messages and rolls are sent with a client-generated idempotency key. If the connection drops during sending, the message is kept in a "Pending/Failed" state. Users can click **Retry** to safely resend it without duplicating the message, or **Remove** to discard the pending bubble (the draft text remains safe in the composer)
 - **Emoji reactions** — react to a message from the **Reactions** action; counts update live and toggle per user
 - **Unread badges** — Lobby shows a compact count-only pill per channel for messages since the member's `last_read_at` (capped at 99+); excludes the user's own and deleted messages
-- **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read. The read mark only advances after your message history has actually loaded, so a failed load never hides the divider for messages you haven't seen; if loading fails, the banner and empty state offer a **Retry** button
+- **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read; the view scrolls straight to it (or to the newest message when you're all caught up), staying put even as images finish loading in. The read mark only advances after your message history has actually loaded, so a failed load never hides the divider for messages you haven't seen; if loading fails, the banner and empty state offer a **Retry** button
 
 ## NPCs (GM-only)
 

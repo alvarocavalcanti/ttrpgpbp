@@ -66,7 +66,7 @@ describe('changelog module', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
     // Newest entry at the top of the file leads the list.
-    expect(items[0].title).toBe('App updates land on the first tap')
+    expect(items[0].title).toBe('New messages open where you left off')
   })
 
   it('getChangelogHash is a non-empty string', () => {

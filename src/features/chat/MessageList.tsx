@@ -16,6 +16,10 @@ const SCROLL_BOTTOM_THRESHOLD = 24
 // button, otherwise the initial scrollTop=0 render would chain-load history.
 const AUTO_LOAD_TOP_THRESHOLD = 80
 
+// Keys that scroll a focused list. Pressing one releases the divider anchor so
+// the keyboard user's own scroll is never overridden by the re-center.
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])
+
 interface MessageListProps {
   messages: Message[]
   isGM: boolean
@@ -48,6 +52,12 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   const contentRef = useRef<HTMLDivElement>(null)
   const newMessagesDividerRef = useRef<HTMLDivElement>(null)
   const atBottomRef = useRef(true)
+  // True while the view is anchored to the "New messages" divider. Late-loading
+  // images grow content under the smooth scroll's stale target and drift the
+  // divider off-screen; while anchored, the ResizeObserver re-centers it with a
+  // fresh position (cold start / lots of history, #284). A genuine user scroll
+  // releases it so a reader is never yanked back (#338).
+  const dividerAnchorRef = useRef(false)
 
   // Latest load-older props for the scroll handler (registered once below).
   const loadOlderStateRef = useRef({ hasMore: false, loadingOlder: false, onLoadOlder })
@@ -80,10 +90,12 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   // app comes back to the foreground, so both behave the same.
   const scrollToUnread = useCallback(() => {
     if (newMessagesDividerRef.current) {
+      dividerAnchorRef.current = true
       newMessagesDividerRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
       atBottomRef.current = false
       return
     }
+    dividerAnchorRef.current = false
     const list = listRef.current
     if (list) {
       list.scrollTop = list.scrollHeight
@@ -169,7 +181,22 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       }
     }
     list.addEventListener('scroll', onScroll)
-    return () => list.removeEventListener('scroll', onScroll)
+    // A real user scroll gesture releases the divider anchor so late content
+    // cannot yank a reader back (#338). Programmatic scrollIntoView/scrollTop
+    // never fire these, so our own re-centers keep the anchor.
+    const releaseDividerAnchor = () => { dividerAnchorRef.current = false }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(event.key)) releaseDividerAnchor()
+    }
+    list.addEventListener('wheel', releaseDividerAnchor, { passive: true })
+    list.addEventListener('touchstart', releaseDividerAnchor, { passive: true })
+    list.addEventListener('keydown', onKeyDown)
+    return () => {
+      list.removeEventListener('scroll', onScroll)
+      list.removeEventListener('wheel', releaseDividerAnchor)
+      list.removeEventListener('touchstart', releaseDividerAnchor)
+      list.removeEventListener('keydown', onKeyDown)
+    }
   }, [])
 
   // Late-loading content (lazy images with unknown heights) grows the list
@@ -180,10 +207,19 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     const content = contentRef.current
     if (!list || !content) return
     const observer = new ResizeObserver(() => {
-      if (!atBottomRef.current) return
-      // Setting scrollTop does not resize the content wrapper, so this cannot
-      // loop back into the observer.
-      list.scrollTop = list.scrollHeight - list.clientHeight
+      if (atBottomRef.current) {
+        // Setting scrollTop does not resize the content wrapper, so this cannot
+        // loop back into the observer.
+        list.scrollTop = list.scrollHeight - list.clientHeight
+        return
+      }
+      // Anchored to the "New messages" divider: late images grow the content
+      // under the smooth scroll's stale target, so re-center instantly with a
+      // fresh position (#284). 'auto' keeps it a silent correction, not a
+      // second animation.
+      if (dividerAnchorRef.current && newMessagesDividerRef.current) {
+        newMessagesDividerRef.current.scrollIntoView({ behavior: 'auto', block: 'center' })
+      }
     })
     observer.observe(content)
     return () => observer.disconnect()

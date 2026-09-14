@@ -410,6 +410,118 @@ describe('MessageList scroll anchoring', () => {
     expect(container.firstChild as HTMLElement).toHaveProperty('scrollTop', 300)
   })
 
+  it('re-centers the unread divider when content grows while anchored to it (cold start)', () => {
+    // #284/#285 regression: the initial smooth scroll to the divider computes
+    // its target before lazy images size the messages, so the divider drifts
+    // off-screen and nothing corrects it. The ResizeObserver must re-center the
+    // divider (instantly, with a fresh target) while the divider is the anchor.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    // Drop the initial smooth scroll so only the growth re-center is asserted.
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Lazy images finish loading and grow the content under the divider.
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('stops re-centering the divider once the user scrolls (history readers keep their place)', () => {
+    // #338: a user who takes over scrolling must not be yanked back to the
+    // divider as late content loads.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // A real user gesture (not a programmatic scroll) releases the anchor.
+    fireEvent.wheel(container.firstChild as HTMLElement)
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('releases the divider anchor on a keyboard scroll key', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.keyDown(container.firstChild as HTMLElement, { key: 'PageDown' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('keeps the divider anchor on a non-scroll keypress', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    fireEvent.keyDown(container.firstChild as HTMLElement, { key: 'a' })
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' })
+  })
+
+  it('does not re-center once the divider is gone while anchored', () => {
+    // Unread messages can be read live (divider unmounts) while the anchor is
+    // still set; the re-center must no-op instead of throwing on a null ref.
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    // Everything is now read: the divider is gone, but the anchor is still set.
+    rerender(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T16:00:00Z" />
+    )
+
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
   it('restores the scroll position the browser dropped while hidden', () => {
     const setVisibility = (state: string) =>
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })

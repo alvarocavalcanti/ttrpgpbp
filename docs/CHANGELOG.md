@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-14
+
+### Fixed
+
+- **New messages open where you left off** — opening a channel with unread messages now lands on the **New messages** divider every time, even in a busy channel full of images. The view could previously stop short of the divider while pictures were still loading in.
+
 ## 2026-09-12
 
 ### Fixed
