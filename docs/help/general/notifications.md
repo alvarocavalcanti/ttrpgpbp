@@ -18,6 +18,8 @@ On first load you may see a banner asking to enable push notifications. Accept i
 
 On iOS, push notifications require **installing the app to your Home Screen** — iOS only exposes the Push API inside installed web apps. The UI shows install guidance and disables push controls until the app is installed. For the home-screen badge to show, **Badges** must be enabled under iOS Settings → Notifications → the app.
 
+The home-screen badge counts your unread channel messages (archived channels don't count) plus any unread admin messages, and it refreshes every time you open the app. If the icon ever shows a number after you've read everything, turn **Badges** off and back on in iOS Settings → Notifications → the app — that flushes a badge the phone itself got stuck on.
+
 ## Per-channel settings
 
 Each member controls which notifications they receive for each channel, from the **Notifications** item in the channel sidebar:

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
 import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
 import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription } from "./validation.ts"
@@ -353,9 +353,10 @@ serve(async (req) => {
     for (let i = 0; i < targetUserIdsArray.length; i += BATCH_SIZE) {
       const batchIds = targetUserIdsArray.slice(i, i + BATCH_SIZE)
 
-      const [{ data: prefs }, { data: unreadRows }, { data: batchSubs }] = await Promise.all([
+      const [{ data: prefs }, { data: unreadRows }, { data: adminUnreadRows, error: adminUnreadError }, { data: batchSubs }] = await Promise.all([
         serviceClient.from("notification_preferences").select("user_id, push_enabled, badge_enabled").in("user_id", batchIds),
         serviceClient.rpc("get_unread_totals", { p_user_ids: batchIds }),
+        serviceClient.rpc("get_admin_unread_totals", { p_user_ids: batchIds }),
         serviceClient.from("push_subscriptions").select("*").in("user_id", batchIds)
       ])
 
@@ -368,8 +369,13 @@ serve(async (req) => {
         }
       }
 
-      for (const row of unreadRows ?? []) {
-        unreadById.set(row.user_id, row.unread_count)
+      // A failed admin-totals lookup must not drop the push: the badge falls
+      // back to the channel total instead of failing the whole batch (#517).
+      if (adminUnreadError) {
+        console.error(`Admin unread totals lookup failed: ${adminUnreadError.message}`)
+      }
+      for (const [userId, total] of mergeUnreadTotals(unreadRows, adminUnreadError ? null : adminUnreadRows)) {
+        unreadById.set(userId, total)
       }
 
       if (batchSubs) {

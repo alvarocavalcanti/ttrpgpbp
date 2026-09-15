@@ -9,7 +9,7 @@ import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { SignedImg } from '../../components/SignedImg'
-import { updateAppBadge } from '../../lib/appBadge'
+import { refreshAppBadge } from '../../lib/channelRead'
 import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
 
 // Invite links point at /join/:channelId; users paste the whole URL.
@@ -88,10 +88,13 @@ export function Lobby() {
   }
 
   useEffect(() => {
-    // Set App Badge if supported and enabled
-    const totalUnread = myChannels.reduce((sum, ch) => sum + (ch.unread_count || 0), 0)
-    updateAppBadge(totalUnread, preferences?.badge_enabled !== false)
-  }, [myChannels, preferences])
+    // Launcher badge totals channel messages plus admin threads (#517), so
+    // refresh it from the server total rather than the lobby's channel-only
+    // sum. The lobby's live messages refetch keeps this current while sitting
+    // here.
+    if (!user?.id) return
+    void refreshAppBadge(user.id, preferences?.badge_enabled !== false)
+  }, [myChannels, preferences, user?.id])
 
   if (loading) {
     return (

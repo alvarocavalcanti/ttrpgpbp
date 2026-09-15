@@ -1,5 +1,5 @@
 import {describe, it, expect } from 'vitest'
-import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets} from './filter.ts'
+import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals} from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -451,6 +451,31 @@ describe('buildPushPayload', () => {
 
   it('carries zero unread count', () => {
     expect(buildPushPayload(target, 0, true).unreadCount).toBe(0)
+  })
+})
+
+describe('mergeUnreadTotals', () => {
+  it('sums channel and admin rows per user', () => {
+    const totals = mergeUnreadTotals(
+      [{ user_id: 'u1', unread_count: 5 }],
+      [{ user_id: 'u1', unread_count: 2 }]
+    )
+    expect(totals.get('u1')).toBe(7)
+  })
+
+  it('defaults a user missing from one list to zero there', () => {
+    const totals = mergeUnreadTotals(
+      [{ user_id: 'u1', unread_count: 5 }],
+      [{ user_id: 'u2', unread_count: 2 }]
+    )
+    expect(totals.get('u1')).toBe(5)
+    expect(totals.get('u2')).toBe(2)
+  })
+
+  it('treats null lists as empty so a failed lookup falls back to the other total', () => {
+    expect(mergeUnreadTotals(null, [{ user_id: 'u1', unread_count: 2 }]).get('u1')).toBe(2)
+    expect(mergeUnreadTotals([{ user_id: 'u1', unread_count: 5 }], null).get('u1')).toBe(5)
+    expect(mergeUnreadTotals(null, null).size).toBe(0)
   })
 })
 

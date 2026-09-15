@@ -1091,6 +1091,13 @@ export type Database = {
         Returns: string
       }
       get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
+      get_admin_unread_totals: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          unread_count: number
+          user_id: string
+        }[]
+      }
       get_channel_roll_history: {
         Args: { p_channel_id: string }
         Returns: {
@@ -1127,6 +1134,7 @@ export type Database = {
           unread_count: number
         }[]
       }
+      get_user_unread_total: { Args: { p_user_id: string }; Returns: number }
       has_password: {
         Args: { c: Database["public"]["Tables"]["channels"]["Row"] }
         Returns: boolean

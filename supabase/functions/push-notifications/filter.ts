@@ -157,6 +157,23 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
   }
 }
 
+// Merges per-user channel and admin unread rows into one badge number per
+// user (#517): the launcher badge totals both. A user missing from either
+// list counts 0 there. Pure: no IO.
+export function mergeUnreadTotals(
+  channelRows: { user_id: string; unread_count: number }[] | null | undefined,
+  adminRows: { user_id: string; unread_count: number }[] | null | undefined
+): Map<string, number> {
+  const totals = new Map<string, number>()
+  for (const row of channelRows ?? []) {
+    totals.set(row.user_id, (totals.get(row.user_id) ?? 0) + row.unread_count)
+  }
+  for (const row of adminRows ?? []) {
+    totals.set(row.user_id, (totals.get(row.user_id) ?? 0) + row.unread_count)
+  }
+  return totals
+}
+
 // Shapes the per-user push payload sent to the service worker. Badge fields
 // let the SW set the app icon badge count on platforms that support it (iOS,
 // desktop). Pure: no IO.
