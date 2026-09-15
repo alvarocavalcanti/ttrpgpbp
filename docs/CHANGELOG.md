@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-15
+
+### Fixed
+
+- **Image controls stay visible on light pictures** — the zoom buttons and ✕ in the fullscreen image viewer now sit on a dimmed backdrop, so they no longer disappear over white or pale images.
+
 ## 2026-09-14
 
 ### Added
@@ -14,7 +20,6 @@ All notable changes to this project are documented in this file.
 - **Images hold their space while they load** — a picture shared in a channel now reserves its spot in the conversation before it appears, so the chat no longer jumps around as images arrive.
 - **Edit Character is readable in dark mode** — the character editor no longer renders behind its own dimmed backdrop, so the form is no longer swallowed into near-black.
 - **Tapping a reaction shows who reacted** — tapping a reaction under a message now lists the players who reacted instead of adding or removing your own reaction by accident. Adding and removing reactions still lives in the message's **Reactions** action.
-- **Image controls stay visible on light pictures** — the zoom buttons and ✕ in the fullscreen image viewer now sit on a dimmed backdrop, so they no longer disappear over white or pale images.
 
 ## 2026-09-12
 
