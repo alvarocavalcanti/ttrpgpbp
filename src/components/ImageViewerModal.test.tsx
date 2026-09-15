@@ -39,6 +39,12 @@ describe('ImageViewerModal', () => {
     expect(screen.getByAltText('Map')).toHaveAttribute('src', URL)
   })
 
+  it('backs the controls with a dimmed backdrop for contrast on light images', () => {
+    render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+    // The controls bar is the shared parent of the zoom buttons and the label.
+    expect(screen.getByLabelText('Zoom in').parentElement).toHaveClass('bg-black/50', 'rounded-bl')
+  })
+
   it('closes via the X button and via Escape', () => {
     const onClose = vi.fn()
     render(<ImageViewerModal src={URL} alt="Map" onClose={onClose} />)

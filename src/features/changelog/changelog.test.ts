@@ -65,8 +65,10 @@ describe('changelog module', () => {
   it('getRecentItems returns the 5 most recent items from the real changelog', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
-    // Newest entry at the top of the file leads the list.
-    expect(items[0].title).toBe('Close button on the menu sidebars')
+    // Newest entry at the top of the file leads the list: the first item
+    // belongs to the file's first dated section, whatever that date is.
+    const firstHeading = CHANGELOG_RAW.split('\n').find((line) => line.startsWith('## '))
+    expect(items[0].version).toBe(firstHeading?.slice(3).trim())
   })
 
   it('getChangelogHash is a non-empty string', () => {

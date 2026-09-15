@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-15
+
+### Fixed
+
+- **Image controls stay visible on light pictures** — the zoom buttons and ✕ in the fullscreen image viewer now sit on a dimmed backdrop, so they no longer disappear over white or pale images.
+
 ## 2026-09-14
 
 ### Added
