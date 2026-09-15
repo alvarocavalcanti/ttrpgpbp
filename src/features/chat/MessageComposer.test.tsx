@@ -401,12 +401,12 @@ describe('MessageComposer', () => {
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     fireEvent.keyDown(textarea, { key: 'ArrowDown' })
-    expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'false')
 
     fireEvent.keyDown(textarea, { key: 'Enter' })
     await waitFor(() => {
-      expect((textarea as HTMLTextAreaElement).value).toBe('Hi @Archer ')
+      expect((textarea as HTMLTextAreaElement).value).toBe('Hi @Hero ')
     })
   })
 
@@ -436,7 +436,7 @@ describe('MessageComposer', () => {
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
     fireEvent.keyDown(textarea, { key: 'ArrowUp' })
-    expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('exposes a closed combobox: no expanded state or popup references when mentions are hidden', () => {
@@ -474,13 +474,13 @@ describe('MessageComposer', () => {
     const textarea = screen.getByRole('combobox', { name: 'Message' })
     fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
 
-    expect(textarea.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: /Hero/ }).id)
+    expect(textarea.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: /Archer/ }).id)
 
     fireEvent.keyDown(textarea, { key: 'ArrowDown' })
-    const archer = screen.getByRole('option', { name: /Archer/ })
-    expect(textarea.getAttribute('aria-activedescendant')).toBe(archer.id)
-    expect(archer).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'false')
+    const hero = screen.getByRole('option', { name: /Hero/ })
+    expect(textarea.getAttribute('aria-activedescendant')).toBe(hero.id)
+    expect(hero).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: /Archer/ })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('drops the combobox popup attributes when the mention list closes', () => {
@@ -507,6 +507,26 @@ describe('MessageComposer', () => {
 
     fireEvent.keyDown(textarea, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: /Hero/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('lists mention options alphabetically with @all first', () => {
+    const unorderedMembers: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Zara', profile: { display_name: 'P1' } },
+      { id: 'm2', user_id: 'u2', character_name: 'arden', profile: { display_name: 'P2' } },
+      { id: 'm3', user_id: 'u3', character_name: 'Bobby', profile: { display_name: 'P3' } },
+    ]
+    render(<MessageComposer isGM={true} members={unorderedMembers} onSendMessage={vi.fn()} />)
+
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'Hi @', selectionStart: 5 } })
+
+    const options = screen.getAllByRole('option').map(o => o.textContent)
+    expect(options[0]).toMatch(/@all/)
+    expect(options.slice(1)).toEqual([
+      expect.stringMatching(/arden/),
+      expect.stringMatching(/Bobby/),
+      expect.stringMatching(/Zara/),
+    ])
   })
 
   it('linkifies @all to every member for the GM', async () => {
