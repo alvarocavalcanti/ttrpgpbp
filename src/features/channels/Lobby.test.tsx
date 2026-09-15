@@ -395,23 +395,27 @@ describe('Lobby', () => {
     expect(screen.queryByLabelText('5 unread messages')).not.toBeInTheDocument()
   })
 
-  it('updates app badge correctly based on unread counts', () => {
+  it('refreshes the launcher badge from the server total, not the local channel sum', async () => {
     vi.stubGlobal('navigator', {
       setAppBadge: vi.fn().mockResolvedValue(true),
       clearAppBadge: vi.fn().mockResolvedValue(true)
     })
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    // Server total (channels + admin, #517) differs from the local 5 + 2 on
+    // purpose: the badge must follow the server number.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 9, error: null } as any)
 
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [
-        { 
-          id: '1', 
-          name: 'My One', 
+        {
+          id: '1',
+          name: 'My One',
           member: { character_name: 'Hero' },
-          unread_count: 5 
+          unread_count: 5
         } as any,
-        { 
-          id: '2', 
-          name: 'My Two', 
+        {
+          id: '2',
+          name: 'My Two',
           member: { character_name: 'Hero2' },
           unread_count: 2
         } as any
@@ -422,16 +426,18 @@ describe('Lobby', () => {
     })
 
     const { unmount } = render(<Lobby />, { wrapper: MemoryRouter })
-    expect(navigator.setAppBadge).toHaveBeenCalledWith(7)
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith('get_user_unread_total', { p_user_id: 'u1' }))
+    expect(navigator.setAppBadge).toHaveBeenCalledWith(9)
 
-    // Clear badge when no unread count
+    // Clear badge when the server total is zero
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 0, error: null } as any)
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [
-        { 
-          id: '1', 
-          name: 'My One', 
+        {
+          id: '1',
+          name: 'My One',
           member: { character_name: 'Hero' },
-          unread_count: 0 
+          unread_count: 0
         } as any
       ],
       loading: false,
@@ -441,13 +447,17 @@ describe('Lobby', () => {
 
     unmount()
     render(<Lobby />, { wrapper: MemoryRouter })
-    expect(navigator.clearAppBadge).toHaveBeenCalled()
+    await waitFor(() => expect(navigator.clearAppBadge).toHaveBeenCalled())
+    // Restore the signed-out default for the tests below.
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null } as any)
   })
 
-  it('clears badge when badge_enabled is false but navigator has clearAppBadge', () => {
+  it('clears badge when badge_enabled is false but navigator has clearAppBadge', async () => {
     vi.stubGlobal('navigator', {
       clearAppBadge: vi.fn().mockResolvedValue(true)
     })
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 3, error: null } as any)
 
     vi.mocked(usePushNotifications).mockReturnValue({
       preferences: { badge_enabled: false } as any
@@ -461,7 +471,9 @@ describe('Lobby', () => {
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    expect(navigator.clearAppBadge).toHaveBeenCalled()
+    await waitFor(() => expect(navigator.clearAppBadge).toHaveBeenCalled())
+    // Restore the signed-out default for the tests below.
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null } as any)
   })
 
   it('renders create channel button and opens modal', () => {

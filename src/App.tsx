@@ -33,6 +33,7 @@ const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ d
 const HelpPage = lazy(() => import('./features/help/HelpPage').then(m => ({ default: m.HelpPage })))
 const ChangelogPage = lazy(() => import('./features/changelog/ChangelogPage').then(m => ({ default: m.ChangelogPage })))
 import { useAdminUnread } from './features/admin-messages/useAdminUnread'
+import { useAppBadgeSync } from './hooks/useAppBadgeSync'
 
 const AdminMessagesView = lazy(() => import('./features/admin-messages/AdminMessagesView').then(m => ({ default: m.AdminMessagesView })))
 
@@ -79,6 +80,11 @@ function AppNav() {
   const { isDark, toggleTheme } = useTheme()
   const { isServerAdmin } = useIsServerAdmin()
   const adminUnreadCount = useAdminUnread()
+  // Launcher badge owner for every route (AppNav's hooks run before its
+  // channel-route early return, so /channel/* is covered too). Keeps the
+  // icon badge in sync on start, foreground, focus, and background pushes —
+  // iOS never clears it by itself (#517).
+  useAppBadgeSync()
   const { openChangelog } = useChangelog()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
