@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **Image controls stay visible on light pictures** — the zoom buttons and ✕ in the fullscreen image viewer now sit on a dimmed backdrop, so they no longer disappear over white or pale images.
+- **Zooming a picture no longer stretches it** — zooming into a fullscreen image keeps the picture's shape and lets you drag around the enlarged image to explore it. Rotating your phone or resizing the window now re-fits the view instead of leaving it sized for the old screen.
 - **The home-screen badge clears when you've read everything** — archived channels no longer keep an old number stuck on the app icon, opening the app refreshes the badge on any screen, and unread admin messages now count toward it. Previously iPhone users could see a stale count even after reading every channel.
 
 ## 2026-09-14

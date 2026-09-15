@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useSignedImageUrl } from '../hooks/useSignedImageUrl'
@@ -30,22 +30,50 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
   const pinch = useRef<{ dist: number; zoom: number } | null>(null)
   const lastTap = useRef(0)
   const [zoom, setZoom] = useState(ZOOM_MIN)
-  const [fit, setFit] = useState<{ w: number; h: number } | null>(null)
+  // Intrinsic size is the single source of truth; the displayed fit is
+  // derived from it and the live viewport so rotate/resize re-fits (issue
+  // #519). The zoom multiplier is kept across resizes — it re-applies to the
+  // new fit instead of fighting the user mid-inspection.
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
+  const [viewport, setViewport] = useState(() => ({
+    w: window.innerWidth,
+    h: window.innerHeight,
+  }))
 
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
 
+  // Not debounced: resize is cheap (one guarded setState) and `resize` fires
+  // on orientation change too, so no second listener. If mobile browser-chrome
+  // moves (dynamic `innerHeight`) ever prove jumpy, debounce here or read
+  // `visualViewport` instead.
+  useEffect(() => {
+    const onResize = () =>
+      setViewport((prev) =>
+        prev.w === window.innerWidth && prev.h === window.innerHeight
+          ? prev
+          : { w: window.innerWidth, h: window.innerHeight },
+      )
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   const clamp = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
   const resetZoom = () => setZoom(ZOOM_MIN)
 
-  // Fit once the image has real dimensions: displayed size = natural size x
-  // fitScale, and zoom multiplies from there. Uses the viewport (the scroll
-  // container fills it) so the math is testable without layout.
+  // Displayed size = natural size x fitScale, and zoom multiplies from there.
+  // The dialog fills the viewport (fixed inset-0), so the window is the
+  // container and the math stays testable without layout.
+  const fit = (() => {
+    if (!natural) return null
+    const scale = Math.min(1, viewport.w / natural.w, viewport.h / natural.h)
+    return { w: natural.w * scale, h: natural.h * scale }
+  })()
+
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth: w, naturalHeight: h } = e.currentTarget
     if (!w || !h) return
-    const scale = Math.min(1, window.innerWidth / w, window.innerHeight / h)
-    setFit({ w: w * scale, h: h * scale })
+    setNatural({ w, h })
   }
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -138,9 +166,13 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
             className="mx-auto block select-none"
             // Auto margins center without clipping when zoomed past the
             // viewport (flex centering in a scroll container clips the top).
+            // maxWidth: none clears Tailwind Preflight's `img { max-width:
+            // 100% }`, which otherwise clamps the zoomed width at the viewport
+            // while the height keeps growing — stretching the image instead of
+            // letting it spill out for scroll-panning (issue #519).
             style={
               fit
-                ? { width: fit.w * zoom, height: fit.h * zoom }
+                ? { width: fit.w * zoom, height: fit.h * zoom, maxWidth: 'none' }
                 : { maxWidth: '100%', maxHeight: '100%' }
             }
           />

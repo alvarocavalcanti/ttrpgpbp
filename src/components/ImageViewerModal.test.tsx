@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { ImageViewerModal } from './ImageViewerModal'
 
@@ -27,9 +27,25 @@ function getViewport(dialog: HTMLElement): HTMLElement {
   return dialog.querySelector('div.overflow-auto') as HTMLElement
 }
 
+// jsdom's window is 1024x768 by default; resize tests mutate it, so restore
+// the default after each test to keep the suite order-independent.
+const DEFAULT_VIEWPORT = { w: 1024, h: 768 }
+
+function setViewport(w: number, h: number) {
+  Object.defineProperty(window, 'innerWidth', { value: w, configurable: true })
+  Object.defineProperty(window, 'innerHeight', { value: h, configurable: true })
+  // act() flushes the resize listener's setState synchronously; a bare
+  // dispatchEvent leaves the update pending and the assertions read stale
+  // styles.
+  act(() => {
+    window.dispatchEvent(new Event('resize'))
+  })
+}
+
 describe('ImageViewerModal', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    setViewport(DEFAULT_VIEWPORT.w, DEFAULT_VIEWPORT.h)
   })
 
   it('renders a fullscreen dialog with the resolved image', () => {
@@ -101,6 +117,56 @@ describe('ImageViewerModal', () => {
     fireEvent.load(img)
     fireEvent.click(screen.getByLabelText('Zoom in')) // 125%
     expect(img).toHaveStyle({ width: '1280px', height: '640px' })
+  })
+
+  it('constrains the image to the viewport before it has loaded', () => {
+    const { container } = render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+    const img = container.querySelector('img') as HTMLImageElement
+    expect(img).toHaveStyle({ maxWidth: '100%', maxHeight: '100%' })
+  })
+
+  it('lifts the max-width clamp once fitted so zoomed images spill instead of stretch', () => {
+    const { container } = render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+    const img = container.querySelector('img') as HTMLImageElement
+    setNaturalSize(img, 2048, 1024)
+    fireEvent.load(img)
+    // Tailwind Preflight sets img { max-width: 100% }; without the inline
+    // override the 1280px zoomed width would clamp at the 1024px viewport
+    // while the height keeps growing — the issue #519 stretch.
+    fireEvent.click(screen.getByLabelText('Zoom in')) // 125%
+    expect(img).toHaveStyle({ width: '1280px', height: '640px', maxWidth: 'none' })
+  })
+
+  it('re-fits when the viewport shrinks', () => {
+    const { container } = render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+    const img = container.querySelector('img') as HTMLImageElement
+    setNaturalSize(img, 2048, 1024)
+    fireEvent.load(img)
+    expect(img).toHaveStyle({ width: '1024px', height: '512px' })
+    setViewport(512, 768)
+    expect(img).toHaveStyle({ width: '512px', height: '256px' })
+  })
+
+  it('re-fits a height-bound image when the viewport shortens', () => {
+    const { container } = render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+    const img = container.querySelector('img') as HTMLImageElement
+    setNaturalSize(img, 1024, 2048)
+    fireEvent.load(img)
+    expect(img).toHaveStyle({ width: '384px', height: '768px' })
+    setViewport(1024, 512)
+    expect(img).toHaveStyle({ width: '256px', height: '512px' })
+  })
+
+  it('keeps the zoom multiplier when the viewport changes', () => {
+    const { container } = render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+    const img = container.querySelector('img') as HTMLImageElement
+    setNaturalSize(img, 2048, 1024)
+    fireEvent.load(img)
+    fireEvent.click(screen.getByLabelText('Zoom in')) // 125%
+    setViewport(512, 768)
+    // New fit is 512x256; the 125% zoom re-applies: 640x320.
+    expect(img).toHaveStyle({ width: '640px', height: '320px' })
+    expect(screen.getByText('125%')).toBeInTheDocument()
   })
 
   it('resets zoom on double-click', () => {
