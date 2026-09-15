@@ -87,7 +87,7 @@ describe('notifyChannelRead', () => {
   it('drops a slow refresh superseded by a newer one', async () => {
     let resolveFirst!: (value: unknown) => void
     vi.mocked(supabase.rpc)
-      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }) as any)
       .mockResolvedValue({ data: 0, error: null } as any)
 
     const first = refreshAppBadge('u1', true)
@@ -101,7 +101,7 @@ describe('notifyChannelRead', () => {
 
   it('drops a slow refresh after explicit invalidation (sign-out ordering)', async () => {
     let resolveRpc!: (value: unknown) => void
-    vi.mocked(supabase.rpc).mockReturnValue(new Promise((resolve) => { resolveRpc = resolve }))
+    vi.mocked(supabase.rpc).mockReturnValue(new Promise((resolve) => { resolveRpc = resolve }) as any)
 
     const pending = refreshAppBadge('u1', true)
     invalidateBadgeRefresh()
