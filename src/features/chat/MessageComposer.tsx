@@ -136,8 +136,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
   }, [content])
 
+  // Sorted A-Z case-insensitively (#521); @all stays first via showAllMention below.
   const matchedMembers = mentionState
-    ? members.filter(m => m.character_name && m.character_name.toLowerCase().startsWith(mentionState.query.toLowerCase()))
+    ? members
+        .filter(m => m.character_name && m.character_name.toLowerCase().startsWith(mentionState.query.toLowerCase()))
+        .sort((a, b) => a.character_name.localeCompare(b.character_name, undefined, { sensitivity: 'base' }))
     : []
   const showAllMention = isGM && mentionState && 'all'.startsWith(mentionState.query.toLowerCase())
   // Flattened option list: @all first (GM only), then matching members.
