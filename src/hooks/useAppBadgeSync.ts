@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '../features/auth/useAuth'
 import { usePushNotifications } from '../features/notifications/usePushNotifications'
-import { refreshAppBadge } from '../lib/channelRead'
+import { refreshAppBadge, invalidateBadgeRefresh } from '../lib/channelRead'
 import { updateAppBadge } from '../lib/appBadge'
 
 // Owns the launcher badge for every route (#517). The Lobby and the channel
@@ -52,6 +52,10 @@ export function useAppBadgeSync() {
     navigator.serviceWorker?.addEventListener('message', onPush)
     return () => {
       if (timer) clearTimeout(timer)
+      // Drop any in-flight refresh before the next run (or unmount) acts:
+      // on sign-out the run below clears the badge, and a slow RPC from the
+      // previous run must not restore it afterwards (#517 review).
+      invalidateBadgeRefresh()
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', sync)
       navigator.serviceWorker?.removeEventListener('message', onPush)

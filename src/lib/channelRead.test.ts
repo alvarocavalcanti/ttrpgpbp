@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { notifyChannelRead, refreshAppBadge } from './channelRead'
+import { notifyChannelRead, refreshAppBadge, invalidateBadgeRefresh } from './channelRead'
 import { supabase } from './supabase'
 import { updateAppBadge } from './appBadge'
 
@@ -80,6 +80,33 @@ describe('notifyChannelRead', () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('down') } as any)
 
     await refreshAppBadge('u1', true)
+
+    expect(updateAppBadge).not.toHaveBeenCalled()
+  })
+
+  it('drops a slow refresh superseded by a newer one', async () => {
+    let resolveFirst!: (value: unknown) => void
+    vi.mocked(supabase.rpc)
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+      .mockResolvedValue({ data: 0, error: null } as any)
+
+    const first = refreshAppBadge('u1', true)
+    await refreshAppBadge('u1', false)
+    resolveFirst({ data: 5, error: null })
+    await first
+
+    expect(updateAppBadge).toHaveBeenCalledTimes(1)
+    expect(updateAppBadge).toHaveBeenCalledWith(0, false)
+  })
+
+  it('drops a slow refresh after explicit invalidation (sign-out ordering)', async () => {
+    let resolveRpc!: (value: unknown) => void
+    vi.mocked(supabase.rpc).mockReturnValue(new Promise((resolve) => { resolveRpc = resolve }))
+
+    const pending = refreshAppBadge('u1', true)
+    invalidateBadgeRefresh()
+    resolveRpc({ data: 5, error: null })
+    await pending
 
     expect(updateAppBadge).not.toHaveBeenCalled()
   })

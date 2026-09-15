@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useAppBadgeSync } from './useAppBadgeSync'
 import { useAuth } from '../features/auth/useAuth'
 import { usePushNotifications } from '../features/notifications/usePushNotifications'
-import { refreshAppBadge } from '../lib/channelRead'
+import { refreshAppBadge, invalidateBadgeRefresh } from '../lib/channelRead'
 import { updateAppBadge } from '../lib/appBadge'
 
 vi.mock('../features/auth/useAuth', () => ({
@@ -16,6 +16,7 @@ vi.mock('../features/notifications/usePushNotifications', () => ({
 
 vi.mock('../lib/channelRead', () => ({
   refreshAppBadge: vi.fn(),
+  invalidateBadgeRefresh: vi.fn(),
 }))
 
 vi.mock('../lib/appBadge', () => ({
@@ -142,5 +143,12 @@ describe('useAppBadgeSync', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null } as any)
     rerender()
     expect(updateAppBadge).toHaveBeenCalledWith(0, true)
+  })
+
+  it('invalidates in-flight refreshes on cleanup so they cannot restore a cleared badge', () => {
+    const { unmount } = renderHook(() => useAppBadgeSync())
+    expect(invalidateBadgeRefresh).not.toHaveBeenCalled()
+    unmount()
+    expect(invalidateBadgeRefresh).toHaveBeenCalledTimes(1)
   })
 })
