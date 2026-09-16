@@ -734,7 +734,9 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           // Mobile overlay (#528): out of flow so the dice body spans the
           // full card width. right-4/top-3 mirror the card's px-4/py-3; pr-8
           // on the label row reserves the 32px button. sm:static keeps the
-          // desktop icon row in flow.
+          // desktop icon row in flow. Headroom is thin — measured @360px the
+          // dots clear the first body line by ~5px and a reply snippet by
+          // ~2px — so don't shrink these offsets without re-measuring.
           <div className="absolute right-4 top-3 flex-shrink-0 sm:static">
             <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
               {actionIcons}
