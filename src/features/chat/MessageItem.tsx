@@ -704,7 +704,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           {replyBlock}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pr-8 sm:pr-0">
             <span className={`text-xs font-semibold ${tone.label} tracking-wide uppercase`}>
               {senderName} rolled dice
             </span>
@@ -731,7 +731,11 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           )}
         </div>
         {!message.pending && actions.length > 0 && (
-          <div className="flex-shrink-0">
+          // Mobile overlay (#528): out of flow so the dice body spans the
+          // full card width. right-4/top-3 mirror the card's px-4/py-3; pr-8
+          // on the label row reserves the 32px button. sm:static keeps the
+          // desktop icon row in flow.
+          <div className="absolute right-4 top-3 flex-shrink-0 sm:static">
             <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
               {actionIcons}
             </div>
@@ -842,6 +846,10 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       </div>
 
       {!message.pending && !isEditing && actions.length > 0 && (
+        // Mobile overlay (#528): out of flow so the text column spans the
+        // full row width. top-2/right-2 mirror the row's py-2/px-2; pr-8 on
+        // the meta line reserves the 32px button. sm:static keeps the
+        // desktop icon row in flow.
         <div className="absolute right-2 top-2 flex-shrink-0 sm:static">
           <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
             {actionIcons}

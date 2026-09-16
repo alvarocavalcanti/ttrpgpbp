@@ -213,6 +213,28 @@ describe('MessageItem', () => {
     expect(meta?.className).toContain('sm:pr-0')
   })
 
+  it('floats the dice-card actions over the row on mobile too (#528)', () => {
+    const msg: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20: **15**',
+      sender: { display_name: 'Hero' }
+    }
+    // Dice rolls offer reactions only (#524): onToggleReaction is what
+    // produces the actions wrapper here.
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} />)
+    // Same contract as regular messages, mirrored to the dice card's own
+    // padding (px-4/py-3, hence right-4/top-3): the two branches must not
+    // drift, so the literals are pinned here as well.
+    const wrapper = screen.getByLabelText('Message actions').parentElement
+    expect(wrapper?.className).toContain('absolute')
+    expect(wrapper?.className).toContain('right-4')
+    expect(wrapper?.className).toContain('top-3')
+    expect(wrapper?.className).toContain('sm:static')
+    const label = screen.getByText('Hero rolled dice').closest('div')
+    expect(label?.className).toContain('pr-8')
+    expect(label?.className).toContain('sm:pr-0')
+  })
+
   it('shows the reply context on a dice_roll message and jumps to the source', () => {
     const mockOnJump = vi.fn()
     const msg: any = {

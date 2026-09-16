@@ -10,13 +10,12 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app.
+- **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app; channel messages grew a little more so conversations are easier to follow.
 - **More of the screen is used for messages** — the chat and channel list waste less space at the edges, so lines of text fit better on narrow phone screens.
 
 ### Fixed
 
 - **Messages use the full width of the screen** — the ⋯ menu button no longer squeezes message text into a narrow column, so more words fit on each line on a phone.
-- **Chat text is a touch larger** — messages now read slightly larger than the rest of the interface, so conversations are easier to follow.
 
 ### Removed
 
