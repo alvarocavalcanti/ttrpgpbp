@@ -183,7 +183,7 @@ export function Lobby() {
               {filteredMy.map((channel) => (
                 <li key={channel.id}>
                   <Link to={`/channel/${channel.id}`} className="block hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors">
-                    <div className="flex items-center px-4 py-3 sm:px-6">
+                    <div className="flex items-center px-3 py-3 sm:px-6">
                       {channel.avatar_url ? (
                         <SignedImg
                           src={channel.avatar_url}
@@ -200,11 +200,11 @@ export function Lobby() {
                       <div className="flex-1 min-w-0 ml-3 flex flex-col justify-center">
                         <div className="flex items-center justify-between gap-2">
                           <span className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium text-primary-600 dark:text-primary-400 truncate">
+                            <span className="text-base font-medium text-primary-600 dark:text-primary-400 truncate">
                               {channel.name}
                             </span>
                             {channel.gm_id === user?.id && (
-                              <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded text-[10px] leading-4 font-semibold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
+                              <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded text-[0.625rem] leading-4 font-semibold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
                                 GM
                               </span>
                             )}
@@ -214,7 +214,7 @@ export function Lobby() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[15px] text-surface-500 dark:text-surface-400 truncate">
+                          <span className="text-sm text-surface-500 dark:text-surface-400 truncate">
                             {channelPreview(channel.last_message_preview)}
                           </span>
                           {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (

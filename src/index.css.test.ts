@@ -22,4 +22,12 @@ describe('index.css dark-mode base rules', () => {
     expect(css).toMatch(/:is\(\.dark \*\) \*:focus-visible/)
     expect(css).toMatch(/--tw-ring-offset-color: #1f2937/)
   })
+
+  it('sets a larger-than-default root font size for legibility (#523)', () => {
+    expect(css).toMatch(/html\s*\{\s*font-size:\s*106\.25%/)
+  })
+
+  it('has no leftover text-size setting rules (#523)', () => {
+    expect(css).not.toMatch(/data-text-size/)
+  })
 })

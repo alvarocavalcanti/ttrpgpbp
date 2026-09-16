@@ -431,7 +431,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       role="log"
       aria-live="polite"
       tabIndex={0}
-      className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 space-y-2"
+      className="flex-1 overflow-y-auto overflow-x-hidden px-0 py-1 space-y-2"
     >
       <div ref={contentRef}>
       {hasMore && (
@@ -460,7 +460,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
         return (
           <Fragment key={message.id}>
             {showDivider && (
-              <div data-testid="date-divider" className="flex items-center my-3 -mx-2">
+              <div data-testid="date-divider" className="flex items-center my-3">
                 <div className="flex-grow border-t border-surface-300 dark:border-surface-600"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                   {currentDate}
@@ -469,7 +469,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               </div>
             )}
             {showNewDivider && (
-              <div ref={newMessagesDividerRef} data-testid="new-messages-divider" className="flex items-center my-3 -mx-2">
+              <div ref={newMessagesDividerRef} data-testid="new-messages-divider" className="flex items-center my-3">
                 <div className="flex-grow border-t-2 border-red-400 dark:border-red-500"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider">
                   New messages

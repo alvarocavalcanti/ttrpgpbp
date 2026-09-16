@@ -81,7 +81,7 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
                           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Result</div>
                           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{roll.result}</div>
                           {crit && (
-                            <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${crit === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
+                            <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase ${crit === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
                               {crit === 'success' ? 'Critical Success' : 'Critical Failure'}
                             </div>
                           )}

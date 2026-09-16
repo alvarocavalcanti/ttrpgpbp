@@ -3,10 +3,11 @@
 @tailwind utilities;
 
 @layer base {
-  /* Text-size setting (see useTextSize). Scales the whole app's base font,
-     like a browser zoom, so every rem-based Tailwind size follows. */
-  html[data-text-size='large'] { font-size: 1.125rem; }
-  html[data-text-size='xlarge'] { font-size: 1.25rem; }
+  /* Base type scale: 17px (106.25% of the 16px browser default). Every
+     rem-based Tailwind size and spacing follows it, so the app reads closer
+     to a native messaging app. Users who need more rely on OS/browser text
+     scaling, which this relative base respects. */
+  html { font-size: 106.25%; }
 
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;

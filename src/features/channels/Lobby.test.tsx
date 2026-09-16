@@ -261,7 +261,7 @@ describe('Lobby', () => {
     expect(pill).toHaveClass('bg-red-600')
   })
 
-  it('renders the sender-prefixed preview as plain text at the larger size', () => {
+  it('renders the channel name larger than the message preview (#523)', () => {
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [
         { id: '1', name: 'Talk', last_message_preview: 'Hero: *waves*', unread_count: 0 } as any,
@@ -273,7 +273,8 @@ describe('Lobby', () => {
 
     render(<Lobby />, { wrapper: MemoryRouter })
     const preview = screen.getByText('Hero: waves')
-    expect(preview).toHaveClass('text-[15px]')
+    expect(preview).toHaveClass('text-sm')
+    expect(screen.getByText('Talk')).toHaveClass('text-base')
   })
 
   it('shows a short timestamp and a stripped message preview per channel', () => {

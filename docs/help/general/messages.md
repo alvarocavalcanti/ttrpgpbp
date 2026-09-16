@@ -9,6 +9,8 @@ screenshot: /help/message-actions.png
 - **Scene** — a GM-only styled message that acts as a visual scene break.
 - **NPC** — the GM speaks as an NPC, with a name and portrait.
 
+Scene and NPC text is set in an easy-reading serif typeface, sized to read comfortably.
+
 ## Markdown and emoji
 
 Messages support **Markdown** and emoji. Bold, italics, lists, headings and code all work. URLs you post become clickable links.

@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-16
+
+### Changed
+
+- **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app.
+- **More of the screen is used for messages** — the chat and channel list waste less space at the edges, so lines of text fit better on narrow phone screens.
+
+### Removed
+
+- **The Text size option in Settings is gone** — text is now legible by default and follows your device's own text-size setting instead.
+
 ## 2026-09-15
 
 ### Fixed
