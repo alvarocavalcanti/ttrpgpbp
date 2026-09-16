@@ -20,6 +20,8 @@ import { MAX_MESSAGE_LENGTH } from '../../constants'
 
 type Message = ChatMessage
 
+type MessageAction = { id: string; label: string; danger?: boolean; onClick: () => void; icon: React.ReactNode }
+
 // Touch-target sizing for message actions (UX audit: minimum ~32-36px targets).
 // The touch-target test below asserts these utility strings literally — if the
 // sizing changes, update that test on purpose instead of silently following.
@@ -393,7 +395,19 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   // desktop and collapsed behind a single "…" button opening a sheet on mobile,
   // so touch users get one large target instead of several tiny ones.
   const actions = useMemo(() => {
-    const list: { id: string; label: string; danger?: boolean; onClick: () => void; icon: React.ReactNode }[] = []
+    const list: MessageAction[] = []
+    const reactionsAction: MessageAction | null = onToggleReaction && !message.pending && !message.is_deleted ? {
+      id: 'reactions', label: 'Reactions', onClick: () => setReactionsOpen(true),
+      icon: (
+        <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    } : null
+    // Dice rolls support reactions only (#524) — no reply/edit/delete/report.
+    if (message.type === 'dice_roll') {
+      return reactionsAction ? [reactionsAction] : []
+    }
     // Reply targets the live message; a deleted one offers nothing to quote.
     if (onReply && !message.is_deleted) {
       list.push({
@@ -413,15 +427,8 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
       })
     }
-    if (onToggleReaction && !message.pending && !isScene && !isSystem && message.type !== 'dice_roll' && !message.is_deleted) {
-      list.push({
-        id: 'reactions', label: 'Reactions', onClick: () => setReactionsOpen(true),
-        icon: (
-          <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        ),
-      })
+    if (reactionsAction && !isScene && !isSystem) {
+      list.push(reactionsAction)
     }
     // Report another player (#467): only real, non-pending messages from
     // someone else. NPC messages have no sender_id, so they're auto-hidden.
@@ -676,7 +683,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       label: 'text-primary-800 dark:text-primary-200',
     }
     return (
-      <div ref={itemRef} className={`relative flex items-center space-x-3 my-1 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      <div ref={itemRef} className={`relative group flex items-center space-x-3 my-1 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
         <div className={`flex-shrink-0 ${tone.icon} p-2 rounded-full`}>
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -709,7 +716,22 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
+          {!message.is_deleted && !message.pending && (
+            <div className="mt-3 flex items-center gap-0.5">
+              {reactionsRow}
+              {reactionPicker}
+            </div>
+          )}
         </div>
+        {!message.pending && actions.length > 0 && (
+          <div className="flex-shrink-0">
+            <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
+              {actionIcons}
+            </div>
+            {mobileMenuButton}
+          </div>
+        )}
+        {actionsSheet}
       </div>
     )
   }

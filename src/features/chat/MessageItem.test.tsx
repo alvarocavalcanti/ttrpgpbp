@@ -1289,3 +1289,78 @@ describe('MessageItem report action (#467)', () => {
     )
   })
 })
+
+describe('MessageItem dice-roll reactions (#524)', () => {
+  const roll = (overrides: any = {}) => ({
+    id: 'r1',
+    type: 'dice_roll',
+    content: 'Rolled 1d20: **15**',
+    created_at: new Date().toISOString(),
+    sender_id: 'u2',
+    sender: { display_name: 'Hero' },
+    ...overrides,
+  })
+  const renderRoll = (msg: any, props: any = {}) =>
+    render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        {...props}
+      />,
+    )
+
+  it('shows existing reaction chips beneath a roll', () => {
+    renderRoll(roll(), {
+      onToggleReaction: vi.fn(),
+      reactions: [{ emoji: '👍', count: 2, hasReacted: true, userIds: ['u1', 'u2'] }],
+    })
+    expect(screen.getByRole('button', { name: /Reaction 👍, 2/ })).toBeInTheDocument()
+  })
+
+  it('opens the emoji picker from a roll and toggles the chosen emoji', () => {
+    const mockOnToggle = vi.fn()
+    renderRoll(roll(), { onToggleReaction: mockOnToggle })
+    fireEvent.click(screen.getByLabelText('Reactions'))
+    fireEvent.click(screen.getByText('👍'))
+    expect(mockOnToggle).toHaveBeenCalledWith('r1', '👍')
+  })
+
+  it('offers only Reactions in a roll mobile action sheet', () => {
+    renderRoll(roll(), { onReply: vi.fn(), onReport: vi.fn().mockResolvedValue(undefined), onToggleReaction: vi.fn() })
+    fireEvent.click(screen.getByLabelText('Message actions'))
+    const dialog = screen.getByRole('dialog', { name: 'Message actions' })
+    const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
+    expect(items).toEqual(['Reactions'])
+  })
+
+  it('withholds reply, edit, delete, and report from rolls even for a GM', () => {
+    renderRoll(roll(), {
+      isGM: true,
+      onReply: vi.fn(),
+      onReport: vi.fn().mockResolvedValue(undefined),
+      onToggleReaction: vi.fn(),
+    })
+    expect(screen.getByLabelText('Reactions')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Reply')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
+  })
+
+  it('hides roll reactions when no handler, pending, or deleted', () => {
+    const { unmount } = renderRoll(roll())
+    expect(screen.queryByLabelText('Reactions')).not.toBeInTheDocument()
+    unmount()
+
+    const pending = renderRoll(roll({ pending: true }), { onToggleReaction: vi.fn() })
+    expect(screen.queryByLabelText('Reactions')).not.toBeInTheDocument()
+    pending.unmount()
+
+    renderRoll(roll({ is_deleted: true }), { onToggleReaction: vi.fn() })
+    expect(screen.queryByLabelText('Reactions')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Reaction / })).not.toBeInTheDocument()
+  })
+})
