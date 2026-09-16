@@ -183,3 +183,15 @@
 - **What's New modal** — on app load, if `CHANGELOG.md` has changed since the user last dismissed it, a **What's New** modal shows the 5 most recent changes
 - **Dismissal** — "Dismiss" suppresses it until the next changelog update; "Don't show again" suppresses it forever (both stored per-device in localStorage). The modal can always be reopened via the **Change Log** menu item.
 - **Full changelog** — the modal links to a `/changelog` page rendering the complete `docs/CHANGELOG.md`
+
+## Marketing Page
+
+- Public `/features` page (outside `ProtectedRoute`, like `/privacy` and `/terms`) pitching the app to signed-out visitors
+- Hero with a **Start now!** CTA (`/` — the login page when signed out, the lobby when signed in), repeated at the bottom
+- Switchable **Game Masters / Players** track toggle (GM by default, client-side state, one shareable URL) with four screenshot cards per track
+- Screenshots reuse the committed captures in `public/help/`; no new capture tooling
+- Text-only **And a lot more** grid for the remaining features
+- Slim page header (logo, theme toggle, Sign in) renders for anonymous visitors only; signed-in users get the normal app header
+- The PWA install banner is suppressed on this route
+- `marketing_cta_click` (with `location`) and `marketing_track_toggle` (with `track`) analytics events
+- Linked from the login page (**See all features**) and the app menu drawer (**Features**)

@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **React to dice rolls** — dice roll messages now have a **Reactions** action, just like other messages. Pick an emoji, see the count, and tap a reaction to see who reacted.
+- **See what the app can do before you sign in** — a new public Features page shows what Game Masters and players get, with pictures of the main features and a Start now button at the end. Find it from the sign-in page or the main menu.
 
 ### Changed
 
