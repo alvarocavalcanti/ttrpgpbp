@@ -36,6 +36,13 @@ const MESSAGE_ACTION_SIZING = {
   desktopRowVisibility: 'hidden sm:flex',
 } as const
 
+// Message-body type scale (#528): 17px root × 1.0625 ≈ 18.06px — one step
+// above the app baseline so chat reads comfortably. `leading-relaxed` is not
+// optional: dropping `text-base` also drops its `line-height: 1.5rem`, which
+// would let the prose plugin's unitless line-height (1.714) take over and
+// jump line spacing from 25.5px to ~31px.
+const MESSAGE_BODY_TEXT = 'text-[1.0625rem] leading-relaxed'
+
 interface MessageItemProps {
   message: Message
   currentUserId: string | undefined
@@ -697,7 +704,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           {replyBlock}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pr-8 sm:pr-0">
             <span className={`text-xs font-semibold ${tone.label} tracking-wide uppercase`}>
               {senderName} rolled dice
             </span>
@@ -712,7 +719,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </span>
             )}
           </div>
-          <div className="text-surface-900 dark:text-surface-100 text-base">
+          <div className={`text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT}`}>
             <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
@@ -724,7 +731,13 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
           )}
         </div>
         {!message.pending && actions.length > 0 && (
-          <div className="flex-shrink-0">
+          // Mobile overlay (#528): out of flow so the dice body spans the
+          // full card width. right-4/top-3 mirror the card's px-4/py-3; pr-8
+          // on the label row reserves the 32px button. sm:static keeps the
+          // desktop icon row in flow. Headroom is thin — measured @360px the
+          // dots clear the first body line by ~5px and a reply snippet by
+          // ~2px — so don't shrink these offsets without re-measuring.
+          <div className="absolute right-4 top-3 flex-shrink-0 sm:static">
             <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
               {actionIcons}
             </div>
@@ -758,7 +771,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       </div>
       
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline space-x-2">
+        <div className="flex items-baseline space-x-2 pr-8 sm:pr-0">
           <span className={`text-sm font-medium ${isNpc ? 'font-serif text-parchment-ink-strong dark:text-parchment-ink-strong-dark' : 'text-surface-900 dark:text-surface-100'}`}>
             {senderName}
           </span>
@@ -777,7 +790,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         {replyBlock}
 
-        <div className={`mt-1 text-base text-surface-800 dark:text-surface-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
+        <div className={`mt-1 ${MESSAGE_BODY_TEXT} text-surface-800 dark:text-surface-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
             <span className="text-surface-400 dark:text-surface-400 italic">This message was deleted.</span>
           ) : isEditing ? (
@@ -835,7 +848,11 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       </div>
 
       {!message.pending && !isEditing && actions.length > 0 && (
-        <div className="flex-shrink-0">
+        // Mobile overlay (#528): out of flow so the text column spans the
+        // full row width. top-2/right-2 mirror the row's py-2/px-2; pr-8 on
+        // the meta line reserves the 32px button. sm:static keeps the
+        // desktop icon row in flow.
+        <div className="absolute right-2 top-2 flex-shrink-0 sm:static">
           <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
             {actionIcons}
           </div>
