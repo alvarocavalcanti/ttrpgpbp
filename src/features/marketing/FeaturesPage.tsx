@@ -14,7 +14,11 @@ interface FeatureCard {
 }
 
 // Screenshots are the committed help captures in public/help/ (360x780 CSS,
-// captured at 3x). Reused here so the marketing page needs no new tooling.
+// captured at 3x). The cards render at 80-96px CSS, so they serve 320px WebP
+// thumbnails from public/help/thumbs/ (the full PNGs stay for the help docs).
+// Derivation (not a hand-typed thumb field) keeps a card from ever pointing
+// at the wrong file; the test pins the resulting paths.
+const thumbSrc = (shot: string) => shot.replace('/help/', '/help/thumbs/').replace(/\.png$/, '.webp')
 const GM_CARDS: FeatureCard[] = [
   {
     title: 'Run the table your way',
@@ -200,7 +204,7 @@ export function FeaturesPage() {
                 className="flex gap-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-4 shadow-sm"
               >
                 <img
-                  src={card.shot}
+                  src={thumbSrc(card.shot)}
                   alt={card.alt}
                   width={360}
                   height={780}
