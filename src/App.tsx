@@ -25,6 +25,7 @@ const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').the
 const PrivacyPage = lazy(() => import('./features/auth/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./features/auth/TermsPage').then(m => ({ default: m.TermsPage })))
 const AboutPage = lazy(() => import('./features/auth/AboutPage').then(m => ({ default: m.AboutPage })))
+const FeaturesPage = lazy(() => import('./features/marketing/FeaturesPage').then(m => ({ default: m.FeaturesPage })))
 const Lobby = lazy(() => import('./features/channels/Lobby').then(m => ({ default: m.Lobby })))
 const JoinChannel = lazy(() => import('./features/channels/JoinChannel').then(m => ({ default: m.JoinChannel })))
 const ChannelView = lazy(() => import('./features/channels/ChannelView').then(m => ({ default: m.ChannelView })))
@@ -258,6 +259,13 @@ function AppNav() {
             >
               About
             </Link>
+            <Link
+              to="/features"
+              className={NAV_MENU_ITEM}
+              onClick={() => closeMenu('action')}
+            >
+              Features
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -310,6 +318,15 @@ function AppNav() {
   )
 }
 
+// The public marketing page is often the first thing a signed-out visitor
+// sees; the install prompt pitching one-tap access before they have an
+// account reads as noise, so it stays hidden there (#526).
+function InstallBannerGate() {
+  const { pathname } = useLocation()
+  if (pathname === '/features') return null
+  return <PwaInstallBanner />
+}
+
 export default function App() {
   return (
     <ToastProvider>
@@ -322,7 +339,7 @@ export default function App() {
               <AppNav />
               <RealtimeBanner />
               <PwaUpdateBanner />
-              <PwaInstallBanner />
+              <InstallBannerGate />
               <main className="flex-1 flex flex-col">
                 <Suspense fallback={
                   <div className="flex-1 flex items-center justify-center">
@@ -348,6 +365,7 @@ export default function App() {
                     </Route>
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/terms" element={<TermsPage />} />
+                    <Route path="/features" element={<FeaturesPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </RouteErrorBoundary>

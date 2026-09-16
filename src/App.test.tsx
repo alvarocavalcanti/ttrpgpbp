@@ -55,6 +55,24 @@ describe('App', () => {
     expect(await screen.findByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
   })
 
+  it('serves the public marketing page to anonymous visitors', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    window.history.pushState({}, '', '/features')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })).toBeInTheDocument()
+    expect(screen.queryByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).not.toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
+  })
+
   it('renders lobby and lists Profile in the menu drawer when authenticated', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },

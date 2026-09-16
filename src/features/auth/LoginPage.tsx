@@ -173,6 +173,11 @@ export function LoginPage() {
               </div>
             ))}
           </div>
+          <div className="mt-8 text-center">
+            <Link to="/features" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+              See all features →
+            </Link>
+          </div>
         </div>
       </div>
       <div className="mt-14 text-center text-sm text-gray-600 dark:text-gray-400 space-y-2 flex flex-col items-center">
