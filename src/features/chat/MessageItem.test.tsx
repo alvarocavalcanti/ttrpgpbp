@@ -164,10 +164,53 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     // The dice card wrapper must use the normal message text scale, not a
-    // larger one (regression #500). Base message scale is text-base (#523).
+    // larger one (regression #500). Base message scale is the #528 chat scale.
     const content = screen.getByText('15').closest('div')
-    expect(content?.className).toContain('text-base')
+    expect(content?.className).toContain('text-[1.0625rem]')
+    expect(content?.className).toContain('leading-relaxed')
     expect(content?.className).not.toContain('text-lg')
+  })
+
+  it('renders the regular message body at the chat scale (#528)', () => {
+    const msg: any = {
+      type: 'regular',
+      content: '**Bold** text',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
+    // Literal chat scale (DAMP): an accidental retune of the shared constant
+    // must fail here. leading-relaxed is required — dropping text-base's
+    // 1.5rem line-height would let prose's unitless 1.714 take over.
+    const prose = container.querySelector('.prose')
+    expect(prose?.className).toContain('text-[1.0625rem]')
+    expect(prose?.className).toContain('leading-relaxed')
+    expect(prose?.className).not.toContain('text-base')
+  })
+
+  it('floats the mobile actions over the row instead of narrowing the text column (#528)', () => {
+    const msg: any = {
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
+    // The ⋯ button no longer reserves a flex column on mobile: it is
+    // absolutely positioned over the row's top-right, so the message column
+    // flows to the row's padded edge. Desktop keeps the icon row in flow.
+    const wrapper = screen.getByLabelText('Message actions').parentElement
+    expect(wrapper?.className).toContain('absolute')
+    expect(wrapper?.className).toContain('right-2')
+    expect(wrapper?.className).toContain('top-2')
+    expect(wrapper?.className).toContain('sm:static')
+    // Only the sender/timestamp line yields to the overlay: it reserves the
+    // 32px button width on mobile (pr-8) and nothing on desktop.
+    const meta = screen.getByText('Hero').closest('div')
+    expect(meta?.className).toContain('pr-8')
+    expect(meta?.className).toContain('sm:pr-0')
   })
 
   it('shows the reply context on a dice_roll message and jumps to the source', () => {
