@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Link } from 'react-router-dom'
 import { ChangelogProvider, useChangelog } from './useChangelog'
 import { useAuth } from '../auth/useAuth'
 import { getChangelogHash } from './changelog'
@@ -16,11 +16,12 @@ function Trigger() {
   return <button type="button" onClick={openChangelog}>open changelog</button>
 }
 
-function renderProvider() {
+function renderProvider(initialEntries: string[] = ['/']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <ChangelogProvider>
         <Trigger />
+        <Link to="/">home</Link>
       </ChangelogProvider>
     </MemoryRouter>
   )
@@ -64,6 +65,23 @@ describe('ChangelogProvider', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null } as any)
     renderProvider()
     expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
+  })
+
+  it('does not auto-show on the marketing page even when signed in (#536)', () => {
+    renderProvider(['/features'])
+    expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
+  })
+
+  it('does not auto-show on the marketing page with a trailing slash (#536)', () => {
+    renderProvider(['/features/'])
+    expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
+  })
+
+  it('auto-shows after navigating from the marketing page into the app (#536)', async () => {
+    renderProvider(['/features'])
+    expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: 'home' }))
+    expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
   })
 
   it('dismiss writes the seen marker and closes the modal', async () => {

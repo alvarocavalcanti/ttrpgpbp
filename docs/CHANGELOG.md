@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file.
 - **The "New version available" notice no longer shoves the screen down** — it now floats above the app, so the message box stays fully visible when an update arrives.
 - **Tapping Reload finishes the update on Safari and macOS too** — it used to sit on "Updating…" without ever applying the new version unless you reloaded the page by hand.
 - **Notifications read like the message again** — when a message mentioned someone, the alert showed the mention as raw code with a long id inside it. Alerts now show the person's name, and other styling like bold or dice formatting is cleaned up in alerts too.
+- **The What's New pop-up stays off the Features page** — signed-in players browsing the public Features page now see the page itself without the pop-up covering it. The pop-up still appears the next time they open the app.
 
 ### Removed
 

@@ -180,7 +180,7 @@
 
 ## Changelog
 
-- **What's New modal** — on app load, if `CHANGELOG.md` has changed since the user last dismissed it, a **What's New** modal shows the 5 most recent changes
+- **What's New modal** — on app load, if `CHANGELOG.md` has changed since the user last dismissed it, a **What's New** modal shows the 5 most recent changes. It never auto-opens on the public `/features` marketing page (it still opens once the user navigates into the app).
 - **Dismissal** — "Dismiss" suppresses it until the next changelog update; "Don't show again" suppresses it forever (both stored per-device in localStorage). The modal can always be reopened via the **Change Log** menu item.
 - **Full changelog** — the modal links to a `/changelog` page rendering the complete `docs/CHANGELOG.md`
 

@@ -4,7 +4,7 @@ title: Changelog
 
 ## What's New
 
-When new features ship, a **What's New** modal appears when you open the app. It lists the 5 most recent changes so you can catch up at a glance.
+When new features ship, a **What's New** modal appears when you open the app. It lists the 5 most recent changes so you can catch up at a glance. It never pops up over the public **Features** page, even when you are signed in.
 
 ## Dismissing
 

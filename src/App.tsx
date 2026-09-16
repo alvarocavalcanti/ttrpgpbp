@@ -19,6 +19,7 @@ import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { trackEvent, trackPageView } from './lib/analytics'
+import { isMarketingPath } from './lib/marketing'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -323,7 +324,7 @@ function AppNav() {
 // account reads as noise, so it stays hidden there (#526).
 function InstallBannerGate() {
   const { pathname } = useLocation()
-  if (pathname === '/features' || pathname === '/features/') return null
+  if (isMarketingPath(pathname)) return null
   return <PwaInstallBanner />
 }
 
