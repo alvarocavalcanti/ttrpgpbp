@@ -1,5 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { existsSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { MemoryRouter } from 'react-router-dom'
 import { FeaturesPage } from './FeaturesPage'
 import { useAuth } from '../auth/useAuth'
@@ -32,6 +34,19 @@ function renderPage() {
       <FeaturesPage />
     </MemoryRouter>
   )
+}
+
+// Every card image must resolve to a committed thumbnail that is smaller
+// than its full-size source — fails loudly when thumbs are not committed
+// or a thumb is accidentally a copy of the full capture.
+function assertThumbsOnDisk(sources: Array<string | null>) {
+  for (const source of sources) {
+    expect(source).toMatch(/^\/help\/thumbs\/.+\.webp$/)
+    const thumbPath = resolve(process.cwd(), 'public', (source as string).slice(1))
+    const fullPath = thumbPath.replace('/thumbs/', '/').replace(/\.webp$/, '.png')
+    expect(existsSync(thumbPath)).toBe(true)
+    expect(statSync(thumbPath).size).toBeLessThan(statSync(fullPath).size)
+  }
 }
 
 describe('FeaturesPage', () => {
@@ -141,6 +156,36 @@ describe('FeaturesPage', () => {
     expect(trackEvent).toHaveBeenCalledWith('marketing_cta_click', { location: 'hero' })
     fireEvent.click(ctas[1])
     expect(trackEvent).toHaveBeenCalledWith('marketing_cta_click', { location: 'bottom' })
+  })
+
+  it('serves WebP thumbnails, not the full-size help captures, on the GM track', () => {
+    renderPage()
+
+    // The hero and logo images have empty alt text (role presentation), so
+    // only the four card images match the img role.
+    const sources = screen.getAllByRole('img').map((img) => img.getAttribute('src'))
+    expect(sources).toEqual([
+      '/help/thumbs/gm-settings.webp',
+      '/help/thumbs/npc-composer.webp',
+      '/help/thumbs/status-bar.webp',
+      '/help/thumbs/safety-tools.webp',
+    ])
+    assertThumbsOnDisk(sources)
+  })
+
+  it('serves WebP thumbnails on the player track', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+
+    const sources = screen.getAllByRole('img').map((img) => img.getAttribute('src'))
+    expect(sources).toEqual([
+      '/help/thumbs/lobby-with-channels.webp',
+      '/help/thumbs/message-actions.webp',
+      '/help/thumbs/ability-check.webp',
+      '/help/thumbs/sidebar.webp',
+    ])
+    assertThumbsOnDisk(sources)
   })
 
   it('lists more features and footer links', () => {

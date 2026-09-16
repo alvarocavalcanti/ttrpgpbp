@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **The Features page opens faster** — the pictures on the Features page now use smaller copies made for the page, so it loads quicker and uses less data on a phone.
 - **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app; channel messages grew a little more so conversations are easier to follow.
 - **More of the screen is used for messages** — the chat and channel list waste less space at the edges, so lines of text fit better on narrow phone screens.
 

@@ -12,9 +12,10 @@
 //   3. Dev server running (`npm run dev`) with a local `.env.local`.
 //
 // Run:  node scripts/help-screenshots/capture.mjs
-// Output: public/help/*.png (overwritten).
+// Output: public/help/*.png + public/help/thumbs/*.webp (overwritten).
 import { chromium } from '@playwright/test'
 import { readFileSync, rmSync } from 'node:fs'
+import { writeThumbs } from './thumbs.mjs'
 
 const BASE = process.env.SHOT_BASE_URL || 'http://localhost:5173'
 const OUT = process.env.SHOT_OUT || 'public/help'
@@ -169,6 +170,10 @@ await actions.click({ timeout: 20000 })
 await page.waitForTimeout(800)
 await page.screenshot({ path: `${OUT}/message-actions.png` })
 console.log('message-actions done')
+
+// Thumbs BEFORE ctx.close(): writeThumbs reuses this context when given one.
+// A re-capture always regenerates the thumbs, so they can never go stale.
+await writeThumbs({ out: OUT, context: ctx })
 
 await ctx.close()
 console.log('ALL DONE')

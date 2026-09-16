@@ -43,6 +43,24 @@ Users: `shot.gm@local.test`, `shot.p1@local.test`, `shot.p2@local.test`,
 `shot.p3@local.test` (in the channel) and `shot.new@local.test` (no channels).
 Password for all: `shots-pass-1`.
 
+## Thumbnails
+
+The `/features` page cards render at 80–96px CSS, far smaller than the 1080px
+captures, so `capture.mjs` also writes a 320px WebP copy of every capture into
+`public/help/thumbs/` (via `thumbs.mjs`). The cards use the thumbnails; the
+help docs keep the full-size PNGs. Thumbnails are committed alongside the
+captures and regenerate on every capture run.
+
+To regenerate thumbnails from the already-committed captures — no Supabase,
+no dev server needed:
+
+```bash
+node scripts/help-screenshots/thumbs.mjs
+```
+
+`SHOT_THUMB_WIDTH` overrides the 320px default (covers the largest card at 3x
+device pixels with headroom).
+
 ## Notes
 
 - `SHOT_OUT` / `SHOT_BASE_URL` env vars override the output dir and base URL.
