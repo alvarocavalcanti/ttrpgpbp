@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Dice roll menus line up with the rest of the chat** — the ⋯ button on a dice roll card now sits in the same spot as the ⋯ button on every other message instead of a little further in.
 - **Messages use the full width of the screen** — the ⋯ menu button no longer squeezes message text into a narrow column, so more words fit on each line on a phone.
 - **The "New version available" notice no longer shoves the screen down** — it now floats above the app, so the message box stays fully visible when an update arrives.
 - **Tapping Reload finishes the update on Safari and macOS too** — it used to sit on "Updating…" without ever applying the new version unless you reloaded the page by hand.

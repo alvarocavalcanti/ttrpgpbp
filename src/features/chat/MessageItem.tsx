@@ -36,6 +36,14 @@ const MESSAGE_ACTION_SIZING = {
   desktopRowVisibility: 'hidden sm:flex',
 } as const
 
+// Mobile action overlay (issue #528): the ⋯ button sits out of flow so the
+// message column spans the full row width. Both render branches (regular and
+// dice-roll) share this exact anchor so every ⋯ lines up in one column down
+// the chat — the dice card's own padding is wider, so mirroring it here put
+// the dice ⋯ 8px left of the regular one (issue #535). Do not reintroduce a
+// per-branch offset; if the anchor changes, the overlay tests must fail.
+const MESSAGE_ACTION_OVERLAY = 'absolute right-2 top-2 flex-shrink-0 sm:static'
+
 // Message-body type scale (#528): 17px root × 1.0625 ≈ 18.06px — one step
 // above the app baseline so chat reads comfortably. `leading-relaxed` is not
 // optional: dropping `text-base` also drops its `line-height: 1.5rem`, which
@@ -690,7 +698,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       label: 'text-primary-800 dark:text-primary-200',
     }
     return (
-      <div ref={itemRef} className={`relative group flex items-center space-x-3 my-1 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+      <div ref={itemRef} className={`relative group flex items-center space-x-3 my-1 px-4 ${tone.container} py-3 rounded-lg border shadow-sm mx-auto max-w-none sm:max-w-lg transition-all duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-[1.02]' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
         <div className={`flex-shrink-0 ${tone.icon} p-2 rounded-full`}>
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -732,12 +740,23 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         </div>
         {!message.pending && actions.length > 0 && (
           // Mobile overlay (#528): out of flow so the dice body spans the
-          // full card width. right-4/top-3 mirror the card's px-4/py-3; pr-8
-          // on the label row reserves the 32px button. sm:static keeps the
-          // desktop icon row in flow. Headroom is thin — measured @360px the
-          // dots clear the first body line by ~5px and a reply snippet by
-          // ~2px — so don't shrink these offsets without re-measuring.
-          <div className="absolute right-4 top-3 flex-shrink-0 sm:static">
+          // full card width. Shares MESSAGE_ACTION_OVERLAY with the regular
+          // branch (#535) so the ⋯ sits in the same column down the chat.
+          // The dice card's own padding (px-4/py-3) is wider — mirroring it
+          // here is what pushed the dice ⋯ 8px left of the regular one, so
+          // don't. The card stays full-bleed below sm (max-w-none) precisely
+          // so both branches share the containing-block width at every
+          // mobile width; sm+ restores the centred max-w-lg card. pr-8 on
+          // the label row reserves the 32px button. sm:static keeps the
+          // desktop icon row in flow. Measured @360px against the new
+          // anchor: the ⋯ right edge lands 1px left of the regular rows'
+          // (the card's 1px border — the overlay anchors to the padding
+          // box), and the label text clears the button by ~8px. The button
+          // does overlap the top band of the body block, as before, only
+          // less (the old anchor sat 4px lower and 8px deeper), so don't
+          // move this anchor without re-measuring @360px, including a
+          // reply-snippet card.
+          <div className={MESSAGE_ACTION_OVERLAY}>
             <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
               {actionIcons}
             </div>
@@ -849,10 +868,12 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
       {!message.pending && !isEditing && actions.length > 0 && (
         // Mobile overlay (#528): out of flow so the text column spans the
-        // full row width. top-2/right-2 mirror the row's py-2/px-2; pr-8 on
-        // the meta line reserves the 32px button. sm:static keeps the
-        // desktop icon row in flow.
-        <div className="absolute right-2 top-2 flex-shrink-0 sm:static">
+        // full row width. Shares MESSAGE_ACTION_OVERLAY with the dice
+        // branch (#535) so the ⋯ sits in the same column down the chat.
+        // top-2/right-2 mirror the row's py-2/px-2; pr-8 on the meta line
+        // reserves the 32px button. sm:static keeps the desktop icon row
+        // in flow.
+        <div className={MESSAGE_ACTION_OVERLAY}>
           <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center`}>
             {actionIcons}
           </div>
