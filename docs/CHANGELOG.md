@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-16
 
+### Added
+
+- **React to dice rolls** — dice roll messages now have a **Reactions** action, just like other messages. Pick an emoji, see the count, and tap a reaction to see who reacted.
+
 ### Changed
 
 - **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app.
