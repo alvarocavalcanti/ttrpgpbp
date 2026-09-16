@@ -26,6 +26,10 @@ interface RollHistoryModalProps {
   onClose: () => void
 }
 
+/**
+ * Channel dice-roll history modal: every roll in the channel with roller,
+ * notation, result, and success/failure highlight, newest first.
+ */
 export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)

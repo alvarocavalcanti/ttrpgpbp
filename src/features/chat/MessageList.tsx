@@ -50,6 +50,11 @@ interface MessageListProps {
   onLoadOlder?: () => void
 }
 
+/**
+ * Scrollable message history: date dividers, unread divider, and one
+ * MessageItem per message. Pins to the bottom on new arrivals and preserves
+ * scroll position when older history prepends.
+ */
 export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)

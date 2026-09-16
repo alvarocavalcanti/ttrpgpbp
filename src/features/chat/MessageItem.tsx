@@ -167,6 +167,11 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
   )
 }
 
+/**
+ * One chat row: avatar, sender name, timestamp, markdown body, reactions,
+ * and hover/tap actions. Renders regular, scene, NPC, dice-roll, and system
+ * variants. Memoized — re-renders only when this message's own props change.
+ */
 export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)

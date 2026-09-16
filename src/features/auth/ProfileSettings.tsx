@@ -10,6 +10,11 @@ import { useToast } from '../../contexts/ToastContext'
 import { buildUserDataExport, downloadJson } from './exportUserData'
 import { MAX_DISPLAY_NAME_LENGTH } from '../../constants'
 
+/**
+ * Account settings page: display name, notification preferences, data
+ * export, and account deletion. Text sizing follows the device default —
+ * there is intentionally no in-app text-size control (#523).
+ */
 export function ProfileSettings() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { addToast } = useToast()

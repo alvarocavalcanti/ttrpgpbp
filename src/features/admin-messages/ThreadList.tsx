@@ -6,6 +6,10 @@ import { Avatar } from '../../components/Avatar'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useToast } from '../../contexts/ToastContext'
 
+/**
+ * Server-admin inbox sidebar: message threads with unread state, plus the
+ * new-thread composer for server admins.
+ */
 export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void }) {
   const { threads, loading, hasMore, loadMore, refetch, error, createThread } = useAdminThreads()
   const { isServerAdmin } = useIsServerAdmin()

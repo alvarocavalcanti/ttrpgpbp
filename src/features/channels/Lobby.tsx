@@ -53,6 +53,11 @@ function channelPreview(preview?: string | null): string {
     .trim()
 }
 
+/**
+ * Home channel list: one row per channel with avatar, name, last-message
+ * preview, timestamp, and unread pill, plus create-channel and invite-link
+ * entry points. Search filtering comes from the `?q=` URL param.
+ */
 export function Lobby() {
   const { myChannels, loading, error, refetch } = useChannels()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)

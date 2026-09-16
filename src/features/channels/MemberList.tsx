@@ -28,6 +28,10 @@ interface MemberListProps {
   onEditMember: (memberId: string | null) => void
 }
 
+/**
+ * Sidebar member roster: players and GMs with character names, active/
+ * away status, and GM moderation actions (kick, block, edit character).
+ */
 export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, editingMemberId, onEditMember }: MemberListProps) {
   const navigate = useNavigate()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
