@@ -222,17 +222,42 @@ describe('MessageItem', () => {
     // Dice rolls offer reactions only (#524): onToggleReaction is what
     // produces the actions wrapper here.
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} />)
-    // Same contract as regular messages, mirrored to the dice card's own
-    // padding (px-4/py-3, hence right-4/top-3): the two branches must not
-    // drift, so the literals are pinned here as well.
+    // Same anchor as regular messages (#535): mirroring the dice card's own
+    // padding (px-4/py-3) here put the ⋯ 8px left of the regular column, so
+    // both branches must stay literal-identical. The literals are pinned
+    // here as well (DAMP: test the strings, not the shared constant).
     const wrapper = screen.getByLabelText('Message actions').parentElement
     expect(wrapper?.className).toContain('absolute')
-    expect(wrapper?.className).toContain('right-4')
-    expect(wrapper?.className).toContain('top-3')
+    expect(wrapper?.className).toContain('right-2')
+    expect(wrapper?.className).toContain('top-2')
     expect(wrapper?.className).toContain('sm:static')
     const label = screen.getByText('Hero rolled dice').closest('div')
     expect(label?.className).toContain('pr-8')
     expect(label?.className).toContain('sm:pr-0')
+  })
+
+  it('anchors the dice-card and regular actions in one column (#535)', () => {
+    // Drift guard: a per-branch offset change that edits both literals in
+    // lockstep would still pass the two tests above, so assert the two
+    // branches produce the identical wrapper class.
+    const regular: any = {
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    const { unmount } = render(<MessageItem message={regular} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
+    const regularWrapper = screen.getByLabelText('Message actions').parentElement?.className
+    unmount()
+    const dice: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20: **15**',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={dice} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} />)
+    const diceWrapper = screen.getByLabelText('Message actions').parentElement?.className
+    expect(diceWrapper).toBe(regularWrapper)
   })
 
   it('shows the reply context on a dice_roll message and jumps to the source', () => {
