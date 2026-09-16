@@ -16,6 +16,8 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **Messages use the full width of the screen** — the ⋯ menu button no longer squeezes message text into a narrow column, so more words fit on each line on a phone.
+- **The "New version available" notice no longer shoves the screen down** — it now floats above the app, so the message box stays fully visible when an update arrives.
+- **Tapping Reload finishes the update on Safari and macOS too** — it used to sit on "Updating…" without ever applying the new version unless you reloaded the page by hand.
 
 ### Removed
 

@@ -321,8 +321,14 @@ export default function App() {
             <div className="min-h-[100dvh] bg-surface-50 dark:bg-surface-900 flex flex-col">
               <AppNav />
               <RealtimeBanner />
-              <PwaUpdateBanner />
-              <PwaInstallBanner />
+              {/* Fixed overlay stack: update/install banners float above the
+                  page instead of pushing the layout down (issue #527). The
+                  container is pointer-transparent so only the cards intercept
+                  taps. z-[60] sits above the z-50 modals, like before. */}
+              <div className="fixed top-3 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none">
+                <PwaUpdateBanner />
+                <PwaInstallBanner />
+              </div>
               <main className="flex-1 flex flex-col">
                 <Suspense fallback={
                   <div className="flex-1 flex items-center justify-center">
