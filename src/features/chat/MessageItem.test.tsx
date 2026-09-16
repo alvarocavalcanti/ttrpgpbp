@@ -249,6 +249,9 @@ describe('MessageItem', () => {
     }
     const { unmount } = render(<MessageItem message={regular} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} />)
     const regularWrapper = screen.getByLabelText('Message actions').parentElement?.className
+    // Guard the guard: a missing wrapper yields undefined on both sides and
+    // would make the equality below pass vacuously.
+    expect(regularWrapper).toBeTruthy()
     unmount()
     const dice: any = {
       type: 'dice_roll',
@@ -257,6 +260,7 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={dice} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} />)
     const diceWrapper = screen.getByLabelText('Message actions').parentElement?.className
+    expect(diceWrapper).toBeTruthy()
     expect(diceWrapper).toBe(regularWrapper)
   })
 
@@ -727,7 +731,9 @@ describe('MessageItem', () => {
       roll_success: true
     }
     const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
-    const card = container.querySelector('.max-w-lg')
+    // Card hook tracks the mobile width-cap token: `sm:max-w-lg` does not
+    // match an unescaped `.max-w-lg` selector, so select `.max-w-none`.
+    const card = container.querySelector('.max-w-none')
     expect(card?.className).toContain('bg-green-50')
     const badge = container.querySelector('span.bg-green-100')
     expect(badge).not.toBeNull()
@@ -746,7 +752,7 @@ describe('MessageItem', () => {
       roll_success: false
     }
     const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
-    const card = container.querySelector('.max-w-lg')
+    const card = container.querySelector('.max-w-none')
     expect(card?.className).toContain('bg-red-50')
     const badge = container.querySelector('span.bg-red-100')
     expect(badge).not.toBeNull()
@@ -760,7 +766,7 @@ describe('MessageItem', () => {
       sender: { display_name: 'Hero' }
     }
     const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
-    const card = container.querySelector('.max-w-lg')
+    const card = container.querySelector('.max-w-none')
     expect(card?.className).toContain('bg-primary-50')
     expect(container.querySelector('span.bg-green-100, span.bg-red-100')).toBeNull()
   })
