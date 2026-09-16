@@ -6,6 +6,10 @@ import { Avatar } from '../../components/Avatar'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useToast } from '../../contexts/ToastContext'
 
+/**
+ * Server-admin inbox sidebar: message threads with unread state, plus the
+ * new-thread composer for server admins.
+ */
 export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void }) {
   const { threads, loading, hasMore, loadMore, refetch, error, createThread } = useAdminThreads()
   const { isServerAdmin } = useIsServerAdmin()
@@ -83,7 +87,7 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
                   <div className="flex items-center gap-2">
                     {thread.type === 'announcement' && (
                       <span
-                        className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
+                        className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[0.6875rem] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
                       >
                         {thread.audience === 'all_users' ? 'All users' : 'GMs'}
                       </span>

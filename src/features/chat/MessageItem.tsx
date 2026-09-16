@@ -167,6 +167,11 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
   )
 }
 
+/**
+ * One chat row: avatar, sender name, timestamp, markdown body, reactions,
+ * and hover/tap actions. Renders regular, scene, NPC, dice-roll, and system
+ * variants. Memoized — re-renders only when this message's own props change.
+ */
 export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
@@ -690,17 +695,17 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               {senderName} rolled dice
             </span>
             {message.roll_dc != null && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
                 DC {message.roll_dc}
               </span>
             )}
             {typeof message.roll_success === 'boolean' && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isSuccess ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase ${isSuccess ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
                 {isSuccess ? 'Success' : 'Failure'}
               </span>
             )}
           </div>
-          <div className="text-surface-900 dark:text-surface-100 text-sm">
+          <div className="text-surface-900 dark:text-surface-100 text-base">
             <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
@@ -710,7 +715,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }
 
   return (
-    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-1 px-4 py-2 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-parchment dark:bg-parchment-dark rounded-lg border border-parchment-border dark:border-parchment-border-dark' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
+    <div ref={itemRef} className={`relative group flex items-start space-x-3 my-1 px-2 py-2 sm:px-3 transition-all duration-1000 ${isWhisper ? 'bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900' : ''} ${isNpc ? 'bg-parchment dark:bg-parchment-dark rounded-lg border border-parchment-border dark:border-parchment-border-dark' : ''} ${isHighlighted ? 'bg-yellow-50 dark:bg-yellow-950 ring-2 ring-yellow-400 rounded-lg' : ''} ${message.pending ? 'opacity-60' : ''}`}>
       {pendingOverlay}
       <div className="flex-shrink-0">
         {isNpc ? (
@@ -750,7 +755,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         {replyBlock}
 
-        <div className={`mt-1 text-sm text-surface-800 dark:text-surface-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
+        <div className={`mt-1 text-base text-surface-800 dark:text-surface-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
             <span className="text-surface-400 dark:text-surface-400 italic">This message was deleted.</span>
           ) : isEditing ? (

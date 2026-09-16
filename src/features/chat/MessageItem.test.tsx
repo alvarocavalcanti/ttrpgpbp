@@ -164,9 +164,9 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     // The dice card wrapper must use the normal message text scale, not a
-    // larger one (regression #500).
+    // larger one (regression #500). Base message scale is text-base (#523).
     const content = screen.getByText('15').closest('div')
-    expect(content?.className).toContain('text-sm')
+    expect(content?.className).toContain('text-base')
     expect(content?.className).not.toContain('text-lg')
   })
 

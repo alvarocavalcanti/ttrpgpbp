@@ -28,6 +28,10 @@ interface MemberListProps {
   onEditMember: (memberId: string | null) => void
 }
 
+/**
+ * Sidebar member roster: players and GMs with character names, active/
+ * away status, and GM moderation actions (kick, block, edit character).
+ */
 export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, editingMemberId, onEditMember }: MemberListProps) {
   const navigate = useNavigate()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -174,17 +178,17 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           {member.character_name}
                         </p>
                         {member.is_away && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400 uppercase">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.625rem] font-bold bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400 uppercase">
                             AFK
                           </span>
                         )}
                         {member.is_active_player && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 uppercase">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.625rem] font-bold bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 uppercase">
                             Active
                           </span>
                         )}
                         {member.user_id === gmId && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.625rem] font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
                             GM
                           </span>
                         )}

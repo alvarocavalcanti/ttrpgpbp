@@ -7,20 +7,17 @@ import { useAuth } from './useAuth'
 import { deleteAccount, updateDisplayName, updateEmailOptIn } from './authApi'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
-import { useTextSize, TEXT_SIZE_NORMAL, TEXT_SIZE_LARGE, TEXT_SIZE_XLARGE, type TextSize } from '../../hooks/useTextSize'
 import { buildUserDataExport, downloadJson } from './exportUserData'
 import { MAX_DISPLAY_NAME_LENGTH } from '../../constants'
 
-const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
-  { value: TEXT_SIZE_NORMAL, label: 'Normal' },
-  { value: TEXT_SIZE_LARGE, label: 'Large' },
-  { value: TEXT_SIZE_XLARGE, label: 'Extra large' },
-]
-
+/**
+ * Account settings page: display name, notification preferences, data
+ * export, and account deletion. Text sizing follows the device default —
+ * there is intentionally no in-app text-size control (#523).
+ */
 export function ProfileSettings() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { addToast } = useToast()
-  const { textSize, setSize } = useTextSize()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -230,35 +227,6 @@ export function ProfileSettings() {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-xl font-bold text-surface-900 dark:text-surface-100 mb-4">Appearance</h3>
-        <div className="bg-white dark:bg-surface-800 shadow rounded-lg p-6">
-          <div>
-            <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Text size</h4>
-            <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-              Controls the size of all app text. Pick the size that reads most comfortably for you.
-            </p>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center space-x-2" role="group" aria-label="Text size">
-            {TEXT_SIZE_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setSize(value)}
-                aria-pressed={textSize === value}
-                className={`inline-flex justify-center rounded-md border py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                  textSize === value
-                    ? 'border-transparent bg-primary-600 text-white shadow-sm hover:bg-primary-700'
-                    : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
