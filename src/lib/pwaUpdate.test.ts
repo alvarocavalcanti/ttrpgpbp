@@ -71,17 +71,66 @@ describe('reloadToUpdate', () => {
   })
 
   it('posts SKIP_WAITING to the waiting worker', async () => {
-    const waiting = { postMessage: vi.fn() }
+    const waiting = { state: 'installed', postMessage: vi.fn(), addEventListener: vi.fn() }
     capture.getRegistration.mockResolvedValue({ waiting })
     await act(async () => pwaUpdate.reloadToUpdate())
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
   })
 
   it('posts SKIP_WAITING to the installing worker when nothing is waiting', async () => {
-    const installing = { postMessage: vi.fn() }
+    const installing = { state: 'installing', postMessage: vi.fn(), addEventListener: vi.fn() }
     capture.getRegistration.mockResolvedValue({ installing })
     await act(async () => pwaUpdate.reloadToUpdate())
     expect(installing.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
+  })
+
+  it('reloads once the new worker reports activated', async () => {
+    vi.useFakeTimers()
+    const stateListeners: Array<() => void> = []
+    const worker = {
+      state: 'installing',
+      postMessage: vi.fn(),
+      addEventListener: vi.fn((_type: string, listener: () => void) => {
+        stateListeners.push(listener)
+      }),
+    }
+    capture.getRegistration.mockResolvedValue({ waiting: worker })
+    await act(async () => pwaUpdate.reloadToUpdate())
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
+    expect(capture.reload).not.toHaveBeenCalled()
+    worker.state = 'activated'
+    await act(async () => stateListeners.forEach((listener) => listener()))
+    expect(capture.reload).toHaveBeenCalledTimes(1)
+    // The safety net must not fire a second reload.
+    await act(async () => vi.advanceTimersByTime(3000))
+    expect(capture.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads immediately when the worker already activated', async () => {
+    const worker = { state: 'activated', postMessage: vi.fn(), addEventListener: vi.fn() }
+    capture.getRegistration.mockResolvedValue({ waiting: worker })
+    await act(async () => pwaUpdate.reloadToUpdate())
+    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(worker.postMessage).not.toHaveBeenCalled()
+  })
+
+  it('ignores a redundant worker and falls back to the 3s reload', async () => {
+    vi.useFakeTimers()
+    const stateListeners: Array<() => void> = []
+    const worker = {
+      state: 'installing',
+      postMessage: vi.fn(),
+      addEventListener: vi.fn((_type: string, listener: () => void) => {
+        stateListeners.push(listener)
+      }),
+    }
+    capture.getRegistration.mockResolvedValue({ installing: worker })
+    await act(async () => pwaUpdate.reloadToUpdate())
+    worker.state = 'redundant'
+    await act(async () => stateListeners.forEach((listener) => listener()))
+    expect(capture.reload).not.toHaveBeenCalled()
+    await act(async () => vi.advanceTimersByTime(3000))
+    expect(capture.reload).toHaveBeenCalledTimes(1)
   })
 
   it('still wires the controllerchange listener when no registration exists', async () => {

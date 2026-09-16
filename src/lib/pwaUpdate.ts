@@ -39,9 +39,13 @@ let reloading = false
 // the page long enough that the waiting worker is already claimed (so there is
 // no `waiting` worker left to skip and `controllerchange` has fired while we
 // were frozen) — the tap then silently no-ops and the banner stays put. Fetch a
-// fresh registration, post SKIP_WAITING ourselves, reload on `controllerchange`,
-// and force a reload if that round-trip stalls. The worker's SKIP_WAITING
-// handler (src/sw.ts) does the actual skip.
+// fresh registration, post SKIP_WAITING ourselves, and reload the moment the
+// new worker reports `activated`. Waiting for the worker's own lifecycle (not
+// `controllerchange`, which WebKit doesn't reliably deliver, and not a fixed
+// clock) guarantees the reload runs under the new worker: a timeout reload can
+// land while the old worker still controls the page, serving the stale shell
+// forever (issue #527 — "Updating…" that never updates on Safari). The worker's
+// SKIP_WAITING handler (src/sw.ts) does the actual skip.
 export function reloadToUpdate() {
   if (reloading) return
   // ponytail: page-lifetime singleton guard, never reset; a fresh load
@@ -50,18 +54,33 @@ export function reloadToUpdate() {
   reloading = true
   setStatus('updating')
 
+  let finished = false
   let timer: number | undefined
   const finish = () => {
+    if (finished) return
+    finished = true
     window.clearTimeout(timer)
     window.location.reload()
   }
 
-  void navigator.serviceWorker.getRegistration().then((reg) => {
-    const waiting = reg?.waiting ?? reg?.installing
-    waiting?.postMessage({ type: 'SKIP_WAITING' })
-  })
-
+  // Belt and braces: browsers that do fire controllerchange take this path.
   navigator.serviceWorker.addEventListener('controllerchange', finish, { once: true })
+
+  void navigator.serviceWorker.getRegistration().then((reg) => {
+    const candidate = reg?.waiting ?? reg?.installing
+    if (!candidate) return
+    // Already activated while the page was frozen: nothing to wait for.
+    if (candidate.state === 'activated') {
+      finish()
+      return
+    }
+    candidate.addEventListener('statechange', () => {
+      // `redundant` means the install failed — never reload for it; the
+      // safety net below covers a genuinely stuck worker.
+      if (candidate.state === 'activated') finish()
+    })
+    candidate.postMessage({ type: 'SKIP_WAITING' })
+  })
 
   // Safety net: if the worker never takes control (frozen page, pending fetch
   // requests, already-claimed worker), force the reload anyway so the button

@@ -23,7 +23,7 @@ function PwaInstallBannerInner({ install, dismiss }: BannerActions) {
 
   return (
     <div
-      className="fixed top-3 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 px-4 py-3 max-w-[calc(100vw-2rem)]"
+      className="pointer-events-auto flex items-center gap-3 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 px-4 py-3 max-w-[calc(100vw-2rem)]"
       role="region"
       aria-label="Install Role by Post"
       data-testid="pwa-install-banner"
