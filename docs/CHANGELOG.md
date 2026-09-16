@@ -11,8 +11,14 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app.
+- **Chat text is bigger and easier to read** — messages, dice results, and channel names now use a larger, more comfortable size, closer to what you'd see in a messaging app; channel messages grew a little more so conversations are easier to follow.
 - **More of the screen is used for messages** — the chat and channel list waste less space at the edges, so lines of text fit better on narrow phone screens.
+
+### Fixed
+
+- **Messages use the full width of the screen** — the ⋯ menu button no longer squeezes message text into a narrow column, so more words fit on each line on a phone.
+- **The "New version available" notice no longer shoves the screen down** — it now floats above the app, so the message box stays fully visible when an update arrives.
+- **Tapping Reload finishes the update on Safari and macOS too** — it used to sit on "Updating…" without ever applying the new version unless you reloaded the page by hand.
 
 ### Removed
 

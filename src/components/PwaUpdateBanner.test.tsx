@@ -32,6 +32,19 @@ describe('PwaUpdateBanner', () => {
     expect(screen.getByTestId('pwa-update-banner')).toHaveTextContent('New version available, reload to update.')
   })
 
+  it('floats above the page instead of pushing the layout down', () => {
+    // In-flow bar styling (border-b, justify-center) shifts the whole UI when
+    // the banner appears (issue #527); the banner must be a self-contained
+    // overlay card living inside App's fixed banner stack.
+    mock.status = 'update-available'
+    render(<PwaUpdateBanner />)
+    const banner = screen.getByTestId('pwa-update-banner')
+    expect(banner.className).not.toContain('border-b')
+    for (const cls of ['rounded-lg', 'shadow-lg', 'pointer-events-auto']) {
+      expect(banner.className).toContain(cls)
+    }
+  })
+
   it('reloads the app when the CTA is tapped', () => {
     mock.status = 'update-available'
     render(<PwaUpdateBanner />)
