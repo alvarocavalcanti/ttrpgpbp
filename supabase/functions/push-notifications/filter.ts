@@ -86,10 +86,17 @@ export function toPlainText(markdown: string): string {
 // truncated text exposes real words, not chip syntax (#533). A body that is
 // only markers (e.g. `***`) falls back to the raw trimmed text — the DB only
 // guarantees non-blank content, and a blank tray line hides the message.
+// Empty-label links/images (`[](url)`, `![](url)`) instead collapse to a safe
+// empty body so their URLs never reach the lock screen. Non-global: `.test`
+// on a /g regex is stateful (lastIndex), so this stays a one-shot check.
+const HAS_LINK_OR_IMAGE_RE = /!?\[[^\]]*\]\([^)]*\)/
+
 function plainBody(content: string | null | undefined): string {
   const raw = (content ?? '').trim()
   if (!raw) return ''
-  return truncate(toPlainText(raw) || raw)
+  const plain = toPlainText(raw)
+  if (plain) return truncate(plain)
+  return HAS_LINK_OR_IMAGE_RE.test(raw) ? '' : raw
 }
 
 // Returns the member's effective boolean preference, defaulting to true.

@@ -703,4 +703,48 @@ describe('push body markdown stripping', () => {
     }, MEMBERS)
     expect(result.body).toBe('x'.repeat(100) + '…')
   })
+
+  it('collapses empty-label links and images instead of leaking their urls', () => {
+    for (const content of ['[](https://example.com/private)', '![](https://example.com/map.png)']) {
+      const scene = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content,
+        type: 'scene',
+        gm_id: 'u1'
+      }, MEMBERS)
+      expect(scene.body).toBe('')
+      expect(scene.body).not.toContain('https://')
+
+      const regular = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content,
+        type: 'regular',
+        gm_id: 'u9'
+      }, MEMBERS)
+      expect(regular.body).toBe('Alv: ')
+      expect(regular.body).not.toContain('https://')
+    }
+  })
+
+  it('keeps the raw text for markers-only bodies instead of blanking the tray line', () => {
+    const result = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content: '***',
+      type: 'regular',
+      gm_id: 'u9'
+    }, MEMBERS)
+    expect(result.body).toBe('Alv: ***')
+  })
 })
