@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { isMarketingPath } from '../../lib/marketing'
 import { ChangelogModal } from './ChangelogModal'
 import { getChangelogHash, getRecentItems } from './changelog'
 
@@ -31,6 +33,7 @@ const ChangelogContext = createContext<ChangelogContextType | undefined>(undefin
 
 export function ChangelogProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
+  const { pathname } = useLocation()
   const [isOpen, setIsOpen] = useState(false)
   const hasChecked = useRef(false)
 
@@ -39,13 +42,17 @@ export function ChangelogProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user || hasChecked.current) return
+    // The public marketing page (#536) never auto-opens the modal, even for
+    // signed-in users. The check stays pending so it still opens once the
+    // user navigates into the app.
+    if (isMarketingPath(pathname)) return
     hasChecked.current = true
     const dismissedForever = readStorage(FOREVER_KEY) === 'true'
     const seen = readStorage(SEEN_KEY)
     if (!dismissedForever && seen !== hash) {
       setIsOpen(true)
     }
-  }, [user, hash])
+  }, [user, hash, pathname])
 
   const dismiss = useCallback(() => {
     writeStorage(SEEN_KEY, hash)

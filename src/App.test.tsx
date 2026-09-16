@@ -90,6 +90,29 @@ describe('App', () => {
     window.history.replaceState({}, '', '/')
   })
 
+  it('hides the changelog popup on the marketing page for signed-in visitors (#536)', async () => {
+    // beforeEach suppresses the modal via changelog:forever; drop the
+    // sentinels so the auto-open would fire if the route were not gated.
+    localStorage.removeItem('changelog:forever')
+    localStorage.removeItem('changelog:seen')
+
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    window.history.pushState({}, '', '/features')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
+  })
+
   it('renders lobby and lists Profile in the menu drawer when authenticated', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },
