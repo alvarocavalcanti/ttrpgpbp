@@ -60,6 +60,45 @@ function truncate(text: string): string {
   return text.length > MAX_BODY_LENGTH ? `${text.slice(0, MAX_BODY_LENGTH)}…` : text
 }
 
+// Downgrades persisted markdown to plain text for push bodies, which surface
+// on the lock screen with no markdown renderer. Mention chips
+// (`[@Hero](user:uuid)`), dice/check chips (`[1d20](dice:1d20)`), and plain
+// links collapse to their labels; emphasis, headings, quotes, and rule markers
+// are dropped; newlines collapse to one line. Paired markers only, so `2*3`
+// and `snake_case` survive untouched. Pure: no IO, so it runs in vitest.
+export function toPlainText(markdown: string): string {
+  return markdown
+    .replace(/^```[^\n]*\n([\s\S]*?)^```/gm, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*>\s?/gm, '')
+    .replace(/^\s*([-*_])\1{2,}\s*$/gm, '')
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/(\*|_)(.+?)\1/g, '$2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Builds a lock-screen body from raw message content: strip markdown first so
+// truncated text exposes real words, not chip syntax (#533). A body that is
+// only markers (e.g. `***`) falls back to the raw trimmed text — the DB only
+// guarantees non-blank content, and a blank tray line hides the message.
+// Empty-label links/images (`[](url)`, `![](url)`) instead collapse to a safe
+// empty body so their URLs never reach the lock screen. Non-global: `.test`
+// on a /g regex is stateful (lastIndex), so this stays a one-shot check.
+const HAS_LINK_OR_IMAGE_RE = /!?\[[^\]]*\]\([^)]*\)/
+
+function plainBody(content: string | null | undefined): string {
+  const raw = (content ?? '').trim()
+  if (!raw) return ''
+  const plain = toPlainText(raw)
+  if (plain) return truncate(plain)
+  return HAS_LINK_OR_IMAGE_RE.test(raw) ? '' : raw
+}
+
 // Returns the member's effective boolean preference, defaulting to true.
 function prefEnabled(member: PushMember, key: 'notify_all_messages' | 'notify_gm_messages' | 'notify_turn'): boolean {
   return member[key] !== false
@@ -80,7 +119,7 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     return {
       targetUserIds: targets,
       title,
-      body: truncate(event.content || ''),
+      body: plainBody(event.content),
       url: '/messages',
     }
   }
@@ -117,13 +156,13 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     body = `New whisper from ${displayName} in ${channelName}`
   } else if (event.type === 'scene') {
     title = `New Scene in ${channelName}`
-    body = truncate(event.content || '')
+    body = plainBody(event.content)
   } else if (event.type === 'dice_roll') {
     title = `${senderName} rolled dice`
-    body = truncate(event.content || '')
+    body = plainBody(event.content)
   } else {
     title = `New message in ${channelName}`
-    body = `${displayName}: ${truncate(event.content || '')}`
+    body = `${displayName}: ${plainBody(event.content)}`
   }
 
   let targetUserIds: string[] = []
@@ -136,7 +175,7 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     // intersected with membership and deduped via resolveMentionTargets so a
     // blocked/non-member id can never receive content.
     title = `${displayName} mentioned you`
-    body = truncate(event.content || '')
+    body = plainBody(event.content)
     targetUserIds = resolveMentionTargets(event.mention_user_ids, members, event.sender_id ?? '')
   } else {
     const isGM = event.sender_id === event.gm_id

@@ -1,5 +1,5 @@
 import {describe, it, expect } from 'vitest'
-import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals} from './filter.ts'
+import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals, toPlainText} from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -125,7 +125,7 @@ describe('resolvePushTargets', () => {
       }, MEMBERS)
 
       expect(result.title).toBe('Bobo rolled dice')
-      expect(result.body).toBe('Rolled 1d20: **15**')
+      expect(result.body).toBe('Rolled 1d20: 15')
     })
 
     it('routes whisper only to whisper target', () => {
@@ -218,7 +218,9 @@ describe('resolvePushTargets', () => {
 
       expect(result.targetUserIds).toEqual(['u2', 'u3'])
       expect(result.title).toBe('Alv mentioned you')
-      expect(result.body).toContain('[@Hero]')
+      expect(result.body).toBe('Hey @Hero and @Me')
+      expect(result.body).not.toContain('user:')
+      expect(result.body).not.toContain('u2')
     })
 
     it('mention routing drops non-member and blocked ids via resolveMentionTargets', () => {
@@ -596,5 +598,153 @@ describe('resolveAnnouncementTargets', () => {
 
   it('returns nothing for empty profiles', () => {
     expect(resolveAnnouncementTargets('all_users', [], [])).toEqual([])
+  })
+})
+
+describe('toPlainText', () => {
+  it('collapses mention chips to the display name, never the id', () => {
+    expect(toPlainText('Hey [@Hero](user:6f1e2d3c-4b5a-6789-0123-456789abcdef)')).toBe('Hey @Hero')
+    expect(toPlainText('Roll init [@all](user:all)')).toBe('Roll init @all')
+  })
+
+  it('collapses dice, check, and plain links to their labels', () => {
+    expect(toPlainText('Roll [1d20](dice:1d20) now')).toBe('Roll 1d20 now')
+    expect(toPlainText('[Insight](check:Insight:12) please')).toBe('Insight please')
+    expect(toPlainText('see [the map](https://example.com/map)')).toBe('see the map')
+  })
+
+  it('keeps image alt text and drops the url', () => {
+    expect(toPlainText('look ![tavern map](https://example.com/map.png)')).toBe('look tavern map')
+  })
+
+  it('strips bold, italic, strike, and inline code markers', () => {
+    expect(toPlainText('Rolled 1d20: **15**')).toBe('Rolled 1d20: 15')
+    expect(toPlainText('*whispered* _softly_ ~~loudly~~')).toBe('whispered softly loudly')
+    expect(toPlainText('Rolling `1d20+3`')).toBe('Rolling 1d20+3')
+  })
+
+  it('strips headings, quotes, rules, and fenced blocks', () => {
+    expect(toPlainText('## Recap')).toBe('Recap')
+    expect(toPlainText('> aside to the GM')).toBe('aside to the GM')
+    expect(toPlainText('---')).toBe('')
+    expect(toPlainText('```\n1d20 -> 15\n```')).toBe('1d20 -> 15')
+  })
+
+  it('collapses newlines to a single line', () => {
+    expect(toPlainText('first line\n\n  second line')).toBe('first line second line')
+  })
+
+  it('leaves unpaired markers and ordinary text alone', () => {
+    expect(toPlainText('2*3 and snake_case and Room #3')).toBe('2*3 and snake_case and Room #3')
+  })
+
+  it('returns empty for empty or whitespace-only input', () => {
+    expect(toPlainText('')).toBe('')
+    expect(toPlainText('   \n  ')).toBe('')
+  })
+})
+
+describe('push body markdown stripping', () => {
+  it('never leaks raw chip syntax or ids in mention bodies', () => {
+    const result = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content: 'Hey [@Hero](user:6f1e2d3c-4b5a-6789-0123-456789abcdef)',
+      type: 'regular',
+      mention_user_ids: ['u2'],
+      gm_id: 'u9'
+    }, MEMBERS)
+    expect(result.body).toBe('Hey @Hero')
+    expect(result.body).not.toContain('user:')
+    expect(result.body).not.toContain('6f1e2d3c')
+  })
+
+  it('strips markdown from scene and regular bodies, keeping the sender prefix', () => {
+    const scene = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content: '## The **tavern** door',
+      type: 'scene',
+      gm_id: 'u1'
+    }, MEMBERS)
+    expect(scene.body).toBe('The tavern door')
+
+    const regular = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content: 'see [the map](https://example.com/map)',
+      type: 'regular',
+      gm_id: 'u9'
+    }, MEMBERS)
+    expect(regular.body).toBe('Alv: see the map')
+  })
+
+  it('still caps long markdown-heavy bodies at 100 readable characters', () => {
+    const content = `**${'x'.repeat(150)}**`
+    const result = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content,
+      type: 'regular',
+      mention_user_ids: ['u2'],
+      gm_id: 'u9'
+    }, MEMBERS)
+    expect(result.body).toBe('x'.repeat(100) + '…')
+  })
+
+  it('collapses empty-label links and images instead of leaking their urls', () => {
+    for (const content of ['[](https://example.com/private)', '![](https://example.com/map.png)']) {
+      const scene = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content,
+        type: 'scene',
+        gm_id: 'u1'
+      }, MEMBERS)
+      expect(scene.body).toBe('')
+      expect(scene.body).not.toContain('https://')
+
+      const regular = resolvePushTargets({
+        kind: 'message',
+        channel_id: 'c1',
+        channel_name: 'The Den',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        content,
+        type: 'regular',
+        gm_id: 'u9'
+      }, MEMBERS)
+      expect(regular.body).toBe('Alv: ')
+      expect(regular.body).not.toContain('https://')
+    }
+  })
+
+  it('keeps the raw text for markers-only bodies instead of blanking the tray line', () => {
+    const result = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content: '***',
+      type: 'regular',
+      gm_id: 'u9'
+    }, MEMBERS)
+    expect(result.body).toBe('Alv: ***')
   })
 })
