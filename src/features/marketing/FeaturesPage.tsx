@@ -84,12 +84,12 @@ const MORE_FEATURES: Array<{ title: string; copy: string }> = [
   { title: 'Invite-only tables', copy: 'Private channels joined by invite link, with an optional password.' },
 ]
 
-function StartCta({ location, className }: { location: string; className?: string }) {
+function StartCta({ location }: { location: string }) {
   return (
     <Link
       to="/"
       onClick={() => trackEvent('marketing_cta_click', { location })}
-      className={`inline-flex items-center justify-center min-h-11 px-8 py-3 text-base font-semibold rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors ${className ?? ''}`}
+      className="inline-flex items-center justify-center min-h-11 px-8 py-3 text-base font-semibold rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
     >
       Start now!
     </Link>
@@ -149,7 +149,7 @@ export function FeaturesPage() {
           <div className="mx-auto w-52 sm:w-60 overflow-hidden rounded-[2rem] border-8 border-surface-900 dark:border-surface-100 shadow-xl">
             <img
               src="/help/lobby-with-channels.png"
-              alt="Lobby listing joined channels with unread counts"
+              alt=""
               width={360}
               height={780}
               className="w-full h-auto block"
@@ -239,9 +239,13 @@ export function FeaturesPage() {
           <h2 className="text-2xl sm:text-3xl font-bold text-surface-900 dark:text-surface-100">
             Your table is waiting
           </h2>
-          <p className="mt-3 text-base text-surface-600 dark:text-surface-400">
-            Sign in with Google and start your first campaign in minutes.
-          </p>
+          {/* Signed-in visitors arrive here from the menu drawer — the
+              sign-in prompt below is for anonymous visitors only. */}
+          {!loading && !user && (
+            <p className="mt-3 text-base text-surface-600 dark:text-surface-400">
+              Sign in with Google and start your first campaign in minutes.
+            </p>
+          )}
           <div className="mt-8">
             <StartCta location="bottom" />
           </div>

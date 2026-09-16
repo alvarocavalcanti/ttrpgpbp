@@ -209,6 +209,10 @@ describe('LoginPage', () => {
 
     expect(privacyLink).toHaveAttribute('href', '/privacy')
     expect(termsLink).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: /See all features/ })).toHaveAttribute(
+      'href',
+      '/features'
+    )
   })
 
   it('renders the feature grid with responsive layout', () => {

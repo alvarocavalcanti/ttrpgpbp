@@ -323,7 +323,7 @@ function AppNav() {
 // account reads as noise, so it stays hidden there (#526).
 function InstallBannerGate() {
   const { pathname } = useLocation()
-  if (pathname === '/features') return null
+  if (pathname === '/features' || pathname === '/features/') return null
   return <PwaInstallBanner />
 }
 

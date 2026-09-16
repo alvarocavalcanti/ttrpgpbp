@@ -65,7 +65,18 @@ describe('FeaturesPage', () => {
 
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
     expect(
+      screen.queryByText('Sign in with Google and start your first campaign in minutes.')
+    ).not.toBeInTheDocument()
+    expect(
       screen.getByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })
+    ).toBeInTheDocument()
+  })
+
+  it('shows the sign-in prompt copy to anonymous visitors only', () => {
+    renderPage()
+
+    expect(
+      screen.getByText('Sign in with Google and start your first campaign in minutes.')
     ).toBeInTheDocument()
   })
 
@@ -74,6 +85,9 @@ describe('FeaturesPage', () => {
     renderPage()
 
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Sign in with Google and start your first campaign in minutes.')
+    ).not.toBeInTheDocument()
   })
 
   it('defaults to the GM track', () => {
