@@ -55,3 +55,9 @@ export async function updateEmailOptIn(userId: string, optIn: boolean) {
 export async function deleteAccount() {
   return supabase.functions.invoke('delete-account', { method: 'POST' })
 }
+
+// Age-confirmation evidence. Called once per signed-in user after the client
+// age checkbox has been accepted; the RPC is self-only and idempotent.
+export async function confirmAge() {
+  return supabase.rpc('confirm_age')
+}

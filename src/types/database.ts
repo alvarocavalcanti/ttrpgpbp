@@ -805,6 +805,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age_verified_at: string | null
           avatar_url: string | null
           created_at: string
           display_name: string | null
@@ -815,6 +816,7 @@ export type Database = {
           server_admin: boolean
         }
         Insert: {
+          age_verified_at?: string | null
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -825,6 +827,7 @@ export type Database = {
           server_admin?: boolean
         }
         Update: {
+          age_verified_at?: string | null
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -1077,6 +1080,7 @@ export type Database = {
         }
         Returns: string
       }
+      confirm_age: { Args: never; Returns: undefined }
       create_channel: {
         Args: {
           p_character_avatar_url?: string

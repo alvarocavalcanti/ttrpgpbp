@@ -135,4 +135,41 @@ describe('PrivacyPage', () => {
     fireEvent.click(screen.getByTestId('back-probe'))
     expect(screen.getByTestId('back-probe')).toBeInTheDocument()
   })
+
+  it('discloses the lack of end-to-end encryption and who can access messages', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('How your messages are stored & who can access them')).toBeInTheDocument()
+    expect(screen.getByText(/not end-to-end encrypted/)).toBeInTheDocument()
+    expect(screen.getByText(/system administrators and automated safety systems\s*can read/)).toBeInTheDocument()
+  })
+
+  it('documents EEA-to-US data transfers and GDPR-specific rights', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Data transfers outside Europe')).toBeInTheDocument()
+    expect(screen.getByText(/Standard Contractual Clauses/)).toBeInTheDocument()
+    expect(screen.getByText('Your GDPR rights')).toBeInTheDocument()
+    expect(screen.getByText(/Data Protection Commission/)).toBeInTheDocument()
+  })
+
+  it('states the lawful bases for processing', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Lawful bases')).toBeInTheDocument()
+    expect(screen.getByText(/performance of our contract with you/)).toBeInTheDocument()
+    expect(screen.getByText(/legitimate interests \(safety, security/)).toBeInTheDocument()
+  })
 })

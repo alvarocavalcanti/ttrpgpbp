@@ -11,6 +11,7 @@ vi.mock('./useAuth', () => ({
 describe('LoginPage', () => {
   beforeEach(() => {
     sessionStorage.clear()
+    localStorage.clear()
   })
 
   it('renders loading state', () => {
@@ -77,6 +78,7 @@ describe('LoginPage', () => {
     const button = screen.getByText('Sign in with Google')
     expect(button).toBeInTheDocument()
 
+    fireEvent.click(screen.getByLabelText(/at least 16 years old/))
     fireEvent.click(button)
     expect(mockSignIn).toHaveBeenCalledTimes(1)
   })
@@ -102,6 +104,7 @@ describe('LoginPage', () => {
       </MemoryRouter>
     )
 
+    fireEvent.click(screen.getByLabelText(/at least 16 years old/))
     fireEvent.click(screen.getByText('Sign in with Google'))
 
     expect(sessionStorage.getItem('auth_redirect')).toBe('/join/123?code=abc')
@@ -204,11 +207,11 @@ describe('LoginPage', () => {
       </MemoryRouter>
     )
 
-    const privacyLink = screen.getByRole('link', { name: 'Privacy Policy' })
-    const termsLink = screen.getByRole('link', { name: 'Terms of Service' })
+    const privacyLinks = screen.getAllByRole('link', { name: 'Privacy Policy' })
+    const termsLinks = screen.getAllByRole('link', { name: 'Terms of Service' })
 
-    expect(privacyLink).toHaveAttribute('href', '/privacy')
-    expect(termsLink).toHaveAttribute('href', '/terms')
+    privacyLinks.forEach((link) => expect(link).toHaveAttribute('href', '/privacy'))
+    termsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/terms'))
     expect(screen.getByRole('link', { name: /See all features/ })).toHaveAttribute(
       'href',
       '/features'
@@ -235,5 +238,79 @@ describe('LoginPage', () => {
 
     const grid = container.querySelector('.grid')
     expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3')
+  })
+
+  it('disables sign in until the age checkbox is checked', () => {
+    const mockSignIn = vi.fn()
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: mockSignIn,
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    const button = screen.getByText('Sign in with Google')
+    expect(button).toBeDisabled()
+
+    fireEvent.click(button)
+    expect(mockSignIn).not.toHaveBeenCalled()
+  })
+
+  it('persists the age confirmation and enables sign in when checked', () => {
+    const mockSignIn = vi.fn()
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: mockSignIn,
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByLabelText(/at least 16 years old/))
+
+    expect(localStorage.getItem('age-confirmed')).toBe('true')
+    expect(screen.getByText('Sign in with Google')).toBeEnabled()
+  })
+
+  it('keeps sign in enabled when the age flag is already stored', () => {
+    localStorage.setItem('age-confirmed', 'true')
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Sign in with Google')).toBeEnabled()
+    expect(screen.getByLabelText(/at least 16 years old/)).toBeChecked()
   })
 })

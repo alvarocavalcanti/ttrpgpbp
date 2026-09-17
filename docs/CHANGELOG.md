@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-17
 
+### Added
+
+- **You must be 16 or older to sign up** — the sign-in page now asks you to confirm your age before continuing, and remembers your answer on that device.
+- **Clearer rules for what belongs here** — the Terms now spell out what is not allowed, including illegal content and imagery, harassment, and using Role by Post for anything other than roleplaying and storytelling.
+
+### Changed
+
+- **We are upfront about how your messages are stored** — the Privacy Policy now explains plainly that messages are **not end-to-end encrypted**, that our administrators and safety systems can review content when needed, and what your data rights are.
+
 ### Fixed
 
 - **Dice and mention chips are as easy to read as the message** — the clickable `1d20` roll chips, ability-check chips, and `@name` mention chips now match the size of the message text around them instead of looking tiny.

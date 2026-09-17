@@ -13,6 +13,7 @@ vi.mock('../../lib/supabase', () => ({
       signOut: vi.fn(),
     },
     from: vi.fn(),
+    rpc: vi.fn(),
   },
 }))
 
@@ -36,6 +37,7 @@ function TestComponent() {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     // Suppress console.error for expected errors
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -543,6 +545,63 @@ describe('AuthContext', () => {
     fireEvent.click(screen.getByText('Sign Out'))
     
     expect(supabase.auth.signOut).toHaveBeenCalled()
+  })
+
+  it('stamps age confirmation once when the client flag is set', async () => {
+    localStorage.setItem('age-confirmed', 'true')
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('confirm_age')
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not confirm age without the client flag', async () => {
+    localStorage.removeItem('age-confirmed')
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-456' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-456', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await screen.findByText('ready')
+    expect(supabase.rpc).not.toHaveBeenCalled()
   })
 })
 

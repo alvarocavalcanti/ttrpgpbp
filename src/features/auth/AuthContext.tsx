@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
-import { authSignOut, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
+import { authSignOut, confirmAge, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
 import type { Database } from '../../types/database'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const lastFetchedUserId = useRef<string | null>(null)
+  const confirmedAgeFor = useRef<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -102,6 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe()
     }
   }, [])
+
+  // Stamp server-side age-confirmation evidence once per user, only when the
+  // client checkbox was accepted (localStorage flag). The RPC is idempotent.
+  useEffect(() => {
+    if (loading || !user) return
+    if (localStorage.getItem('age-confirmed') !== 'true') return
+    if (confirmedAgeFor.current === user.id) return
+    confirmedAgeFor.current = user.id
+    void confirmAge().catch((err) => console.error('Error confirming age:', err))
+  }, [loading, user])
 
   const signInWithGoogle = useCallback(async () => {
     setError(null)
