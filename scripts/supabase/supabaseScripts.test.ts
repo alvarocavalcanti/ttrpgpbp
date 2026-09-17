@@ -94,6 +94,9 @@ describe('scripts/supabase', () => {
         'VITE_SUPABASE_URL=http://127.0.0.1:54321\n' +
           'VITE_SUPABASE_ANON_KEY=header.payload.signature==\n',
       )
+      expect(result.stdout).toContain(
+        "Run 'unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY' if the dev server should target the local stack.",
+      )
     })
 
     it('emits the URL line before the key line regardless of status output order', () => {
