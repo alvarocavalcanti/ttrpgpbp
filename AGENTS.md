@@ -60,7 +60,7 @@ Boundaries: code/commits/PRs written normal.
      **After creating the worktree, always install dependencies to ensure git hooks are executed and all checks work:**
 
      1. `npm ci` — Husky's `core.hooksPath` points at the gitignored `.husky/_` shim dir, which `npm install` generates. A fresh worktree without it **silently skips all pre-commit/pre-push hooks** (no error, no lint, no tests). `npm ci` creates the shims and `node_modules`.
-     2. Bring the local stack up and generate `.env.local` **fail-closed** — one command, `npm run supabase:up`. Without a local `.env.local`, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session). The script stages the file and only swaps it in once both keys are present, and it slices each value on the first `=` (the old `awk -F=` snippet truncated keys containing `=`). Vite still gives shell-exported `VITE_*` vars precedence over the file, so `unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY` if the dev server should target remote.
+     2. Bring the local stack up and generate `.env.local` **fail-closed** — one command, `npm run supabase:up`. Without a local `.env.local`, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session). The script stages the file and only swaps it in once both keys are present, and it slices each value on the first `=` (the old `awk -F=` snippet truncated keys containing `=`). Vite still gives shell-exported `VITE_*` vars precedence over the file, so `unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY` if the dev server should target the local stack instead.
 
      ```bash
      npm run supabase:up   # start stack (idempotent) + write .env.local
@@ -161,7 +161,7 @@ Every UI change must follow these conventions:
 ## Database Migrations
 
 - **Create a migration**: `npx supabase migration new <name>`
-- **Apply locally**: `npx supabase migration up`
+- **Apply locally**: `npm run supabase:up` (applies pending migrations)
 - **Verify from scratch**: `npm run supabase:reset` — wraps `supabase db reset` locally; CI itself runs `supabase db start` + `supabase db reset` on every PR
 - **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration.
 - **CI enforcement**:

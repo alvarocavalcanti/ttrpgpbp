@@ -94,6 +94,9 @@ describe('scripts/supabase', () => {
         'VITE_SUPABASE_URL=http://127.0.0.1:54321\n' +
           'VITE_SUPABASE_ANON_KEY=header.payload.signature==\n',
       )
+      expect(result.stdout).toContain(
+        "Run 'unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY' if the dev server should target the local stack.",
+      )
     })
 
     it('emits the URL line before the key line regardless of status output order', () => {
@@ -142,6 +145,13 @@ describe('scripts/supabase', () => {
       expect(calls()).toContain('supabase stop --no-backup')
     })
 
+    it('stops the stack without a flag when it is running', () => {
+      run('down.sh', [], { STUB_CONTAINER: 'abc123' })
+
+      expect(calls()).toContain('supabase stop\n')
+      expect(calls()).not.toContain('--no-backup')
+    })
+
     it('deletes volumes with --no-backup even when the stack is already stopped', () => {
       const result = run('down.sh', ['--no-backup'])
 
@@ -161,12 +171,14 @@ describe('scripts/supabase', () => {
     const keepId = 'a1a1a1a1a1a1'
     const unusedId = 'b2b2b2b2b2b2'
     const foreignId = 'c3c3c3c3c3c3'
+    const lookalikeId = 'd4d4d4d4d4d4'
     const images = [
       `${keepId}|public.ecr.aws/supabase/postgres`,
       `${keepId}|ghcr.io/supabase/postgres`,
       `${unusedId}|public.ecr.aws/supabase/studio`,
       `${foreignId}|<none>`,
       `${foreignId}|us-docker.pkg.dev/wpe-art/ai-local-mcp/backstage-mcp-vertex-ai-search`,
+      `${lookalikeId}|registry.example.com/supabase/app`,
     ].join('\n')
 
     it('prunes dangling layers but skips image removal when the stack is down', () => {
@@ -189,6 +201,7 @@ describe('scripts/supabase', () => {
       expect(calls()).toContain(`docker rmi -f ${unusedId}`)
       expect(calls()).not.toContain(`docker rmi -f ${keepId}`)
       expect(calls()).not.toContain(`docker rmi -f ${foreignId}`)
+      expect(calls()).not.toContain(`docker rmi -f ${lookalikeId}`)
     })
   })
 

@@ -18,7 +18,7 @@ Deterministic start/stop/reset/prune for the local Supabase stack, wired into
 - **`.env.local` is overwritten by `supabase:up`.** It is gitignored and derived
   entirely from the local stack. Shell-exported `VITE_*` variables (direnv) still
   win over it — `unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY` if the dev
-  server should target a remote project instead.
+  server should target the local stack instead.
 - **`supabase:prune` is guarded.** It refuses the image cleanup while the stack is
   down, because the current image set would look unused and the next start would
   re-pull several GB. While the stack is up, containers hold the images the CLI
