@@ -99,4 +99,10 @@ describe('authApi', () => {
     await confirmAge()
     expect(supabase.rpc).toHaveBeenCalledWith('confirm_age')
   })
+
+  it('confirmAge throws when the RPC fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('nope') } as any)
+
+    await expect(confirmAge()).rejects.toThrow('nope')
+  })
 })

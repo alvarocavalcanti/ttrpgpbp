@@ -57,7 +57,9 @@ export async function deleteAccount() {
 }
 
 // Age-confirmation evidence. Called once per signed-in user after the client
-// age checkbox has been accepted; the RPC is self-only and idempotent.
+// age checkbox has been accepted; the RPC is self-only and idempotent. Throws
+// on failure so the caller only records a confirmation that actually landed.
 export async function confirmAge() {
-  return supabase.rpc('confirm_age')
+  const { error } = await supabase.rpc('confirm_age')
+  if (error) throw error
 }

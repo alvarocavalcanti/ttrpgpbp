@@ -106,12 +106,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Stamp server-side age-confirmation evidence once per user, only when the
   // client checkbox was accepted (localStorage flag). The RPC is idempotent.
+  // The user is marked confirmed only after the RPC succeeds, so a failed call
+  // is retried on the next auth event instead of being silently dropped.
   useEffect(() => {
     if (loading || !user) return
     if (localStorage.getItem('age-confirmed') !== 'true') return
     if (confirmedAgeFor.current === user.id) return
-    confirmedAgeFor.current = user.id
-    void confirmAge().catch((err) => console.error('Error confirming age:', err))
+    const userId = user.id
+    void confirmAge()
+      .then(() => { confirmedAgeFor.current = userId })
+      .catch((err) => console.error('Error confirming age:', err))
   }, [loading, user])
 
   const signInWithGoogle = useCallback(async () => {

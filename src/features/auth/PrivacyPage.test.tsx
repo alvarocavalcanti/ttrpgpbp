@@ -172,4 +172,14 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/performance of our contract with you/)).toBeInTheDocument()
     expect(screen.getByText(/legitimate interests \(safety, security/)).toBeInTheDocument()
   })
+
+  it('discloses the age-confirmation record in what we collect', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/we record the date of that confirmation/)).toBeInTheDocument()
+  })
 })

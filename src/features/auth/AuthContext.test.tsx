@@ -603,6 +603,45 @@ describe('AuthContext', () => {
     await screen.findByText('ready')
     expect(supabase.rpc).not.toHaveBeenCalled()
   })
+
+  it('retries age confirmation after a failed RPC', async () => {
+    localStorage.setItem('age-confirmed', 'true')
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((cb: any) => {
+      authCallback = cb
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } }
+    }) as any)
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    // First attempt fails: the user must not be marked confirmed.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('down') } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await screen.findByText('ready')
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(1))
+
+    // A later auth event retries because the first attempt never succeeded.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+    await act(async () => {
+      authCallback('TOKEN_REFRESHED', { user: { id: 'user-123' } })
+    })
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(2))
+  })
 })
 
 
