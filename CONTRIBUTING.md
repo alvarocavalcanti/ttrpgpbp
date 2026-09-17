@@ -13,9 +13,9 @@ When in doubt about whether a feature fits, open an issue to discuss it before b
 ## Development setup
 
 1. `npm install`
-2. `npm run supabase:up` — starts the local Supabase stack and writes `.env.local`. To use a hosted Supabase project instead, set `.env.local` yourself — see the README's [Development Setup](README.md#development-setup).
+2. `npm run supabase:up` — starts the local Supabase stack, applies pending migrations and writes `.env.local`. To use a hosted Supabase project instead, set `.env.local` yourself — see the README's [Development Setup](README.md#development-setup).
 3. `npm run dev`
-4. `npm run supabase:down` when you are done. The stack is shared by every worktree, so stopping it takes it down for all of them. See [scripts/supabase/README.md](scripts/supabase/README.md).
+4. `npm run supabase:down` when you are done — only when no other worktree still needs the stack, since it is shared and stopping it takes it down for all of them. See [scripts/supabase/README.md](scripts/supabase/README.md).
 
 See the README for testing and linting commands.
 

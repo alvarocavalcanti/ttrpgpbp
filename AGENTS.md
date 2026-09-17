@@ -81,9 +81,9 @@ Boundaries: code/commits/PRs written normal.
        ```bash
        git fetch origin
        git checkout main && git pull origin main --ff-only
+       npm run supabase:down   # only when no other worktree still needs the shared stack
        git worktree remove <worktree-path> --force
        git branch -D <branch>
-       npm run supabase:down   # once no other worktree still needs the shared stack
        ```
 
      **Auto-merge (user must explicitly request):**
@@ -141,8 +141,8 @@ Every UI change must follow these conventions:
 
 > **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
 
-1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent) and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept; the stack is shared across worktrees).
-2. **Apply Migrations:** `npx supabase migration up` (or `npm run supabase:reset` to wipe volumes and re-apply all migrations from scratch)
+1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent), applies pending migrations and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept; the stack is shared across worktrees, so only stop it when no other worktree needs it).
+2. **Apply Migrations:** done by `npm run supabase:up`; use `npm run supabase:reset` to wipe volumes and re-apply every migration from scratch.
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (<http://localhost:54323>) to create a mock user, or link your `.env.local` to the remote Supabase.
 
@@ -162,7 +162,7 @@ Every UI change must follow these conventions:
 
 - **Create a migration**: `npx supabase migration new <name>`
 - **Apply locally**: `npx supabase migration up`
-- **Verify from scratch**: `npm run supabase:reset` (wraps `supabase db reset`) — this is what CI runs on every PR
+- **Verify from scratch**: `npm run supabase:reset` — wraps `supabase db reset` locally; CI itself runs `supabase db start` + `supabase db reset` on every PR
 - **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration.
 - **CI enforcement**:
   - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `supabase db start` + `supabase db reset`. A PR that breaks migrations fails CI.

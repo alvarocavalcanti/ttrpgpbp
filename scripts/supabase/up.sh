@@ -14,6 +14,13 @@ else
   echo "Local Supabase stack already running (project: $PROJECT_ID)."
 fi
 
+# `supabase start` applies migrations on a fresh volume, but a stack another
+# worktree already started will not pick up migrations merged since. Apply
+# pending ones so `supabase:up` is deterministic; a no-op when up to date.
+echo "Applying pending migrations..."
+# shellcheck disable=SC2086
+$SUPABASE_BIN migration up --local
+
 # `status -o env` prints KEY="value". Values may contain '=' (JWTs), so slice on
 # the first '=' only and keep the remainder intact.
 # shellcheck disable=SC2086

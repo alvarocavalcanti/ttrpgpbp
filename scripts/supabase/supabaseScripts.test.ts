@@ -111,6 +111,12 @@ describe('scripts/supabase', () => {
       expect(calls()).toContain('supabase status -o env')
     })
 
+    it('applies pending migrations so an already-running stack stays current', () => {
+      run('up.sh', [], { STUB_STATUS_ENV: statusEnv })
+
+      expect(calls()).toContain('supabase migration up --local')
+    })
+
     it('leaves an existing .env.local untouched when a key is missing', () => {
       writeFileSync(envFile, 'sentinel\n', 'utf8')
 
@@ -133,6 +139,13 @@ describe('scripts/supabase', () => {
     it('forwards --no-backup when the stack is running', () => {
       run('down.sh', ['--no-backup'], { STUB_CONTAINER: 'abc123' })
 
+      expect(calls()).toContain('supabase stop --no-backup')
+    })
+
+    it('deletes volumes with --no-backup even when the stack is already stopped', () => {
+      const result = run('down.sh', ['--no-backup'])
+
+      expect(result.status).toBe(0)
       expect(calls()).toContain('supabase stop --no-backup')
     })
 

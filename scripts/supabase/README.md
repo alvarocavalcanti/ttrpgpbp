@@ -5,8 +5,8 @@ Deterministic start/stop/reset/prune for the local Supabase stack, wired into
 
 | Command | Does |
 | --- | --- |
-| `npm run supabase:up` | Starts the stack if needed (idempotent) and regenerates `.env.local` from it — fail-closed: a partial generation never overwrites a working file. |
-| `npm run supabase:down` | Stops the stack, keeping data volumes. No-op when already stopped. |
+| `npm run supabase:up` | Starts the stack if needed (idempotent), applies pending migrations and regenerates `.env.local` from it — fail-closed: a partial generation never overwrites a working file. |
+| `npm run supabase:down` | Stops the stack, keeping data volumes. No-op when already stopped. Run it only when no other worktree needs the shared stack. |
 | `npm run supabase:reset` | `down --no-backup` → `up` → `supabase db reset`: wipes volumes and re-applies every migration from scratch. |
 | `npm run supabase:prune` | Reclaims Docker space: dangling image layers always, plus unused Supabase image versions while the stack is up. |
 
