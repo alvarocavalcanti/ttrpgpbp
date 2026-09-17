@@ -60,18 +60,13 @@ Boundaries: code/commits/PRs written normal.
      **After creating the worktree, always install dependencies to ensure git hooks are executed and all checks work:**
 
      1. `npm ci` — Husky's `core.hooksPath` points at the gitignored `.husky/_` shim dir, which `npm install` generates. A fresh worktree without it **silently skips all pre-commit/pre-push hooks** (no error, no lint, no tests). `npm ci` creates the shims and `node_modules`.
-     2. Generate `.env.local` **fail-closed** — without it, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session). Two traps: Vite gives shell-exported `VITE_*` vars precedence over `.env.local` files, and a naive pipe hides `supabase status` failure (the last command's exit code wins), leaving an empty file that changes nothing:
+     2. Bring the local stack up and generate `.env.local` **fail-closed** — one command, `npm run supabase:up`. Without a local `.env.local`, a direnv-exported remote `VITE_SUPABASE_URL` leaks into the dev server and E2E sign-ups hit the remote project and fail (email confirmation → no session). The script stages the file and only swaps it in once both keys are present, and it slices each value on the first `=` (the old `awk -F=` snippet truncated keys containing `=`). Vite still gives shell-exported `VITE_*` vars precedence over the file, so `unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY` if the dev server should target remote.
 
      ```bash
-     npx supabase start   # status below fails if the stack isn't up
-     set -o pipefail
-     npx supabase status -o env | grep -E "^API_URL=|^ANON_KEY=" \
-       | awk -F= '{print $1=="API_URL" ? "VITE_SUPABASE_URL=" $2 : "VITE_SUPABASE_ANON_KEY=" $2}' \
-       > .env.local
-     grep -q "^VITE_SUPABASE_URL=" .env.local && grep -q "^VITE_SUPABASE_ANON_KEY=" .env.local \
-       || { echo "FATAL: .env.local generation failed — refusing to continue with remote/empty env"; exit 1; }
-     unset VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY   # drop direnv exports so they can't override local values
+     npm run supabase:up   # start stack (idempotent) + write .env.local
      ```
+
+     The stack is shared by every worktree (same `project_id`), so `supabase:down` takes it down for all of them. See [scripts/supabase/README.md](scripts/supabase/README.md) for `supabase:up`/`down`/`reset`/`prune`.
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
@@ -86,6 +81,7 @@ Boundaries: code/commits/PRs written normal.
        ```bash
        git fetch origin
        git checkout main && git pull origin main --ff-only
+       npm run supabase:down   # only when no other worktree still needs the shared stack
        git worktree remove <worktree-path> --force
        git branch -D <branch>
        ```
@@ -145,8 +141,8 @@ Every UI change must follow these conventions:
 
 > **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
 
-1. **Start Local DB:** `npx supabase start`
-2. **Apply Migrations:** `npx supabase migration up` (or `npx supabase db reset` to re-apply all migrations from scratch)
+1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent), applies pending migrations and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept; the stack is shared across worktrees, so only stop it when no other worktree needs it).
+2. **Apply Migrations:** done by `npm run supabase:up`; use `npm run supabase:reset` to wipe volumes and re-apply every migration from scratch.
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (<http://localhost:54323>) to create a mock user, or link your `.env.local` to the remote Supabase.
 
@@ -166,7 +162,7 @@ Every UI change must follow these conventions:
 
 - **Create a migration**: `npx supabase migration new <name>`
 - **Apply locally**: `npx supabase migration up`
-- **Verify from scratch**: `npx supabase db reset` — this is what CI runs on every PR
+- **Verify from scratch**: `npm run supabase:reset` — wraps `supabase db reset` locally; CI itself runs `supabase db start` + `supabase db reset` on every PR
 - **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration.
 - **CI enforcement**:
   - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `supabase db start` + `supabase db reset`. A PR that breaks migrations fails CI.
