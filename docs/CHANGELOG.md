@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-17
 
+### Added
+
+- **Safer image sharing** — every uploaded image is now checked against known illegal material before it is stored. If something matches, the upload is blocked and the account is suspended automatically.
+- **Reviewing a reported message** — when you report a message, the team can now open that message to review your report. These views are recorded.
+
 ### Fixed
 
 - **Dice and mention chips are as easy to read as the message** — the clickable `1d20` roll chips, ability-check chips, and `@name` mention chips now match the size of the message text around them instead of looking tiny.

@@ -519,6 +519,54 @@ export type Database = {
           },
         ]
       }
+      content_hashes: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          id: string
+          object_path: string
+          pdq_hash: string | null
+          safer_status: string
+          sha256: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          object_path: string
+          pdq_hash?: string | null
+          safer_status?: string
+          sha256: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          object_path?: string
+          pdq_hash?: string | null
+          safer_status?: string
+          sha256?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_hashes_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_hashes_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dice_rolls: {
         Row: {
           breakdown: Json
@@ -1032,12 +1080,38 @@ export type Database = {
           name: string
         }[]
       }
+      admin_list_content_matches: {
+        Args: never
+        Returns: {
+          channel_id: string
+          channel_name: string
+          created_at: string
+          id: string
+          object_path: string
+          safer_status: string
+          sha256: string
+          uploaded_by: string
+          uploaded_by_display_name: string
+        }[]
+      }
       admin_list_message_recipients: {
         Args: never
         Returns: {
           avatar_url: string
           display_name: string
           id: string
+        }[]
+      }
+      admin_list_user_messages: {
+        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          channel_id: string
+          channel_name: string
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          type: string
         }[]
       }
       admin_list_users: {
@@ -1058,6 +1132,28 @@ export type Database = {
           message_count: number
           provider: string
           server_admin: boolean
+        }[]
+      }
+      admin_read_image: {
+        Args: { p_object_path: string }
+        Returns: {
+          channel_id: string
+          channel_name: string
+          object_path: string
+        }[]
+      }
+      admin_read_message: {
+        Args: { p_message_id: string }
+        Returns: {
+          channel_id: string
+          channel_name: string
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          sender_display_name: string
+          sender_id: string
+          type: string
         }[]
       }
       admin_resolve_abuse_report: {

@@ -133,8 +133,28 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 | `image_max_size_mb` | number | 5 | Max upload size before client-side resize |
 | `image_retention_days` | number | 0 | `0` keeps images forever; otherwise the `cleanup-images` edge function deletes images older than this many days |
 
+### `content_hashes`
+
+Service-role-only provenance for scanned uploads. Browser clients have no access (no RLS policies).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID, PK | |
+| `object_path` | text, unique | `{channel_id}/{folder}/{uuid}.jpg`. For a `match`, the path that was *attempted* (never stored) |
+| `channel_id` | UUID, FK → channels, nullable | `ON DELETE SET NULL` |
+| `uploaded_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
+| `sha256` | text | Always recorded |
+| `pdq_hash` | text, nullable | Reserved for local perceptual dedupe (not yet populated) |
+| `safer_status` | text | `unscanned`, `clear`, `match`, or `error` |
+| `created_at` | timestamptz | |
+
 ### Admin / data-lifecycle functions
 
+- **`admin_read_message(message_id)`** (SECURITY DEFINER, server admin only): returns one message with its sender and channel for report investigation. Writes a `read_message` row to `audit_logs` on every call.
+- **`admin_list_user_messages(user_id, before, limit)`** (SECURITY DEFINER, server admin only): paged message history for a user, newest first, including soft-deleted rows. Records a `list_user_messages` audit row.
+- **`admin_read_image(object_path)`** (SECURITY DEFINER, server admin only): resolves an image object path to its channel and records a `read_image` audit row. The server admin is also allowed through the `images_select` storage policy so a reported image can be signed.
+- **`admin_list_content_matches()`** (SECURITY DEFINER, server admin only): lists blocked uploads (`content_hashes.safer_status = 'match'`).
+- **`scan-upload` edge function**: the only writer of `content_hashes`. Hashes the upload (`sha256`), submits it to Thorn Safer, blocks + records + suspends the uploader on a match, and otherwise stores the object with the service role. Fails closed when `SAFER_API_KEY` is unset.
 - **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.
 - **`delete-account` edge function**: verifies the caller's JWT, rejects the sole server admin (would leave the app headless), then calls `auth.admin.deleteUser`. Cascades erase the user's profiles, memberships, dice rolls, reactions, preferences, and push subscriptions; their sent messages are anonymized (`sender_id SET NULL`) and whispers addressed to them are deleted (`whisper_to CASCADE`).
 - **`cleanup-images` edge function**: scheduled daily by the

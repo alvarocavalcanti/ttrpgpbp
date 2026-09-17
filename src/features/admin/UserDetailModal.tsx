@@ -3,7 +3,7 @@ import { BottomSheet } from '../../components/BottomSheet'
 import { Avatar } from '../../components/Avatar'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
-import type { AdminUser, AdminAuditEntry } from './useAdminData'
+import type { AdminUser, AdminAuditEntry, AdminMessage } from './useAdminData'
 
 interface UserDetailModalProps {
   user: AdminUser
@@ -11,6 +11,7 @@ interface UserDetailModalProps {
   // Resolves to true on success; shows a toast and updates the list in place.
   onSuspend: (targetUser: AdminUser, reason: string) => Promise<boolean>
   getUserHistory: (userId: string) => Promise<AdminAuditEntry[] | string>
+  listUserMessages: (userId: string) => Promise<AdminMessage[] | string>
 }
 
 function formatDate(value: string | null): string {
@@ -21,10 +22,13 @@ function formatDate(value: string | null): string {
 // Detail view for a single user opened from the admin Users table (issue
 // #460): surfaces email + verification, provider, role/status flags, login &
 // activity, channel memberships, moderation history, and the suspend action.
-export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: UserDetailModalProps) {
+export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, listUserMessages }: UserDetailModalProps) {
   const [history, setHistory] = useState<AdminAuditEntry[]>([])
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyLoading, setHistoryLoading] = useState(true)
+  const [messages, setMessages] = useState<AdminMessage[]>([])
+  const [messagesError, setMessagesError] = useState<string | null>(null)
+  const [messagesLoading, setMessagesLoading] = useState(true)
   const [showSuspendSheet, setShowSuspendSheet] = useState(false)
 
   useEffect(() => {
@@ -51,6 +55,30 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: Us
       })
     return () => { mounted = false }
   }, [user.id, getUserHistory])
+
+  useEffect(() => {
+    let mounted = true
+    // Same reset-on-user-change contract as the audit history above.
+    setMessages([])
+    setMessagesError(null)
+    setMessagesLoading(true)
+    listUserMessages(user.id)
+      .then(result => {
+        if (!mounted) return
+        if (typeof result === 'string') {
+          setMessagesError(result)
+        } else {
+          setMessages(result)
+        }
+        setMessagesLoading(false)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setMessagesError('Failed to load message history.')
+        setMessagesLoading(false)
+      })
+    return () => { mounted = false }
+  }, [user.id, listUserMessages])
 
   const blockedChannelCount = user.channels.filter(c => c.is_blocked).length
   const name = user.display_name?.trim() || user.email?.trim() || 'Unknown user'
@@ -153,6 +181,30 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: Us
                   {h.admin_name ? <span className="text-surface-500 dark:text-surface-400"> by {h.admin_name}</span> : null}
                   <span className="text-surface-500 dark:text-surface-400"> · {formatDate(h.created_at)}</span>
                   {h.reason ? <span className="block text-surface-500 dark:text-surface-400">{h.reason}</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <h4 className="text-xs font-medium uppercase tracking-wider text-surface-500 dark:text-surface-400 mb-2">Message history</h4>
+          {messagesLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-primary-500"></div>
+            </div>
+          ) : messagesError ? (
+            <p className="text-sm text-red-600 dark:text-red-400">{messagesError}</p>
+          ) : messages.length === 0 ? (
+            <p className="text-sm text-surface-500 dark:text-surface-400">No messages found.</p>
+          ) : (
+            <ul className="space-y-3">
+              {messages.map(m => (
+                <li key={m.id} className="text-sm">
+                  <span className="text-xs text-surface-500 dark:text-surface-400">
+                    {m.channel_name ? `${m.channel_name} · ` : ''}{formatDate(m.created_at)}{m.is_deleted ? ' · deleted' : ''}
+                  </span>
+                  <p className="text-surface-900 dark:text-surface-100 whitespace-pre-wrap break-words">{m.content}</p>
                 </li>
               ))}
             </ul>

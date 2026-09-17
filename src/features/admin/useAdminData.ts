@@ -53,6 +53,24 @@ export const AdminAbuseReportRowSchema = z.object({
   updated_at: z.string(),
 })
 
+// A message row from admin_read_message / admin_list_user_messages. Channel and
+// sender joins are LEFT (both survive deletion), so those fields can be null
+// despite the RPC's non-null signature.
+export const AdminMessageRowSchema = z.object({
+  id: z.string(),
+  channel_id: z.string().nullable(),
+  channel_name: z.string().nullable(),
+  content: z.string(),
+  type: z.string(),
+  is_deleted: z.boolean(),
+  created_at: z.string(),
+})
+
+export const AdminMessageDetailSchema = AdminMessageRowSchema.extend({
+  sender_id: z.string().nullable(),
+  sender_display_name: z.string().nullable(),
+})
+
 export const AdminChannelRowSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -68,6 +86,8 @@ export type AdminUser = z.infer<typeof AdminUserRowSchema>
 export type AdminChannel = z.infer<typeof AdminChannelRowSchema>
 export type AdminAuditEntry = z.infer<typeof AdminAuditEntrySchema>
 export type AdminAbuseReport = z.infer<typeof AdminAbuseReportRowSchema>
+export type AdminMessage = z.infer<typeof AdminMessageRowSchema>
+export type AdminMessageDetail = z.infer<typeof AdminMessageDetailSchema>
 
 // Data layer for the server admin console (ARCH-1): the admin_list_* queries,
 // suspend/claim RPCs, and app_settings upserts live here; AdminView keeps the
@@ -198,6 +218,36 @@ export function useAdminData(isServerAdmin: boolean) {
     return null
   }
 
+  // Reads a single message for report investigation. Returns the message, null
+  // when it no longer exists, or an error string (same contract as
+  // getUserHistory so callers handle one shape).
+  const readMessage = async (messageId: string): Promise<AdminMessageDetail | string | null> => {
+    const { data, error } = await supabase.rpc('admin_read_message', { p_message_id: messageId })
+    if (error) return error.message
+    if (!Array.isArray(data) || data.length === 0) return null
+    const parsed = AdminMessageDetailSchema.safeParse(data[0])
+    return parsed.success ? parsed.data : 'Failed to load the message.'
+  }
+
+  // Paged message history for a user, newest first. Returns rows or an error
+  // string. Pass the oldest created_at seen so far as `before` to page.
+  const listUserMessages = async (
+    userId: string,
+    options?: { before?: string; limit?: number }
+  ): Promise<AdminMessage[] | string> => {
+    const { data, error } = await supabase.rpc('admin_list_user_messages', {
+      p_user_id: userId,
+      p_before: options?.before,
+      p_limit: options?.limit ?? 50,
+    })
+    if (error) return error.message
+    if (!Array.isArray(data)) return 'Failed to load message history.'
+    return data
+      .map(m => AdminMessageRowSchema.safeParse(m))
+      .filter(r => r.success)
+      .map(r => r.data)
+  }
+
   const upsertSettings = async (entries: { key: string; value: Json }[]) => {
     const { error: upsertError } = await supabase
       .from('app_settings')
@@ -219,5 +269,5 @@ export function useAdminData(isServerAdmin: boolean) {
     return entries
   }
 
-  return { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory }
+  return { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages }
 }
