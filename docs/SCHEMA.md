@@ -122,7 +122,7 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, cross-channel reply targets, and non-member whisper targets.
 - **dice_rolls**: Readable by channel members. **Insert is revoked from clients** — rolls are only created by the `roll_dice` command, so a fabricated result can never be persisted. Realtime INSERT events are published (`ALTER PUBLICATION`), and the roll history RPC excludes rolls from soft-deleted messages.
 - **notification_preferences**: Users can only read/write their own row.
-- **storage.objects (`images` bucket)**: Public bucket (plain public URLs for avatars). Reads are public; writes (INSERT/UPDATE/DELETE) are restricted to the GM of the channel named by the object path's first segment (`is_channel_gm(storage.foldername(name)[1]::uuid)`). Object paths are `{channel_id}/{avatar|message|map|resources|npc}/{uuid}.jpg`.
+- **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`scan-upload`, which stores an object only after a CSAM scan) may INSERT/UPDATE, so an image cannot be stored unscanned. Adding an INSERT/UPDATE policy on this bucket re-opens that bypass. `images_delete` remains GM-gated (deleting a stored object destroys its provenance — revisit if that matters more than letting a GM clean up their own uploads). Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`.
 
 ### `app_settings`
 
@@ -150,7 +150,7 @@ Service-role-only provenance for scanned uploads. Browser clients have no access
 
 ### Admin / data-lifecycle functions
 
-- **`admin_read_message(message_id)`** (SECURITY DEFINER, server admin only): returns one message with its sender and channel for report investigation. Writes a `read_message` row to `audit_logs` on every call.
+- **`admin_read_message(message_id)`** (SECURITY DEFINER, server admin only): returns one message with its sender and channel for report investigation, or no rows if the message no longer exists. Writes a `read_message` row to `audit_logs` on every call.
 - **`admin_list_user_messages(user_id, before, limit)`** (SECURITY DEFINER, server admin only): paged message history for a user, newest first, including soft-deleted rows. Records a `list_user_messages` audit row.
 - **`admin_read_image(object_path)`** (SECURITY DEFINER, server admin only): resolves an image object path to its channel and records a `read_image` audit row. The server admin is also allowed through the `images_select` storage policy so a reported image can be signed.
 - **`admin_list_content_matches()`** (SECURITY DEFINER, server admin only): lists blocked uploads (`content_hashes.safer_status = 'match'`).

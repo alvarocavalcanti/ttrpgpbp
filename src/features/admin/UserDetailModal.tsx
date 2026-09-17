@@ -19,6 +19,18 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleString()
 }
 
+// Labels for the audit actions that can appear in a user's history. Anything
+// unlisted falls back to its raw action name — never to "Unsuspended", which
+// mislabelled every read-audit and CSAM-block row.
+const ACTION_LABELS: Record<string, string> = {
+  suspend_user: 'Suspended',
+  unsuspend_user: 'Unsuspended',
+  list_user_messages: 'Viewed message history',
+  read_message: 'Viewed a reported message',
+  read_image: 'Viewed a reported image',
+  csam_match_blocked: 'Upload blocked and account suspended',
+}
+
 // Detail view for a single user opened from the admin Users table (issue
 // #460): surfaces email + verification, provider, role/status flags, login &
 // activity, channel memberships, moderation history, and the suspend action.
@@ -176,7 +188,7 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
               {history.map(h => (
                 <li key={h.id} className="text-sm">
                   <span className="text-surface-900 dark:text-surface-100">
-                    {h.action === 'suspend_user' ? 'Suspended' : 'Unsuspended'}
+                    {ACTION_LABELS[h.action] ?? h.action}
                   </span>
                   {h.admin_name ? <span className="text-surface-500 dark:text-surface-400"> by {h.admin_name}</span> : null}
                   <span className="text-surface-500 dark:text-surface-400"> · {formatDate(h.created_at)}</span>

@@ -29,16 +29,29 @@ export function isValidUploadPath(path: string, channelId: string): boolean {
 
 export type ScanVerdict = 'match' | 'clear'
 
-// Thorn Safer answers with a `hashes` key only when the image matches a known
-// CSAM hash; an absent or empty value means no match. A non-2xx response is an
-// error (the caller fails closed), so this only interprets a successful body.
-// Pure, so the interpretation is tested without the HTTP call.
+// Interprets a Thorn Safer matching response. Fails closed: anything that is
+// not an explicitly recognized shape throws, and the caller 500s without
+// storing the image. The contract is not confirmed yet, so an unrecognized
+// payload must never be read as "no match".
+//
+// Recognized: an object carrying a `hashes` key — non-empty means a match,
+// empty/false/null means clear. A payload without `hashes` (including one that
+// wraps the body in an unexpected envelope, e.g. `{ data: ... }`) is refused.
+// When Safer API access is granted, confirm the real clean-response shape here
+// and extend this function rather than assuming.
 export function interpretSaferResponse(payload: unknown): ScanVerdict {
-  if (payload === null || typeof payload !== 'object') return 'clear'
-  const hashes = (payload as Record<string, unknown>).hashes
-  if (Array.isArray(hashes)) return hashes.length > 0 ? 'match' : 'clear'
-  if (hashes !== null && typeof hashes === 'object') {
-    return Object.keys(hashes).length > 0 ? 'match' : 'clear'
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Unrecognized Safer response')
   }
-  return 'clear'
+
+  const body = payload as Record<string, unknown>
+  if (!('hashes' in body)) {
+    throw new Error('Unrecognized Safer response')
+  }
+
+  const hashes = body.hashes
+  if (hashes === undefined || hashes === null || hashes === false) return 'clear'
+  if (Array.isArray(hashes)) return hashes.length > 0 ? 'match' : 'clear'
+  if (typeof hashes === 'object') return Object.keys(hashes).length > 0 ? 'match' : 'clear'
+  throw new Error('Unrecognized Safer response')
 }

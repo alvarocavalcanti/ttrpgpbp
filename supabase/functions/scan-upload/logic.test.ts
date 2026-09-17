@@ -27,12 +27,17 @@ describe('isValidUploadPath', () => {
 })
 
 describe('interpretSaferResponse', () => {
-  it('treats an absent hashes key as clear', () => {
-    expect(interpretSaferResponse({})).toBe('clear')
+  it('treats an explicit empty hashes list as clear', () => {
+    expect(interpretSaferResponse({ hashes: [] })).toBe('clear')
   })
 
-  it('treats an empty hashes list as clear', () => {
-    expect(interpretSaferResponse({ hashes: [] })).toBe('clear')
+  it('treats an explicit empty hashes object as clear', () => {
+    expect(interpretSaferResponse({ hashes: {} })).toBe('clear')
+  })
+
+  it('treats an explicit false hashes value as clear', () => {
+    expect(interpretSaferResponse({ hashes: false })).toBe('clear')
+    expect(interpretSaferResponse({ hashes: null })).toBe('clear')
   })
 
   it('treats a populated hashes list as a match', () => {
@@ -43,10 +48,23 @@ describe('interpretSaferResponse', () => {
     expect(interpretSaferResponse({ hashes: { pdq: 'abc' } })).toBe('match')
   })
 
-  it('treats malformed payloads as clear', () => {
-    expect(interpretSaferResponse(null)).toBe('clear')
-    expect(interpretSaferResponse('nope')).toBe('clear')
-    expect(interpretSaferResponse({ hashes: null })).toBe('clear')
+  it('fails closed on payloads that carry no hashes key', () => {
+    expect(() => interpretSaferResponse({})).toThrow('Unrecognized Safer response')
+    expect(() => interpretSaferResponse({ data: { hashes: ['x'] } })).toThrow('Unrecognized Safer response')
+  })
+
+  it('fails closed on an unknown shape that looks like a match', () => {
+    expect(() => interpretSaferResponse({ match: true })).toThrow('Unrecognized Safer response')
+  })
+
+  it('fails closed on non-object payloads', () => {
+    expect(() => interpretSaferResponse('nope')).toThrow('Unrecognized Safer response')
+    expect(() => interpretSaferResponse(null)).toThrow('Unrecognized Safer response')
+    expect(() => interpretSaferResponse(['hashes'])).toThrow('Unrecognized Safer response')
+  })
+
+  it('fails closed on a scalar hashes value', () => {
+    expect(() => interpretSaferResponse({ hashes: 'yes' })).toThrow('Unrecognized Safer response')
   })
 })
 

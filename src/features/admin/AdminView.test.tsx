@@ -1161,4 +1161,20 @@ describe('AdminView copy opted-in emails', () => {
 
     expect(await screen.findByRole('button', { name: 'View message' })).toBeDisabled()
   })
+
+  it('shows a toast when loading the reported message fails', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    reportsRpc([makeReport({ id: 'r1', message_id: 'm1' })], {
+      admin_read_message: () => { throw new Error('offline') },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View message' }))
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('Failed to load the reported message.', 'error')
+    })
+  })
 })

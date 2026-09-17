@@ -80,4 +80,35 @@ describe('UserDetailModal', () => {
     expect(await screen.findByText('removed words')).toBeInTheDocument()
     expect(screen.getByText(/deleted/)).toBeInTheDocument()
   })
+
+  it('labels a CSAM block rather than calling it unsuspended', async () => {
+    renderModal({
+      getUserHistory: vi.fn().mockResolvedValue([
+        { id: 'a1', action: 'csam_match_blocked', reason: null, admin_name: null, created_at: '2026-03-02T00:00:00Z' },
+      ]),
+    })
+
+    expect(await screen.findByText('Upload blocked and account suspended')).toBeInTheDocument()
+    expect(screen.queryByText('Unsuspended')).not.toBeInTheDocument()
+  })
+
+  it('labels read-audit actions', async () => {
+    renderModal({
+      getUserHistory: vi.fn().mockResolvedValue([
+        { id: 'a2', action: 'read_message', reason: null, admin_name: null, created_at: '2026-03-02T00:00:00Z' },
+      ]),
+    })
+
+    expect(await screen.findByText('Viewed a reported message')).toBeInTheDocument()
+  })
+
+  it('falls back to the raw action name for unknown actions', async () => {
+    renderModal({
+      getUserHistory: vi.fn().mockResolvedValue([
+        { id: 'a3', action: 'some_future_action', reason: null, admin_name: null, created_at: '2026-03-02T00:00:00Z' },
+      ]),
+    })
+
+    expect(await screen.findByText('some_future_action')).toBeInTheDocument()
+  })
 })

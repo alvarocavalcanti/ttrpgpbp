@@ -252,6 +252,9 @@ export function AdminView() {
         return
       }
       setViewedMessage(result)
+    } catch (err) {
+      console.error('Error loading reported message:', err)
+      addToast('Failed to load the reported message.', 'error')
     } finally {
       setViewMessageLoading(false)
     }
