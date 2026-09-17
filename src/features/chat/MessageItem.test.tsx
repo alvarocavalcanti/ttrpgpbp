@@ -434,6 +434,50 @@ describe('MessageItem', () => {
     expect(mockOnRollDice).not.toHaveBeenCalled()
   })
 
+  it('renders inline dice chips at the message text scale (#541)', async () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'Roll 1d20+3 to hit',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={vi.fn()} />)
+    const chip = await screen.findByRole('button', { name: '1d20+3' })
+    // Guard the guard: a missing chip must fail here, not pass vacuously.
+    expect(chip).toBeInTheDocument()
+    // Chips share the body scale literally (DAMP): an accidental retune of
+    // the shared constant must fail here, same as the body-scale tests.
+    expect(chip.className).toContain('text-[1.0625rem]')
+    expect(chip.className).not.toContain('text-xs')
+    expect(chip.className).toContain('leading-none')
+    const icon = chip.querySelector('svg')
+    expect(icon?.getAttribute('class')).toContain('w-4 h-4')
+    // The chip lives inside the same scaled body as the surrounding text.
+    const prose = container.querySelector('.prose')
+    expect(prose?.className).toContain('text-[1.0625rem]')
+  })
+
+  it('renders check chips at the message text scale and keeps them clickable (#541)', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'Make a [STR Check](check:STR)',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={vi.fn()} gameSystem="shadowdark" members={[{ user_id: 'u1', character_name: 'Hero', attributes: { STR: 2 } }]} />)
+    const chip = screen.getByRole('button', { name: 'STR Check' })
+    expect(chip).toBeInTheDocument()
+    expect(chip.className).toContain('text-[1.0625rem]')
+    expect(chip.className).not.toContain('text-xs')
+    const icon = chip.querySelector('svg')
+    expect(icon?.getAttribute('class')).toContain('w-4 h-4')
+    // The resize must not detach the click wiring: the sheet still opens.
+    fireEvent.click(chip)
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeInTheDocument()
+  })
+
   it('allows editing if author and within 15 min', async () => {
     const mockOnEdit = vi.fn().mockResolvedValue(undefined)
     const msg: any = { 
@@ -782,6 +826,10 @@ describe('MessageItem', () => {
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.getByText('@Hero')).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    // Mention chips match the message text scale (#541).
+    const chip = screen.getByText('@Hero')
+    expect(chip.className).toContain('text-[1.0625rem]')
+    expect(chip.className).not.toContain('text-xs')
   })
 
   it('keeps mention chips sans-serif inside serif narrative text', () => {
@@ -796,6 +844,9 @@ describe('MessageItem', () => {
     const chip = screen.getByText('@Hero')
     expect(chip.className).toContain('font-sans')
     expect(chip.className).not.toContain('font-serif')
+    // Scene mentions match the message text scale too (#541).
+    expect(chip.className).toContain('text-[1.0625rem]')
+    expect(chip.className).not.toContain('text-xs')
   })
 
   it('renders reply block and jumps to parent on click', () => {
