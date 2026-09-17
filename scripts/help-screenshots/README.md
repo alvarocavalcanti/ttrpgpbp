@@ -12,8 +12,8 @@ Committed capture scripts for the in-app help images in [`public/help/`](../../p
 ## Run
 
 ```bash
-# 1. Local Supabase up + migrations applied
-npx supabase start
+# 1. Local Supabase up + migrations applied + .env.local written
+npm run supabase:up
 
 # 2. Seed fixtures (re-runnable)
 PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \

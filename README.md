@@ -44,14 +44,17 @@ Want to run your own instance? See [DEPLOYMENT.md](DEPLOYMENT.md). Interested in
    ```
 
 2. **Supabase Configuration**
-   You need a Supabase project. Set up your `.env.local` file in the project root:
+
+   **Local stack (default):** `npm run supabase:up` starts the local Supabase stack and writes `.env.local` for you. `npm run supabase:down` stops it when you are done (data volumes are kept).
+
+   **Hosted project instead:** set up your `.env.local` file in the project root:
 
    ```env
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-   Apply the database migrations in `supabase/migrations/` via the Supabase CLI or Dashboard.
+   Apply the database migrations in `supabase/migrations/` via the Supabase CLI or Dashboard — the local stack applies them on start, and `npm run supabase:reset` re-applies them from scratch.
 
 3. **Run Locally**
 

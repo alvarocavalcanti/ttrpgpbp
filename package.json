@@ -12,6 +12,10 @@
     "spellcheck": "cspell \"src/**/*.{ts,tsx}\" \"*.md\" \"docs/**/*.md\"",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
+    "supabase:up": "sh scripts/supabase/up.sh",
+    "supabase:down": "sh scripts/supabase/down.sh",
+    "supabase:reset": "sh scripts/supabase/reset.sh",
+    "supabase:prune": "sh scripts/supabase/prune.sh",
     "prepare": "husky"
   },
   "dependencies": {
