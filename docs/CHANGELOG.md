@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-17
+
+### Fixed
+
+- **Dice and mention chips are as easy to read as the message** — the clickable `1d20` roll chips, ability-check chips, and `@name` mention chips now match the size of the message text around them instead of looking tiny.
+
 ## 2026-09-16
 
 ### Added

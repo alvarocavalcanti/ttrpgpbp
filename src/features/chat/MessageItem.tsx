@@ -48,8 +48,14 @@ const MESSAGE_ACTION_OVERLAY = 'absolute right-2 top-2 flex-shrink-0 sm:static'
 // above the app baseline so chat reads comfortably. `leading-relaxed` is not
 // optional: dropping `text-base` also drops its `line-height: 1.5rem`, which
 // would let the prose plugin's unitless line-height (1.714) take over and
-// jump line spacing from 25.5px to ~31px.
-const MESSAGE_BODY_TEXT = 'text-[1.0625rem] leading-relaxed'
+// jump line spacing from 25.5px to ~31px. Inline chips (dice, check,
+// mention) share MESSAGE_TEXT_SCALE (#541), so a retune moves both and the
+// chips can never drift smaller than the message text again.
+const MESSAGE_TEXT_SCALE = 'text-[1.0625rem]'
+const MESSAGE_BODY_TEXT = `${MESSAGE_TEXT_SCALE} leading-relaxed`
+// Chips sit inline inside the body, so they use leading-none: a taller pill
+// must not inflate the paragraph's line box.
+const MESSAGE_CHIP_TEXT = `${MESSAGE_TEXT_SCALE} leading-none`
 
 interface MessageItemProps {
   message: Message
@@ -331,10 +337,10 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
               if (!isValidDiceNotation(notation)) return
               onRollDice?.(notation, message.id)
             }}
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors cursor-pointer border border-primary-200 dark:border-primary-800 shadow-sm"
+            className={`inline-flex items-center px-2 py-0.5 rounded ${MESSAGE_CHIP_TEXT} font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors cursor-pointer border border-primary-200 dark:border-primary-800 shadow-sm`}
             title={`Roll ${notation}`}
           >
-            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} /><circle cx="8" cy="8" r="2" fill="currentColor" /><circle cx="16" cy="8" r="2" fill="currentColor" /><circle cx="12" cy="12" r="2" fill="currentColor" /><circle cx="8" cy="16" r="2" fill="currentColor" /><circle cx="16" cy="16" r="2" fill="currentColor" /></svg>
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} /><circle cx="8" cy="8" r="2" fill="currentColor" /><circle cx="16" cy="8" r="2" fill="currentColor" /><circle cx="12" cy="12" r="2" fill="currentColor" /><circle cx="8" cy="16" r="2" fill="currentColor" /><circle cx="16" cy="16" r="2" fill="currentColor" /></svg>
             {children}
           </button>
         )
@@ -367,17 +373,17 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
                 missing: systemAttributes.includes(ability) && typeof attrValue !== 'number',
               })
             }}
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800 shadow-sm"
+            className={`inline-flex items-center px-2 py-0.5 rounded ${MESSAGE_CHIP_TEXT} font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800 shadow-sm`}
             title={`Roll ${ability} Check${dc ? ` (DC ${dc})` : ''}${advDis ? ` with ${advDis === 'adv' ? 'Advantage' : 'Disadvantage'}` : ''}`}
           >
-            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
             {children}
           </button>
         )
       }
       if (href?.startsWith('user:')) {
         return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium text-xs font-sans border border-primary-100 dark:border-primary-900">
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium ${MESSAGE_CHIP_TEXT} font-sans border border-primary-100 dark:border-primary-900`}>
             {children}
           </span>
         )
