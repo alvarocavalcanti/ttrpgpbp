@@ -30,8 +30,11 @@ for cid in $($DOCKER_BIN ps -aq); do
     | sed 's/^sha256://' | cut -c1-12)"
 done
 
+# Only the two registries the CLI uses are matched. If the CLI ever switches
+# registry again, unmatched images are left alone: prune degrades to
+# dangling-only rather than risking an unrelated lookalike.
 candidates=$($DOCKER_BIN image ls --format '{{.ID}}|{{.Repository}}' \
-  | grep '|.*supabase/' | cut -d'|' -f1 | sort -u)
+  | grep -E '\|(public\.ecr\.aws/supabase/|ghcr\.io/supabase/)' | cut -d'|' -f1 | sort -u)
 
 for id in $candidates; do
   keep=0
