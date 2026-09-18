@@ -8,6 +8,11 @@ All notable changes to this project are documented in this file.
 
 - **Safer image sharing** — every uploaded image is now checked against known illegal material before it is stored. If something matches, the upload is blocked and the account is suspended automatically.
 - **Reviewing a reported message** — when you report a message, the team can now open that message to review your report. These views are recorded.
+- **Reviewing a player's history** — the admin console can page back through a player's older messages when reviewing a report, and older scan records are cleared out on a schedule while blocked-upload records are kept.
+
+### Changed
+
+- **Image uploads have a short cooldown** — uploading a lot of images in a hurry now pauses with a clear message instead of running away.
 
 ### Fixed
 

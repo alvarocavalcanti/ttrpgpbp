@@ -1089,7 +1089,12 @@ export type Database = {
         }[]
       }
       admin_list_user_messages: {
-        Args: { p_before?: string; p_limit?: number; p_user_id: string }
+        Args: {
+          p_before?: string
+          p_before_id?: string
+          p_limit?: number
+          p_user_id: string
+        }
         Returns: {
           channel_id: string
           channel_name: string

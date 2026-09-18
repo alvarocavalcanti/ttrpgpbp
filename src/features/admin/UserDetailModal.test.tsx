@@ -33,6 +33,17 @@ const renderModal = (over: Partial<Parameters<typeof UserDetailModal>[0]> = {}) 
     />
   )
 
+const makeMessages = (count: number, prefix: string): AdminMessage[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `${prefix}${i}`,
+    channel_id: 'c1',
+    channel_name: 'Curse of Strahd',
+    content: `${prefix} message ${i}`,
+    type: 'regular',
+    is_deleted: false,
+    created_at: `2026-03-01T00:${String(i).padStart(2, '0')}:00Z`,
+  }))
+
 describe('UserDetailModal', () => {
   it('renders the message history for investigation', async () => {
     const messages: AdminMessage[] = [{
@@ -140,7 +151,37 @@ describe('UserDetailModal', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Load older messages' }))
 
     expect(await screen.findByText('an older message')).toBeInTheDocument()
-    expect(listUserMessages).toHaveBeenLastCalledWith('u1', { before: expect.any(String), limit: 50 })
+    expect(listUserMessages).toHaveBeenLastCalledWith('u1', {
+      before: expect.any(String),
+      beforeId: expect.any(String),
+      limit: 50,
+    })
+  })
+
+  it('keeps the paging control after a second full page', async () => {
+    const listUserMessages = vi.fn()
+      .mockResolvedValueOnce(makeMessages(50, 'a'))
+      .mockResolvedValueOnce(makeMessages(50, 'b'))
+
+    renderModal({ listUserMessages })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Load older messages' }))
+
+    expect(await screen.findByText('b message 0')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Load older messages' })).toBeInTheDocument()
+  })
+
+  it('keeps the loaded list when loading older messages fails', async () => {
+    const listUserMessages = vi.fn()
+      .mockResolvedValueOnce(makeMessages(50, 'a'))
+      .mockResolvedValueOnce('Failed to load message history.')
+
+    renderModal({ listUserMessages })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Load older messages' }))
+
+    expect(await screen.findByText('Failed to load message history.')).toBeInTheDocument()
+    expect(screen.getByText('a message 0')).toBeInTheDocument()
   })
 
   it('hides the older-messages control when the first page is not full', async () => {

@@ -11,7 +11,7 @@ interface UserDetailModalProps {
   // Resolves to true on success; shows a toast and updates the list in place.
   onSuspend: (targetUser: AdminUser, reason: string) => Promise<boolean>
   getUserHistory: (userId: string) => Promise<AdminAuditEntry[] | string>
-  listUserMessages: (userId: string, options?: { before?: string; limit?: number }) => Promise<AdminMessage[] | string>
+  listUserMessages: (userId: string, options?: { before?: string; beforeId?: string; limit?: number }) => Promise<AdminMessage[] | string>
 }
 
 // Page size for the message history. The RPC pages by `created_at < before`, so
@@ -44,8 +44,10 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
   const [historyLoading, setHistoryLoading] = useState(true)
   const [messages, setMessages] = useState<AdminMessage[]>([])
   const [messagesError, setMessagesError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [messagesLoading, setMessagesLoading] = useState(true)
   const [messagesLoadingMore, setMessagesLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [showSuspendSheet, setShowSuspendSheet] = useState(false)
 
   useEffect(() => {
@@ -78,6 +80,8 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
     // Same reset-on-user-change contract as the audit history above.
     setMessages([])
     setMessagesError(null)
+    setLoadMoreError(null)
+    setHasMore(false)
     setMessagesLoading(true)
     listUserMessages(user.id, { limit: MESSAGE_PAGE_SIZE })
       .then(result => {
@@ -86,6 +90,7 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
           setMessagesError(result)
         } else {
           setMessages(result)
+          setHasMore(result.length === MESSAGE_PAGE_SIZE)
         }
         setMessagesLoading(false)
       })
@@ -101,23 +106,28 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
   const name = user.display_name?.trim() || user.email?.trim() || 'Unknown user'
 
   // Loads the next page (older messages) and appends it. Rows are newest-first,
-  // so the oldest loaded row is the cursor.
+  // so the oldest loaded row is the cursor; the id breaks ties between rows that
+  // share a timestamp. Failures surface inline and leave the loaded list intact
+  // rather than blanking what the admin was reading.
   const handleLoadOlder = async () => {
     const oldest = messages[messages.length - 1]
     if (!oldest) return
     setMessagesLoadingMore(true)
+    setLoadMoreError(null)
     try {
       const result = await listUserMessages(user.id, {
         before: oldest.created_at,
+        beforeId: oldest.id,
         limit: MESSAGE_PAGE_SIZE,
       })
       if (typeof result === 'string') {
-        setMessagesError(result)
+        setLoadMoreError(result)
         return
       }
       setMessages(prev => [...prev, ...result])
+      setHasMore(result.length === MESSAGE_PAGE_SIZE)
     } catch {
-      setMessagesError('Failed to load message history.')
+      setLoadMoreError('Failed to load message history.')
     } finally {
       setMessagesLoadingMore(false)
     }
@@ -249,7 +259,7 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
               ))}
             </ul>
           )}
-          {!messagesLoading && !messagesError && messages.length === MESSAGE_PAGE_SIZE && (
+          {!messagesLoading && !messagesError && hasMore && (
             <button
               type="button"
               onClick={() => { void handleLoadOlder() }}
@@ -258,6 +268,9 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
             >
               {messagesLoadingMore ? 'Loading…' : 'Load older messages'}
             </button>
+          )}
+          {loadMoreError && (
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{loadMoreError}</p>
           )}
         </div>
 

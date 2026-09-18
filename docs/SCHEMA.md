@@ -148,12 +148,14 @@ Service-role-only provenance for scanned uploads. Browser clients have no access
 | `safer_status` | text | `unscanned` (attempt recorded, provider outcome unknown), `clear`, or `match` |
 | `created_at` | timestamptz | |
 
-A row is written **before** the scan (status `unscanned`) and updated after, so every attempt has provenance and counts against the per-user hourly cap — including attempts where the provider failed.
+A row is written **before** the scan (status `unscanned`) and updated after, so every attempt has provenance and counts against the per-user hourly cap — including attempts where the provider failed. The cap query is served by `content_hashes_uploaded_by_created_idx (uploaded_by, created_at DESC)`.
+
+Retention: the daily `cleanup-images` job prunes rows older than **90 days**, except `match` rows, which are never pruned (a blocked upload is legal evidence, not routine telemetry). This runs on its own clock, independent of `image_retention_days` (which defaults to 0 = keep forever).
 
 ### Admin / data-lifecycle functions
 
 - **`admin_read_message(message_id)`** (SECURITY DEFINER, server admin only): returns one message with its sender and channel for report investigation, or no rows if the message no longer exists. Writes a `read_message` row to `audit_logs` on every call.
-- **`admin_list_user_messages(user_id, before, limit)`** (SECURITY DEFINER, server admin only): paged message history for a user, newest first, including soft-deleted rows (served by `messages_sender_created_idx`). Records a `list_user_messages` audit row. The admin modal pages with a "Load older messages" control, using the oldest loaded `created_at` as the cursor.
+- **`admin_list_user_messages(user_id, before, before_id, limit)`** (SECURITY DEFINER, server admin only): paged message history for a user, newest first, including soft-deleted rows (served by `messages_sender_created_idx`). Records a `list_user_messages` audit row. The cursor is `(created_at, id)` — `before_id` breaks ties between rows sharing a timestamp — and the admin modal pages with a "Load older messages" control.
 - **`scan-upload` edge function**: the only writer of `content_hashes`. Hashes the upload (`sha256`), submits it to Thorn Safer, blocks + records + suspends the uploader on a match, and otherwise stores the object with the service role. Fails closed when `SAFER_API_KEY` is unset or the provider reply is unrecognized. Caps a user at `MAX_UPLOADS_PER_HOUR` attempts.
 - **Admin image access**: there is no admin RPC for images. The `images_select` storage policy admits the server admin, so a reported image can be inspected through the Storage API or the dashboard.
 - **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.

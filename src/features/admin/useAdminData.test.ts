@@ -508,11 +508,15 @@ describe('useAdminData', () => {
 
     const { result } = renderHook(() => useAdminData(true))
     await act(async () => {
-      const messages = await result.current.listUserMessages('u1', { before: '2026-02-01T00:00:00Z', limit: 10 })
+      const messages = await result.current.listUserMessages('u1', {
+        before: '2026-02-01T00:00:00Z',
+        beforeId: 'm9',
+        limit: 10,
+      })
       expect(messages).toHaveLength(1)
     })
     expect(supabase.rpc).toHaveBeenCalledWith('admin_list_user_messages', {
-      p_user_id: 'u1', p_before: '2026-02-01T00:00:00Z', p_limit: 10,
+      p_user_id: 'u1', p_before: '2026-02-01T00:00:00Z', p_before_id: 'm9', p_limit: 10,
     })
   })
 

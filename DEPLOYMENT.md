@@ -128,6 +128,13 @@ browser, so no user JWT is involved.
   supabase functions deploy scan-upload --project-ref <project-ref>
   ```
 
+  For local testing, override `SAFER_API_URL` to a stub that accepts the upload
+  and replies with the recognized clear shape, e.g. `{"hashes": []}` (a dummy
+  provider URL will just fail). `interpretSaferResponse` fails closed — it
+  throws on any payload without a recognized `hashes` key — so confirm the real
+  clean-response shape against <https://safer.io> before enabling uploads, or
+  every clear image will be rejected.
+
 - [ ] Store the same secret as a GitHub Actions repository secret named
   `CLEANUP_IMAGES_SECRET` (Settings → Secrets and variables → Actions). The
   `.github/workflows/cleanup-images.yml` workflow POSTs to the function daily at

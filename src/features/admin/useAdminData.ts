@@ -230,14 +230,16 @@ export function useAdminData(isServerAdmin: boolean) {
   }
 
   // Paged message history for a user, newest first. Returns rows or an error
-  // string. Pass the oldest created_at seen so far as `before` to page.
+  // string. Pass the oldest created_at + id seen so far as `before`/`beforeId`
+  // to page; the id breaks ties between rows sharing a timestamp.
   const listUserMessages = async (
     userId: string,
-    options?: { before?: string; limit?: number }
+    options?: { before?: string; beforeId?: string; limit?: number }
   ): Promise<AdminMessage[] | string> => {
     const { data, error } = await supabase.rpc('admin_list_user_messages', {
       p_user_id: userId,
       p_before: options?.before,
+      p_before_id: options?.beforeId,
       p_limit: options?.limit ?? 50,
     })
     if (error) return error.message
