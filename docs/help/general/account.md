@@ -2,6 +2,10 @@
 title: Account & Settings
 ---
 
+## Signing in and age
+
+You sign in with your Google account. **You must be at least 16** to use Role by Post: the sign-in page asks you to confirm this before continuing, and your answer is remembered on that device. Signing out clears it, so you confirm again next time.
+
 ## Display name and avatar
 
 Your account has a **display name** (up to 40 characters) and **avatar**, shown in the app header. Edit them from the **Settings** page, reachable from the menu in the top-right.

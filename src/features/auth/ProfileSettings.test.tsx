@@ -89,7 +89,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: 'https://example.com/avatar.jpg',
-        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null,
       },
       session: null,
 
@@ -116,7 +116,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: null,
-        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null,
       },
       session: null,
 
@@ -156,7 +156,7 @@ describe('ProfileSettings', () => {
         id: '123',
         display_name: 'Test Player',
         avatar_url: null,
-        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null,
       },
       session: null,
 
@@ -520,7 +520,7 @@ describe('ProfileSettings', () => {
 describe('ProfileSettings email consent', () => {
   const profile = (over: Record<string, unknown> = {}) => ({
     id: '123', display_name: 'Test Player', avatar_url: null, created_at: '',
-    is_suspended: false, email_opt_in: false, email_opt_in_at: null, ...over
+    is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, ...over
   })
 
   const setup = (email_opt_in: boolean) => {

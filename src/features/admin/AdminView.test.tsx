@@ -1133,4 +1133,48 @@ describe('AdminView copy opted-in emails', () => {
 
     expect(await screen.findByRole('button', { name: 'Suspend' })).toBeDisabled()
   })
+
+  it('opens the reported message for inspection', async () => {
+    reportsRpc([makeReport({ id: 'r1', message_id: 'm1' })], {
+      admin_read_message: {
+        data: [{
+          id: 'm1', channel_id: 'c1', channel_name: 'Curse of Strahd', sender_id: 'u2',
+          sender_display_name: 'Bob', type: 'regular', content: 'the reported words',
+          is_deleted: false, created_at: '2026-03-02T00:00:00Z',
+        }],
+        error: null,
+      },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View message' }))
+
+    expect(await screen.findByText('the reported words')).toBeInTheDocument()
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_read_message', { p_message_id: 'm1' })
+  })
+
+  it('disables View message when the report has no linked message', async () => {
+    reportsRpc([makeReport({ message_id: null })])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    expect(await screen.findByRole('button', { name: 'View message' })).toBeDisabled()
+  })
+
+  it('shows a toast when loading the reported message fails', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    reportsRpc([makeReport({ id: 'r1', message_id: 'm1' })], {
+      admin_read_message: () => { throw new Error('offline') },
+    })
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View message' }))
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('Failed to load the reported message.', 'error')
+    })
+  })
 })

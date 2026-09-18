@@ -7,6 +7,7 @@ import {
   updateDisplayName,
   deleteAccount,
   subscribeToAuthEvents,
+  confirmAge,
 } from './authApi'
 import { supabase } from '../../lib/supabase'
 
@@ -20,6 +21,7 @@ vi.mock('../../lib/supabase', () => ({
     },
     from: vi.fn(),
     functions: { invoke: vi.fn() },
+    rpc: vi.fn(),
   }
 }))
 
@@ -89,5 +91,18 @@ describe('authApi', () => {
 
     await deleteAccount()
     expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', { method: 'POST' })
+  })
+
+  it('confirmAge calls the confirm_age RPC', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    await confirmAge()
+    expect(supabase.rpc).toHaveBeenCalledWith('confirm_age')
+  })
+
+  it('confirmAge throws when the RPC fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('nope') } as any)
+
+    await expect(confirmAge()).rejects.toThrow('nope')
   })
 })

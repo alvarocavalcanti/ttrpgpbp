@@ -453,4 +453,91 @@ describe('useAdminData', () => {
       expect(entries).toBe('Failed to load audit history.')
     })
   })
+
+  it('readMessage returns the parsed message for investigation', async () => {
+    const message = {
+      id: 'm1', channel_id: 'c1', channel_name: 'Curse of Strahd', sender_id: 'u2',
+      sender_display_name: 'Bob', type: 'regular', content: 'the reported words',
+      is_deleted: false, created_at: '2026-03-02T00:00:00Z',
+    }
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_read_message') return Promise.resolve({ data: [message], error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await act(async () => {
+      await expect(result.current.readMessage('m1')).resolves.toMatchObject({ content: 'the reported words' })
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_read_message', { p_message_id: 'm1' })
+  })
+
+  it('readMessage returns null when the message no longer exists', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_read_message') return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await act(async () => {
+      await expect(result.current.readMessage('gone')).resolves.toBeNull()
+    })
+  })
+
+  it('readMessage surfaces the RPC error as a string', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_read_message') return Promise.resolve({ data: null, error: new Error('nope') })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await act(async () => {
+      await expect(result.current.readMessage('m1')).resolves.toBe('nope')
+    })
+  })
+
+  it('listUserMessages returns parsed rows and passes the page cursor', async () => {
+    const rows = [{
+      id: 'm1', channel_id: 'c1', channel_name: 'Curse of Strahd', content: 'hi',
+      type: 'regular', is_deleted: false, created_at: '2026-03-02T00:00:00Z',
+    }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_user_messages') return Promise.resolve({ data: rows, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await act(async () => {
+      const messages = await result.current.listUserMessages('u1', {
+        before: '2026-02-01T00:00:00Z',
+        beforeId: 'm9',
+        limit: 10,
+      })
+      expect(messages).toHaveLength(1)
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_list_user_messages', {
+      p_user_id: 'u1', p_before: '2026-02-01T00:00:00Z', p_before_id: 'm9', p_limit: 10,
+    })
+  })
+
+  it('listUserMessages drops malformed rows and surfaces RPC errors', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_user_messages') return Promise.resolve({ data: { not: 'array' }, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await act(async () => {
+      const messages = await result.current.listUserMessages('u1')
+      expect(messages).toBe('Failed to load message history.')
+    })
+
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_user_messages') return Promise.resolve({ data: null, error: new Error('nope') })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+    await act(async () => {
+      await expect(result.current.listUserMessages('u2')).resolves.toBe('nope')
+    })
+  })
 })

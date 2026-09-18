@@ -519,6 +519,54 @@ export type Database = {
           },
         ]
       }
+      content_hashes: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          id: string
+          object_path: string
+          pdq_hash: string | null
+          safer_status: string
+          sha256: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          object_path: string
+          pdq_hash?: string | null
+          safer_status?: string
+          sha256: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          object_path?: string
+          pdq_hash?: string | null
+          safer_status?: string
+          sha256?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_hashes_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_hashes_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dice_rolls: {
         Row: {
           breakdown: Json
@@ -805,6 +853,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age_verified_at: string | null
           avatar_url: string | null
           created_at: string
           display_name: string | null
@@ -815,6 +864,7 @@ export type Database = {
           server_admin: boolean
         }
         Insert: {
+          age_verified_at?: string | null
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -825,6 +875,7 @@ export type Database = {
           server_admin?: boolean
         }
         Update: {
+          age_verified_at?: string | null
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -1040,6 +1091,23 @@ export type Database = {
           id: string
         }[]
       }
+      admin_list_user_messages: {
+        Args: {
+          p_before?: string
+          p_before_id?: string
+          p_limit?: number
+          p_user_id: string
+        }
+        Returns: {
+          channel_id: string
+          channel_name: string
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          type: string
+        }[]
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -1060,6 +1128,20 @@ export type Database = {
           server_admin: boolean
         }[]
       }
+      admin_read_message: {
+        Args: { p_message_id: string }
+        Returns: {
+          channel_id: string
+          channel_name: string
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          sender_display_name: string
+          sender_id: string
+          type: string
+        }[]
+      }
       admin_resolve_abuse_report: {
         Args: { p_report_id: string; p_status: string }
         Returns: undefined
@@ -1077,6 +1159,7 @@ export type Database = {
         }
         Returns: string
       }
+      confirm_age: { Args: never; Returns: undefined }
       create_channel: {
         Args: {
           p_character_avatar_url?: string

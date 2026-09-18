@@ -13,11 +13,12 @@ export interface ImageUploadApi {
 }
 
 // Uploads an image into a folder of the channel's private 'images' bucket:
-// client-side resize, then return the bare object path (signed at render time
-// via useSignedImageUrl). Gated by the admin's image_uploading_enabled setting
-// (off by default) and image_max_size_mb; the server enforces both again via a
-// storage.objects trigger, and storage RLS gates reads to channel members and
-// writes to the GM of the object path's first segment (the channel id).
+// client-side resize, then hand the bytes to the scan-upload edge function,
+// which hashes them, checks them against known CSAM hashes, and only then
+// stores the object (returning its bare object path, signed at render time via
+// useSignedImageUrl). Gated by the admin's image_uploading_enabled setting (off
+// by default) and image_max_size_mb; the server enforces both again, and
+// storage RLS gates reads to channel members.
 export function useImageUpload(channelId: string | undefined): ImageUploadApi {
   const { value: uploadEnabled, loading: settingsLoading } = useAppSetting<boolean>('image_uploading_enabled', false)
   const { value: maxSizeMb } = useAppSetting<number>('image_max_size_mb', DEFAULT_MAX_SIZE_MB)
@@ -39,14 +40,19 @@ export function useImageUpload(channelId: string | undefined): ImageUploadApi {
     try {
       const { file: resized, width, height } = await resizeImageFile(file, maxDimension)
       const path = `${channelId}/${folder}/${crypto.randomUUID()}.jpg`
-      const { error: uploadError } = await supabase.storage.from('images').upload(path, resized, {
-        cacheControl: '3600',
-        upsert: false,
-        // Persist the intrinsic size so the chat can reserve the image's box
-        // before it loads. The storage server still adds size/mimetype.
-        metadata: { width, height },
-      })
-      if (uploadError) throw uploadError
+
+      const form = new FormData()
+      form.append('path', path)
+      form.append('channelId', channelId)
+      form.append('file', resized)
+      form.append('width', String(width))
+      form.append('height', String(height))
+
+      const { data, error: fnError } = await supabase.functions.invoke('scan-upload', { body: form })
+      if (fnError) throw new Error('Image upload failed. Please try again.')
+      if (data?.status === 'blocked') throw new Error('This image could not be uploaded.')
+      if (data?.status === 'throttled') throw new Error('Too many image uploads. Please wait a while and try again.')
+      if (data?.status !== 'stored') throw new Error('Image uploads are temporarily unavailable.')
 
       return path
     } finally {

@@ -4,8 +4,9 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
+import { BottomSheet } from '../../components/BottomSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
-import { useAdminData, type AdminUser, type AdminAbuseReport } from './useAdminData'
+import { useAdminData, type AdminUser, type AdminAbuseReport, type AdminMessageDetail } from './useAdminData'
 import { UserDetailModal } from './UserDetailModal'
 
 type Tab = 'users' | 'channels' | 'reports' | 'settings'
@@ -108,12 +109,14 @@ export function AdminView() {
   const [isSavingImages, setIsSavingImages] = useState(false)
   const [detailUser, setDetailUser] = useState<AdminUser | null>(null)
   const [suspendReport, setSuspendReport] = useState<AdminAbuseReport | null>(null)
+  const [viewedMessage, setViewedMessage] = useState<AdminMessageDetail | null>(null)
+  const [viewMessageLoading, setViewMessageLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<UserFilter>('all')
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
-  const { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory } = useAdminData(isServerAdmin)
+  const { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
@@ -231,6 +234,30 @@ export function AdminView() {
       return
     }
     addToast(status === 'dismissed' ? 'Report dismissed.' : 'Report marked actioned.', 'success')
+  }
+
+  // Load a reported message for inspection. The read is audited server-side.
+  const handleViewMessage = async (report: AdminAbuseReport) => {
+    if (!report.message_id) return
+    setViewMessageLoading(true)
+    try {
+      const result = await readMessage(report.message_id)
+      if (typeof result === 'string') {
+        console.error('Error loading reported message:', result)
+        addToast('Failed to load the reported message.', 'error')
+        return
+      }
+      if (!result) {
+        addToast('The reported message no longer exists.', 'error')
+        return
+      }
+      setViewedMessage(result)
+    } catch (err) {
+      console.error('Error loading reported message:', err)
+      addToast('Failed to load the reported message.', 'error')
+    } finally {
+      setViewMessageLoading(false)
+    }
   }
 
   // Copy the opted-in email list (newline-joined) onto the clipboard. Mirrors
@@ -570,35 +597,44 @@ export function AdminView() {
                             {new Date(report.created_at).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {report.status === 'pending' ? (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setSuspendReport(report)}
-                                  disabled={!report.reported_user_id}
-                                  title={report.reported_user_id ? undefined : 'No user to suspend for this report.'}
-                                  className="inline-flex items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  Suspend
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { void handleReportStatus(report, 'resolved') }}
-                                  className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                >
-                                  Resolve
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { void handleReportStatus(report, 'dismissed') }}
-                                  className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                >
-                                  Dismiss
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-surface-400 dark:text-surface-500">—</span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { void handleViewMessage(report) }}
+                                disabled={!report.message_id || viewMessageLoading}
+                                title={report.message_id ? undefined : 'This report has no linked message.'}
+                                className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                View message
+                              </button>
+                              {report.status === 'pending' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSuspendReport(report)}
+                                    disabled={!report.reported_user_id}
+                                    title={report.reported_user_id ? undefined : 'No user to suspend for this report.'}
+                                    className="inline-flex items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Suspend
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { void handleReportStatus(report, 'resolved') }}
+                                    className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                  >
+                                    Resolve
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { void handleReportStatus(report, 'dismissed') }}
+                                    className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                  >
+                                    Dismiss
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -701,6 +737,7 @@ export function AdminView() {
           onClose={() => setDetailUser(null)}
           onSuspend={handleSuspend}
           getUserHistory={getUserHistory}
+          listUserMessages={listUserMessages}
         />
       )}
 
@@ -718,6 +755,23 @@ export function AdminView() {
           }}
           onClose={() => setSuspendReport(null)}
         />
+      )}
+
+      {viewedMessage && (
+        <BottomSheet title="Reported message" onClose={() => setViewedMessage(null)}>
+          <div className="space-y-3">
+            <p className="text-xs text-surface-500 dark:text-surface-400">
+              {viewedMessage.sender_display_name || 'Unknown sender'}
+              {viewedMessage.channel_name ? ` · ${viewedMessage.channel_name}` : ''}
+              {' · '}
+              {new Date(viewedMessage.created_at).toLocaleString()}
+              {viewedMessage.is_deleted ? ' · deleted' : ''}
+            </p>
+            <p className="text-sm text-surface-900 dark:text-surface-100 whitespace-pre-wrap break-words">
+              {viewedMessage.content}
+            </p>
+          </div>
+        </BottomSheet>
       )}
     </div>
   )
