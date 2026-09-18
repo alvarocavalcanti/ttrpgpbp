@@ -8,6 +8,7 @@ import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { useMemberModeration } from './useMemberModeration'
+import { useActivePlayers } from './useActivePlayers'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
@@ -55,6 +56,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   }, openMenuId !== null)
   
   const { moderateMember, setAway } = useMemberModeration()
+  const { setActivePlayers } = useActivePlayers()
 
   const startEditing = (member: ChannelMember) => {
     onEditMember(member.id)
@@ -115,6 +117,20 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     } catch (err) {
       console.error('Error toggling away status:', err)
       setError('Failed to update away status.')
+    }
+  }
+
+  // Shortcut for the sidebar's Active Player modal (#549): replace the active
+  // set with exactly this player. Multi-select/clearing stay in the modal.
+  const handleSetActivePlayer = async (member: ChannelMember) => {
+    setError(null)
+    try {
+      const error = await setActivePlayers(channelId, [member.user_id])
+      if (error) throw error
+      onUpdate()
+    } catch (err) {
+      console.error('Error setting active player:', err)
+      setError('Failed to set active player.')
     }
   }
 
@@ -258,6 +274,14 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           )}
                           {isGM && !isMe && member.user_id !== gmId && (
                             <>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setOpenMenuId(null); void handleSetActivePlayer(member); }}
+                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+                              >
+                                Set as Active Player
+                              </button>
                               <button
                                 type="button"
                                 role="menuitem"

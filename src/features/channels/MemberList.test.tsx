@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemberList } from './MemberList'
 import { supabase } from '../../lib/supabase'
 import { useMemberModeration } from './useMemberModeration'
+import { useActivePlayers } from './useActivePlayers'
 
 // EditCharacterModal still owns its own data layer, so the supabase mock
 // stays; MemberList's moderation/away calls now go through the hook mock.
@@ -19,10 +20,15 @@ vi.mock('./useMemberModeration', () => ({
   useMemberModeration: vi.fn()
 }))
 
+vi.mock('./useActivePlayers', () => ({
+  useActivePlayers: vi.fn()
+}))
+
 const successInsert = () => vi.fn().mockResolvedValue({ error: null })
 
 const mockModerateMember = vi.fn()
 const mockSetAway = vi.fn()
+const mockSetActivePlayers = vi.fn()
 
 // Editing state lives in ChannelView now; tests mirror that with a stateful
 // wrapper so "Edit Character" still opens the modal.
@@ -66,9 +72,13 @@ describe('MemberList', () => {
     })
     mockModerateMember.mockResolvedValue(null)
     mockSetAway.mockResolvedValue(null)
+    mockSetActivePlayers.mockResolvedValue(null)
     vi.mocked(useMemberModeration).mockReturnValue({
       moderateMember: mockModerateMember,
       setAway: mockSetAway
+    } as any)
+    vi.mocked(useActivePlayers).mockReturnValue({
+      setActivePlayers: mockSetActivePlayers
     } as any)
   })
 
@@ -346,6 +356,65 @@ describe('MemberList', () => {
     // The options should not exist in the DOM
     expect(screen.queryByText('Block Player')).not.toBeInTheDocument()
     expect(screen.queryByText('Kick Player')).not.toBeInTheDocument()
+  })
+
+  it('shows Set as Active Player on a player menu for the GM', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+
+    const menu = screen.getByRole('menu', { name: 'Member options for Sidekick' })
+    expect(within(menu).getByText('Set as Active Player')).toBeInTheDocument()
+  })
+
+  it('sets exactly the tapped player as active and refreshes', async () => {
+    const mockOnUpdate = vi.fn()
+
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Set as Active Player'))
+
+    // Replace semantics (#549): the active set becomes exactly this player.
+    await waitFor(() => {
+      expect(mockSetActivePlayers).toHaveBeenCalledWith('c1', ['u2'])
+      expect(mockOnUpdate).toHaveBeenCalled()
+    })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('hides Set as Active Player from non-GMs', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+
+    expect(screen.queryByText('Set as Active Player')).not.toBeInTheDocument()
+  })
+
+  it('hides Set as Active Player on the GM row itself', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u2" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    // m2 is the GM here: same visibility guard as Kick/Block.
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+
+    expect(screen.queryByText('Set as Active Player')).not.toBeInTheDocument()
+  })
+
+  it('handles set active player error', async () => {
+    mockSetActivePlayers.mockResolvedValue(new Error('denied'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockOnUpdate = vi.fn()
+
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Set as Active Player'))
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalled()
+      expect(screen.getByText('Failed to set active player.')).toBeInTheDocument()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
+    })
   })
 
   it('shows AFK badge and away message for away members', () => {

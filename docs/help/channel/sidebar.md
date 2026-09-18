@@ -24,7 +24,7 @@ The sidebar groups items by who uses them:
 **GM Tools** — GM only:
 
 - **NPCs** — manage the channel's NPC roster
-- **Active Player** — name whose turn it is
+- **Active Player** — name whose turn it is (or set a single player from their **⋯** menu in the member list)
 - **Settings** — configure the channel itself
 
 ## Link items

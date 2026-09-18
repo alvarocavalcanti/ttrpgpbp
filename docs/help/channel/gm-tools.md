@@ -33,6 +33,8 @@ The **NPCs** sidebar item opens the NPC roster for the channel. From there the G
 
 The **Active Player** sidebar item opens a list of the channel's players. Check one or more to name who is up next, then **Save** — the change applies immediately (no message needed) and sends the active player(s) an "It's your turn" notification. Leaving all boxes unchecked clears the active player.
 
+Shortcut: open a player's **⋯** menu in the member list and choose **Set as Active Player** to make that player the active one right away (this replaces whoever is active now; use the modal to set several at once).
+
 ## Archiving
 
 The GM can **archive** a channel, removing it from the main lobby. Archived channels are still viewable and restorable from the **Archived Channels** item in the app menu.

@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Reviewing any channel's messages** — the admin console's Channels list now opens a read-only view of each channel's conversation, so reports can be investigated in full context. Admins can look but cannot post, and every such view is recorded.
+- **Faster turn-setting** — the GM can now name the active player straight from that player's menu in the roster, without leaving the sidebar.
 
 ## 2026-09-17
 
