@@ -55,3 +55,27 @@ export function interpretSaferResponse(payload: unknown): ScanVerdict {
   if (typeof hashes === 'object') return Object.keys(hashes).length > 0 ? 'match' : 'clear'
   throw new Error('Unrecognized Safer response')
 }
+
+// Provider requests are capped so a hanging Safer call cannot pin the invocation.
+export const SAFER_TIMEOUT_MS = 15000
+
+// Rolling per-user attempt ceiling (enforced in index.ts). Bounds how much paid
+// provider quota one GM can burn in an hour; raise it if a heavy session ever
+// legitimately hits it.
+export const MAX_UPLOADS_PER_HOUR = 100
+
+// Upload dimensions arrive as strings from the FormData. Absent must stay
+// absent — Number(null) is 0, which would write a bogus 0x0 box into the object
+// metadata (the client uses it to reserve space before the image loads).
+export function buildImageMetadata(
+  widthValue: unknown,
+  heightValue: unknown
+): { width: number; height: number } | undefined {
+  if (typeof widthValue !== 'string' || typeof heightValue !== 'string') return undefined
+  const width = Number(widthValue)
+  const height = Number(heightValue)
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return undefined
+  }
+  return { width, height }
+}

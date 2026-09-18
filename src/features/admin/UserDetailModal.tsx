@@ -11,8 +11,12 @@ interface UserDetailModalProps {
   // Resolves to true on success; shows a toast and updates the list in place.
   onSuspend: (targetUser: AdminUser, reason: string) => Promise<boolean>
   getUserHistory: (userId: string) => Promise<AdminAuditEntry[] | string>
-  listUserMessages: (userId: string) => Promise<AdminMessage[] | string>
+  listUserMessages: (userId: string, options?: { before?: string; limit?: number }) => Promise<AdminMessage[] | string>
 }
+
+// Page size for the message history. The RPC pages by `created_at < before`, so
+// a full page means there may be older rows to fetch.
+const MESSAGE_PAGE_SIZE = 50
 
 function formatDate(value: string | null): string {
   if (!value) return 'Never'
@@ -41,6 +45,7 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
   const [messages, setMessages] = useState<AdminMessage[]>([])
   const [messagesError, setMessagesError] = useState<string | null>(null)
   const [messagesLoading, setMessagesLoading] = useState(true)
+  const [messagesLoadingMore, setMessagesLoadingMore] = useState(false)
   const [showSuspendSheet, setShowSuspendSheet] = useState(false)
 
   useEffect(() => {
@@ -74,7 +79,7 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
     setMessages([])
     setMessagesError(null)
     setMessagesLoading(true)
-    listUserMessages(user.id)
+    listUserMessages(user.id, { limit: MESSAGE_PAGE_SIZE })
       .then(result => {
         if (!mounted) return
         if (typeof result === 'string') {
@@ -94,6 +99,29 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
 
   const blockedChannelCount = user.channels.filter(c => c.is_blocked).length
   const name = user.display_name?.trim() || user.email?.trim() || 'Unknown user'
+
+  // Loads the next page (older messages) and appends it. Rows are newest-first,
+  // so the oldest loaded row is the cursor.
+  const handleLoadOlder = async () => {
+    const oldest = messages[messages.length - 1]
+    if (!oldest) return
+    setMessagesLoadingMore(true)
+    try {
+      const result = await listUserMessages(user.id, {
+        before: oldest.created_at,
+        limit: MESSAGE_PAGE_SIZE,
+      })
+      if (typeof result === 'string') {
+        setMessagesError(result)
+        return
+      }
+      setMessages(prev => [...prev, ...result])
+    } catch {
+      setMessagesError('Failed to load message history.')
+    } finally {
+      setMessagesLoadingMore(false)
+    }
+  }
 
   const handleConfirmSuspend = async (reason: string) => {
     const ok = await onSuspend(user, reason)
@@ -220,6 +248,16 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, list
                 </li>
               ))}
             </ul>
+          )}
+          {!messagesLoading && !messagesError && messages.length === MESSAGE_PAGE_SIZE && (
+            <button
+              type="button"
+              onClick={() => { void handleLoadOlder() }}
+              disabled={messagesLoadingMore}
+              className="mt-3 w-full rounded-md border border-surface-300 dark:border-surface-600 px-3 py-2 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {messagesLoadingMore ? 'Loading…' : 'Load older messages'}
+            </button>
           )}
         </div>
 

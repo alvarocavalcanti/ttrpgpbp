@@ -51,6 +51,7 @@ export function useImageUpload(channelId: string | undefined): ImageUploadApi {
       const { data, error: fnError } = await supabase.functions.invoke('scan-upload', { body: form })
       if (fnError) throw new Error('Image upload failed. Please try again.')
       if (data?.status === 'blocked') throw new Error('This image could not be uploaded.')
+      if (data?.status === 'throttled') throw new Error('Too many image uploads. Please wait a while and try again.')
       if (data?.status !== 'stored') throw new Error('Image uploads are temporarily unavailable.')
 
       return path

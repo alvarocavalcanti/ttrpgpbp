@@ -1080,20 +1080,6 @@ export type Database = {
           name: string
         }[]
       }
-      admin_list_content_matches: {
-        Args: never
-        Returns: {
-          channel_id: string
-          channel_name: string
-          created_at: string
-          id: string
-          object_path: string
-          safer_status: string
-          sha256: string
-          uploaded_by: string
-          uploaded_by_display_name: string
-        }[]
-      }
       admin_list_message_recipients: {
         Args: never
         Returns: {
@@ -1132,14 +1118,6 @@ export type Database = {
           message_count: number
           provider: string
           server_admin: boolean
-        }[]
-      }
-      admin_read_image: {
-        Args: { p_object_path: string }
-        Returns: {
-          channel_id: string
-          channel_name: string
-          object_path: string
         }[]
       }
       admin_read_message: {

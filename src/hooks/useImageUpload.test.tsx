@@ -71,6 +71,13 @@ describe('useImageUpload', () => {
     await expect(result.current.uploadImage(makeFile(1024), 'message')).rejects.toThrow('temporarily unavailable')
   })
 
+  it('throws a throttle message when the upload cap is hit', async () => {
+    mockInvoke.mockResolvedValue({ data: { status: 'throttled' }, error: null })
+    const { result } = renderHook(() => useImageUpload('c1'))
+
+    await expect(result.current.uploadImage(makeFile(1024), 'message')).rejects.toThrow('Too many image uploads')
+  })
+
   it('propagates edge function errors', async () => {
     mockInvoke.mockResolvedValue({ data: null, error: new Error('function down') })
     const { result } = renderHook(() => useImageUpload('c1'))

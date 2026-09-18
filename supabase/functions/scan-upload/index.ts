@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
-import { interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from "./logic.ts"
+import {
+  buildImageMetadata,
+  interpretSaferResponse,
+  isAllowedOrigin,
+  isValidUploadPath,
+  MAX_UPLOADS_PER_HOUR,
+  SAFER_TIMEOUT_MS,
+} from "./logic.ts"
 
 // Origin allowlist for CORS. Reads the ALLOWED_ORIGINS secret (comma separated)
 // if set; otherwise falls back to the shared defaults in logic.ts.
@@ -39,9 +46,11 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 }
 
 // Thorn Safer: submit the image bytes for matching against the known-CSAM
-// database. A populated `hashes` key means a match. The URL/key come from the
-// SAFER_API_URL / SAFER_API_KEY secrets; confirm the request shape against
-// https://safer.io when requesting API access.
+// database. A populated `hashes` key means a match; anything unrecognized
+// throws (see interpretSaferResponse). The URL/key come from the SAFER_API_URL
+// / SAFER_API_KEY secrets; confirm the request shape against https://safer.io
+// when requesting API access. The timeout stops a hanging provider pinning the
+// invocation.
 async function submitToSafer(bytes: Uint8Array, apiUrl: string, apiKey: string): Promise<unknown> {
   const form = new FormData()
   form.append("file", new Blob([bytes]), "upload.jpg")
@@ -49,6 +58,7 @@ async function submitToSafer(bytes: Uint8Array, apiUrl: string, apiKey: string):
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
+    signal: AbortSignal.timeout(SAFER_TIMEOUT_MS),
   })
   if (!res.ok) {
     throw new Error(`Safer responded ${res.status}`)
@@ -59,7 +69,7 @@ async function submitToSafer(bytes: Uint8Array, apiUrl: string, apiKey: string):
 // Scans an image before it is stored. A match blocks the upload entirely (the
 // object is never persisted), records the attempt, and suspends the uploader.
 // Responses use 200 with a discriminated `status` so the browser client can
-// tell a clean store from a block without parsing non-2xx bodies.
+// tell a clean store from a block or a throttle without parsing non-2xx bodies.
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) })
@@ -131,24 +141,61 @@ serve(async (req) => {
       return json({ error: "Empty upload" }, 400, req)
     }
 
+    // Rolling attempt cap: every attempt gets a content_hashes row, so this
+    // bounds how much paid provider quota one GM can burn. Attempts that fail
+    // validation above never reach here and are not counted.
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count, error: countError } = await serviceClient
+      .from("content_hashes")
+      .select("id", { count: "exact", head: true })
+      .eq("uploaded_by", user.id)
+      .gte("created_at", since)
+    if (countError) {
+      console.error("Counting recent uploads failed:", countError)
+    }
+    if ((count ?? 0) >= MAX_UPLOADS_PER_HOUR) {
+      return json({ status: "throttled" }, 200, req)
+    }
+
     const sha256 = await sha256Hex(bytes)
+
+    // Record the attempt before scanning, so a provider failure still leaves
+    // provenance (an 'unscanned' row) and counts against the cap.
+    const { error: attemptError } = await serviceClient.from("content_hashes").insert({
+      object_path: path,
+      channel_id: channelId,
+      uploaded_by: user.id,
+      sha256,
+      safer_status: "unscanned",
+    })
+    if (attemptError) {
+      console.error("Recording upload attempt failed:", attemptError)
+    }
+
     const verdict = interpretSaferResponse(await submitToSafer(bytes, saferUrl, saferKey))
 
     if (verdict === "match") {
-      // Never store the object. Record the attempt and suspend the uploader.
-      await serviceClient.from("content_hashes").insert({
-        object_path: path,
-        channel_id: channelId,
-        uploaded_by: user.id,
-        sha256,
-        safer_status: "match",
-      })
-      await serviceClient.from("audit_logs").insert({
+      // Never store the object. Record the outcome and suspend the uploader.
+      const { error: matchError } = await serviceClient
+        .from("content_hashes")
+        .update({ safer_status: "match" })
+        .eq("object_path", path)
+      if (matchError) {
+        console.error("Marking scan result failed:", matchError)
+      }
+
+      const { error: auditError } = await serviceClient.from("audit_logs").insert({
         admin_id: null,
         action: "csam_match_blocked",
         target_id: user.id,
         details: { object_path: path, sha256 },
       })
+      if (auditError) {
+        console.error("Writing CSAM audit row failed:", auditError)
+      }
+
+      // The service-role client has no auth.uid(), so the
+      // prevent_self_suspension_change trigger does not block this write.
       const { error: suspendError } = await serviceClient
         .from("profiles")
         .update({ is_suspended: true })
@@ -159,8 +206,7 @@ serve(async (req) => {
       return json({ status: "blocked" }, 200, req)
     }
 
-    const width = Number(form.get("width"))
-    const height = Number(form.get("height"))
+    const metadata = buildImageMetadata(form.get("width"), form.get("height"))
     const { error: uploadError } = await serviceClient.storage
       .from("images")
       .upload(path, bytes, {
@@ -168,22 +214,20 @@ serve(async (req) => {
         upsert: false,
         // Persist the intrinsic size so the chat can reserve the image's box
         // before it loads (mirrors the old client-side upload).
-        ...(Number.isFinite(width) && Number.isFinite(height)
-          ? { metadata: { width, height } }
-          : {}),
+        ...(metadata ? { metadata } : {}),
       })
     if (uploadError) {
       console.error("Storage upload failed:", uploadError)
       return json({ error: "Internal server error" }, 500, req)
     }
 
-    await serviceClient.from("content_hashes").insert({
-      object_path: path,
-      channel_id: channelId,
-      uploaded_by: user.id,
-      sha256,
-      safer_status: "clear",
-    })
+    const { error: clearError } = await serviceClient
+      .from("content_hashes")
+      .update({ safer_status: "clear" })
+      .eq("object_path", path)
+    if (clearError) {
+      console.error("Marking scan result failed:", clearError)
+    }
 
     return json({ status: "stored", path }, 200, req)
   } catch (err) {

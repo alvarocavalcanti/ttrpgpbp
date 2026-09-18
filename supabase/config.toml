@@ -36,7 +36,6 @@ enabled = true
 # token and enforces GM-of-channel itself (it stores with the service role), so
 # it never trusts the request body for authorization.
 verify_jwt = true
-import_map = "./functions/scan-upload/deno.json"
 entrypoint = "./functions/scan-upload/index.ts"
 
 # The app signs in with redirectTo = window.location.origin, so every origin the

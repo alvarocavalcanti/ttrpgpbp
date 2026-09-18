@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from './logic'
+import { buildImageMetadata, interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
@@ -79,5 +79,24 @@ describe('isAllowedOrigin', () => {
 
   it('rejects unknown origins', () => {
     expect(isAllowedOrigin('https://evil.example')).toBe(false)
+  })
+})
+
+describe('buildImageMetadata', () => {
+  it('parses present dimensions', () => {
+    expect(buildImageMetadata('512', '288')).toEqual({ width: 512, height: 288 })
+  })
+
+  it('treats a missing dimension as absent rather than zero', () => {
+    expect(buildImageMetadata(null, null)).toBeUndefined()
+    expect(buildImageMetadata('512', null)).toBeUndefined()
+    expect(buildImageMetadata(undefined, undefined)).toBeUndefined()
+  })
+
+  it('rejects non-positive and non-numeric dimensions', () => {
+    expect(buildImageMetadata('0', '288')).toBeUndefined()
+    expect(buildImageMetadata('-1', '288')).toBeUndefined()
+    expect(buildImageMetadata('abc', '288')).toBeUndefined()
+    expect(buildImageMetadata('Infinity', '288')).toBeUndefined()
   })
 })
