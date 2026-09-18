@@ -32,6 +32,7 @@ const JoinChannel = lazy(() => import('./features/channels/JoinChannel').then(m 
 const ChannelView = lazy(() => import('./features/channels/ChannelView').then(m => ({ default: m.ChannelView })))
 const ArchivedChannels = lazy(() => import('./features/channels/ArchivedChannels').then(m => ({ default: m.ArchivedChannels })))
 const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ default: m.AdminView })))
+const AdminChannelView = lazy(() => import('./features/admin/AdminChannelView').then(m => ({ default: m.AdminChannelView })))
 const HelpPage = lazy(() => import('./features/help/HelpPage').then(m => ({ default: m.HelpPage })))
 const ChangelogPage = lazy(() => import('./features/changelog/ChangelogPage').then(m => ({ default: m.ChangelogPage })))
 import { useAdminUnread } from './features/admin-messages/useAdminUnread'
@@ -362,6 +363,7 @@ export default function App() {
                       <Route path="/archived" element={<ArchivedChannels />} />
                       <Route path="/messages" element={<AdminMessagesView />} />
                       <Route path="/admin" element={<AdminView />} />
+                      <Route path="/admin/channels/:id" element={<AdminChannelView />} />
                       <Route path="/join/:id" element={<JoinChannel />} />
                       <Route path="/channel/:id" element={<ChannelView />} />
                       <Route path="/settings" element={<ProfileSettings />} />

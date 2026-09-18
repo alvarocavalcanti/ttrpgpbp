@@ -1070,6 +1070,27 @@ export type Database = {
           updated_at: string
         }[]
       }
+      admin_list_channel_messages: {
+        Args: {
+          p_before?: string
+          p_before_id?: string
+          p_channel_id: string
+          p_limit?: number
+        }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          npc_name: string
+          sender_character_name: string
+          sender_display_name: string
+          sender_id: string
+          type: string
+          whisper_to: string
+        }[]
+      }
       admin_list_channels: {
         Args: never
         Returns: {
@@ -1498,4 +1519,3 @@ export const Constants = {
     },
   },
 } as const
-

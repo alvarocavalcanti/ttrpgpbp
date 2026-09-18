@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
@@ -529,7 +529,7 @@ export function AdminView() {
                     <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
                       {channelSort.sorted.map(channel => (
                         <tr key={channel.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">{channel.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100"><Link to={`/admin/channels/${channel.id}`} aria-label={`Open ${channel.name} read-only`} className="text-primary-600 dark:text-primary-400 hover:underline">{channel.name}</Link></td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{channel.game_system || 'none'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                             {channel.gm_id === null ? (

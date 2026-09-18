@@ -198,6 +198,20 @@ describe('AdminView', () => {
     expect(screen.getByText('Empty')).toBeInTheDocument()
   })
 
+  it('links each channel name to its read-only admin view', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    switchToChannelsTab()
+
+    expect(await screen.findByRole('link', { name: 'Open Curse of Strahd read-only' }))
+      .toHaveAttribute('href', '/admin/channels/c1')
+  })
+
   it('badges orphaned channels and claims them as GM', async () => {
     const addToast = vi.fn()
     vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
