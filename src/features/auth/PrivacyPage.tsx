@@ -19,7 +19,9 @@ export function PrivacyPage() {
           <p>
             Role by Post uses Google Sign-In (OAuth). When you sign in, we receive your name,
             email address, and profile picture. We store your display name, avatar, and the
-            messages, dice rolls, and channel memberships you create in the app.
+            messages, dice rolls, and channel memberships you create in the app. When you confirm
+            you meet the minimum age, we record the date of that confirmation so we can show you
+            meet our eligibility requirement.
           </p>
         </section>
 
@@ -29,6 +31,46 @@ export function PrivacyPage() {
             Your data is stored in a Supabase-hosted PostgreSQL database, including the
             authentication records used by Google Sign-In. Push notification subscriptions
             (browser endpoints) are stored so we can deliver notifications you opt into.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">How your messages are stored &amp; who can access them</h2>
+          <p>
+            Messages are <strong>not end-to-end encrypted.</strong> They are stored on our hosting provider&apos;s database,
+            which is encrypted at rest and in transit, but in a form our system administrators and automated safety systems
+            can read. We access message content only for limited purposes: operating the service, investigating user reports,
+            enforcing our Acceptable Use Policy, detecting unlawful or abusive content, and responding to lawful requests from
+            authorities. We do not sell or share your messages with third parties for advertising.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data transfers outside Europe</h2>
+          <p>
+            Your data is processed by our service providers in the United States. Where we transfer personal data from the
+            EEA or UK to the United States or other third countries, we rely on appropriate safeguards, including the EU
+            Standard Contractual Clauses and equivalent mechanisms, and we have data processing agreements in place with our
+            providers (including Supabase and Google).
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Your GDPR rights</h2>
+          <p>
+            In addition to access/portability and erasure (above), where the GDPR applies you have the right to:
+            rectification of inaccurate data, restriction of processing in certain circumstances, objection to processing
+            based on legitimate interests, and the right to lodge a complaint with your supervisory authority (in Ireland,
+            the Data Protection Commission). Contact the server administrator to exercise any of these rights.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Lawful bases</h2>
+          <p>
+            We process your data on the following legal bases: performance of our contract with you (operating the service),
+            your consent (email updates, which you may withdraw at any time), compliance with legal obligations (e.g., reporting
+            unlawful content), and our legitimate interests (safety, security, and improving the service).
           </p>
         </section>
 
@@ -114,7 +156,7 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: September 9, 2026. This policy describes data handling for the Role by Post application. Contact the server
+          Last updated: September 17, 2026. This policy describes data handling for the Role by Post application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access.
         </p>
       </div>

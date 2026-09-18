@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './useAuth'
 import { ThemeToggle } from '../../components/ThemeToggle'
@@ -61,6 +62,10 @@ const FEATURES = [
 export function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth()
   const location = useLocation()
+  // Required age confirmation. Persisted per-device so returning users aren't
+  // asked again; the server-side evidence is stamped by confirm_age() on first
+  // authenticated load (see AuthContext).
+  const [ageConfirmed, setAgeConfirmed] = useState(() => localStorage.getItem('age-confirmed') === 'true')
 
   if (loading) {
     return (
@@ -75,11 +80,21 @@ export function LoginPage() {
   }
 
   const handleSignIn = async () => {
+    if (!ageConfirmed) return
     const from = (location.state as { from?: string } | null)?.from
     if (from) {
       sessionStorage.setItem('auth_redirect', from)
     }
     await signInWithGoogle()
+  }
+
+  const handleAgeChange = (checked: boolean) => {
+    setAgeConfirmed(checked)
+    if (checked) {
+      localStorage.setItem('age-confirmed', 'true')
+    } else {
+      localStorage.removeItem('age-confirmed')
+    }
   }
 
   return (
@@ -105,10 +120,26 @@ export function LoginPage() {
           </div>
 
           <div className="mt-8">
+            <div className="flex items-start gap-2 mb-4">
+              <input
+                id="age-confirm"
+                type="checkbox"
+                checked={ageConfirmed}
+                onChange={(e) => handleAgeChange(e.target.checked)}
+                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="age-confirm" className="text-sm text-gray-600 dark:text-gray-400">
+                I am at least 16 years old and agree to the{' '}
+                <Link to="/terms" className="text-indigo-600 dark:text-indigo-400 hover:underline">Terms of Service</Link>
+                {' '}and{' '}
+                <Link to="/privacy" className="text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</Link>
+              </label>
+            </div>
             <button
               type="button"
               onClick={handleSignIn}
-              className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              disabled={!ageConfirmed}
+              className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
