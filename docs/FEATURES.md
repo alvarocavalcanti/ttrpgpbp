@@ -59,7 +59,7 @@
 - **Active player(s)** — structured field, one or more players, drives notifications
 - Editable by GM at any time
 - When collapsed, first line remains visible
-- GM can set active player(s) directly from the channel menu (no message needed); the sidebar's multi-select Active Player modal is the only place to set them
+- A GM can set one active player from that player's **⋯** menu in the member list; the sidebar's multi-select **Active Player** modal handles several at once or clearing all
 
 ## Messages
 
