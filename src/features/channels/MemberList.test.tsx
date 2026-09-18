@@ -400,6 +400,15 @@ describe('MemberList', () => {
     expect(screen.queryByText('Set as Active Player')).not.toBeInTheDocument()
   })
 
+  it('hides Set as Active Player on the GM own row', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    // m1 is the GM own row: the !isMe guard hides the whole GM block.
+    fireEvent.click(screen.getByTestId('menu-btn-m1'))
+
+    expect(screen.queryByText('Set as Active Player')).not.toBeInTheDocument()
+  })
+
   it('handles set active player error', async () => {
     mockSetActivePlayers.mockResolvedValue(new Error('denied'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
