@@ -3,7 +3,7 @@ import { BottomSheet } from '../../components/BottomSheet'
 import { Avatar } from '../../components/Avatar'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
-import type { AdminUser, AdminAuditEntry } from './useAdminData'
+import type { AdminUser, AdminAuditEntry, AdminMessage } from './useAdminData'
 
 interface UserDetailModalProps {
   user: AdminUser
@@ -11,20 +11,43 @@ interface UserDetailModalProps {
   // Resolves to true on success; shows a toast and updates the list in place.
   onSuspend: (targetUser: AdminUser, reason: string) => Promise<boolean>
   getUserHistory: (userId: string) => Promise<AdminAuditEntry[] | string>
+  listUserMessages: (userId: string, options?: { before?: string; beforeId?: string; limit?: number }) => Promise<AdminMessage[] | string>
 }
+
+// Page size for the message history. The RPC pages by `created_at < before`, so
+// a full page means there may be older rows to fetch.
+const MESSAGE_PAGE_SIZE = 50
 
 function formatDate(value: string | null): string {
   if (!value) return 'Never'
   return new Date(value).toLocaleString()
 }
 
+// Labels for the audit actions that can appear in a user's history. Anything
+// unlisted falls back to its raw action name — never to "Unsuspended", which
+// mislabelled every read-audit and CSAM-block row.
+const ACTION_LABELS: Record<string, string> = {
+  suspend_user: 'Suspended',
+  unsuspend_user: 'Unsuspended',
+  list_user_messages: 'Viewed message history',
+  read_message: 'Viewed a reported message',
+  read_image: 'Viewed a reported image',
+  csam_match_blocked: 'Upload blocked and account suspended',
+}
+
 // Detail view for a single user opened from the admin Users table (issue
 // #460): surfaces email + verification, provider, role/status flags, login &
 // activity, channel memberships, moderation history, and the suspend action.
-export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: UserDetailModalProps) {
+export function UserDetailModal({ user, onClose, onSuspend, getUserHistory, listUserMessages }: UserDetailModalProps) {
   const [history, setHistory] = useState<AdminAuditEntry[]>([])
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyLoading, setHistoryLoading] = useState(true)
+  const [messages, setMessages] = useState<AdminMessage[]>([])
+  const [messagesError, setMessagesError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const [messagesLoading, setMessagesLoading] = useState(true)
+  const [messagesLoadingMore, setMessagesLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [showSuspendSheet, setShowSuspendSheet] = useState(false)
 
   useEffect(() => {
@@ -52,8 +75,63 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: Us
     return () => { mounted = false }
   }, [user.id, getUserHistory])
 
+  useEffect(() => {
+    let mounted = true
+    // Same reset-on-user-change contract as the audit history above.
+    setMessages([])
+    setMessagesError(null)
+    setLoadMoreError(null)
+    setHasMore(false)
+    setMessagesLoading(true)
+    listUserMessages(user.id, { limit: MESSAGE_PAGE_SIZE })
+      .then(result => {
+        if (!mounted) return
+        if (typeof result === 'string') {
+          setMessagesError(result)
+        } else {
+          setMessages(result)
+          setHasMore(result.length === MESSAGE_PAGE_SIZE)
+        }
+        setMessagesLoading(false)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setMessagesError('Failed to load message history.')
+        setMessagesLoading(false)
+      })
+    return () => { mounted = false }
+  }, [user.id, listUserMessages])
+
   const blockedChannelCount = user.channels.filter(c => c.is_blocked).length
   const name = user.display_name?.trim() || user.email?.trim() || 'Unknown user'
+
+  // Loads the next page (older messages) and appends it. Rows are newest-first,
+  // so the oldest loaded row is the cursor; the id breaks ties between rows that
+  // share a timestamp. Failures surface inline and leave the loaded list intact
+  // rather than blanking what the admin was reading.
+  const handleLoadOlder = async () => {
+    const oldest = messages[messages.length - 1]
+    if (!oldest) return
+    setMessagesLoadingMore(true)
+    setLoadMoreError(null)
+    try {
+      const result = await listUserMessages(user.id, {
+        before: oldest.created_at,
+        beforeId: oldest.id,
+        limit: MESSAGE_PAGE_SIZE,
+      })
+      if (typeof result === 'string') {
+        setLoadMoreError(result)
+        return
+      }
+      setMessages(prev => [...prev, ...result])
+      setHasMore(result.length === MESSAGE_PAGE_SIZE)
+    } catch {
+      setLoadMoreError('Failed to load message history.')
+    } finally {
+      setMessagesLoadingMore(false)
+    }
+  }
 
   const handleConfirmSuspend = async (reason: string) => {
     const ok = await onSuspend(user, reason)
@@ -148,7 +226,7 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: Us
               {history.map(h => (
                 <li key={h.id} className="text-sm">
                   <span className="text-surface-900 dark:text-surface-100">
-                    {h.action === 'suspend_user' ? 'Suspended' : 'Unsuspended'}
+                    {ACTION_LABELS[h.action] ?? h.action}
                   </span>
                   {h.admin_name ? <span className="text-surface-500 dark:text-surface-400"> by {h.admin_name}</span> : null}
                   <span className="text-surface-500 dark:text-surface-400"> · {formatDate(h.created_at)}</span>
@@ -156,6 +234,43 @@ export function UserDetailModal({ user, onClose, onSuspend, getUserHistory }: Us
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        <div>
+          <h4 className="text-xs font-medium uppercase tracking-wider text-surface-500 dark:text-surface-400 mb-2">Message history</h4>
+          {messagesLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-primary-500"></div>
+            </div>
+          ) : messagesError ? (
+            <p className="text-sm text-red-600 dark:text-red-400">{messagesError}</p>
+          ) : messages.length === 0 ? (
+            <p className="text-sm text-surface-500 dark:text-surface-400">No messages found.</p>
+          ) : (
+            <ul className="space-y-3">
+              {messages.map(m => (
+                <li key={m.id} className="text-sm">
+                  <span className="text-xs text-surface-500 dark:text-surface-400">
+                    {m.channel_name ? `${m.channel_name} · ` : ''}{formatDate(m.created_at)}{m.is_deleted ? ' · deleted' : ''}
+                  </span>
+                  <p className="text-surface-900 dark:text-surface-100 whitespace-pre-wrap break-words">{m.content}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!messagesLoading && !messagesError && hasMore && (
+            <button
+              type="button"
+              onClick={() => { void handleLoadOlder() }}
+              disabled={messagesLoadingMore}
+              className="mt-3 w-full rounded-md border border-surface-300 dark:border-surface-600 px-3 py-2 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {messagesLoadingMore ? 'Loading…' : 'Load older messages'}
+            </button>
+          )}
+          {loadMoreError && (
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{loadMoreError}</p>
           )}
         </div>
 

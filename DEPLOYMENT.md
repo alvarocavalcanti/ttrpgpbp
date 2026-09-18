@@ -48,6 +48,8 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 | `VAPID_PRIVATE_KEY` | Private half of the VAPID keypair | `supabase secrets set VAPID_PRIVATE_KEY` |
 | `ALLOWED_ORIGINS` | Optional comma-separated list of app origins allowed to call the push-notifications function (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, `https://rolebypost.com`, and any `*.ttrpgpbp.pages.dev` preview | `supabase secrets set ALLOWED_ORIGINS=...` |
 | `SUPABASE_AUTH_GOOGLE_SECRET` | Google OAuth client secret | Supabase Dashboard → Auth → Providers → Google |
+| `SAFER_API_KEY` | Thorn Safer API key for CSAM image matching. Required for image uploads — while unset, `scan-upload` refuses to store images rather than persisting them unscanned | `supabase secrets set SAFER_API_KEY=...` |
+| `SAFER_API_URL` | Optional override of the Safer matching endpoint (defaults to `https://api.safer.io/v1/match`) | `supabase secrets set SAFER_API_URL=...` |
 
 - [ ] Set the VAPID keys (and `ALLOWED_ORIGINS` if you host the frontend elsewhere) and any other Supabase secrets:
 
@@ -116,6 +118,22 @@ browser, so no user JWT is involved.
   supabase secrets set CLEANUP_IMAGES_SECRET=<generated-secret>
   supabase functions deploy cleanup-images --project-ref <project-ref>
   ```
+
+- [ ] Deploy the upload scanner and give it the Safer key. Image uploads stay
+  refused until `SAFER_API_KEY` is set (fail-closed, so an image is never stored
+  unscanned). Request API access at <https://safer.io>:
+
+  ```bash
+  supabase secrets set SAFER_API_KEY=<safer-api-key>
+  supabase functions deploy scan-upload --project-ref <project-ref>
+  ```
+
+  For local testing, override `SAFER_API_URL` to a stub that accepts the upload
+  and replies with the recognized clear shape, e.g. `{"hashes": []}` (a dummy
+  provider URL will just fail). `interpretSaferResponse` fails closed — it
+  throws on any payload without a recognized `hashes` key — so confirm the real
+  clean-response shape against <https://safer.io> before enabling uploads, or
+  every clear image will be rejected.
 
 - [ ] Store the same secret as a GitHub Actions repository secret named
   `CLEANUP_IMAGES_SECRET` (Settings → Secrets and variables → Actions). The

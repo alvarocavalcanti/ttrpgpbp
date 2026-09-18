@@ -8,7 +8,7 @@ import { useAppSetting } from '../../hooks/useAppSetting'
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
-    storage: { from: vi.fn() },
+    functions: { invoke: vi.fn() },
   },
 }))
 
@@ -23,18 +23,16 @@ vi.mock('../../hooks/useAppSetting', () => ({
 const makeFile = (size: number) => new File([new Uint8Array(size)], 'photo.png', { type: 'image/png' })
 
 describe('useChannelAvatar', () => {
-  const mockUpload = vi.fn()
+  const mockInvoke = vi.fn()
   const mockEq = vi.fn()
   const mockUpdate = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUpload.mockResolvedValue({ error: null })
+    mockInvoke.mockResolvedValue({ data: { status: 'stored' }, error: null })
     mockEq.mockResolvedValue({ error: null })
     mockUpdate.mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.storage.from).mockReturnValue({
-      upload: mockUpload,
-    } as any)
+    vi.mocked(supabase.functions.invoke).mockImplementation(mockInvoke)
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'channels') return { update: mockUpdate } as any
       return {} as any
@@ -58,9 +56,11 @@ describe('useChannelAvatar', () => {
     const url = await result.current.uploadAvatar(makeFile(1024))
 
     expect(resizeImageFile).toHaveBeenCalled()
-    const path = mockUpload.mock.calls[0][0]
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('scan-upload', { body: expect.any(FormData) })
+    const form = mockInvoke.mock.calls[0][1].body as FormData
+    const path = form.get('path')
     expect(path).toMatch(/^c1\/avatar\/.+\.jpg$/)
-    expect(mockUpload.mock.calls[0][1]).toBeInstanceOf(File)
+    expect(form.get('file')).toBeInstanceOf(File)
     expect(url).toBe(path)
     expect(mockUpdate).toHaveBeenCalledWith({ avatar_url: path })
     expect(mockEq).toHaveBeenCalledWith('id', 'c1')
@@ -77,19 +77,19 @@ describe('useChannelAvatar', () => {
 
     const { result } = renderHook(() => useChannelAvatar('c1'))
     await expect(result.current.uploadAvatar(makeFile(1024))).rejects.toThrow('disabled by the server admin')
-    expect(mockUpload).not.toHaveBeenCalled()
+    expect(mockInvoke).not.toHaveBeenCalled()
   })
 
   it('rejects files over the configured size cap', async () => {
     const { result } = renderHook(() => useChannelAvatar('c1'))
     await expect(result.current.uploadAvatar(makeFile(5 * 1024 * 1024 + 1))).rejects.toThrow('too large')
-    expect(mockUpload).not.toHaveBeenCalled()
+    expect(mockInvoke).not.toHaveBeenCalled()
   })
 
-  it('propagates storage upload errors', async () => {
-    mockUpload.mockResolvedValue({ error: new Error('storage down') })
+  it('propagates scan upload errors', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: new Error('function down') })
     const { result } = renderHook(() => useChannelAvatar('c1'))
-    await expect(result.current.uploadAvatar(makeFile(1024))).rejects.toThrow('storage down')
+    await expect(result.current.uploadAvatar(makeFile(1024))).rejects.toThrow('Image upload failed')
   })
 
   it('propagates channel update errors', async () => {
@@ -101,6 +101,6 @@ describe('useChannelAvatar', () => {
   it('returns null when there is no channel id', async () => {
     const { result } = renderHook(() => useChannelAvatar(undefined))
     await expect(result.current.uploadAvatar(makeFile(1024))).resolves.toBeNull()
-    expect(mockUpload).not.toHaveBeenCalled()
+    expect(mockInvoke).not.toHaveBeenCalled()
   })
 })
