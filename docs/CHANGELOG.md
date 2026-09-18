@@ -6,12 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **You must be 16 or older to sign up** — the sign-in page now asks you to confirm your age before continuing, and remembers your answer on that device.
+- **Clearer rules for what belongs here** — the Terms now spell out what is not allowed, including illegal content and imagery, harassment, and using Role by Post for anything other than roleplaying and storytelling.
 - **Safer image sharing** — every uploaded image is now checked against known illegal material before it is stored. If something matches, the upload is blocked and the account is suspended automatically.
 - **Reviewing a reported message** — when you report a message, the team can now open that message to review your report. These views are recorded.
 - **Reviewing a player's history** — the admin console can page back through a player's older messages when reviewing a report, and older scan records are cleared out on a schedule while blocked-upload records are kept.
 
 ### Changed
 
+- **We are upfront about how your messages are stored** — the Privacy Policy now explains plainly that messages are **not end-to-end encrypted**, that our administrators and safety systems can review content when needed, and what your data rights are.
 - **Image uploads have a short cooldown** — uploading a lot of images in a hurry now pauses with a clear message instead of running away.
 
 ### Fixed
