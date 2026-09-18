@@ -133,7 +133,7 @@ export function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">8. User Content &amp; Indemnification</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">8. User Responsibility &amp; Indemnification</h2>
           <p>
             You are solely responsible for the content you post, share, or transmit through the service, and for the
             consequences of doing so. You represent that you have all rights necessary to submit your content and that your

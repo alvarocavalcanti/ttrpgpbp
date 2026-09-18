@@ -28,7 +28,7 @@ describe('TermsPage', () => {
     expect(screen.getByText('5. Acceptable Use & Prohibited Conduct')).toBeInTheDocument()
     expect(screen.getByText('6. Data Security, Monitoring & Encryption Disclosure')).toBeInTheDocument()
     expect(screen.getByText('7. Safety Reporting & Law Enforcement Cooperation')).toBeInTheDocument()
-    expect(screen.getByText('8. User Content & Indemnification')).toBeInTheDocument()
+    expect(screen.getByText('8. User Responsibility & Indemnification')).toBeInTheDocument()
     expect(screen.getByText('9. Communications')).toBeInTheDocument()
     expect(screen.getByText('10. Termination')).toBeInTheDocument()
     expect(screen.getByText('11. Disclaimer of Warranties')).toBeInTheDocument()

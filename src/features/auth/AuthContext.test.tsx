@@ -547,6 +547,31 @@ describe('AuthContext', () => {
     expect(supabase.auth.signOut).toHaveBeenCalled()
   })
 
+  it('clears the per-browser age confirmation on sign-out', async () => {
+    localStorage.setItem('age-confirmed', 'true')
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sign Out'))
+
+    await waitFor(() => {
+      expect(localStorage.getItem('age-confirmed')).toBeNull()
+    })
+  })
+
   it('stamps age confirmation once when the client flag is set', async () => {
     localStorage.setItem('age-confirmed', 'true')
     vi.mocked(supabase.auth.getSession).mockResolvedValue({

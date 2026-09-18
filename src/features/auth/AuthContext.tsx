@@ -131,6 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null)
+    // The age-confirmation flag is per-browser, not per-account: leaving it set
+    // would pre-check the box for whoever signs in next and let confirm_age()
+    // stamp an attestation they never made.
+    localStorage.removeItem('age-confirmed')
     await authSignOut()
   }, [])
 
