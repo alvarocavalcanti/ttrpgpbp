@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-18
+
+### Added
+
+- **Reviewing any channel's messages** — the admin console's Channels list now opens a read-only view of each channel's conversation, so reports can be investigated in full context. Admins can look but cannot post, and every such view is recorded.
+
 ## 2026-09-17
 
 ### Added
