@@ -98,6 +98,9 @@ export function useAdminChannelMessages(channelId: string | undefined) {
 
   useEffect(() => {
     const generation = ++generationRef.current
+    // A discarded older-page request must not leave the new channel stuck in
+    // a loading state (its finally skips the reset for stale generations).
+    setLoadingOlder(false)
     if (!channelId) {
       setMessages([])
       setHasMore(false)
@@ -109,7 +112,8 @@ export function useAdminChannelMessages(channelId: string | undefined) {
   }, [channelId, fetchFirstPage])
 
   // Channel header for the view. A rejected RPC promise flows through the
-  // same error contract as a resolved-with-error response.
+  // same error contract as a resolved-with-error response. Generation-guarded
+  // like fetchFirstPage: a channel switch mid-flight discards this response.
   const fetchChannel = useCallback(async () => {
     if (!channelId) {
       setChannel(null)
@@ -118,11 +122,13 @@ export function useAdminChannelMessages(channelId: string | undefined) {
       setChannelLoading(false)
       return
     }
+    const generation = generationRef.current
     setChannelLoading(true)
     setChannelError(false)
     setChannelMissing(false)
     try {
       const { data, error: queryError } = await supabase.rpc('admin_list_channels')
+      if (generation !== generationRef.current) return
       if (queryError || !Array.isArray(data)) {
         setChannelError(true)
       } else {
@@ -138,9 +144,10 @@ export function useAdminChannelMessages(channelId: string | undefined) {
         }
       }
     } catch {
+      if (generation !== generationRef.current) return
       setChannelError(true)
     } finally {
-      setChannelLoading(false)
+      if (generation === generationRef.current) setChannelLoading(false)
     }
   }, [channelId])
 
@@ -150,9 +157,12 @@ export function useAdminChannelMessages(channelId: string | undefined) {
 
   // Prepends the next older page. A page failure keeps the loaded messages
   // (degrade) and surfaces the error with a Retry via refetch.
+  // Generation-guarded: a channel switch mid-flight discards this page, and
+  // the channel-change effect below resets loadingOlder for the new channel.
   const loadOlder = useCallback(async () => {
     if (!channelId || loading || loadingOlder || !hasMore || messages.length === 0) return
     const oldest = messages[0]
+    const generation = generationRef.current
     setLoadingOlder(true)
     setError(null)
     try {
@@ -162,6 +172,7 @@ export function useAdminChannelMessages(channelId: string | undefined) {
         p_before_id: oldest.id,
         p_limit: PAGE_SIZE,
       })
+      if (generation !== generationRef.current) return
       if (queryError) throw queryError
       const older = parseRows(data).reverse()
       setMessages(prev => {
@@ -170,9 +181,10 @@ export function useAdminChannelMessages(channelId: string | undefined) {
       })
       setHasMore(Array.isArray(data) && data.length === PAGE_SIZE)
     } catch (err) {
+      if (generation !== generationRef.current) return
       setError(err as Error)
     } finally {
-      setLoadingOlder(false)
+      if (generation === generationRef.current) setLoadingOlder(false)
     }
   }, [channelId, loading, loadingOlder, hasMore, messages])
 

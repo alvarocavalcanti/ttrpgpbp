@@ -162,11 +162,12 @@ export function AdminChannelView() {
                   )}
                 </div>
                 <div className={`w-full px-4 py-2 rounded-2xl ${msg.is_deleted ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 italic border border-gray-200 dark:border-gray-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'}`}>
-                  {msg.is_deleted ? '[Message deleted]' : (
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-snug prose-p:my-1 break-words">
-                      <Markdown components={renderers} urlTransform={urlTransform}>{msg.content}</Markdown>
-                    </div>
-                  )}
+                  {/* Deleted messages keep their content: user deletes flip
+                  is_deleted without clearing content, and this view exists for
+                  safety review. The Deleted badge above marks them. */}
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-snug prose-p:my-1 break-words">
+                    <Markdown components={renderers} urlTransform={urlTransform}>{msg.content}</Markdown>
+                  </div>
                 </div>
               </div>
             </div>

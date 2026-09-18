@@ -116,7 +116,7 @@ describe('AdminChannelView', () => {
         baseMessage({ id: 'm1', type: 'scene', content: 'A dark room.' }),
         baseMessage({ id: 'm2', type: 'npc', npc_name: 'Barkeep', content: 'Welcome.' }),
         baseMessage({ id: 'm3', whisper_to: 'u2', content: 'Psst.' }),
-        baseMessage({ id: 'm4', is_deleted: true, content: '' }),
+        baseMessage({ id: 'm4', is_deleted: true, content: 'Gone but reviewed.' }),
       ],
     }) as any)
 
@@ -126,7 +126,8 @@ describe('AdminChannelView', () => {
     expect(screen.getByText('NPC: Barkeep')).toBeInTheDocument()
     expect(screen.getByText('Whisper')).toBeInTheDocument()
     expect(screen.getByText('Deleted')).toBeInTheDocument()
-    expect(screen.getByText('[Message deleted]')).toBeInTheDocument()
+    // Deleted content stays visible for safety review, marked by the badge.
+    expect(screen.getByText('Gone but reviewed.')).toBeInTheDocument()
   })
 
   it('calls loadOlder from the Load earlier messages button', async () => {

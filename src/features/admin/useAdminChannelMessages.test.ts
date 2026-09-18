@@ -273,4 +273,64 @@ describe('useAdminChannelMessages', () => {
     expect(result.current.channelMissing).toBe(false)
     expect(result.current.channelError).toBe(false)
   })
+
+  it('discards a stale channel response after a channel switch', async () => {
+    const channelC1 = makeChannel({ id: 'c1', name: 'One' })
+    const channelC2 = makeChannel({ id: 'c2', name: 'Two' })
+    let resolveStale!: (rows: unknown) => void
+    const staleGate = new Promise<unknown>(resolve => { resolveStale = resolve })
+    let channelCalls = 0
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') {
+        channelCalls++
+        if (channelCalls === 1) return staleGate.then(data => ({ data, error: null }))
+        return Promise.resolve({ data: [channelC2], error: null })
+      }
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result, rerender } = renderHook(({ id }) => useAdminChannelMessages(id), {
+      initialProps: { id: 'c1' as string | undefined },
+    })
+    rerender({ id: 'c2' })
+    await waitFor(() => expect(result.current.channel).toEqual(channelC2))
+
+    await act(async () => { resolveStale([channelC1]) })
+    await act(async () => {})
+    expect(result.current.channel).toEqual(channelC2)
+    expect(result.current.channelMissing).toBe(false)
+  })
+
+  it('discards a stale older page after a channel switch', async () => {
+    const firstPage = Array.from({ length: 50 }, (_, i) =>
+      makeRow(`new${i}`, `2026-09-18T12:${String(59 - i).padStart(2, '0')}:00Z`))
+    const olderPage = [makeRow('old1', '2026-09-18T11:00:00Z')]
+    let resolveStale!: (rows: unknown) => void
+    const staleGate = new Promise<unknown>(resolve => { resolveStale = resolve })
+    let messageCalls = 0
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string, args: any) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      messageCalls++
+      if (messageCalls === 1) return Promise.resolve({ data: firstPage, error: null })
+      if (args?.p_channel_id === 'c1') return staleGate.then(data => ({ data, error: null }))
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result, rerender } = renderHook(({ id }) => useAdminChannelMessages(id), {
+      initialProps: { id: 'c1' as string | undefined },
+    })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.hasMore).toBe(true)
+
+    let olderPromise!: Promise<void>
+    act(() => { olderPromise = result.current.loadOlder() })
+    rerender({ id: 'c2' })
+    await act(async () => {
+      resolveStale(olderPage)
+      await olderPromise
+    })
+
+    expect(result.current.messages.map(m => m.id)).not.toContain('old1')
+    expect(result.current.loadingOlder).toBe(false)
+  })
 })
