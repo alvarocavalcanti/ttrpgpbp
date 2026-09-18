@@ -14,12 +14,12 @@ COMMENT ON COLUMN public.profiles.age_verified_at IS
 -- profiles UPDATE policy lets a user edit their own row, so without this guard a
 -- client could backdate or clear the stamp.
 --
--- A role check cannot distinguish the sanctioned writer: confirm_age() is
--- SECURITY DEFINER and runs as postgres *with auth.uid() still set* (same shape
--- as the is_suspended guard in 20260826120000), so the RPC marks its own
--- transaction instead. Anything that does not carry the marker leaves the
--- existing value untouched — a client write to an unrelated column, or a client
--- trying to set this one, simply cannot move it.
+-- The guard keys off a transaction-local marker that confirm_age() sets, rather
+-- than the caller's role. A role check would also work — a SECURITY DEFINER
+-- writer runs as postgres, a client as authenticated — but it would hardcode the
+-- owner role, and `supabase test db` runs every session as postgres, so the
+-- denied path could never be exercised in CI. With the marker the pgtap test can
+-- assert that a direct write is refused.
 CREATE OR REPLACE FUNCTION public.handle_age_verified_at_change()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -40,6 +40,11 @@ CREATE TRIGGER on_age_verified_at_change
 BEFORE UPDATE ON public.profiles
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_age_verified_at_change();
+
+-- Trigger helper: wired via CREATE TRIGGER only, so no API role needs direct
+-- EXECUTE (house convention, see 20260907093802_sec1_extend_grant_sweep.sql).
+REVOKE ALL ON FUNCTION public.handle_age_verified_at_change()
+  FROM PUBLIC, anon, authenticated, service_role;
 
 -- Self-only, idempotent: stamps the timestamp once and never rewrites it.
 CREATE OR REPLACE FUNCTION public.confirm_age()

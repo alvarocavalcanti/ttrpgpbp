@@ -8,7 +8,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(8);
+SELECT plan(11);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -19,6 +19,11 @@ VALUES
 SELECT is(has_function_privilege('authenticated', 'public.confirm_age()', 'EXECUTE'), true, 'authenticated can execute confirm_age');
 SELECT is(has_function_privilege('anon', 'public.confirm_age()', 'EXECUTE'), false, 'anon cannot execute confirm_age');
 SELECT is(has_function_privilege('public', 'public.confirm_age()', 'EXECUTE'), false, 'PUBLIC cannot execute confirm_age');
+
+-- The guard is trigger-wired only; no API role needs direct EXECUTE.
+SELECT is(has_function_privilege('anon', 'public.handle_age_verified_at_change()', 'EXECUTE'), false, 'anon cannot execute the trigger helper');
+SELECT is(has_function_privilege('authenticated', 'public.handle_age_verified_at_change()', 'EXECUTE'), false, 'authenticated cannot execute the trigger helper');
+SELECT is(has_function_privilege('service_role', 'public.handle_age_verified_at_change()', 'EXECUTE'), false, 'service_role cannot execute the trigger helper');
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000601', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000601","role":"authenticated"}', true);
