@@ -39,6 +39,10 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<{ action: 'block' | 'kick' | 'leave'; memberId: string } | null>(null)
   const [awayPromptMemberId, setAwayPromptMemberId] = useState<string | null>(null)
+  // Serializes active-player updates: the RPC clears then sets, so two
+  // overlapping calls can commit out of click order. While one is in flight
+  // every Set as Active Player item is disabled.
+  const [isSettingActive, setIsSettingActive] = useState(false)
   
   // Close menu on click outside
   useEffect(() => {
@@ -123,6 +127,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   // Shortcut for the sidebar's Active Player modal (#549): replace the active
   // set with exactly this player. Multi-select/clearing stay in the modal.
   const handleSetActivePlayer = async (member: ChannelMember) => {
+    setIsSettingActive(true)
     setError(null)
     try {
       const error = await setActivePlayers(channelId, [member.user_id])
@@ -131,6 +136,8 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     } catch (err) {
       console.error('Error setting active player:', err)
       setError('Failed to set active player.')
+    } finally {
+      setIsSettingActive(false)
     }
   }
 
@@ -277,8 +284,9 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                               <button
                                 type="button"
                                 role="menuitem"
+                                disabled={isSettingActive}
                                 onClick={() => { setOpenMenuId(null); void handleSetActivePlayer(member); }}
-                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+                                className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50"
                               >
                                 Set as Active Player
                               </button>

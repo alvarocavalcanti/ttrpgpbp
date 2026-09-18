@@ -409,6 +409,21 @@ describe('MemberList', () => {
     expect(screen.queryByText('Set as Active Player')).not.toBeInTheDocument()
   })
 
+  it('disables the item while a set-active request is in flight', () => {
+    // Never-resolving RPC: serializes rapid taps on different players so two
+    // clear-then-set calls cannot commit out of click order.
+    mockSetActivePlayers.mockReturnValueOnce(new Promise(() => {}))
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByText('Set as Active Player'))
+
+    // Menu closed on tap; reopening while pending shows a disabled item.
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    expect(screen.getByText('Set as Active Player')).toBeDisabled()
+    expect(mockSetActivePlayers).toHaveBeenCalledTimes(1)
+  })
+
   it('handles set active player error', async () => {
     mockSetActivePlayers.mockResolvedValue(new Error('denied'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
