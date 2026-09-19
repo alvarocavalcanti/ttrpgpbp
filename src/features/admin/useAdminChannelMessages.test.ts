@@ -40,11 +40,25 @@ function makeChannel(overrides: Record<string, unknown> = {}) {
   }
 }
 
-// Messages RPC serves `pages` in order; the channel RPC resolves `channels`.
-function pagedMessagesRpc(pages: unknown[], channels: unknown = []) {
+function makeMember(overrides: Record<string, unknown> = {}) {
+  return {
+    user_id: 'u1',
+    display_name: 'Alice',
+    character_name: 'Alicia the Bold',
+    is_blocked: false,
+    is_active_player: false,
+    ...overrides,
+  }
+}
+
+// Messages RPC serves `pages` in order; the channel and members RPCs resolve
+// their own payloads. Members calls must branch before the messages pages,
+// otherwise a members fetch would consume a message page (or vice versa).
+function pagedMessagesRpc(pages: unknown[], channels: unknown = [], members: unknown = []) {
   let page = 0
   vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
     if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+    if (fn === 'admin_list_channel_members') return Promise.resolve({ data: members, error: null })
     const data = pages[Math.min(page++, pages.length - 1)]
     return Promise.resolve(data instanceof Error
       ? { data: null, error: data }
@@ -143,7 +157,7 @@ describe('useAdminChannelMessages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => { await result.current.loadOlder() })
-    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+    expect(supabase.rpc).toHaveBeenCalledTimes(3)
   })
 
   it('surfaces a load error when the RPC fails', async () => {
@@ -310,6 +324,7 @@ describe('useAdminChannelMessages', () => {
     let messageCalls = 0
     vi.mocked(supabase.rpc).mockImplementation(((fn: string, args: any) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_channel_members') return Promise.resolve({ data: [], error: null })
       messageCalls++
       if (messageCalls === 1) return Promise.resolve({ data: firstPage, error: null })
       if (args?.p_channel_id === 'c1') return staleGate.then(data => ({ data, error: null }))
@@ -332,5 +347,118 @@ describe('useAdminChannelMessages', () => {
 
     expect(result.current.messages.map(m => m.id)).not.toContain('old1')
     expect(result.current.loadingOlder).toBe(false)
+  })
+
+  it('loads the channel roster from admin_list_channel_members', async () => {
+    const rows = [
+      makeMember({ user_id: 'u1' }),
+      makeMember({ user_id: 'u2', display_name: 'Bob', character_name: 'Bobby', is_active_player: true }),
+    ]
+    pagedMessagesRpc([[makeRow('m1', '2026-09-18T12:00:00Z')]], [], rows)
+
+    const { result } = renderHook(() => useAdminChannelMessages('c1'))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_list_channel_members', { p_channel_id: 'c1' })
+    expect(result.current.members).toEqual(rows)
+    expect(result.current.membersError).toBe(false)
+  })
+
+  it('flags a roster error when the members RPC fails', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_channel_members') return Promise.resolve({ data: null, error: new Error('DB down') })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminChannelMessages('c1'))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+
+    expect(result.current.membersError).toBe(true)
+    expect(result.current.members).toEqual([])
+  })
+
+  it('flags a roster error when the members RPC promise rejects', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_channel_members') return Promise.reject(new Error('network down'))
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminChannelMessages('c1'))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+
+    expect(result.current.membersError).toBe(true)
+  })
+
+  it('drops malformed roster rows while valid rows survive', async () => {
+    const rows = [
+      makeMember({ user_id: 'good' }),
+      { ...makeMember({ user_id: 'bad-type' }), is_blocked: 'no' },
+      { user_id: 'bad-shape' },
+      null,
+    ]
+    pagedMessagesRpc([[]], [], rows)
+
+    const { result } = renderHook(() => useAdminChannelMessages('c1'))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+
+    expect(result.current.members.map(m => m.user_id)).toEqual(['good'])
+    expect(result.current.membersError).toBe(false)
+  })
+
+  it('issues no members RPC for an undefined channel id', async () => {
+    const { result } = renderHook(() => useAdminChannelMessages(undefined))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+
+    expect(supabase.rpc).not.toHaveBeenCalledWith('admin_list_channel_members', expect.anything())
+    expect(result.current.members).toEqual([])
+    expect(result.current.membersError).toBe(false)
+  })
+
+  it('refetchMembers reloads the roster', async () => {
+    const first = [makeMember({ user_id: 'u1' })]
+    const second = [...first, makeMember({ user_id: 'u2', display_name: 'Bob', character_name: 'Bobby' })]
+    let calls = 0
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_channel_members') return Promise.resolve({ data: calls++ === 0 ? first : second, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminChannelMessages('c1'))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+    expect(result.current.members).toHaveLength(1)
+
+    await act(async () => { result.current.refetchMembers() })
+    await waitFor(() => expect(result.current.members).toHaveLength(2))
+  })
+
+  it('discards a stale roster after a channel switch', async () => {
+    const rosterC1 = [makeMember({ user_id: 'u1', character_name: 'One' })]
+    const rosterC2 = [makeMember({ user_id: 'u2', character_name: 'Two' })]
+    let resolveStale!: (rows: unknown) => void
+    const staleGate = new Promise<unknown>(resolve => { resolveStale = resolve })
+    let membersCalls = 0
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string, args: any) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_channel_members') {
+        membersCalls++
+        if (membersCalls === 1 && args?.p_channel_id === 'c1') return staleGate.then(data => ({ data, error: null }))
+        return Promise.resolve({ data: rosterC2, error: null })
+      }
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result, rerender } = renderHook(({ id }) => useAdminChannelMessages(id), {
+      initialProps: { id: 'c1' as string | undefined },
+    })
+    rerender({ id: 'c2' })
+    await waitFor(() => expect(result.current.members.map(m => m.user_id)).toEqual(['u2']))
+
+    await act(async () => { resolveStale(rosterC1) })
+    await act(async () => {})
+    expect(result.current.members.map(m => m.user_id)).toEqual(['u2'])
+    expect(result.current.membersError).toBe(false)
   })
 })

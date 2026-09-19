@@ -1070,6 +1070,18 @@ export type Database = {
           updated_at: string
         }[]
       }
+      admin_list_channel_members: {
+        Args: {
+          p_channel_id: string
+        }
+        Returns: {
+          character_name: string
+          display_name: string | null
+          is_active_player: boolean
+          is_blocked: boolean
+          user_id: string
+        }[]
+      }
       admin_list_channel_messages: {
         Args: {
           p_before?: string

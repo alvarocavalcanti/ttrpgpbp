@@ -50,6 +50,10 @@ function baseHook(overrides: Record<string, unknown> = {}) {
     channelError: false,
     channelMissing: false,
     refetchChannel: vi.fn(),
+    members: [],
+    membersLoading: false,
+    membersError: false,
+    refetchMembers: vi.fn(),
     ...overrides,
   }
 }
@@ -221,5 +225,74 @@ describe('AdminChannelView', () => {
   it('links back to the admin console', async () => {
     renderView()
     expect(await screen.findByRole('link', { name: 'Back to admin' })).toHaveAttribute('href', '/admin')
+  })
+
+  it('lists the channel players with GM, active-player, and blocked badges', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+      members: [
+        { user_id: 'u1', display_name: 'Alice', character_name: 'Alicia the Bold', is_blocked: false, is_active_player: false },
+        { user_id: 'u2', display_name: 'Bob', character_name: 'Bobby', is_blocked: false, is_active_player: true },
+        { user_id: 'u3', display_name: 'Mallory', character_name: 'Mal', is_blocked: true, is_active_player: false },
+      ],
+    }) as any)
+
+    renderView()
+
+    expect(await screen.findByText('Players (2)')).toBeInTheDocument()
+    expect(screen.getByText('Alicia the Bold')).toBeInTheDocument()
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('Bobby')).toBeInTheDocument()
+    expect(screen.getByText('GM')).toBeInTheDocument()
+    expect(screen.getByText('Active player')).toBeInTheDocument()
+    expect(screen.getByText('Blocked')).toBeInTheDocument()
+  })
+
+  it('hides a display name identical to the character name', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+      members: [
+        { user_id: 'u2', display_name: 'Bobby', character_name: 'Bobby', is_blocked: false, is_active_player: false },
+      ],
+    }) as any)
+
+    renderView()
+
+    expect(await screen.findByText('Bobby')).toBeInTheDocument()
+    expect(screen.queryAllByText('Bobby')).toHaveLength(1)
+  })
+
+  it('shows an empty state when the channel has no players', async () => {
+    renderView()
+    expect(await screen.findByText('No players yet.')).toBeInTheDocument()
+  })
+
+  it('shows a loading state while the roster loads', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({ membersLoading: true }) as any)
+
+    renderView()
+    expect(await screen.findByText('Loading players…')).toBeInTheDocument()
+  })
+
+  it('shows a roster error with Retry that refetches members', async () => {
+    const refetchMembers = vi.fn()
+    vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+      membersError: true, refetchMembers,
+    }) as any)
+
+    renderView()
+    expect(await screen.findByText("Couldn't load players.")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(refetchMembers).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows no roster when the channel is missing', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+      channel: null, channelMissing: true,
+    }) as any)
+
+    renderView()
+    await screen.findByText('Channel not found.')
+
+    expect(screen.queryByText(/Players \(/)).toBeNull()
   })
 })

@@ -28,7 +28,7 @@ In **Settings** there is an **"Email me about Role by Post"** checkbox. It is of
 
 ## Server admin
 
-Server administrators also see a **Server Admin** item in the app menu, where they can manage users, channels, and the maximum number of channels per user. Channels whose GM deleted their account show an **Orphaned** badge in the Channels tab — **Claim** to become the GM. Tapping a channel's name opens a read-only view of its messages for safety reviews; admins can look but cannot post there.
+Server administrators also see a **Server Admin** item in the app menu, where they can manage users, channels, and the maximum number of channels per user. Channels whose GM deleted their account show an **Orphaned** badge in the Channels tab — **Claim** to become the GM. Tapping a channel's name opens a read-only view of its messages for safety reviews; admins can look but cannot post there. The view also includes a collapsible **Players** list showing who is in the channel, with each member's character name.
 
 In the **Users** tab you can search by name or email, and filter by status (All, Active, Inactive, Suspended — Inactive means no sign-in in the last 30 days, or never). Tap any user to see their details: email and whether it's verified, sign-in method, last login and last activity, how many messages they've sent, which channels they're in (including any they're blocked from), and any past suspension history. You can suspend or un-suspend a user from that same view, with an optional reason. The **Copy opted-in emails** button copies the email addresses of everyone who consented to email updates, one per line — handy for sending manual newsletter or beta-invite emails.
 

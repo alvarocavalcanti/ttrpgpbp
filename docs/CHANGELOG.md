@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-19
+
+### Added
+
+- **Seeing who's in a channel you review** — the admin console's read-only channel view now lists the channel's players, so you can tell who took part in the conversation while reviewing a report.
+
 ## 2026-09-18
 
 ### Added
