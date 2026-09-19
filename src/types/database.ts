@@ -1071,12 +1071,10 @@ export type Database = {
         }[]
       }
       admin_list_channel_members: {
-        Args: {
-          p_channel_id: string
-        }
+        Args: { p_channel_id: string }
         Returns: {
           character_name: string
-          display_name: string | null
+          display_name: string
           is_active_player: boolean
           is_blocked: boolean
           user_id: string
