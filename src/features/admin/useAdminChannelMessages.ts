@@ -22,6 +22,19 @@ export const AdminChannelMessageRowSchema = z.object({
 
 export type AdminChannelMessage = z.infer<typeof AdminChannelMessageRowSchema>
 
+// A roster row from admin_list_channel_members. The profile join is LEFT (the
+// membership survives profile deletion), so display_name can be null despite
+// the RPC's non-null signature — same caveat as the message schemas above.
+export const AdminChannelMemberRowSchema = z.object({
+  user_id: z.string(),
+  display_name: z.string().nullable(),
+  character_name: z.string(),
+  is_blocked: z.boolean(),
+  is_active_player: z.boolean(),
+})
+
+export type AdminChannelMember = z.infer<typeof AdminChannelMemberRowSchema>
+
 const PAGE_SIZE = 50
 
 function parseRows(data: unknown): AdminChannelMessage[] {
@@ -36,7 +49,8 @@ function parseRows(data: unknown): AdminChannelMessage[] {
 // Newest-first fetch with a (created_at, id) cursor; display order stays
 // ascending (oldest at top) and older pages prepend. No realtime: the admin
 // refetches manually. An undefined channelId issues no RPC. The channel header
-// comes from admin_list_channels so a deep link loads without router state.
+// comes from admin_list_channels so a deep link loads without router state;
+// the roster comes from admin_list_channel_members (issue #556).
 export function useAdminChannelMessages(channelId: string | undefined) {
   const [messages, setMessages] = useState<AdminChannelMessage[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,6 +61,9 @@ export function useAdminChannelMessages(channelId: string | undefined) {
   const [channelLoading, setChannelLoading] = useState(true)
   const [channelError, setChannelError] = useState(false)
   const [channelMissing, setChannelMissing] = useState(false)
+  const [members, setMembers] = useState<AdminChannelMember[]>([])
+  const [membersLoading, setMembersLoading] = useState(true)
+  const [membersError, setMembersError] = useState(false)
   // Bumped on channelId change so a slow in-flight request for an old channel
   // can't overwrite a newer channel's messages when it resolves.
   const generationRef = useRef(0)
@@ -155,6 +172,46 @@ export function useAdminChannelMessages(channelId: string | undefined) {
     void fetchChannel()
   }, [fetchChannel])
 
+  // Channel roster for the read-only view (issue #556). Same contract as
+  // fetchChannel above: no RPC without a channel id, generation-guarded so a
+  // channel switch mid-flight discards the stale roster. No pagination: a
+  // single channel's roster is small. Declared after the messages effect so
+  // the captured generation already includes that effect's bump.
+  const fetchMembers = useCallback(async () => {
+    if (!channelId) {
+      setMembers([])
+      setMembersError(false)
+      setMembersLoading(false)
+      return
+    }
+    const generation = generationRef.current
+    setMembersLoading(true)
+    setMembersError(false)
+    try {
+      const { data, error: queryError } = await supabase.rpc('admin_list_channel_members', {
+        p_channel_id: channelId,
+      })
+      if (generation !== generationRef.current) return
+      if (queryError || !Array.isArray(data)) {
+        setMembersError(true)
+      } else {
+        setMembers(data
+          .map(m => AdminChannelMemberRowSchema.safeParse(m))
+          .filter(r => r.success)
+          .map(r => r.data))
+      }
+    } catch {
+      if (generation !== generationRef.current) return
+      setMembersError(true)
+    } finally {
+      if (generation === generationRef.current) setMembersLoading(false)
+    }
+  }, [channelId])
+
+  useEffect(() => {
+    void fetchMembers()
+  }, [fetchMembers])
+
   // Prepends the next older page. A page failure keeps the loaded messages
   // (degrade) and surfaces the error with a Retry via refetch.
   // Generation-guarded: a channel switch mid-flight discards this page, and
@@ -190,6 +247,7 @@ export function useAdminChannelMessages(channelId: string | undefined) {
 
   const refetch = useCallback(() => void fetchFirstPage(false, generationRef.current), [fetchFirstPage])
   const refetchChannel = useCallback(() => void fetchChannel(), [fetchChannel])
+  const refetchMembers = useCallback(() => void fetchMembers(), [fetchMembers])
 
-  return { messages, loading, error, hasMore, loadingOlder, loadOlder, refetch, channel, channelLoading, channelError, channelMissing, refetchChannel }
+  return { messages, loading, error, hasMore, loadingOlder, loadOlder, refetch, channel, channelLoading, channelError, channelMissing, refetchChannel, members, membersLoading, membersError, refetchMembers }
 }

@@ -40,7 +40,7 @@ export function AdminChannelView() {
   const { id } = useParams<{ id: string }>()
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
   // Non-admins issue no RPC: without a channel id the hook stays idle.
-  const { messages, loading, error, hasMore, loadingOlder, loadOlder, refetch, channel, channelLoading, channelError, channelMissing, refetchChannel } =
+  const { messages, loading, error, hasMore, loadingOlder, loadOlder, refetch, channel, channelLoading, channelError, channelMissing, refetchChannel, members, membersLoading, membersError, refetchMembers } =
     useAdminChannelMessages(isServerAdmin ? id : undefined)
   const scrollRef = useRef<HTMLDivElement>(null)
   // Set to the container's height before a load-older prepend; the list then
@@ -120,6 +120,47 @@ export function AdminChannelView() {
         <div role="status" className="mt-3 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 rounded px-3 py-2">
           Read-only admin view. You can review messages here, but you can't send any.
         </div>
+        {/* Channel roster (issue #556): collapsed by default so the messages
+        keep the viewport; the count comes from the channel header so it is
+        stable while the roster loads. Blocked members stay listed (badged)
+        for moderation context. */}
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded">
+            Players ({channel.member_count})
+          </summary>
+          <div className="mt-2">
+            {membersLoading ? (
+              <p className="text-gray-500">Loading players…</p>
+            ) : membersError ? (
+              <div className="flex justify-between items-center text-red-700 dark:text-red-300">
+                <span>Couldn't load players.</span>
+                <button type="button" onClick={() => refetchMembers()} className="font-semibold hover:underline">Retry</button>
+              </div>
+            ) : members.length === 0 ? (
+              <p className="text-gray-500">No players yet.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {members.map(member => (
+                  <li key={member.user_id} className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{member.character_name}</span>
+                    {member.display_name && member.display_name !== member.character_name && (
+                      <span className="text-gray-500 truncate">{member.display_name}</span>
+                    )}
+                    {member.user_id === channel.gm_id && (
+                      <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">GM</span>
+                    )}
+                    {member.is_active_player && (
+                      <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">Active player</span>
+                    )}
+                    {member.is_blocked && (
+                      <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">Blocked</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </details>
       </div>
 
       <div ref={scrollRef} className="flex-1 w-full overflow-y-auto p-4 space-y-6">
