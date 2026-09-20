@@ -64,6 +64,49 @@ export const SAFER_TIMEOUT_MS = 15000
 // legitimately hits it.
 export const MAX_UPLOADS_PER_HOUR = 100
 
+// Default size cap (MB) mirroring enforce_image_upload_rules(): the DB trigger
+// COALESCEs a missing image_max_size_mb row to 5.
+export const DEFAULT_IMAGE_MAX_SIZE_MB = 5
+
+// Postgres unique_violation. The content_hashes insert is the quota gate: a
+// 23505 on object_path means the path was already attempted (a replay that
+// would otherwise scan without incrementing the cap).
+export const POSTGRES_UNIQUE_VIOLATION = '23505'
+
+export type PreScanGuard = 'ok' | 'disabled' | 'too_large'
+
+// Pre-scan gate mirroring the DB store-time trigger (image_uploading_enabled /
+// image_max_size_mb): disabled or oversized uploads must never touch the paid
+// provider. Absent rows fall back to the trigger's defaults (off / 5 MB).
+// Parses defensively — the JSONB column historically held both native types
+// and castable strings — but never coerces null (Number(null) is 0, which
+// would block every upload instead of defaulting like COALESCE does).
+export function evaluatePreScanGuards(
+  rows: ReadonlyArray<{ key: string; value: unknown }>,
+  byteLength: number
+): PreScanGuard {
+  const settings = new Map(rows.map(r => [r.key, r.value]))
+  const enabledValue = settings.get('image_uploading_enabled')
+  if (enabledValue !== true && enabledValue !== 'true') return 'disabled'
+
+  const rawMax = settings.get('image_max_size_mb')
+  const parsedMax =
+    typeof rawMax === 'number'
+      ? rawMax
+      : typeof rawMax === 'string' && rawMax.trim() !== ''
+        ? Number(rawMax)
+        : NaN
+  const maxMb = Number.isFinite(parsedMax) ? parsedMax : DEFAULT_IMAGE_MAX_SIZE_MB
+  return byteLength > maxMb * 1024 * 1024 ? 'too_large' : 'ok'
+}
+
+// Replays of an attempted path get the throttled client status; any other
+// provenance-insert failure degrades to unavailable (fail closed — the row is
+// the quota counter, so no row means no paid call).
+export function attemptInsertFailureStatus(code: string | undefined): 'throttled' | 'unavailable' {
+  return code === POSTGRES_UNIQUE_VIOLATION ? 'throttled' : 'unavailable'
+}
+
 // Upload dimensions arrive as strings from the FormData. Absent must stay
 // absent — Number(null) is 0, which would write a bogus 0x0 box into the object
 // metadata (the client uses it to reserve space before the image loads).

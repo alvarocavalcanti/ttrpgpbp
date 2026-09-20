@@ -2,12 +2,16 @@
 --   * anon has EXECUTE on no user-defined function in public (blanket sweep;
 --     extension-owned functions such as pgtap itself are excluded)
 --   * server-only helpers are EXECUTE-blocked for authenticated/service_role
+--   * no RETURNS trigger function in public is callable by an API role
+--     (class-level guard — 2026-09-20 #558 P2-1; catches future trigger
+--     helpers that skip the house revoke without manual list upkeep)
 --   * client-facing RPCs keep authenticated EXECUTE
 --   * the push pipeline's service_role call into get_unread_totals survives
+--   * authenticated cannot call get_unread_totals (2026-09-20 #558 P2-3)
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(55);
+SELECT plan(64);
 
 SELECT is(
   (SELECT count(*)
@@ -206,6 +210,66 @@ SELECT is(
   'service_role cannot call validate_message_mentions'
 );
 
+-- 2026-09-20 #558 P2-1: post-sweep trigger helpers that shipped without the
+-- house revoke (fixed by 20260920182740_audit_20260920_grant_hardening).
+SELECT is(
+  has_function_privilege('authenticated', 'public.enforce_abuse_report_integrity()', 'EXECUTE'),
+  false,
+  'authenticated cannot call enforce_abuse_report_integrity'
+);
+SELECT is(
+  has_function_privilege('service_role', 'public.enforce_abuse_report_integrity()', 'EXECUTE'),
+  false,
+  'service_role cannot call enforce_abuse_report_integrity'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.enforce_abuse_report_immutable_report_target()', 'EXECUTE'),
+  false,
+  'authenticated cannot call enforce_abuse_report_immutable_report_target'
+);
+SELECT is(
+  has_function_privilege('service_role', 'public.enforce_abuse_report_immutable_report_target()', 'EXECUTE'),
+  false,
+  'service_role cannot call enforce_abuse_report_immutable_report_target'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.handle_email_opt_in_change()', 'EXECUTE'),
+  false,
+  'authenticated cannot call handle_email_opt_in_change'
+);
+SELECT is(
+  has_function_privilege('service_role', 'public.handle_email_opt_in_change()', 'EXECUTE'),
+  false,
+  'service_role cannot call handle_email_opt_in_change'
+);
+
+-- Class-level guard: no RETURNS trigger function in public may be directly
+-- callable by an API role. Trigger functions cannot be invoked directly
+-- (they raise "record NEW is not assigned yet"), so nothing legitimate needs
+-- these grants; a future helper that merges without a revoke fails loudly.
+SELECT is(
+  (SELECT count(*)
+   FROM pg_proc p
+   JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public'
+     AND p.prorettype = 'pg_catalog.trigger'::regtype
+     AND p.oid NOT IN (SELECT objid FROM pg_depend WHERE deptype = 'e')
+     AND has_function_privilege('authenticated', p.oid, 'EXECUTE')),
+  0::bigint,
+  'authenticated has EXECUTE on no trigger function in public'
+);
+SELECT is(
+  (SELECT count(*)
+   FROM pg_proc p
+   JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public'
+     AND p.prorettype = 'pg_catalog.trigger'::regtype
+     AND p.oid NOT IN (SELECT objid FROM pg_depend WHERE deptype = 'e')
+     AND has_function_privilege('service_role', p.oid, 'EXECUTE')),
+  0::bigint,
+  'service_role has EXECUTE on no trigger function in public'
+);
+
 -- 2. Auth hook / notification trigger functions.
 SELECT is(
   has_function_privilege('authenticated', 'public.handle_new_user()', 'EXECUTE'),
@@ -306,6 +370,13 @@ SELECT is(
   has_function_privilege('service_role', 'public.get_unread_totals(uuid[])', 'EXECUTE'),
   true,
   'service_role keeps get_unread_totals (push pipeline uses it)'
+);
+-- 2026-09-20 #558 P2-3: batch totals take arbitrary user ids and are
+-- invoker-rights — service-role-only, matching get_admin_unread_totals.
+SELECT is(
+  has_function_privilege('authenticated', 'public.get_unread_totals(uuid[])', 'EXECUTE'),
+  false,
+  'authenticated cannot call get_unread_totals'
 );
 SELECT is(
   has_function_privilege('authenticated', 'public.mark_channel_read(uuid)', 'EXECUTE'),

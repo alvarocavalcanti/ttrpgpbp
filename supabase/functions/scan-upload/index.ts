@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import {
+  attemptInsertFailureStatus,
   buildImageMetadata,
+  evaluatePreScanGuards,
   interpretSaferResponse,
   isAllowedOrigin,
   isValidUploadPath,
@@ -136,6 +138,25 @@ serve(async (req) => {
       return json({ error: "Not authorized" }, 403, req)
     }
 
+    // Pre-scan gate mirroring the DB store-time trigger: disabled or
+    // oversized uploads must never touch the paid provider. Checked before
+    // the bytes are buffered. Fail closed if the settings cannot be read.
+    const { data: settingRows, error: settingsError } = await serviceClient
+      .from("app_settings")
+      .select("key,value")
+      .in("key", ["image_uploading_enabled", "image_max_size_mb"])
+    if (settingsError) {
+      console.error("Reading image upload settings failed:", settingsError)
+      return json({ status: "unavailable" }, 200, req)
+    }
+    const preScanGuard = evaluatePreScanGuards(settingRows ?? [], file.size)
+    if (preScanGuard === "disabled") {
+      return json({ error: "Image uploads are disabled" }, 403, req)
+    }
+    if (preScanGuard === "too_large") {
+      return json({ error: "Image exceeds the size limit" }, 413, req)
+    }
+
     const bytes = new Uint8Array(await file.arrayBuffer())
     if (bytes.byteLength === 0) {
       return json({ error: "Empty upload" }, 400, req)
@@ -160,7 +181,10 @@ serve(async (req) => {
     const sha256 = await sha256Hex(bytes)
 
     // Record the attempt before scanning, so a provider failure still leaves
-    // provenance (an 'unscanned' row) and counts against the cap.
+    // provenance (an 'unscanned' row) and counts against the cap. The insert
+    // is the quota gate: object_path is UNIQUE, so a replayed path returns
+    // 23505 instead of burning provider quota uncounted; any other failure
+    // degrades to unavailable rather than scanning without a counter row.
     const { error: attemptError } = await serviceClient.from("content_hashes").insert({
       object_path: path,
       channel_id: channelId,
@@ -170,6 +194,7 @@ serve(async (req) => {
     })
     if (attemptError) {
       console.error("Recording upload attempt failed:", attemptError)
+      return json({ status: attemptInsertFailureStatus(attemptError.code) }, 200, req)
     }
 
     const verdict = interpretSaferResponse(await submitToSafer(bytes, saferUrl, saferKey))
