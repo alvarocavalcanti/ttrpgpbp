@@ -21,7 +21,7 @@
 **Verification commands run:**
 
 - `npx tsc -p tsconfig.app.json --noEmit` → **passed** (no errors)
-- `npx oxlint` → **passed (exit 0)** — 46 warnings (all react-compiler rules), 0 errors
+- `npx oxlint` → **passed (exit 0)** — 45 react-compiler warnings + 1 jsx-a11y warning, 0 errors
 - Tests/coverage/build were run by the orchestrator (not in this report's contract): 1770 passed / 0 failed, coverage 92.82 / 84.83 / 90.4 / 95.65 (statements / branches / functions / lines).
 
 ---
