@@ -89,6 +89,10 @@ export type AdminAbuseReport = z.infer<typeof AdminAbuseReportRowSchema>
 export type AdminMessage = z.infer<typeof AdminMessageRowSchema>
 export type AdminMessageDetail = z.infer<typeof AdminMessageDetailSchema>
 
+// "New in the last 7 days" window for the admin stat cards. The cutoff is
+// captured once per fetch inside the effect, never during render.
+const NEW_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
 // Data layer for the server admin console (ARCH-1): the admin_list_* queries,
 // suspend/claim RPCs, and app_settings upserts live here; AdminView keeps the
 // tabs, sorting, and toast UX.
@@ -97,6 +101,8 @@ export function useAdminData(isServerAdmin: boolean) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [channels, setChannels] = useState<AdminChannel[]>([])
   const [reports, setReports] = useState<AdminAbuseReport[]>([])
+  const [newUsers, setNewUsers] = useState(0)
+  const [newChannels, setNewChannels] = useState(0)
   const [storageBytes, setStorageBytes] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -108,6 +114,10 @@ export function useAdminData(isServerAdmin: boolean) {
     async function fetchData() {
       setLoading(true)
       setError(null)
+      // Captured once per fetch: the "new in the last 7 days" cutoff is state,
+      // not derived during render, so the stat cards stay stable instead of
+      // shifting on unrelated re-renders.
+      const cutoff = Date.now() - NEW_WINDOW_MS
       try {
         const [
           { data: userData, error: userError },
@@ -131,24 +141,26 @@ export function useAdminData(isServerAdmin: boolean) {
           throw new Error('Malformed admin data payload.')
         }
         if (mounted) {
-          setUsers(
-            userData
-              .map(u => AdminUserRowSchema.safeParse(u))
-              .filter(r => r.success)
-              .map(r => r.data)
-          )
-          setChannels(
-            channelData
-              .map(c => AdminChannelRowSchema.safeParse(c))
-              .filter(r => r.success)
-              .map(r => r.data)
-          )
+          // Parse once: the Zod pass runs per fetch, and the new-this-week
+          // counts are computed over the same validated lists.
+          const parsedUsers = userData
+            .map(u => AdminUserRowSchema.safeParse(u))
+            .filter(r => r.success)
+            .map(r => r.data)
+          const parsedChannels = channelData
+            .map(c => AdminChannelRowSchema.safeParse(c))
+            .filter(r => r.success)
+            .map(r => r.data)
+          setUsers(parsedUsers)
+          setChannels(parsedChannels)
           setReports(
             reportData
               .map(r => AdminAbuseReportRowSchema.safeParse(r))
               .filter(r => r.success)
               .map(r => r.data)
           )
+          setNewUsers(parsedUsers.filter(u => new Date(u.created_at).getTime() > cutoff).length)
+          setNewChannels(parsedChannels.filter(c => new Date(c.created_at).getTime() > cutoff).length)
           setStorageBytes(typeof storageData === 'number' ? storageData : 0)
         }
       } catch (err) {
@@ -271,5 +283,5 @@ export function useAdminData(isServerAdmin: boolean) {
     return entries
   }
 
-  return { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages }
+  return { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages }
 }

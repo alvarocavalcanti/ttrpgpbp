@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Database } from '../../types/database'
 import { hashPassword } from '../../lib/crypto'
+import { copyToClipboard } from '../../lib/clipboard'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
@@ -119,32 +120,12 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
 
   const handleCopy = async () => {
-    let textArea: HTMLTextAreaElement | null = null
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(inviteLink)
-      } else {
-        textArea = document.createElement("textarea")
-        textArea.value = inviteLink
-        textArea.style.position = "absolute"
-        textArea.style.left = "-999999px"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
-        const success = document.execCommand('copy')
-        if (!success) {
-          throw new Error('execCommand returned false')
-        }
-      }
+      await copyToClipboard(inviteLink)
       addToast('Invite link copied!', 'success')
     } catch (err) {
       console.error('Failed to copy', err)
       addToast('Failed to copy invite link', 'error')
-    } finally {
-      if (textArea?.isConnected) {
-        document.body.removeChild(textArea)
-      }
     }
   }
 

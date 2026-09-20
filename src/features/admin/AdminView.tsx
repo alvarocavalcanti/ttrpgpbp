@@ -6,6 +6,7 @@ import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { BottomSheet } from '../../components/BottomSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
+import { copyToClipboard } from '../../lib/clipboard'
 import { useAdminData, type AdminUser, type AdminAbuseReport, type AdminMessageDetail } from './useAdminData'
 import { UserDetailModal } from './UserDetailModal'
 
@@ -116,7 +117,7 @@ export function AdminView() {
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
-  const { users, channels, reports, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
+  const { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
@@ -260,38 +261,17 @@ export function AdminView() {
     }
   }
 
-  // Copy the opted-in email list (newline-joined) onto the clipboard. Mirrors
-  // ChannelSettings' invite-link copy: navigator.clipboard in secure
-  // contexts, execCommand fallback otherwise.
+  // Copy the opted-in email list (newline-joined) onto the clipboard. The
+  // clipboard write itself lives in lib/clipboard.
   const handleCopyOptedInEmails = async () => {
     const text = optedInEmails.map(email => email.replace(/[\r\n]+/g, '')).join('\n')
     if (!text) return
-    let textArea: HTMLTextAreaElement | null = null
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text)
-      } else {
-        textArea = document.createElement('textarea')
-        textArea.value = text
-        textArea.style.position = 'absolute'
-        textArea.style.left = '-999999px'
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        // ponytail: legacy fallback for non-secure contexts, navigator.clipboard covers all modern browsers
-        const success = document.execCommand('copy')
-        if (!success) {
-          throw new Error('execCommand returned false')
-        }
-      }
+      await copyToClipboard(text)
       addToast(`Copied ${optedInEmails.length} opted-in emails.`, 'success')
     } catch (err) {
       console.error('Failed to copy opted-in emails:', err)
       addToast('Failed to copy opted-in emails.', 'error')
-    } finally {
-      if (textArea?.isConnected) {
-        document.body.removeChild(textArea)
-      }
     }
   }
 
@@ -301,10 +281,6 @@ export function AdminView() {
     { id: 'reports', label: 'Reports' },
     { id: 'settings', label: 'Settings' },
   ]
-
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const newUsers = users.filter(u => new Date(u.created_at).getTime() > sevenDaysAgo).length
-  const newChannels = channels.filter(c => new Date(c.created_at).getTime() > sevenDaysAgo).length
 
   // Opt-in email export (#466): copy each consenting user's address onto the
   // clipboard for bulk sending. Only users with both an opt-in flag AND an

@@ -132,6 +132,89 @@ describe('useAdminData', () => {
     expect(result.current.error).toBeNull()
   })
 
+  // Day offsets relative to the test run: real timers, runtime-computed ISO
+  // dates. Margins (1 vs 10 days) dwarf test duration, so the window is
+  // deterministic without freezing the clock.
+  const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+  it('counts users and channels created in the last 7 days', async () => {
+    const users = [
+      { ...baseUser, id: 'u1', created_at: daysAgo(1) },
+      { ...baseUser, id: 'u2', created_at: daysAgo(10) },
+    ]
+    const channels = [
+      { ...baseChannel, id: 'c1', created_at: daysAgo(6) },
+      { ...baseChannel, id: 'c2', created_at: daysAgo(30) },
+    ]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: 0, error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.newUsers).toBe(1)
+    expect(result.current.newChannels).toBe(1)
+  })
+
+  it('excludes rows created exactly at the 7-day boundary', async () => {
+    // Strict >: a row exactly at the cutoff is out. Any millisecond skew
+    // between this timestamp and the hook's own Date.now() only pushes the
+    // cutoff later, keeping the row excluded.
+    const users = [{ ...baseUser, created_at: daysAgo(7) }]
+    const channels = [{ ...baseChannel, created_at: daysAgo(7) }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: 0, error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.newUsers).toBe(0)
+    expect(result.current.newChannels).toBe(0)
+  })
+
+  it('starts the counts at zero and ignores malformed rows', async () => {
+    const users = [
+      { ...baseUser, created_at: daysAgo(1) },
+      { ...baseUser, id: 'u2', created_at: 12345 },
+    ]
+    const channels = [
+      { ...baseChannel, created_at: daysAgo(1) },
+      { id: 'c2', name: 'Broken' },
+    ]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: 0, error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.users).toHaveLength(1)
+    expect(result.current.channels).toHaveLength(1)
+    expect(result.current.newUsers).toBe(1)
+    expect(result.current.newChannels).toBe(1)
+  })
+
+  it('reports zero counts for empty lists', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.newUsers).toBe(0)
+    expect(result.current.newChannels).toBe(0)
+    expect(result.current.error).toBeNull()
+  })
+
   it('filters malformed abuse-report rows while valid rows survive', async () => {
     const reports = [
       { ...baseReport },
