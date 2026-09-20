@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildImageMetadata, interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from './logic'
+import { attemptInsertFailureStatus, buildImageMetadata, evaluatePreScanGuards, interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
@@ -98,5 +98,63 @@ describe('buildImageMetadata', () => {
     expect(buildImageMetadata('-1', '288')).toBeUndefined()
     expect(buildImageMetadata('abc', '288')).toBeUndefined()
     expect(buildImageMetadata('Infinity', '288')).toBeUndefined()
+  })
+})
+
+describe('evaluatePreScanGuards', () => {
+  const MB = 1024 * 1024
+
+  it('treats missing settings as disabled with the trigger defaults', () => {
+    expect(evaluatePreScanGuards([], 1)).toBe('disabled')
+    expect(evaluatePreScanGuards([{ key: 'image_max_size_mb', value: 5 }], 1)).toBe('disabled')
+  })
+
+  it('accepts an enabled upload within the default 5 MB cap', () => {
+    expect(evaluatePreScanGuards([{ key: 'image_uploading_enabled', value: true }], 5 * MB)).toBe('ok')
+  })
+
+  it('rejects an enabled upload a byte over the default 5 MB cap', () => {
+    expect(evaluatePreScanGuards([{ key: 'image_uploading_enabled', value: true }], 5 * MB + 1)).toBe('too_large')
+  })
+
+  it('honors the configured cap', () => {
+    const rows = [
+      { key: 'image_uploading_enabled', value: true },
+      { key: 'image_max_size_mb', value: 1 },
+    ]
+    expect(evaluatePreScanGuards(rows, MB)).toBe('ok')
+    expect(evaluatePreScanGuards(rows, MB + 1)).toBe('too_large')
+  })
+
+  it('defaults a null or garbage cap to 5 MB instead of coercing', () => {
+    const rows = [{ key: 'image_uploading_enabled', value: true }, { key: 'image_max_size_mb', value: null }]
+    expect(evaluatePreScanGuards(rows, 5 * MB)).toBe('ok')
+    expect(evaluatePreScanGuards(rows, 5 * MB + 1)).toBe('too_large')
+    const garbage = [{ key: 'image_uploading_enabled', value: true }, { key: 'image_max_size_mb', value: 'abc' }]
+    expect(evaluatePreScanGuards(garbage, 5 * MB + 1)).toBe('too_large')
+  })
+
+  it('accepts string-typed settings from legacy rows', () => {
+    const rows = [
+      { key: 'image_uploading_enabled', value: 'true' },
+      { key: 'image_max_size_mb', value: '2' },
+    ]
+    expect(evaluatePreScanGuards(rows, 2 * MB)).toBe('ok')
+    expect(evaluatePreScanGuards(rows, 2 * MB + 1)).toBe('too_large')
+  })
+
+  it('prefers disabled over oversized', () => {
+    expect(evaluatePreScanGuards([{ key: 'image_uploading_enabled', value: false }], 100 * MB)).toBe('disabled')
+  })
+})
+
+describe('attemptInsertFailureStatus', () => {
+  it('maps a unique violation (path replay) to throttled', () => {
+    expect(attemptInsertFailureStatus('23505')).toBe('throttled')
+  })
+
+  it('maps any other failure to unavailable', () => {
+    expect(attemptInsertFailureStatus('08006')).toBe('unavailable')
+    expect(attemptInsertFailureStatus(undefined)).toBe('unavailable')
   })
 })
