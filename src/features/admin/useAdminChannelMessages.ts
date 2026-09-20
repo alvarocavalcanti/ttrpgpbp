@@ -49,8 +49,11 @@ function parseRows(data: unknown): AdminChannelMessage[] {
 // Newest-first fetch with a (created_at, id) cursor; display order stays
 // ascending (oldest at top) and older pages prepend. No realtime: the admin
 // refetches manually. An undefined channelId issues no RPC. The channel header
-// comes from admin_list_channels so a deep link loads without router state;
-// the roster comes from admin_list_channel_members (issue #556).
+// comes from the unpaged admin_list_channels — an O(total channels) fetch to
+// resolve one row — so a deep link loads without router state. Intentional at
+// current admin scale (few channels, few admins); swap to a scoped
+// admin_get_channel(p_channel_id) RPC if channel counts grow. The roster comes
+// from admin_list_channel_members (issue #556).
 export function useAdminChannelMessages(channelId: string | undefined) {
   const [messages, setMessages] = useState<AdminChannelMessage[]>([])
   const [loading, setLoading] = useState(true)
