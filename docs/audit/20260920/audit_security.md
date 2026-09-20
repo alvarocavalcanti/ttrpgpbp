@@ -124,7 +124,7 @@ None.
 
 Carried from `docs/audit/20260907/INDEX.md` and re-verified deliberate — do not "fix":
 
-- **`verify_jwt = false` on `push-notifications`/`cleanup-images` with shared-secret auth** (`supabase/config.toml:13-31`) — DB trigger is the sole caller; secret unreadable by API roles. (`scan-upload` uses `verify_jwt = true` + JWT identity, `config.toml:33-38`.)
+- **`verify_jwt = false` + shared-secret auth on `push-notifications`/`cleanup-images`** (`supabase/config.toml:13-31`) — caller contracts differ: `push-notifications` is DB-trigger-invoked and checks `x-push-secret` against `PUSH_INTERNAL_SECRET` (`supabase/functions/push-notifications/index.ts:294-304`); `cleanup-images` is scheduler-invoked (GitHub Action) and authenticates with `CLEANUP_IMAGES_SECRET` via the `x-cleanup-secret` header (`supabase/functions/cleanup-images/index.ts:10,32`). Secrets unreadable by API roles. (`scan-upload` uses `verify_jwt = true` + JWT identity, `config.toml:33-38`.)
 - **Whisper privacy model** — sender + target + GM by RLS; content-free push bodies; received whispers excluded from GDPR export.
 - **Client-side PBKDF2 with DB-side compare** (`get_channel_salt` authenticated) — plaintext never reaches the DB.
 - **Mimetype is label-only on uploads** — coarse `image/*` gate; documented ceiling + client JPEG re-encode.

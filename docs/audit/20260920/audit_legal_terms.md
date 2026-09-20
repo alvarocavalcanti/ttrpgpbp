@@ -137,7 +137,7 @@ None.
 
 - **No DOB / age verification.** Self-attestation age gates are the accepted posture for a non-financial hobby service; a DOB field or third-party age assurance is out of scope unless a platform (App Store / Google OAuth) or jurisdiction makes it mandatory. (P2 #3 is about *copy alignment*, not adding verification.)
 - **No automated NCMEC filing.** Filing remains a human act; the P1 fix is to *surface* the duty, not to automate a legal filing to authorities from an edge function.
-- **`verify_jwt = false` + shared-secret on `cleanup-images`/`push-notifications`** — carried from the security pillar; the DB trigger/service role is the intended caller. (`scan-upload` uses `verify_jwt = true` + JWT identity, `supabase/config.toml:33-38`.)
+- **`verify_jwt = false` + shared-secret on `cleanup-images`/`push-notifications`** — carried from the security pillar. Caller contracts differ: `cleanup-images` is scheduler-invoked (GitHub Action) and authenticates with `CLEANUP_IMAGES_SECRET` via the `x-cleanup-secret` header (`supabase/config.toml:29-30`, `cleanup-images/index.ts:10,32`); `push-notifications` is DB-trigger-invoked and checks `x-push-secret` against `PUSH_INTERNAL_SECRET` (`push-notifications/index.ts:294-304`). (`scan-upload` uses `verify_jwt = true` + JWT identity, `supabase/config.toml:33-38`.)
 - **Soft-delete / pseudonymized message retention.** Deleted accounts' messages persist with `sender_id` nulled to preserve other players' chat history — disclosed in the Privacy Policy and a deliberate GDPR-legitimate-interest posture (carried from prior audits).
 - **No ToS "clickwrap" record before this round.** Carried gap now tracked as P2 #2; not retroactively fixable for accounts that predate the fix.
 
