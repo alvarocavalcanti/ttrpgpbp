@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import {
   attemptInsertFailureStatus,
+  buildCsamAlertMessage,
   buildImageMetadata,
   evaluatePreScanGuards,
   interpretSaferResponse,
@@ -131,7 +132,7 @@ serve(async (req) => {
     // client bypasses RLS, so the same rule is enforced here.
     const { data: channel } = await serviceClient
       .from("channels")
-      .select("gm_id")
+      .select("id, name, gm_id")
       .eq("id", channelId)
       .single()
     if (!channel || channel.gm_id !== user.id) {
@@ -217,6 +218,35 @@ serve(async (req) => {
       })
       if (auditError) {
         console.error("Writing CSAM audit row failed:", auditError)
+      }
+
+      // Surface the duty the Terms §7 promise: post the match to the admin's
+      // System thread (#562 P1). Best-effort — the audit row and the
+      // content_hashes row above are the durable evidence, so an alert
+      // failure must never change the block response.
+      const { data: uploaderProfile } = await serviceClient
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle()
+      const uploaderName = uploaderProfile?.display_name?.trim() || user.email || user.id
+      try {
+        const { error: alertError } = await serviceClient.rpc("post_system_message", {
+          p_content: buildCsamAlertMessage({
+            uploaderId: user.id,
+            uploaderName,
+            channelId,
+            channelName: channel.name,
+            objectPath: path,
+            sha256,
+            detectedAt: new Date().toISOString(),
+          }),
+        })
+        if (alertError) {
+          console.error("Posting CSAM system alert failed:", alertError)
+        }
+      } catch (alertErr) {
+        console.error("Posting CSAM system alert failed:", alertErr)
       }
 
       // The service-role client has no auth.uid(), so the

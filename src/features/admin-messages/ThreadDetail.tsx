@@ -69,7 +69,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
     await deleteMessage(msgId)
   }
 
-  const title = thread.type === 'announcement' ? thread.subject : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
+  const title = thread.type === 'announcement' ? thread.subject : thread.type === 'system' ? (thread.subject || 'System') : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
@@ -79,7 +79,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
         </button>
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{title}</h2>
-          <div className="text-sm text-gray-500">{thread.type === 'announcement' ? 'Announcement' : 'Direct Message'}</div>
+          <div className="text-sm text-gray-500">{thread.type === 'announcement' ? 'Announcement' : thread.type === 'system' ? 'System messages' : 'Direct Message'}</div>
         </div>
         {isServerAdmin && (
           <button type="button" onClick={() => setConfirmAction({ type: 'thread' })} className="text-red-500 hover:text-red-700 p-2" title="Delete Thread">
@@ -104,6 +104,17 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
           <div className="text-center text-gray-500">Loading...</div>
         ) : (
           messages.map(msg => (
+            msg.is_system ? (
+              <div key={msg.id} className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">System</span>
+                  <span className="text-xs text-gray-500">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-snug prose-p:my-1 break-words">
+                  <Markdown>{msg.content}</Markdown>
+                </div>
+              </div>
+            ) : (
             <div key={msg.id} className={`flex gap-3 ${msg.sender_id === user?.id ? 'flex-row-reverse' : ''}`}>
               <Avatar src={msg.sender?.avatar_url || undefined} className="w-8 h-8 rounded-full flex-shrink-0" />
               <div className={`flex flex-col max-w-[85%] ${msg.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
@@ -125,6 +136,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
                 )}
               </div>
             </div>
+            )
           ))
         )}
         <div ref={messagesEndRef} />

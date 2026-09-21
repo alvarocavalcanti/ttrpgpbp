@@ -250,6 +250,15 @@ async function buildAdminMessageEvent(
       }
       adminTargetUserIds = resolveAnnouncementTargets(thread.audience, gmProfiles, gmIds)
     }
+  } else if (thread.type === "system") {
+    // System alerts (#562 P1) are authored by the database (NULL sender) and
+    // exist for the server admin only: they always route to the admin.
+    const { data: admin } = await serviceClient
+      .from("profiles")
+      .select("id")
+      .eq("server_admin", true)
+      .single()
+    adminTargetUserIds = admin?.id ? [admin.id] : []
   } else {
     const { data: admin } = await serviceClient
       .from("profiles")

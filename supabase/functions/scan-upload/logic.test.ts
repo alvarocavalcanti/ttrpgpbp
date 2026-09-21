@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attemptInsertFailureStatus, buildImageMetadata, evaluatePreScanGuards, interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from './logic'
+import { attemptInsertFailureStatus, buildCsamAlertMessage, buildImageMetadata, evaluatePreScanGuards, interpretSaferResponse, isAllowedOrigin, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
@@ -156,5 +156,32 @@ describe('attemptInsertFailureStatus', () => {
   it('maps any other failure to unavailable', () => {
     expect(attemptInsertFailureStatus('08006')).toBe('unavailable')
     expect(attemptInsertFailureStatus(undefined)).toBe('unavailable')
+  })
+})
+
+describe('buildCsamAlertMessage', () => {
+  const details = {
+    uploaderId: '22222222-2222-3333-4444-555555555555',
+    uploaderName: 'Bad Actor',
+    channelId: '11111111-2222-3333-4444-555555555555',
+    channelName: 'Secret Lair',
+    objectPath: '11111111-2222-3333-4444-555555555555/message/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg',
+    sha256: 'deadbeef',
+    detectedAt: '2026-09-21T12:00:00.000Z',
+  }
+
+  it('links the uploader to the admin user view and the channel to the read-only channel view', () => {
+    const body = buildCsamAlertMessage(details)
+    expect(body).toContain('[Bad Actor](/admin?user=22222222-2222-3333-4444-555555555555)')
+    expect(body).toContain('[Secret Lair](/admin/channels/11111111-2222-3333-4444-555555555555)')
+  })
+
+  it('carries the attempted path, hash, and timestamp for the filing', () => {
+    const body = buildCsamAlertMessage(details)
+    expect(body).toContain('`11111111-2222-3333-4444-555555555555/message/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg`')
+    expect(body).toContain('`deadbeef`')
+    expect(body).toContain('2026-09-21T12:00:00.000Z')
+    expect(body).toContain('NCMEC')
+    expect(body).toContain('Hotline.ie')
   })
 })

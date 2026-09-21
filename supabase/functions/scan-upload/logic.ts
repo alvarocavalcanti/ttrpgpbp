@@ -122,3 +122,31 @@ export function buildImageMetadata(
   }
   return { width, height }
 }
+
+export interface CsamAlertDetails {
+  uploaderId: string
+  uploaderName: string
+  channelId: string
+  channelName: string
+  objectPath: string
+  sha256: string
+  detectedAt: string
+}
+
+// Builds the markdown body posted to the admin's System thread on a Safer
+// match (#562 P1). Root-relative links so the admin inbox's SPA renderer can
+// intercept them; the channel link points at the admin's read-only channel
+// view because the admin is not a channel member.
+export function buildCsamAlertMessage(details: CsamAlertDetails): string {
+  return [
+    '**Blocked upload — possible child sexual abuse material**',
+    '',
+    `- **Uploaded by:** [${details.uploaderName}](/admin?user=${details.uploaderId})`,
+    `- **Channel:** [${details.channelName}](/admin/channels/${details.channelId})`,
+    `- **Attempted path:** \`${details.objectPath}\``,
+    `- **SHA-256:** \`${details.sha256}\``,
+    `- **Detected:** ${details.detectedAt}`,
+    '',
+    'The upload was blocked and the account suspended automatically. If this is confirmed CSAM, file a report with NCMEC (US) or an INHOPE hotline such as Hotline.ie (IE), then reply here to record it.',
+  ].join('\n')
+}

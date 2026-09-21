@@ -29,8 +29,8 @@ export interface PushEvent {
   gm_id?: string
   // turn events
   user_id?: string
-  // admin_message events (announcements / admin DMs)
-  admin_type?: 'announcement' | 'dm'
+  // admin_message events (announcements / admin DMs / system alerts)
+  admin_type?: 'announcement' | 'dm' | 'system'
   subject?: string
   admin_target_user_ids?: string[]
 }
@@ -113,9 +113,12 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
 
   if (event.kind === 'admin_message') {
     const targets = (event.admin_target_user_ids ?? []).filter(uid => uid !== event.sender_id)
+    // System alerts carry no human sender; the thread subject is the title.
     const title = event.admin_type === 'announcement' && event.subject
       ? `Announcement: ${event.subject}`
-      : `New message from ${senderName}`
+      : event.admin_type === 'system'
+        ? (event.subject ?? 'System alert')
+        : `New message from ${senderName}`
     return {
       targetUserIds: targets,
       title,

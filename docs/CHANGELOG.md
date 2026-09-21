@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-21
 
+### Added
+
+- **Safety alerts now reach the team directly** — when someone files an abuse report, or an uploaded image is blocked by the safety scan, the details land in a new **System** thread in Messages, with links to the channel and the people involved, so reports can be acted on right away.
+
 ### Fixed
 
 - **Reactions appear the instant you tap them** — your emoji reaction now shows up immediately, even on a flaky connection, and tapping twice in a hurry no longer pops up a false "failed" error.

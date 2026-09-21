@@ -424,6 +424,22 @@ describe('resolvePushTargets', () => {
       expect(result.targetUserIds).toEqual([])
     })
 
+    it('routes system alerts to the admin with the thread subject as title', () => {
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'system',
+        subject: 'System',
+        content: '**Blocked upload** [Evil](/admin?user=u9)',
+        sender_id: null,
+        admin_target_user_ids: ['u1']
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u1'])
+      expect(result.title).toBe('System')
+      expect(result.body).toBe('Blocked upload Evil')
+      expect(result.url).toBe('/messages')
+    })
+
     it('returns empty when there are no targets', () => {
       const result = resolvePushTargets({
         kind: 'admin_message',

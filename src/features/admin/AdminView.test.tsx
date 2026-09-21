@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AdminView } from './AdminView'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
@@ -955,6 +955,51 @@ describe('AdminView', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument()
     expect(screen.getByText('Never')).toBeInTheDocument()
     expect(screen.queryByText('Recent')).not.toBeInTheDocument()
+  })
+
+  it('opens the user modal from a ?user= deep link', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin?user=u2']}>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    const dialog = await screen.findByRole('dialog', { name: 'bob@example.com' })
+    expect(within(dialog).getByText(/verified/)).toBeInTheDocument()
+  })
+
+  it('ignores a ?user= deep link that matches no loaded user', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin?user=nope']}>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Total Users')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('consumes the ?user= deep link when the modal closes', async () => {
+    let currentSearch = ''
+    function SearchProbe() {
+      currentSearch = useLocation().search
+      return null
+    }
+    render(
+      <MemoryRouter initialEntries={['/admin?user=u1']}>
+        <Routes>
+          <Route path="/admin" element={<><AdminView /><SearchProbe /></>} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('dialog', { name: 'Alice' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(currentSearch).toBe('')
   })
 })
 

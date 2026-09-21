@@ -406,4 +406,18 @@ describe('ThreadList non-admin and interaction', () => {
     fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'gm-1' } })
     expect(screen.getByText('GM Alice')).toBeInTheDocument()
   })
+
+  it('labels a system thread without an audience chip', () => {
+    mockHookReturn({
+      threads: [{
+        ...mockThread,
+        id: 't-sys', type: 'system', subject: 'System', audience: null,
+      }],
+    })
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    expect(screen.getByText('System')).toBeInTheDocument()
+    expect(screen.getByText('System messages')).toBeInTheDocument()
+    expect(screen.queryByText('All users')).not.toBeInTheDocument()
+    expect(screen.queryByText('GMs')).not.toBeInTheDocument()
+  })
 })

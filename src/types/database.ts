@@ -5,7 +5,6 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[]
-
 export type Database = {
   graphql_public: {
     Tables: {
@@ -91,7 +90,8 @@ export type Database = {
           created_at: string
           id: string
           is_deleted: boolean
-          sender_id: string
+          is_system: boolean
+          sender_id: string | null
           thread_id: string
           updated_at: string
         }
@@ -100,7 +100,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_deleted?: boolean
-          sender_id: string
+          is_system?: boolean
+          sender_id?: string | null
           thread_id: string
           updated_at?: string
         }
@@ -109,7 +110,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_deleted?: boolean
-          sender_id?: string
+          is_system?: boolean
+          sender_id?: string | null
           thread_id?: string
           updated_at?: string
         }
@@ -1234,6 +1236,7 @@ export type Database = {
           name: string
         }[]
       }
+      get_or_create_system_thread: { Args: never; Returns: string }
       get_unread_totals: {
         Args: { p_user_ids: string[] }
         Returns: {
@@ -1279,6 +1282,7 @@ export type Database = {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
         Returns: undefined
       }
+      post_system_message: { Args: { p_content: string }; Returns: undefined }
       push_notification_config_value: {
         Args: { p_key: string }
         Returns: string
@@ -1393,18 +1397,15 @@ export type Database = {
     }
     Enums: {
       admin_thread_audience: "all_users" | "gms"
-      admin_thread_type: "announcement" | "dm"
+      admin_thread_type: "announcement" | "dm" | "system"
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
 }
-
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
@@ -1433,7 +1434,6 @@ export type Tables<
       ? R
       : never
     : never
-
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
@@ -1458,7 +1458,6 @@ export type TablesInsert<
       ? I
       : never
     : never
-
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
@@ -1483,7 +1482,6 @@ export type TablesUpdate<
       ? U
       : never
     : never
-
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
@@ -1500,7 +1498,6 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
-
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
@@ -1517,7 +1514,6 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
 export const Constants = {
   graphql_public: {
     Enums: {},
@@ -1525,8 +1521,7 @@ export const Constants = {
   public: {
     Enums: {
       admin_thread_audience: ["all_users", "gms"],
-      admin_thread_type: ["announcement", "dm"],
+      admin_thread_type: ["announcement", "dm", "system"],
     },
   },
 } as const
-
