@@ -46,7 +46,28 @@ const mockMessage: Message = {
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   is_deleted: false,
+  is_system: false,
   sender: { display_name: 'Admin', avatar_url: null }
+}
+
+const mockSystemThread: Thread = {
+  ...mockThread,
+  id: 'thread-sys',
+  type: 'system',
+  subject: 'System',
+  audience: null,
+}
+
+const mockSystemMessage: Message = {
+  id: 'msg-sys',
+  content: '**Blocked upload** [Evil](/admin?user=u9)',
+  sender_id: null,
+  thread_id: 'thread-sys',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  is_deleted: false,
+  is_system: true,
+  sender: null,
 }
 
 describe('ThreadDetail', () => {
@@ -291,5 +312,25 @@ describe('ThreadDetail', () => {
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
     render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
+  })
+
+  it('shows the subject as title for a system thread', () => {
+    render(<ThreadDetail thread={mockSystemThread} onBack={vi.fn()} />)
+    expect(screen.getByText('System')).toBeInTheDocument()
+    expect(screen.getByText('System messages')).toBeInTheDocument()
+  })
+
+  it('renders a system alert as a notice card without a delete affordance', async () => {
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockSystemMessage], loading: false } as any)
+    render(<ThreadDetail thread={mockSystemThread} onBack={vi.fn()} />)
+    expect(await screen.findByText('System', { selector: 'span.text-xs' })).toBeInTheDocument()
+    expect(await screen.findByText('Blocked upload')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+  })
+
+  it('points system alert links at the admin console', async () => {
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockSystemMessage], loading: false } as any)
+    render(<ThreadDetail thread={mockSystemThread} onBack={vi.fn()} />)
+    expect(await screen.findByRole('link', { name: 'Evil' })).toHaveAttribute('href', '/admin?user=u9')
   })
 })

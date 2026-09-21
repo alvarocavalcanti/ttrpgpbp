@@ -250,12 +250,29 @@ async function buildAdminMessageEvent(
       }
       adminTargetUserIds = resolveAnnouncementTargets(thread.audience, gmProfiles, gmIds)
     }
-  } else {
-    const { data: admin } = await serviceClient
+  } else if (thread.type === "system") {
+    // System alerts (#562 P1) are authored by the database (NULL sender) and
+    // exist for the server admin only: they always route to the admin. A
+    // lookup failure must throw (so the invocation is retried) rather than
+    // resolve to an empty target list that 200s as "No targets".
+    const { data: admin, error: adminError } = await serviceClient
       .from("profiles")
       .select("id")
       .eq("server_admin", true)
-      .single()
+      .maybeSingle()
+    if (adminError) {
+      throw new HttpError(500, `System-alert recipient lookup failed: ${adminError.message}`)
+    }
+    adminTargetUserIds = admin?.id ? [admin.id] : []
+  } else {
+    const { data: admin, error: adminError } = await serviceClient
+      .from("profiles")
+      .select("id")
+      .eq("server_admin", true)
+      .maybeSingle()
+    if (adminError) {
+      throw new HttpError(500, `Admin DM recipient lookup failed: ${adminError.message}`)
+    }
     const adminId = admin?.id
     adminTargetUserIds = adminId && message.sender_id === adminId
       ? (thread.gm_id ? [thread.gm_id] : [])

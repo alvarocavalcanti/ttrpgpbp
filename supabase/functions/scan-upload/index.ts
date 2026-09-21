@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import {
   attemptInsertFailureStatus,
+  buildCsamAlertMessage,
   buildImageMetadata,
   evaluatePreScanGuards,
   interpretSaferResponse,
@@ -131,7 +132,7 @@ serve(async (req) => {
     // client bypasses RLS, so the same rule is enforced here.
     const { data: channel } = await serviceClient
       .from("channels")
-      .select("gm_id")
+      .select("id, name, gm_id")
       .eq("id", channelId)
       .single()
     if (!channel || channel.gm_id !== user.id) {
@@ -200,7 +201,9 @@ serve(async (req) => {
     const verdict = interpretSaferResponse(await submitToSafer(bytes, saferUrl, saferKey))
 
     if (verdict === "match") {
-      // Never store the object. Record the outcome and suspend the uploader.
+      // Never store the object. Record the outcome, suspend the uploader,
+      // then alert — in that order, so the alert states the true suspension
+      // outcome instead of assuming it.
       const { error: matchError } = await serviceClient
         .from("content_hashes")
         .update({ safer_status: "match" })
@@ -228,6 +231,37 @@ serve(async (req) => {
       if (suspendError) {
         console.error("Auto-suspend after CSAM match failed:", suspendError)
       }
+
+      // Surface the duty the Terms §7 promise: post the match to the admin's
+      // System thread (#562 P1). Best-effort — the audit row and the
+      // content_hashes row above are the durable evidence, so an alert
+      // failure must never change the block response.
+      const { data: uploaderProfile } = await serviceClient
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle()
+      const uploaderName = uploaderProfile?.display_name?.trim() || user.email || user.id
+      try {
+        const { error: alertError } = await serviceClient.rpc("post_system_message", {
+          p_content: buildCsamAlertMessage({
+            uploaderId: user.id,
+            uploaderName,
+            channelId,
+            channelName: channel.name,
+            objectPath: path,
+            sha256,
+            detectedAt: new Date().toISOString(),
+            suspended: !suspendError,
+          }),
+        })
+        if (alertError) {
+          console.error("Posting CSAM system alert failed:", alertError)
+        }
+      } catch (alertErr) {
+        console.error("Posting CSAM system alert failed:", alertErr)
+      }
+
       return json({ status: "blocked" }, 200, req)
     }
 
