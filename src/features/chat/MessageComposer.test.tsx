@@ -601,11 +601,24 @@ describe('MessageComposer', () => {
       expect(button.className).toContain('h-11')
       expect(button.className).toContain('w-11')
     }
-    // The upload control is a <label> wrapping a hidden input; the 44px box
-    // lives on the label, queried by its title.
+    // The upload control is a <label> wrapping a visually hidden input; the
+    // 44px box lives on the label, queried by its title.
     const uploadLabel = screen.getByTitle('Upload portrait')
     expect(uploadLabel.className).toContain('h-11')
     expect(uploadLabel.className).toContain('w-11')
+  })
+
+  it('keeps the NPC portrait upload keyboard-operable (issue #561 review)', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+
+    const input = screen.getByLabelText('Upload NPC portrait')
+    expect(input).not.toHaveClass('hidden')
+    input.focus()
+    expect(input).toHaveFocus()
+    // Focus must be visible: the label carries a focus-within ring.
+    expect(screen.getByTitle('Upload portrait').className).toContain('focus-within:ring-2')
   })
 
   it('sends an NPC message with a generated portrait', async () => {

@@ -1,4 +1,5 @@
 import type { ImgHTMLAttributes } from 'react'
+import { useEffect, useState } from 'react'
 import { useSignedImageUrl } from '../hooks/useSignedImageUrl'
 
 interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
@@ -18,6 +19,10 @@ interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
 // the surrounding layout. Nothing renders when there is no value at all.
 export function SignedImg({ src, alt, className, style, reserveBox = false, ...props }: SignedImgProps) {
   const { src: resolved, loading, width, height, error } = useSignedImageUrl(src, reserveBox)
+  // Same native-load failure as the viewer: signed URL in hand, bytes
+  // unfetchable (issue #561 review). A new source clears it.
+  const [imgError, setImgError] = useState(false)
+  useEffect(() => { setImgError(false) }, [src])
 
   if (!src) return null
 
@@ -31,7 +36,7 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
   // absorbs those cases instead.
   const dims = reserveBox && width && height ? { width, height } : null
 
-  if (error) {
+  if (error || imgError) {
     // A failed sign used to render the loading placeholder forever. Keep the
     // caller's box (no layout shift) but say the image is unavailable. No
     // Retry here: this renders for dozens of inline avatars and thumbnails.
@@ -77,6 +82,7 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
       src={resolved}
       alt={alt}
       className={className}
+      onError={() => setImgError(true)}
       {...props}
       {...(dims ? { width: dims.width, height: dims.height } : {})}
       style={dims ? { aspectRatio: `${dims.width} / ${dims.height}`, ...style } : style}

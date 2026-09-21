@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SignedImg } from './SignedImg'
 import { supabase } from '../lib/supabase'
@@ -141,5 +141,15 @@ describe('SignedImg', () => {
     expect(screen.getByRole('img', { name: "map — couldn't load" })).toBeInTheDocument()
     expect(screen.queryByTestId('signed-img-loading')).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'map' })).not.toBeInTheDocument()
+  })
+
+  it('shows the unavailable fallback when the bytes fail after a successful sign', async () => {
+    render(<SignedImg src={`${CHANNEL_ID}/message/dead-bytes.jpg`} alt="map" className="max-h-96" reserveBox />)
+    await act(async () => {})
+
+    fireEvent.error(screen.getByRole('img', { name: 'map' }))
+    const fallback = screen.getByTestId('signed-img-error')
+    expect(fallback).toHaveClass('max-h-96')
+    expect(fallback).toHaveTextContent("Couldn't load image")
   })
 })

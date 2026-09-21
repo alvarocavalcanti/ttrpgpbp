@@ -630,7 +630,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 </svg>
               </button>
               <label
-                className="h-11 w-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 w-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-within:ring-2 focus-within:ring-primary-500"
                 title="Upload portrait"
               >
                 <input
@@ -639,7 +639,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                   aria-label="Upload NPC portrait"
                   disabled={uploading || !uploadEnabled || settingsLoading}
                   onChange={handleNpcImageUpload}
-                  className="hidden"
+                  // Visually hidden but keyboard-focusable: a `hidden` input
+                  // inside a label can never receive focus, locking keyboard
+                  // users out of the file picker (issue #561 review). The
+                  // label's focus-within ring shows where focus is.
+                  className="sr-only"
                 />
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />

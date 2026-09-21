@@ -271,5 +271,27 @@ describe('ImageViewerModal', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
+
+    it('shows the error state when the bytes fail after a successful sign', async () => {
+      mockSign(vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed/u.jpg' }, error: null }))
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/broken-bytes.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      fireEvent.error(await screen.findByAltText('Map'))
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load this image.")
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    })
+
+    it('re-signs instead of reusing the cached URL when retrying a failed load', async () => {
+      const createSignedUrl = vi.fn()
+        .mockResolvedValueOnce({ data: { signedUrl: 'https://signed/OLD.jpg' }, error: null })
+        .mockResolvedValueOnce({ data: { signedUrl: 'https://signed/NEW.jpg' }, error: null })
+      mockSign(createSignedUrl)
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/stale-bytes.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      fireEvent.error(await screen.findByAltText('Map'))
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      expect(await screen.findByAltText('Map')).toHaveAttribute('src', 'https://signed/NEW.jpg')
+      expect(createSignedUrl).toHaveBeenCalledTimes(2)
+    })
   })
 })

@@ -35,6 +35,12 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
   // #519). The zoom multiplier is kept across resizes — it re-applies to the
   // new fit instead of fighting the user mid-inspection.
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
+  // A signed URL is no guarantee the bytes fetch: the object may be gone or
+  // the transfer may fail. A native image-load failure shows the same error
+  // branch as a signing failure (issue #561 review).
+  const [imgError, setImgError] = useState(false)
+  // A new source clears a previous image-load failure.
+  useEffect(() => { setImgError(false) }, [src])
   const [viewport, setViewport] = useState(() => ({
     w: window.innerWidth,
     h: window.innerHeight,
@@ -157,12 +163,12 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
             />
           </div>
         )}
-        {error && !loading && (
+        {(error || imgError) && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center" role="alert">
             <p className="text-sm text-white">Couldn't load this image.</p>
             <button
               type="button"
-              onClick={retry}
+              onClick={() => { setImgError(false); retry() }}
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-white/40 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
             >
               Retry
@@ -174,6 +180,7 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
             src={resolved}
             alt={alt}
             onLoad={handleLoad}
+            onError={() => setImgError(true)}
             draggable={false}
             className="mx-auto block select-none"
             // Auto margins center without clipping when zoomed past the

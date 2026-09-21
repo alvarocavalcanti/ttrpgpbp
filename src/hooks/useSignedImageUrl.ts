@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const IMAGES_BUCKET = 'images'
@@ -143,10 +143,18 @@ export function useSignedImageUrl(
   reserveDimensions = false
 ): SignedImageResolution {
   // Bumping the attempt re-runs the signing effect without changing the
-  // value — the only way to re-invoke signing, since a failed sign caches
-  // nothing.
+  // value. Retry also evicts the path's cached URL first: a retry after a
+  // successful sign (dead bytes behind a good URL — the browser fetched
+  // nothing) must hit the network again instead of resolving the same dead
+  // URL from cache. Harmless on the failure path, which caches nothing.
   const [attempt, setAttempt] = useState(0)
-  const retry = useCallback(() => setAttempt((a) => a + 1), [])
+  const valueRef = useRef(value)
+  valueRef.current = value
+  const retry = useCallback(() => {
+    const current = valueRef.current
+    if (current) urlCache.delete(current)
+    setAttempt((a) => a + 1)
+  }, [])
 
   const [state, setState] = useState<SignedImageResolution>(() => {
     if (value && isBucketImagePath(value)) {

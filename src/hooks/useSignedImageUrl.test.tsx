@@ -179,6 +179,22 @@ describe('useSignedImageUrl', () => {
     expect(result.current).toEqual({ src: null, loading: false, error: true, width: null, height: null, retry: expect.any(Function) })
   })
 
+  it('re-signs (not from cache) when retrying after a successful sign', async () => {
+    // A retry after dead-but-signed bytes must hit the network again: the
+    // cached URL is evicted, so the same path signs twice.
+    deferred()
+    const { result } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/evict.jpg`))
+    await act(async () => resolveCreateSignedUrl({ data: { signedUrl: 'https://signed/OLD.jpg' }, error: null }))
+    expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1)
+
+    await act(async () => { result.current.retry() })
+    expect(result.current).toEqual({ src: null, loading: true, error: false, width: null, height: null, retry: expect.any(Function) })
+    expect(mockCreateSignedUrl).toHaveBeenCalledTimes(2)
+
+    await act(async () => resolveCreateSignedUrl({ data: { signedUrl: 'https://signed/NEW.jpg' }, error: null }))
+    expect(result.current.src).toBe('https://signed/NEW.jpg')
+  })
+
   it('ignores a late signing result after unmount', async () => {
     deferred()
     const { result, unmount } = renderHook(() => useSignedImageUrl(`${CHANNEL_ID}/message/u.jpg`))
