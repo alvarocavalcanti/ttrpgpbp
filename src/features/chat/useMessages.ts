@@ -19,6 +19,10 @@ export interface ReactionSummary {
 
 type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
 
+// Minimal shape the reaction reducers need: message, user, emoji. Realtime
+// rows satisfy this; optimistic flips build it directly (#560).
+type ReactionKey = Pick<ReactionRow, 'message_id' | 'user_id' | 'emoji'>
+
 type Message = ChatMessage
 
 // Latest-N pagination: only a bounded window of history is held in memory;
@@ -37,38 +41,24 @@ function formatMessage(m: unknown): Message | null {
   return parseServerMessage(m) as Message | null
 }
 
-// Aggregates reaction rows into per-message summaries.
-function buildReactionMap(rows: ReactionRow[], userId: string | undefined): Record<string, ReactionSummary[]> {
-  const map: Record<string, ReactionSummary[]> = {}
-  for (const row of rows) {
-    const list = (map[row.message_id] ??= [])
-    let entry = list.find(e => e.emoji === row.emoji)
-    if (!entry) {
-      entry = { emoji: row.emoji, count: 0, hasReacted: false, userIds: [] }
-      list.push(entry)
-    }
-    entry.count += 1
-    entry.userIds.push(row.user_id)
-    if (row.user_id === userId) entry.hasReacted = true
-  }
-  return map
-}
-
 // Both updaters copy only the affected message's reaction array instead of
 // deep-cloning the whole map (M8); unaffected messages keep stable references
 // so React.memo on MessageItem can skip them.
-function upsertReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, userId: string | undefined) {
+function upsertReaction(map: Record<string, ReactionSummary[]>, row: ReactionKey, userId: string | undefined) {
   const list = map[row.message_id] ?? []
   const idx = list.findIndex(e => e.emoji === row.emoji)
   if (idx === -1) {
     return { ...map, [row.message_id]: [...list, { emoji: row.emoji, count: 1, hasReacted: row.user_id === userId, userIds: [row.user_id] }] }
   }
   const entry = list[idx]
+  // Idempotent: the same (message, user, emoji) must count once, so an
+  // optimistic flip followed by its realtime echo is a no-op (#560).
+  if (entry.userIds.includes(row.user_id)) return map
   const nextEntry = { ...entry, count: entry.count + 1, userIds: [...entry.userIds, row.user_id], hasReacted: entry.hasReacted || row.user_id === userId }
   return { ...map, [row.message_id]: list.map((e, i) => (i === idx ? nextEntry : e)) }
 }
 
-function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionRow, userId: string | undefined) {
+function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionKey, userId: string | undefined) {
   const list = map[row.message_id]
   if (!list) return map
   const idx = list.findIndex(e => e.emoji === row.emoji)
@@ -109,6 +99,16 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
   // reactionsRef in ChannelView).
   const messagesRef = useRef(messages)
   messagesRef.current = messages
+
+  // Live view of reactions so the toggle can decide add-vs-remove without a
+  // stale closure (same pattern as messagesRef).
+  const reactionsRef = useRef(reactions)
+  reactionsRef.current = reactions
+
+  // In-flight reaction writes keyed `${messageId}:${emoji}`: a second tap
+  // while the write is pending is ignored instead of re-INSERTing into the
+  // UNIQUE constraint and surfacing a false error toast (#560).
+  const reactionPendingRef = useRef(new Set<string>())
 
   // Committed view of the channel id so in-flight async loops (jumpToMessage)
   // can detect a channel switch and bail instead of writing old-channel rows
@@ -217,7 +217,13 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
             const parsed = ReactionRowSchema.safeParse(row)
             return parsed.success ? [parsed.data] : []
           })
-          setReactions(buildReactionMap(rows, user?.id))
+          // Merge, don't replace: rows that arrived live while this fetch was
+          // in flight are already in prev and must survive (#560).
+          // ponytail: merge never prunes rows deleted while the socket was
+          // down; realtime DELETE covers the connected case, remount covers
+          // the rest. Pruning against the fetched row set is the upgrade path.
+          const uid = user?.id
+          setReactions(prev => rows.reduce((acc, row) => upsertReaction(acc, row, uid), prev))
         }
       } catch (err) {
         // Reactions are non-critical; log without failing the channel view.
@@ -783,6 +789,34 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     if (error) throw error
   }, [user?.id])
 
+  // Optimistic toggle with an in-flight guard (#560): flip the local summary
+  // immediately (feedback even on a dead socket), ignore re-taps while the
+  // write is pending, roll back on error. The realtime echo reconciles via
+  // the idempotent upsert/drop helpers instead of double-counting.
+  const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!channelId || !user) return
+    const key = `${messageId}:${emoji}`
+    if (reactionPendingRef.current.has(key)) return
+    reactionPendingRef.current.add(key)
+    const row: ReactionKey = { message_id: messageId, user_id: user.id, emoji }
+    const hadReacted = reactionsRef.current[messageId]?.find(r => r.emoji === emoji)?.hasReacted ?? false
+    setReactions(prev => hadReacted ? dropReaction(prev, row, user.id) : upsertReaction(prev, row, user.id))
+    try {
+      if (hadReacted) {
+        await removeReaction(messageId, emoji)
+      } else {
+        await addReaction(messageId, emoji)
+      }
+    } catch (err) {
+      // Functional rollback against current state: a concurrent echo may
+      // have advanced prev since the optimistic flip.
+      setReactions(prev => hadReacted ? upsertReaction(prev, row, user.id) : dropReaction(prev, row, user.id))
+      throw err
+    } finally {
+      reactionPendingRef.current.delete(key)
+    }
+  }, [channelId, user?.id, addReaction, removeReaction])
+
   const removePendingMessage = useCallback((id: string) => {
     setMessages(prev => prev.filter(m => m.id !== id))
   }, [])
@@ -844,5 +878,5 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     }
   }, [])
 
-  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, removePendingMessage, retryMessage }
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, toggleReaction, removePendingMessage, retryMessage }
 }

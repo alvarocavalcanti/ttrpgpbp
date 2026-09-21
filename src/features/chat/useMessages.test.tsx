@@ -1282,6 +1282,168 @@ describe('useMessages', () => {
     expect(mockMatchDelete).toHaveBeenCalledWith({ message_id: 'm1', user_id: 'u1', emoji: '👍' })
   })
 
+  it('merges the reactions fetch with live-arrived rows instead of replacing', async () => {
+    // #560: a reaction that arrives while the initial fetch is in flight must
+    // survive the fetch resolving.
+    let resolveFetch!: (value: { data: unknown[]; error: null }) => void
+    const fetchPromise = new Promise<{ data: unknown[]; error: null }>(resolve => { resolveFetch = resolve })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      reactionsBuilder: () => ({ eq: vi.fn().mockReturnValue(fetchPromise) })
+    })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r-live', message_id: 'm9', user_id: 'u2' }) })
+    })
+    await act(async () => {
+      resolveFetch({ data: [validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' })], error: null })
+    })
+
+    await waitFor(() => {
+      expect(result.current.reactions['m1']).toHaveLength(1)
+    })
+    // The fetched row lands and the live-arrived row survives.
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false, userIds: ['u2'] }])
+    expect(result.current.reactions['m9']).toEqual([{ emoji: '👍', count: 1, hasReacted: false, userIds: ['u2'] }])
+  })
+
+  it('keeps a live-arrived reaction for a message also present in the fetched set', async () => {
+    // Same race as above, but the live row lands on a message the fetch also
+    // returns: the merge must union both reactors, not replace or duplicate.
+    let resolveFetch!: (value: { data: unknown[]; error: null }) => void
+    const fetchPromise = new Promise<{ data: unknown[]; error: null }>(resolve => { resolveFetch = resolve })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      reactionsBuilder: () => ({ eq: vi.fn().mockReturnValue(fetchPromise) })
+    })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r-live', message_id: 'm1', user_id: 'u3' }) })
+    })
+    await act(async () => {
+      resolveFetch({ data: [validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' })], error: null })
+    })
+
+    await waitFor(() => {
+      expect(result.current.reactions['m1']?.[0]?.count).toBe(2)
+    })
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 2, hasReacted: false, userIds: ['u3', 'u2'] }])
+  })
+
+  it('does not double-count a reaction delivered twice', async () => {
+    // Optimistic flip + realtime echo, or a duplicated realtime delivery, must
+    // count the same (message, user, emoji) once.
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' }) })
+    })
+    await act(async () => {
+      await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r1', message_id: 'm1', user_id: 'u2' }) })
+    })
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: false, userIds: ['u2'] }])
+  })
+
+  it('toggleReaction flips the summary optimistically and ignores re-taps while pending', async () => {
+    let resolveInsert!: (value: { error: null }) => void
+    const insertPromise = new Promise<{ error: null }>(resolve => { resolveInsert = resolve })
+    const mockInsert = vi.fn().mockReturnValue(insertPromise)
+    const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
+    const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      tableHandler: (table) => {
+        if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let togglePromise!: Promise<void>
+    act(() => {
+      togglePromise = result.current.toggleReaction('m1', '👍')
+    })
+    // The flip is visible before the write resolves.
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: true, userIds: ['u1'] }])
+
+    // A second tap while the write is pending is ignored, not re-inserted.
+    act(() => {
+      void result.current.toggleReaction('m1', '👍')
+    })
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveInsert({ error: null })
+      await togglePromise
+    })
+    expect(result.current.reactions['m1']).toEqual([{ emoji: '👍', count: 1, hasReacted: true, userIds: ['u1'] }])
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+  })
+
+  it('toggleReaction rolls back an optimistic add when the write fails', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: new Error('nope') })
+    const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
+    const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      tableHandler: (table) => {
+        if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.toggleReaction('m1', '👍')).rejects.toThrow('nope')
+    })
+    expect(result.current.reactions['m1']).toBeUndefined()
+  })
+
+  it('toggleReaction removes optimistically when already reacted', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
+    const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      tableHandler: (table) => {
+        if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [validReaction({ id: 'r1', message_id: 'm1', user_id: 'u1' })], error: null }) }) }
+        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+      }
+    })
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1'))
+    await waitFor(() => {
+      expect(result.current.reactions['m1']).toHaveLength(1)
+    })
+    expect(result.current.reactions['m1'][0]).toMatchObject({ hasReacted: true })
+
+    await act(async () => {
+      await result.current.toggleReaction('m1', '👍')
+    })
+    expect(result.current.reactions['m1']).toBeUndefined()
+    expect(mockDelete).toHaveBeenCalled()
+    expect(mockMatchDelete).toHaveBeenCalledWith({ message_id: 'm1', user_id: 'u1', emoji: '👍' })
+  })
+
   it('updates active_player_ids when sending a message', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({

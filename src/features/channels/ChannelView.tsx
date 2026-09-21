@@ -79,7 +79,7 @@ export function ChannelView() {
   }, [id])
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead, canMarkRead)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, addReaction, removeReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   
@@ -205,24 +205,18 @@ export function ChannelView() {
     addToast('Report submitted. Thank you for helping keep the game safe.')
   }, [user, reportMessage, addToast])
 
-  // Read the latest reactions through a ref so the callback stays stable
-  // (required for React.memo on MessageItem) without going stale.
-  const reactionsRef = useRef(reactions)
-  reactionsRef.current = reactions
-
+  // The toggle (optimistic flip + in-flight guard) lives in useMessages;
+  // this wrapper only toasts on a real write failure. The callback stays
+  // stable (required for React.memo on MessageItem) because toggleReaction
+  // is stable per channel/user.
   const handleToggleReaction = useCallback(async (messageId: string, emoji: string) => {
     try {
-      const summary = reactionsRef.current[messageId]?.find(r => r.emoji === emoji)
-      if (summary?.hasReacted) {
-        await removeReaction(messageId, emoji)
-      } else {
-        await addReaction(messageId, emoji)
-      }
+      await toggleReaction(messageId, emoji)
     } catch (err) {
       console.error('Failed to toggle reaction:', err)
       addToast('Failed to update reaction.', 'error')
     }
-  }, [addReaction, removeReaction, addToast])
+  }, [toggleReaction, addToast])
 
   // Dice-roll mentions only need user_id/character_name plus per-ability
   // modifiers; channel_members.attributes is a JSON object, so adapt the

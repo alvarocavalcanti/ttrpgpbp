@@ -85,6 +85,7 @@ describe('ChannelView search functionality', () => {
       sendDiceRoll: vi.fn(),
       addReaction: vi.fn().mockResolvedValue(undefined),
       removeReaction: vi.fn().mockResolvedValue(undefined),
+      toggleReaction: vi.fn().mockResolvedValue(undefined),
       jumpToMessage: vi.fn().mockResolvedValue('found')
     } as any)
   })
@@ -1265,7 +1266,8 @@ describe('ChannelView search functionality', () => {
       deleteMessage: vi.fn(),
       sendDiceRoll: vi.fn(),
       addReaction: vi.fn().mockResolvedValue(undefined),
-      removeReaction: vi.fn().mockResolvedValue(undefined)
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      toggleReaction: vi.fn().mockResolvedValue(undefined)
     } as any)
 
     render(
@@ -1281,7 +1283,7 @@ describe('ChannelView search functionality', () => {
     fireEvent.click(screen.getByLabelText('Reactions'))
     fireEvent.click(screen.getByRole('button', { name: 'React with 👍' }))
     await waitFor(() => {
-      expect(useMessagesMock().addReaction).toHaveBeenCalledWith('msg1', '👍')
+      expect(useMessagesMock().toggleReaction).toHaveBeenCalledWith('msg1', '👍')
     })
   })
 
@@ -1295,7 +1297,8 @@ describe('ChannelView search functionality', () => {
       deleteMessage: vi.fn(),
       sendDiceRoll: vi.fn(),
       addReaction: vi.fn().mockResolvedValue(undefined),
-      removeReaction: vi.fn().mockResolvedValue(undefined)
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      toggleReaction: vi.fn().mockResolvedValue(undefined)
     } as any)
 
     render(
@@ -1311,7 +1314,7 @@ describe('ChannelView search functionality', () => {
     fireEvent.click(screen.getByLabelText('Reactions'))
     fireEvent.click(screen.getByRole('button', { name: 'React with 👍' }))
     await waitFor(() => {
-      expect(useMessagesMock().removeReaction).toHaveBeenCalledWith('msg1', '👍')
+      expect(useMessagesMock().toggleReaction).toHaveBeenCalledWith('msg1', '👍')
     })
   })
 
