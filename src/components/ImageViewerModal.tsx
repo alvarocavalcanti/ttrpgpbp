@@ -25,7 +25,7 @@ interface ImageViewerModalProps {
 // when zoomed, pinch to zoom on touch devices, double-tap/double-click
 // resets to fit. Escape and the X button close.
 export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
-  const { src: resolved, loading } = useSignedImageUrl(src)
+  const { src: resolved, loading, error, retry } = useSignedImageUrl(src)
   const dialogRef = useRef<HTMLDivElement>(null)
   const pinch = useRef<{ dist: number; zoom: number } | null>(null)
   const lastTap = useRef(0)
@@ -155,6 +155,18 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
               role="status"
               aria-label="Loading image"
             />
+          </div>
+        )}
+        {error && !loading && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center" role="alert">
+            <p className="text-sm text-white">Couldn't load this image.</p>
+            <button
+              type="button"
+              onClick={retry}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-white/40 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+            >
+              Retry
+            </button>
           </div>
         )}
         {resolved && !loading && (

@@ -406,7 +406,7 @@ export function AdminView() {
                       type="button"
                       onClick={() => setFilter(f.id)}
                       aria-pressed={filter === f.id}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      className={`inline-flex min-h-11 items-center justify-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                         filter === f.id
                           ? 'bg-primary-600 text-white'
                           : 'text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
@@ -424,7 +424,7 @@ export function AdminView() {
                       ? 'No users have opted in to email updates yet.'
                       : 'Copy the email addresses of users who opted in, one per line.'}
                     aria-label="Copy opted-in emails"
-                    className="inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-1.5 px-3 text-sm font-medium text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-1.5 px-3 text-sm font-medium text-surface-700 dark:text-surface-300 shadow-sm hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Copy opted-in emails
                   </button>
@@ -516,7 +516,7 @@ export function AdminView() {
                                 <button
                                   type="button"
                                   onClick={() => handleClaimChannel(channel.id)}
-                                  className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 shadow-sm text-xs font-medium rounded-md text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 shadow-sm text-xs font-medium rounded-md text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                 >
                                   Claim
                                 </button>
@@ -579,7 +579,7 @@ export function AdminView() {
                                 onClick={() => { void handleViewMessage(report) }}
                                 disabled={!report.message_id || viewMessageLoading}
                                 title={report.message_id ? undefined : 'This report has no linked message.'}
-                                className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 View message
                               </button>
@@ -590,21 +590,21 @@ export function AdminView() {
                                     onClick={() => setSuspendReport(report)}
                                     disabled={!report.reported_user_id}
                                     title={report.reported_user_id ? undefined : 'No user to suspend for this report.'}
-                                    className="inline-flex items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Suspend
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => { void handleReportStatus(report, 'resolved') }}
-                                    className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                    className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                   >
                                     Resolve
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => { void handleReportStatus(report, 'dismissed') }}
-                                    className="inline-flex items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                    className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                   >
                                     Dismiss
                                   </button>

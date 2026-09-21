@@ -129,4 +129,17 @@ describe('SignedImg', () => {
     expect(img).not.toHaveAttribute('height')
     expect(img.style.aspectRatio).toBe('')
   })
+
+  it('shows an unavailable fallback — not an eternal placeholder — when signing fails', async () => {
+    mockCreateSignedUrl.mockResolvedValue({ data: null, error: new Error('denied') })
+    render(<SignedImg src={`${CHANNEL_ID}/message/broken.jpg`} alt="map" className="max-h-96" reserveBox />)
+    await act(async () => {})
+
+    const fallback = screen.getByTestId('signed-img-error')
+    expect(fallback).toHaveClass('max-h-96')
+    expect(fallback).toHaveTextContent("Couldn't load image")
+    expect(screen.getByRole('img', { name: "map — couldn't load" })).toBeInTheDocument()
+    expect(screen.queryByTestId('signed-img-loading')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'map' })).not.toBeInTheDocument()
+  })
 })

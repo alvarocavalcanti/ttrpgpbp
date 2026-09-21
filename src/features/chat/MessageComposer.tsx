@@ -610,7 +610,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
               <button
                 type="button"
                 onClick={() => setNpcAvatarUrl(randomNpcIconUrl())}
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors"
+                className="h-11 w-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors"
                 aria-label="Randomize NPC portrait"
                 title="Random portrait"
               >
@@ -621,7 +621,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
               <button
                 type="button"
                 onClick={() => setShowIconPicker(true)}
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors"
+                className="h-11 w-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors"
                 aria-label="Choose NPC portrait"
                 title="Choose portrait"
               >
@@ -630,7 +630,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 </svg>
               </button>
               <label
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 w-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Upload portrait"
               >
                 <input

@@ -591,6 +591,23 @@ describe('MessageComposer', () => {
     expect(screen.queryByLabelText('NPC Mode')).not.toBeInTheDocument()
   })
 
+  it('sizes the NPC portrait controls to 44px touch targets (issue #561)', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+
+    for (const name of ['Randomize NPC portrait', 'Choose NPC portrait']) {
+      const button = screen.getByLabelText(name)
+      expect(button.className).toContain('h-11')
+      expect(button.className).toContain('w-11')
+    }
+    // The upload control is a <label> wrapping a hidden input; the 44px box
+    // lives on the label, queried by its title.
+    const uploadLabel = screen.getByTitle('Upload portrait')
+    expect(uploadLabel.className).toContain('h-11')
+    expect(uploadLabel.className).toContain('w-11')
+  })
+
   it('sends an NPC message with a generated portrait', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     const { container } = render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
