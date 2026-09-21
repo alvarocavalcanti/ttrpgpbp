@@ -1207,6 +1207,7 @@ export type Database = {
         }
         Returns: string
       }
+      escape_markdown: { Args: { p_text: string }; Returns: string }
       get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
       get_admin_unread_totals: {
         Args: { p_user_ids: string[] }
