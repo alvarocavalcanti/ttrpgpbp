@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-21
+
+### Fixed
+
+- **Reactions appear the instant you tap them** — your emoji reaction now shows up immediately, even on a flaky connection, and tapping twice in a hurry no longer pops up a false "failed" error.
+- **Reactions no longer blink out when opening a channel** — a reaction that lands just as the conversation loads now stays visible instead of briefly disappearing.
+
 ## 2026-09-19
 
 ### Added
