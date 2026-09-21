@@ -599,7 +599,78 @@ describe('AuthContext', () => {
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledWith('confirm_age')
     })
+    // The profile carries no terms version, so the terms acceptance is
+    // stamped alongside the age confirmation.
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('confirm_terms', { p_version: '2026-09-21' })
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips terms confirmation when the profile already carries the current version', async () => {
+    localStorage.setItem('age-confirmed', 'true')
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User', terms_version: '2026-09-21' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('confirm_age')
+    })
     expect(supabase.rpc).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).not.toHaveBeenCalledWith('confirm_terms', expect.anything())
+  })
+
+  it('does not stamp terms twice once the refresh lands the new version', async () => {
+    localStorage.setItem('age-confirmed', 'true')
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+    const staleProfile = { id: 'user-123', display_name: 'Test User' }
+    const currentProfile = { id: 'user-123', display_name: 'Test User', terms_version: '2026-09-21' }
+    const mockSingle = vi.fn()
+      .mockResolvedValueOnce({ data: staleProfile, error: null })
+      .mockResolvedValue({ data: currentProfile, error: null })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('confirm_terms', { p_version: '2026-09-21' })
+    })
+    // The post-stamp refresh lands the current version; no second stamp.
+    await waitFor(() => {
+      expect(mockSingle).toHaveBeenCalledTimes(2)
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
   })
 
   it('does not confirm age without the client flag', async () => {
@@ -658,14 +729,15 @@ describe('AuthContext', () => {
     )
 
     await screen.findByText('ready')
-    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(1))
+    // Both stamps fire (and fail) on the first attempt.
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(2))
 
     // A later auth event retries because the first attempt never succeeded.
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
     await act(async () => {
       authCallback('TOKEN_REFRESHED', { user: { id: 'user-123' } })
     })
-    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(4))
   })
 })
 

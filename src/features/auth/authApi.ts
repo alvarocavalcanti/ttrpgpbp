@@ -30,7 +30,7 @@ export async function authSignOut() {
 export async function fetchProfileRow(userId: string) {
   return supabase
     .from('profiles')
-    .select('id, display_name, avatar_url, created_at, is_suspended, email_opt_in, email_opt_in_at')
+    .select('id, display_name, avatar_url, created_at, is_suspended, email_opt_in, email_opt_in_at, terms_accepted_at, terms_version')
     .eq('id', userId)
     .single()
 }
@@ -61,5 +61,14 @@ export async function deleteAccount() {
 // on failure so the caller only records a confirmation that actually landed.
 export async function confirmAge() {
   const { error } = await supabase.rpc('confirm_age')
+  if (error) throw error
+}
+
+// Terms-acceptance evidence. Called with the CURRENT_TERMS_VERSION after the
+// sign-in checkbox (which covers the terms too) and by the re-consent gate.
+// Self-only; re-stamps on every call so a version bump re-records. Throws on
+// failure so the caller only records an acceptance that actually landed.
+export async function confirmTerms(version: string) {
+  const { error } = await supabase.rpc('confirm_terms', { p_version: version })
   if (error) throw error
 }

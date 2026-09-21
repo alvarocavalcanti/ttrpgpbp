@@ -13,6 +13,9 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `email` | text | From Google account |
 | `avatar_url` | text, nullable | From Google account or custom; maximum 500 characters |
 | `created_at` | timestamptz | Default `now()` |
+| `age_verified_at` | timestamptz, nullable | 16+ self-attestation timestamp, stamped once by `confirm_age()`; browser roles cannot write it (trigger guard) |
+| `terms_accepted_at` | timestamptz, nullable | Terms acceptance timestamp, re-stamped by `confirm_terms(version)` on every accept; browser roles cannot write it (trigger guard) |
+| `terms_version` | text, nullable | Accepted terms version; the client gates on it for re-consent |
 
 ### `channels`
 

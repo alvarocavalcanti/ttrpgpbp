@@ -1,7 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TermsPage } from './TermsPage'
+
+const mockEnv = vi.hoisted(() => ({ VITE_CONTROLLER_NAME: '', VITE_CONTROLLER_EMAIL: '' }))
+
+vi.mock('../../env', () => ({ env: mockEnv }))
 
 function BackProbe() {
   const navigate = useNavigate()
@@ -13,6 +17,11 @@ function BackProbe() {
 }
 
 describe('TermsPage', () => {
+  beforeEach(() => {
+    mockEnv.VITE_CONTROLLER_NAME = ''
+    mockEnv.VITE_CONTROLLER_EMAIL = ''
+  })
+
   it('renders terms sections and headers', () => {
     render(
       <MemoryRouter>
@@ -120,5 +129,40 @@ describe('TermsPage', () => {
     expect(screen.getByText(/indemnify, defend, and hold harmless/)).toBeInTheDocument()
     expect(screen.getByText(/This limitation applies\s*to user-to-user misconduct/)).toBeInTheDocument()
     expect(screen.getByText(/at least 16 years of age/)).toBeInTheDocument()
+  })
+
+  it('states the age gate relies on self-attestation with no verification mechanism', () => {
+    render(
+      <MemoryRouter>
+        <TermsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/we do not verify age and do not collect a date of birth/)).toBeInTheDocument()
+    expect(screen.queryByText(/take steps to delete it/)).not.toBeInTheDocument()
+  })
+
+  it('names the data controller from env', () => {
+    mockEnv.VITE_CONTROLLER_NAME = 'Alvaro Cavalcanti'
+    mockEnv.VITE_CONTROLLER_EMAIL = 'alvarovictor@gmail.com'
+    render(
+      <MemoryRouter>
+        <TermsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/Alvaro Cavalcanti/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'alvarovictor@gmail.com' })).toHaveAttribute('href', 'mailto:alvarovictor@gmail.com')
+  })
+
+  it('renders a generic controller line without contact when env is unset', () => {
+    render(
+      <MemoryRouter>
+        <TermsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/the operator of this Role by Post instance/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /@/ })).not.toBeInTheDocument()
   })
 })

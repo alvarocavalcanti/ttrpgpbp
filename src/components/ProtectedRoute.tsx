@@ -1,10 +1,13 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
+import { confirmTerms } from '../features/auth/authApi'
+import { CURRENT_TERMS_VERSION } from '../features/auth/terms'
+import { ReConsentGate } from '../features/auth/ReConsentGate'
 import { lazy, Suspense } from 'react'
 const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 
 export function ProtectedRoute() {
-  const { user, loading, error } = useAuth()
+  const { user, profile, loading, error, refreshProfile } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -37,6 +40,20 @@ export function ProtectedRoute() {
   if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//')) {
     sessionStorage.removeItem('auth_redirect')
     return <Navigate to={redirectTo} replace />
+  }
+
+  // Re-consent gate (#562 P2-2): a signed-in user whose stored terms version
+  // is behind must re-accept before using the app. Unknown state (profile
+  // still loading or a transient fetch failure) never gates.
+  if (profile && profile.terms_version !== CURRENT_TERMS_VERSION) {
+    return (
+      <ReConsentGate
+        onAccept={async () => {
+          await confirmTerms(CURRENT_TERMS_VERSION)
+          await refreshProfile()
+        }}
+      />
+    )
   }
 
   return <Outlet />
