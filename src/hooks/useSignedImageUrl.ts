@@ -149,7 +149,12 @@ export function useSignedImageUrl(
   // URL from cache. Harmless on the failure path, which caches nothing.
   const [attempt, setAttempt] = useState(0)
   const valueRef = useRef(value)
-  valueRef.current = value
+  // Effect, not render: a discarded concurrent render could otherwise leak
+  // another path into the ref and retry would evict the wrong cache entry
+  // (PR #572 review).
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
   const retry = useCallback(() => {
     const current = valueRef.current
     if (current) urlCache.delete(current)

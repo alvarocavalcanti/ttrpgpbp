@@ -600,12 +600,17 @@ describe('MessageComposer', () => {
       const button = screen.getByLabelText(name)
       expect(button.className).toContain('h-11')
       expect(button.className).toContain('w-11')
+      expect(button.className).toContain('shrink-0')
     }
     // The upload control is a <label> wrapping a visually hidden input; the
     // 44px box lives on the label, queried by its title.
     const uploadLabel = screen.getByTitle('Upload portrait')
     expect(uploadLabel.className).toContain('h-11')
     expect(uploadLabel.className).toContain('w-11')
+    expect(uploadLabel.className).toContain('shrink-0')
+    // At narrow widths the row wraps instead of squeezing the controls below
+    // 44px (PR #572 review).
+    expect(uploadLabel.parentElement?.className).toContain('flex-wrap')
   })
 
   it('keeps the NPC portrait upload keyboard-operable (issue #561 review)', () => {
