@@ -103,6 +103,7 @@ Boundaries: code/commits/PRs written normal.
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Test placement**: Verification tests live in the real test suite (`src/**/*.test.ts`), never as throwaway /tmp files. Write them once, keep them, commit them.
 - **Testing strategy**: TDD is preferred, and also keep DAMP vs DRY in mind. For instance, if the SRC uses constants, the TST should use string literals so the tests can break on an accidental change to the constants.
+- **Fake timers**: never mix `vi.useFakeTimers()` with `waitFor` — the polling never fires, the test times out, and the leaked fake timers hang every later test in the file. For time-window assertions use real timers with runtime-computed dates (e.g. `new Date(Date.now() - days * 86400000).toISOString()`) and keep margins wide vs test duration; only fake timers when driving them explicitly with `advanceTimersByTimeAsync`.
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
 ## Optional PR Workflow: Monitor & Review (opt-in)
