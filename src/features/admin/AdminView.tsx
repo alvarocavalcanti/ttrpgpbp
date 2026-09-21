@@ -128,7 +128,9 @@ export function AdminView() {
   const { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
 
   useEffect(() => {
-    if (loading || !deepLinkedUserId || detailUser) return
+    // A failed load leaves users empty: don't consume the link or cry
+    // not-found over what was never fetched.
+    if (loading || error || !deepLinkedUserId || detailUser) return
     if (consumedDeepLink.current === deepLinkedUserId) return
     consumedDeepLink.current = deepLinkedUserId
     // Consume the link on first sight: closing the modal must never reopen
@@ -138,8 +140,12 @@ export function AdminView() {
     if (found) {
       setTab('users')
       setDetailUser(found)
+    } else {
+      // Alert links can outlive their target (a deleted account): say so
+      // instead of silently swallowing the link.
+      addToast('That user could not be found. They may have deleted their account.', 'error')
     }
-  }, [loading, deepLinkedUserId, users, detailUser, setSearchParams])
+  }, [loading, error, deepLinkedUserId, users, detailUser, setSearchParams, addToast])
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')

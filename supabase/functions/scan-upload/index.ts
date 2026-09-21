@@ -201,7 +201,9 @@ serve(async (req) => {
     const verdict = interpretSaferResponse(await submitToSafer(bytes, saferUrl, saferKey))
 
     if (verdict === "match") {
-      // Never store the object. Record the outcome and suspend the uploader.
+      // Never store the object. Record the outcome, suspend the uploader,
+      // then alert — in that order, so the alert states the true suspension
+      // outcome instead of assuming it.
       const { error: matchError } = await serviceClient
         .from("content_hashes")
         .update({ safer_status: "match" })
@@ -218,6 +220,16 @@ serve(async (req) => {
       })
       if (auditError) {
         console.error("Writing CSAM audit row failed:", auditError)
+      }
+
+      // The service-role client has no auth.uid(), so the
+      // prevent_self_suspension_change trigger does not block this write.
+      const { error: suspendError } = await serviceClient
+        .from("profiles")
+        .update({ is_suspended: true })
+        .eq("id", user.id)
+      if (suspendError) {
+        console.error("Auto-suspend after CSAM match failed:", suspendError)
       }
 
       // Surface the duty the Terms §7 promise: post the match to the admin's
@@ -240,6 +252,7 @@ serve(async (req) => {
             objectPath: path,
             sha256,
             detectedAt: new Date().toISOString(),
+            suspended: !suspendError,
           }),
         })
         if (alertError) {
@@ -249,15 +262,6 @@ serve(async (req) => {
         console.error("Posting CSAM system alert failed:", alertErr)
       }
 
-      // The service-role client has no auth.uid(), so the
-      // prevent_self_suspension_change trigger does not block this write.
-      const { error: suspendError } = await serviceClient
-        .from("profiles")
-        .update({ is_suspended: true })
-        .eq("id", user.id)
-      if (suspendError) {
-        console.error("Auto-suspend after CSAM match failed:", suspendError)
-      }
       return json({ status: "blocked" }, 200, req)
     }
 

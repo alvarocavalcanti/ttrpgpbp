@@ -67,7 +67,7 @@ const mockSystemMessage: Message = {
   updated_at: new Date().toISOString(),
   is_deleted: false,
   is_system: true,
-  sender: null as any,
+  sender: null,
 }
 
 describe('ThreadDetail', () => {

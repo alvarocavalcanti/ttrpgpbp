@@ -969,6 +969,8 @@ describe('AdminView', () => {
   })
 
   it('ignores a ?user= deep link that matches no loaded user', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
     render(
       <MemoryRouter initialEntries={['/admin?user=nope']}>
         <AdminView />
@@ -977,6 +979,9 @@ describe('AdminView', () => {
 
     await screen.findByText('Total Users')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('That user could not be found. They may have deleted their account.', 'error')
+    })
   })
 
   it('consumes the ?user= deep link when the modal closes', async () => {

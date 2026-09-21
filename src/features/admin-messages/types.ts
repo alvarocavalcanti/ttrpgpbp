@@ -7,5 +7,7 @@ export type Thread = Database['public']['Tables']['admin_threads']['Row'] & {
 }
 
 export type Message = Database['public']['Tables']['admin_messages']['Row'] & {
-  sender: { display_name: string | null, avatar_url: string | null }
+  // Null for system messages (no human sender) and whenever the sender's
+  // profile join misses; every reader must handle it.
+  sender: { display_name: string | null, avatar_url: string | null } | null
 }
