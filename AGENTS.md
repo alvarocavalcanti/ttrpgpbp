@@ -165,6 +165,8 @@ Every UI change must follow these conventions:
 - **Apply locally**: `npm run supabase:up` (applies pending migrations)
 - **Verify from scratch**: `npm run supabase:reset` — wraps `supabase db reset` locally; CI itself runs `supabase db start` + `supabase db reset` on every PR
 - **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration.
+- **Regenerate types after EVERY schema change — including follow-ups**: `npx supabase gen types typescript --local > src/types/database.ts` must be re-run after any migration is added or edited, including review-fix migrations landed after the first typegen. Enforced locally by the pre-commit `check:types-staged` step, which blocks commits staging migrations without `src/types/database.ts`; CI diffs the regenerated file for correctness and fails the PR on any drift. The recurring miss: landing a follow-up migration without re-running typegen.
+  - **CLI formatting drift**: the npm-distributed CLI (`npx supabase`) strips blank lines that the setup-cli binary used in CI keeps (same pinned version, different output). If CI reports drift consisting only of blank lines, restore them at the top-level declaration boundaries (plus the trailing blank line) instead of fighting the generator.
 - **CI enforcement**:
   - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `supabase db start` + `supabase db reset`. A PR that breaks migrations fails CI.
   - On merge to main, [.github/workflows/migrate.yml](.github/workflows/migrate.yml) runs `supabase db push` against the remote project. If it fails, fix via a new migration.
