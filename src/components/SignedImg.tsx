@@ -1,4 +1,5 @@
 import type { ImgHTMLAttributes } from 'react'
+import { useEffect, useState } from 'react'
 import { useSignedImageUrl } from '../hooks/useSignedImageUrl'
 
 interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
@@ -17,7 +18,11 @@ interface SignedImgProps extends ImgHTMLAttributes<HTMLImageElement> {
 // shown so the image area stays mounted and late-arriving images don't shift
 // the surrounding layout. Nothing renders when there is no value at all.
 export function SignedImg({ src, alt, className, style, reserveBox = false, ...props }: SignedImgProps) {
-  const { src: resolved, loading, width, height } = useSignedImageUrl(src, reserveBox)
+  const { src: resolved, loading, width, height, error } = useSignedImageUrl(src, reserveBox)
+  // Same native-load failure as the viewer: signed URL in hand, bytes
+  // unfetchable (issue #561 review). A new source clears it.
+  const [imgError, setImgError] = useState(false)
+  useEffect(() => { setImgError(false) }, [src])
 
   if (!src) return null
 
@@ -30,6 +35,31 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
   // shift this prop exists to avoid. The message list's scroll anchoring
   // absorbs those cases instead.
   const dims = reserveBox && width && height ? { width, height } : null
+
+  if (error || imgError) {
+    // A failed sign used to render the loading placeholder forever. Keep the
+    // caller's box (no layout shift) but say the image is unavailable. No
+    // Retry here: this renders for dozens of inline avatars and thumbnails.
+    // Message images are already one tap from recovery — they sit inside a
+    // "View fullscreen" button that opens ImageViewerModal, which has the
+    // Retry (issue #561).
+    // ponytail: the label clips inside tiny fixed boxes (h-8 avatars); the
+    // aria-label carries the meaning there. A per-size fallback is the
+    // upgrade path if avatar failures ever need visible text.
+    return (
+      <div
+        className={`${className ?? ''} flex items-center justify-center overflow-hidden text-center text-xs text-surface-500 dark:text-surface-400`}
+        style={dims
+          ? { aspectRatio: `${dims.width} / ${dims.height}`, width: `min(100%, ${dims.width}px)` }
+          : undefined}
+        role="img"
+        aria-label={alt ? `${alt} — couldn't load` : "Image couldn't load"}
+        data-testid="signed-img-error"
+      >
+        Couldn't load image
+      </div>
+    )
+  }
 
   if (loading || !resolved) {
     return (
@@ -52,6 +82,7 @@ export function SignedImg({ src, alt, className, style, reserveBox = false, ...p
       src={resolved}
       alt={alt}
       className={className}
+      onError={() => setImgError(true)}
       {...props}
       {...(dims ? { width: dims.width, height: dims.height } : {})}
       style={dims ? { aspectRatio: `${dims.width} / ${dims.height}`, ...style } : style}

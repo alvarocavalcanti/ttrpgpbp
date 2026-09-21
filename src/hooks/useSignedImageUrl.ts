@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const IMAGES_BUCKET = 'images'
@@ -25,12 +25,19 @@ export interface SignedImageResolution {
   // a placeholder instead of collapsing so late-arriving images don't shift
   // the layout.
   loading: boolean
+  // True only when a bucket path's signing failed or returned no URL
+  // (issue #561). Lets callers tell "no image" apart from "signing failed"
+  // instead of collapsing both into a null src.
+  error: boolean
   // Intrinsic size of the stored image, when known (bucket images whose upload
   // wrote width/height into the object's metadata). Null for external URLs and
   // for images uploaded before dimensions were stored. Callers use it to
   // reserve the image's box before the bytes load (no layout shift).
   width: number | null
   height: number | null
+  // Re-invokes signing for the current value (issue #561). Stable across
+  // renders; a no-op for non-bucket values, which never need signing.
+  retry: () => void
 }
 
 interface Dimensions {
@@ -135,6 +142,25 @@ export function useSignedImageUrl(
   value: string | null | undefined,
   reserveDimensions = false
 ): SignedImageResolution {
+  // Bumping the attempt re-runs the signing effect without changing the
+  // value. Retry also evicts the path's cached URL first: a retry after a
+  // successful sign (dead bytes behind a good URL — the browser fetched
+  // nothing) must hit the network again instead of resolving the same dead
+  // URL from cache. Harmless on the failure path, which caches nothing.
+  const [attempt, setAttempt] = useState(0)
+  const valueRef = useRef(value)
+  // Effect, not render: a discarded concurrent render could otherwise leak
+  // another path into the ref and retry would evict the wrong cache entry
+  // (PR #572 review).
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
+  const retry = useCallback(() => {
+    const current = valueRef.current
+    if (current) urlCache.delete(current)
+    setAttempt((a) => a + 1)
+  }, [])
+
   const [state, setState] = useState<SignedImageResolution>(() => {
     if (value && isBucketImagePath(value)) {
       const cachedUrl = getCachedUrl(value)
@@ -142,25 +168,29 @@ export function useSignedImageUrl(
       return {
         src: cachedUrl,
         loading: !cachedUrl,
+        error: false,
         width: dims?.width ?? null,
         height: dims?.height ?? null,
+        retry,
       }
     }
     return {
       src: value && !isBucketImagePath(value) ? value : null,
       loading: isBucketImagePath(value),
+      error: false,
       width: null,
       height: null,
+      retry,
     }
   })
 
   useEffect(() => {
     if (!value) {
-      setState({ src: null, loading: false, width: null, height: null })
+      setState({ src: null, loading: false, error: false, width: null, height: null, retry })
       return
     }
     if (!isBucketImagePath(value)) {
-      setState({ src: value, loading: false, width: null, height: null })
+      setState({ src: value, loading: false, error: false, width: null, height: null, retry })
       return
     }
 
@@ -170,8 +200,10 @@ export function useSignedImageUrl(
     setState({
       src: cachedUrl,
       loading: !cachedUrl,
+      error: false,
       width: cachedDims?.width ?? null,
       height: cachedDims?.height ?? null,
+      retry,
     })
 
     // Signing and metadata are independent: a slow/failed metadata read must
@@ -192,18 +224,24 @@ export function useSignedImageUrl(
         .then(({ data, error }) => {
           if (cancelled) return
           if (error || !data?.signedUrl) {
-            setState((prev) => ({ ...prev, src: null, loading: false }))
+            setState((prev) => ({ ...prev, src: null, loading: false, error: true }))
             return
           }
           cacheSignedUrl(value, data.signedUrl)
-          setState((prev) => ({ ...prev, src: data.signedUrl, loading: false }))
+          setState((prev) => ({ ...prev, src: data.signedUrl, loading: false, error: false }))
+        })
+        .catch(() => {
+          // A thrown failure (network drop) is still a signing failure, not
+          // a pending sign — surface it instead of loading forever.
+          if (cancelled) return
+          setState((prev) => ({ ...prev, src: null, loading: false, error: true }))
         })
     }
 
     return () => {
       cancelled = true
     }
-  }, [value, reserveDimensions])
+  }, [value, reserveDimensions, attempt, retry])
 
   return state
 }

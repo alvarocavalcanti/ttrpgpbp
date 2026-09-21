@@ -1,6 +1,15 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { ImageViewerModal } from './ImageViewerModal'
+import { supabase } from '../lib/supabase'
+
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    storage: { from: vi.fn() },
+  },
+}))
+
+const CHANNEL_ID = '00000000-0000-0000-0000-000000000001'
 
 const URL = 'https://example.com/pic.png'
 
@@ -217,5 +226,72 @@ describe('ImageViewerModal', () => {
     pinch(viewport, 100, 250) // zoom → 250%; its touchEnd must not count as a tap
     fireEvent.touchEnd(viewport, { touches: [], changedTouches: [{ clientX: 0, clientY: 0 }] })
     expect(screen.getByText('250%')).toBeInTheDocument()
+  })
+
+  describe('signing failure (issue #561)', () => {
+    function mockSign(createSignedUrl: ReturnType<typeof vi.fn>) {
+      vi.mocked(supabase.storage.from).mockReturnValue({
+        createSignedUrl,
+        info: vi.fn().mockResolvedValue({ data: { metadata: {} }, error: null }),
+      } as never)
+    }
+
+    it('shows an error with a Retry instead of a black screen', async () => {
+      mockSign(vi.fn().mockResolvedValue({ data: null, error: new Error('denied') }))
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/fail.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this image.")
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+
+    it('sizes the Retry button to the 44px touch floor', async () => {
+      mockSign(vi.fn().mockResolvedValue({ data: null, error: new Error('denied') }))
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/fail-size.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      expect((await screen.findByRole('button', { name: 'Retry' })).className).toContain('min-h-11')
+    })
+
+    it('recovers via Retry once signing succeeds', async () => {
+      const createSignedUrl = vi.fn()
+        .mockResolvedValueOnce({ data: null, error: new Error('denied') })
+        .mockResolvedValueOnce({ data: { signedUrl: 'https://signed/u.jpg' }, error: null })
+      mockSign(createSignedUrl)
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/retry.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      expect(await screen.findByAltText('Map')).toHaveAttribute('src', 'https://signed/u.jpg')
+      expect(createSignedUrl).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows no error for a null src', () => {
+      render(<ImageViewerModal src={null} alt="Map" onClose={vi.fn()} />)
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+
+    it('shows the error state when the bytes fail after a successful sign', async () => {
+      mockSign(vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed/u.jpg' }, error: null }))
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/broken-bytes.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      fireEvent.error(await screen.findByAltText('Map'))
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load this image.")
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    })
+
+    it('re-signs instead of reusing the cached URL when retrying a failed load', async () => {
+      const createSignedUrl = vi.fn()
+        .mockResolvedValueOnce({ data: { signedUrl: 'https://signed/OLD.jpg' }, error: null })
+        .mockResolvedValueOnce({ data: { signedUrl: 'https://signed/NEW.jpg' }, error: null })
+      mockSign(createSignedUrl)
+      render(<ImageViewerModal src={`${CHANNEL_ID}/message/stale-bytes.jpg`} alt="Map" onClose={vi.fn()} />)
+
+      fireEvent.error(await screen.findByAltText('Map'))
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      expect(await screen.findByAltText('Map')).toHaveAttribute('src', 'https://signed/NEW.jpg')
+      expect(createSignedUrl).toHaveBeenCalledTimes(2)
+    })
   })
 })

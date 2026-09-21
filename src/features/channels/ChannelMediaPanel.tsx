@@ -50,7 +50,7 @@ export function ChannelMediaPanel({ channelId, canInsert, onInsert, onClose }: C
         {loading && (
           <div className="flex justify-center py-10">
             <div
-              className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600 dark:border-indigo-800 dark:border-t-indigo-400"
+              className="h-8 w-8 animate-spin rounded-full border-2 border-primary-200 border-t-primary-600 dark:border-primary-800 dark:border-t-primary-400"
               role="status"
               aria-label="Loading channel media"
             />
@@ -71,7 +71,7 @@ export function ChannelMediaPanel({ channelId, canInsert, onInsert, onClose }: C
         )}
 
         {!loading && !error && items.length === 0 && (
-          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="py-10 text-center text-sm text-surface-500 dark:text-surface-400">
             No images yet. Images the GM uploads to this channel will show up here.
           </p>
         )}
@@ -84,12 +84,12 @@ export function ChannelMediaPanel({ channelId, canInsert, onInsert, onClose }: C
                   type="button"
                   onClick={() => setViewing({ src: item.path, alt: 'Channel image' })}
                   aria-label="View image fullscreen"
-                  className="block w-full rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="block w-full rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <SignedImg
                     src={item.path}
                     alt=""
-                    className="aspect-square w-full rounded-md object-cover bg-gray-100 dark:bg-gray-700"
+                    className="aspect-square w-full rounded-md object-cover bg-surface-100 dark:bg-surface-700"
                   />
                 </button>
                 {canInsert && (
@@ -99,10 +99,16 @@ export function ChannelMediaPanel({ channelId, canInsert, onInsert, onClose }: C
                     aria-checked={selected.has(item.path)}
                     aria-label={`Select ${item.name}`}
                     onClick={() => toggle(item.path)}
-                    className={`absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-md border text-xs font-bold shadow-sm ${
+                    className={`absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-md border text-xs font-bold shadow-sm after:content-[''] after:absolute after:-inset-2.5 ${
+                      // ponytail: the visual box stays 24px but the hit area
+                      // expands to 44px (24 + 2x10). The expansion reaches
+                      // into the grid gap and the neighboring cell's own
+                      // expanded zone wins there; selection priority over the
+                      // thumbnail's "open fullscreen" is intended (later DOM
+                      // sibling paints on top).
                       selected.has(item.path)
-                        ? 'border-indigo-600 bg-indigo-600 text-white'
-                        : 'border-gray-300 bg-white/80 text-transparent dark:border-gray-600 dark:bg-gray-800/80'
+                        ? 'border-primary-600 bg-primary-600 text-white'
+                        : 'border-surface-300 bg-white/80 text-transparent dark:border-surface-600 dark:bg-surface-800/80'
                     }`}
                   >
                     ✓
@@ -119,7 +125,7 @@ export function ChannelMediaPanel({ channelId, canInsert, onInsert, onClose }: C
               type="button"
               onClick={insertSelected}
               disabled={selected.size === 0}
-              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
               {selected.size > 0 ? `Insert (${selected.size})` : 'Insert'}
             </button>

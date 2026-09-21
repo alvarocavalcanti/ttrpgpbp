@@ -98,6 +98,17 @@ describe('ChannelMediaPanel', () => {
     expect(screen.getByRole('button', { name: 'Insert' })).toBeDisabled()
   })
 
+  it('expands the selection checkbox hit area to the 44px floor (issue #561)', () => {
+    renderPanel(true)
+    expect(screen.getByRole('checkbox', { name: 'Select a.jpg' }).className).toContain('after:-inset-2.5')
+  })
+
+  it('sizes Insert to the 44px floor (issue #561)', () => {
+    renderPanel(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select a.jpg' }))
+    expect(screen.getByRole('button', { name: 'Insert (1)' }).className).toContain('min-h-11')
+  })
+
   it('toggles a selection off when clicked again', () => {
     renderPanel(true)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select a.jpg' }))

@@ -69,8 +69,8 @@ export function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-500"></div>
       </div>
     )
   }
@@ -98,23 +98,23 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center py-10 relative">
+    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center py-10 relative">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
       <div className="w-full max-w-4xl">
-        <div className="max-w-md w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
+        <div className="max-w-md w-full mx-auto bg-white dark:bg-surface-800 rounded-xl shadow-md p-8">
           <div>
             <div className="flex items-center justify-center gap-3 mt-6">
               <img src="/RoleByPost.png" alt="Role by Post" className="w-12 h-12 rounded" />
-              <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
+              <h2 className="text-3xl font-extrabold text-surface-900 dark:text-surface-100">
                 Role by Post
               </h2>
             </div>
-            <p className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
+            <p className="mt-4 text-center text-base font-medium text-surface-900 dark:text-surface-100">
               A text-based tabletop RPG platform
             </p>
-            <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-center text-sm text-surface-600 dark:text-surface-400">
               Sign in with your Google account to securely create and access your roleplaying campaigns.
             </p>
           </div>
@@ -126,20 +126,20 @@ export function LoginPage() {
                 type="checkbox"
                 checked={ageConfirmed}
                 onChange={(e) => handleAgeChange(e.target.checked)}
-                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500"
               />
-              <label htmlFor="age-confirm" className="text-sm text-gray-600 dark:text-gray-400">
+              <label htmlFor="age-confirm" className="text-sm text-surface-600 dark:text-surface-400">
                 I am at least 16 years old and agree to the{' '}
-                <Link to="/terms" className="text-indigo-600 dark:text-indigo-400 hover:underline">Terms of Service</Link>
+                <Link to="/terms" className="text-primary-600 dark:text-primary-400 hover:underline">Terms of Service</Link>
                 {' '}and{' '}
-                <Link to="/privacy" className="text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</Link>
+                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline">Privacy Policy</Link>
               </label>
             </div>
             <button
               type="button"
               onClick={handleSignIn}
               disabled={!ageConfirmed}
-              className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800"
+              className="group relative w-full flex justify-center py-3 px-4 border border-surface-300 dark:border-surface-600 text-sm font-medium rounded-md text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-surface-800"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -165,70 +165,70 @@ export function LoginPage() {
         </div>
 
         <section className="mt-12 max-w-2xl mx-auto text-center">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h3 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
             Text-first, no bloat
           </h3>
-          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
             Role by Post is a chat-first app for asynchronous tabletop RPGs, with a few quality-of-life tools to keep play moving. Bring any tabletop RPG: generic play is built in, with optional Shadowdark character stats when useful.
           </p>
 
-          <div className="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left shadow-sm">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <div className="mt-6 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-6 text-left shadow-sm">
+            <h4 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
               Not a VTT
             </h4>
-            <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
               You won&apos;t find battle maps, tactical combat automation, animated dice, or AI-generated content here. Role by Post keeps the conversation flowing while reducing app and tab switching.
             </p>
           </div>
         </section>
 
         <div className="mt-14">
-          <h3 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h3 className="text-center text-2xl font-bold text-surface-900 dark:text-surface-100">
             Why Role by Post?
           </h3>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-center text-sm text-surface-600 dark:text-surface-400">
             The home for asynchronous tabletop roleplaying
           </p>
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((feature) => (
               <div key={feature.title} className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 dark:text-primary-400">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                     {feature.icon}
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{feature.title}</h4>
-                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{feature.description}</p>
+                  <h4 className="text-sm font-semibold text-surface-900 dark:text-surface-100">{feature.title}</h4>
+                  <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{feature.description}</p>
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-8 text-center">
-            <Link to="/features" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+            <Link to="/features" className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
               See all features →
             </Link>
           </div>
         </div>
       </div>
-      <div className="mt-14 text-center text-sm text-gray-600 dark:text-gray-400 space-y-2 flex flex-col items-center">
+      <div className="mt-14 text-center text-sm text-surface-600 dark:text-surface-400 space-y-2 flex flex-col items-center">
         <p>
           by{' '}
           <a
             href="https://memorablenaton.es"
             target="_blank"
             rel="noreferrer"
-            className="text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="text-primary-600 dark:text-primary-400 hover:underline"
           >
             Alvaro Cavalcanti
           </a>
         </p>
         <div className="flex gap-4 text-xs">
-          <Link to="/privacy" className="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
+          <Link to="/privacy" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
             Privacy Policy
           </Link>
-          <span className="text-gray-300 dark:text-gray-700">|</span>
-          <Link to="/terms" className="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
+          <span className="text-surface-300 dark:text-surface-700">|</span>
+          <Link to="/terms" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
             Terms of Service
           </Link>
         </div>

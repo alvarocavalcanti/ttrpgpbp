@@ -80,4 +80,20 @@ describe('TextPromptSheet', () => {
 
     expect(screen.getByLabelText('Message')).toHaveFocus()
   })
+
+  it('uses real semantic-token utilities on the confirm button, input and Cancel (issue #561)', () => {
+    // PR #452's token migration wedged literal U+0008 backspace bytes inside
+    // these class names, which silently killed the confirm button's
+    // background and the focus ring. Asserted literally so a re-migration to
+    // different tokens — or any re-corruption — fails loudly.
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} />)
+
+    const confirm = screen.getByRole('button', { name: 'Save' })
+    expect(confirm.className).toContain('bg-primary-600')
+    expect(confirm.className).toContain('focus:ring-primary-500')
+    expect(screen.getByRole('button', { name: 'Cancel' }).className).toContain('text-surface-700')
+    const input = screen.getByLabelText('Message')
+    expect(input.className).toContain('bg-white')
+    expect(input.className).toContain('focus:border-primary-500')
+  })
 })

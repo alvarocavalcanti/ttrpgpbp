@@ -1063,6 +1063,16 @@ describe('AdminView copy opted-in emails', () => {
     expect(await screen.findByText('No abuse reports yet.')).toBeInTheDocument()
   })
 
+  it('sizes the report actions to 44px touch targets (issue #561)', async () => {
+    reportsRpc([makeReport({ id: 'r1' })])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    for (const name of ['View message', 'Suspend', 'Resolve', 'Dismiss']) {
+      expect(screen.getByRole('button', { name }).className).toContain('min-h-11')
+    }
+  })
+
   it('suspends the reported user from a report and marks it actioned', async () => {
     reportsRpc([makeReport({ id: 'r1', reported_user_id: 'u2' })], {
       admin_suspend_user: { data: null, error: null },

@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file.
 
 - **Reactions appear the instant you tap them** — your emoji reaction now shows up immediately, even on a flaky connection, and tapping twice in a hurry no longer pops up a false "failed" error.
 - **Reactions no longer blink out when opening a channel** — a reaction that lands just as the conversation loads now stays visible instead of briefly disappearing.
+- **The "Mark Away" and "Suspend" buttons are visible again** — the confirm button on the away and suspension sheets had been rendering as white-on-white; it now shows properly, including the focus highlight when you tab to it.
+- **A clear message when an image won't load** — instead of a blank black screen, opening an image that fails to load now says so and offers a **Retry**.
+- **Images that fail to load no longer leave an empty box** — a message image or avatar that can't be loaded now shows a short "couldn't load" note in its place.
 
 ## 2026-09-19
 
