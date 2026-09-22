@@ -9,7 +9,10 @@ set -eu
 # Hooks inherit their caller's environment, and IDEs/wrappers sometimes
 # redirect git (GIT_DIR et al). Force normal repository discovery so the
 # guard always inspects the repo being committed — never some other repo.
-unset GIT_DIR GIT_WORK_TREE GIT_CEILING_DIRECTORIES GIT_COMMON_DIR
+# GIT_INDEX_FILE is deliberately preserved: git points the pre-commit hook
+# at the index being committed, and the guard must read that same index.
+unset GIT_DIR GIT_WORK_TREE GIT_CEILING_DIRECTORIES GIT_COMMON_DIR \
+  GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 
 staged="$(git diff --cached --name-only)" || {
   echo "error: check-types-staged could not read the staged files." >&2

@@ -53,8 +53,17 @@ describe('scripts/git/check-types-staged', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  function run() {
-    return spawnSync('sh', [script], { cwd: dir, encoding: 'utf8', env: cleanEnv() })
+  function run(overrides: NodeJS.ProcessEnv = {}) {
+    // Poison (if any) is layered over the scrubbed base and reaches ONLY
+    // the guard script: git() and stagedNow() always run clean, so the
+    // tests prove the guard tolerates redirection rather than proving the
+    // helper scrubs. GIT_INDEX_FILE is never passed: the guard must
+    // preserve the commit index.
+    return spawnSync('sh', [script], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: { ...cleanEnv(), ...overrides },
+    })
   }
 
   // Diagnostics ride along on failure: a guard that exits 0 spuriously
@@ -92,40 +101,31 @@ describe('scripts/git/check-types-staged', () => {
     expect(run().status).toBe(0)
   })
 
-  it('ignores a redirected git environment', () => {
-    // Regression test: GIT_DIR (leaked by IDEs/wrappers/hooks) once made
-    // these temp-repo commands commit into the real repo. The helper must
-    // scrub it so the guard can neither pollute nor read the wrong repo.
-    process.env.GIT_DIR = join(dir, 'bogus.git')
-    try {
-      write(dir, 'supabase/migrations/20260000000000_x.sql')
-      git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
-      const r = run()
-      const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
-      expect(r.status, diag).toBe(1)
-    } finally {
-      delete process.env.GIT_DIR
-    }
+  it('ignores a redirected git directory', () => {
+    // The poison reaches the guard script itself (not a scrubbed helper),
+    // proving the guard's own unset list neutralizes it.
+    write(dir, 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    const r = run({ GIT_DIR: join(dir, 'bogus.git') })
+    const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
+    expect(r.status, diag).toBe(1)
   })
 
-  it('ignores redirected index and object directories', () => {
-    // Same isolation for GIT_INDEX_FILE / GIT_OBJECT_DIRECTORY /
-    // GIT_ALTERNATE_OBJECT_DIRECTORIES: index selection and object lookup
-    // must follow the temp repo, never the ambient environment.
+  it('ignores redirected object directories', () => {
+    // Same proof for object lookup: with the guard fix, an empty object
+    // dir cannot blind the diff; without it, git fails and the guard
+    // exits 2 instead of blocking with 1.
     const emptyDir = mkdtempSync(join(tmpdir(), 'types-staged-empty-'))
-    process.env.GIT_INDEX_FILE = join(emptyDir, 'index')
-    process.env.GIT_OBJECT_DIRECTORY = join(emptyDir, 'objects')
-    process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = join(emptyDir, 'alternates')
     try {
       write(dir, 'supabase/migrations/20260000000000_x.sql')
       git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
-      const r = run()
+      const r = run({
+        GIT_OBJECT_DIRECTORY: join(emptyDir, 'objects'),
+        GIT_ALTERNATE_OBJECT_DIRECTORIES: join(emptyDir, 'alternates'),
+      })
       const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
       expect(r.status, diag).toBe(1)
     } finally {
-      delete process.env.GIT_INDEX_FILE
-      delete process.env.GIT_OBJECT_DIRECTORY
-      delete process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES
       rmSync(emptyDir, { recursive: true, force: true })
     }
   })
