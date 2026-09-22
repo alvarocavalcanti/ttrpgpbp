@@ -27,11 +27,10 @@ export function ReConsentGate({ onAccept }: { onAccept: () => Promise<void> }) {
     <div className="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-900 px-4">
       <div role="dialog" aria-modal="true" aria-labelledby="re-consent-title" className="w-full max-w-md bg-white dark:bg-surface-800 rounded-xl shadow-md p-8">
         <h2 id="re-consent-title" className="text-xl font-extrabold text-surface-900 dark:text-surface-100">
-          We&apos;ve updated our Terms
+          Terms of Service &amp; Privacy Policy
         </h2>
         <p className="mt-2 text-sm text-surface-600 dark:text-surface-400">
-          Our Terms of Service and Privacy Policy have changed since you last accepted them.
-          Please review them and accept to keep using Role by Post.
+          To use Role by Post, please review and accept our Terms of Service and Privacy Policy.
         </p>
         <div className="mt-3 flex gap-4 text-sm">
           <Link to="/terms" className="text-primary-600 dark:text-primary-400 hover:underline">

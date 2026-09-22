@@ -157,7 +157,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: null,
+      profile: { id: 'test', terms_version: '2026-09-21' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -184,7 +184,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: null,
+      profile: { id: 'test', terms_version: '2026-09-21' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -205,6 +205,34 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByTestId('protected-content')).toBeInTheDocument()
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+  })
+
+  it('holds the loading state while the signed-in profile is unresolved', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('gates the app behind re-consent when the stored terms version is stale', () => {

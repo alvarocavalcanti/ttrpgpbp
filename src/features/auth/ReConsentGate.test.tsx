@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { ReConsentGate } from './ReConsentGate'
 
 describe('ReConsentGate', () => {
-  it('renders the re-acceptance prompt with links to both policies', () => {
+  it('renders the acceptance prompt with links to both policies', () => {
     render(
       <MemoryRouter>
         <ReConsentGate onAccept={vi.fn()} />
@@ -12,7 +12,7 @@ describe('ReConsentGate', () => {
     )
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText(/updated our Terms/)).toBeInTheDocument()
+    expect(screen.getByText('Terms of Service & Privacy Policy')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
     expect(screen.getByRole('button', { name: /I agree to the Terms \(v2026-09-21\)/ })).toBeInTheDocument()

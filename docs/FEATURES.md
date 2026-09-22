@@ -5,7 +5,7 @@
 - **Dark mode** — a sun/moon toggle in the app header (and login page) switches between light and dark themes. On small screens it moves into the app menu drawer. The choice persists per device; the default follows the OS light/dark preference (applied before first paint to avoid a flash)
 
 - Google account sign-in
-- **Age requirement** — you must confirm you are at least 16 before signing in; the confirmation is remembered on the device and recorded once on your account. The same checkbox records your acceptance of the Terms (with its version); when the Terms change, the app asks you to accept the new version once before continuing
+- **Age requirement** — you must confirm you are at least 16 before signing in; the confirmation is remembered on the device and recorded once on your account. The sign-in checkbox also covers agreement to the Terms; your acceptance (with its version) is recorded when you accept in the app, and when the Terms change the app asks you to accept the new version once before continuing
 - **Display name** — up to 40 characters; optional character sheet links are limited to 500 characters
 - **About** page — creator attribution, donation links, and GitHub project link
 - Per-channel **character name** (max 20 characters) and **avatar**

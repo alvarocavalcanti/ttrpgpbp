@@ -42,10 +42,21 @@ export function ProtectedRoute() {
     return <Navigate to={redirectTo} replace />
   }
 
+  // Fail closed (#562 review): with a signed-in user but no profile yet, the
+  // stored terms version is unknown — hold the loading state instead of
+  // rendering the app before the terms check can run. (A failed fetch sets
+  // error above and never reaches here.)
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
+      </div>
+    )
+  }
+
   // Re-consent gate (#562 P2-2): a signed-in user whose stored terms version
-  // is behind must re-accept before using the app. Unknown state (profile
-  // still loading or a transient fetch failure) never gates.
-  if (profile && profile.terms_version !== CURRENT_TERMS_VERSION) {
+  // is behind must re-accept before using the app.
+  if (profile.terms_version !== CURRENT_TERMS_VERSION) {
     return (
       <ReConsentGate
         onAccept={async () => {

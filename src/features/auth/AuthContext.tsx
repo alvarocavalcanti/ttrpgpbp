@@ -2,8 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
-import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
-import { CURRENT_TERMS_VERSION } from './terms'
+import { authSignOut, confirmAge, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
 import type { Database } from '../../types/database'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
@@ -105,6 +104,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Stamp server-side age-confirmation evidence once per user, only when the
+  // client checkbox was accepted (localStorage flag). The RPC is idempotent.
+  // The user is marked confirmed only after the RPC succeeds, so a failed call
+  // is retried on the next auth event instead of being silently dropped.
+  //
+  // Terms acceptance is deliberately NOT stamped here: confirm_terms()
+  // re-stamps, so stamping on load would silently accept a new version on
+  // the user's behalf and bypass the re-consent gate (#562 review). The
+  // gate is the single path that records terms acceptance, always with an
+  // explicit user action.
+  useEffect(() => {
+    if (loading || !user) return
+    if (localStorage.getItem('age-confirmed') !== 'true') return
+    if (confirmedAgeFor.current === user.id) return
+    const userId = user.id
+    void confirmAge()
+      .then(() => { confirmedAgeFor.current = userId })
+      .catch((err) => console.error('Error confirming age:', err))
+  }, [loading, user])
+
   const signInWithGoogle = useCallback(async () => {
     setError(null)
     try {
@@ -145,30 +164,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error refreshing profile:', err)
     }
   }, [user?.id])
-
-  // Stamp server-side onboarding evidence once per user, only when the client
-  // checkbox was accepted (the localStorage flag covers age and terms
-  // together). confirm_age() is idempotent and marked done on success;
-  // confirm_terms() re-stamps, so it is driven by the profile state instead
-  // and skipped once the stored version is current. A failed call leaves the
-  // state untouched and is retried on the next auth event instead of being
-  // silently dropped. refreshProfile() after a terms stamp lets the
-  // re-consent gate see the new version without waiting for an auth event.
-  useEffect(() => {
-    if (loading || !user) return
-    if (localStorage.getItem('age-confirmed') !== 'true') return
-    const userId = user.id
-    if (confirmedAgeFor.current !== userId) {
-      void confirmAge()
-        .then(() => { confirmedAgeFor.current = userId })
-        .catch((err) => console.error('Error confirming age:', err))
-    }
-    if (profile?.terms_version !== CURRENT_TERMS_VERSION) {
-      void confirmTerms(CURRENT_TERMS_VERSION)
-        .then(() => refreshProfile())
-        .catch((err) => console.error('Error confirming terms:', err))
-    }
-  }, [loading, user, profile?.terms_version, refreshProfile])
 
   const value = useMemo(
     () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile }),
