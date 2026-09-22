@@ -2,6 +2,16 @@ import '@testing-library/jest-dom'
 import { beforeAll, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { server } from './mocks/server'
 
+// Git exports GIT_DIR (and friends) to hooks. Without this, a test that
+// spawns git in a temp repo operates on the REAL repository whenever the
+// suite runs from a hook (it clobbered refs and .git/config once). Drop these
+// variables for the whole test process so every spawned git discovers its
+// repo from the working directory. Test suites that spawn git still scrub
+// defensively on their own.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith('GIT_')) delete process.env[key]
+}
+
 // jsdom cannot navigate (or download); blob-download helpers call
 // anchor.click() on anchors with a download attribute, which jsdom turns into
 // an unhandled "Not implemented: navigation" error at teardown. Suppress the
