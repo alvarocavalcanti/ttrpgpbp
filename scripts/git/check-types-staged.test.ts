@@ -112,6 +112,25 @@ describe('scripts/git/check-types-staged', () => {
     expect(run().status).toBe(0)
   })
 
+  it('blocks a migration renamed while its content changes', () => {
+    write(dir, 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'commit', '-q', '-m', 'add migration')
+    git(dir, 'mv', 'supabase/migrations/20260000000000_x.sql', 'supabase/migrations/20260000000001_x.sql')
+    write(dir, 'supabase/migrations/20260000000001_x.sql', '-- changed\n')
+    git(dir, 'add', '-A')
+    expect(run().status).toBe(1)
+  })
+
+  it('blocks moving a migration out of supabase/migrations', () => {
+    write(dir, 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'commit', '-q', '-m', 'add migration')
+    mkdirSync(join(dir, 'docs'), { recursive: true })
+    git(dir, 'mv', 'supabase/migrations/20260000000000_x.sql', 'docs/20260000000000_x.sql')
+    expect(run().status).toBe(1)
+  })
+
   it('blocks a deleted migration without staged types', () => {
     write(dir, 'supabase/migrations/20260000000000_x.sql')
     git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')

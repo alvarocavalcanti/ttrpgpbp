@@ -7,8 +7,26 @@ import { join, resolve } from 'node:path'
 const script = resolve(process.cwd(), 'scripts/git/check-migration-order.sh')
 const dirs: string[] = []
 
+// Spawned git must never inherit a redirected repository environment. Git
+// exports GIT_DIR (and friends) to hooks, so a test run inside a pre-push
+// hook would otherwise run `git init`/`commit` against the real repository
+// instead of the temp one — the check-types-staged suite guards the same leak.
+function cleanEnv(): NodeJS.ProcessEnv {
+  const {
+    GIT_DIR: _dir,
+    GIT_WORK_TREE: _tree,
+    GIT_CEILING_DIRECTORIES: _ceil,
+    GIT_COMMON_DIR: _common,
+    GIT_INDEX_FILE: _index,
+    GIT_OBJECT_DIRECTORY: _objects,
+    GIT_ALTERNATE_OBJECT_DIRECTORIES: _alternates,
+    ...rest
+  } = process.env
+  return rest
+}
+
 function git(cwd: string, ...args: string[]): string {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', env: cleanEnv() })
   if (result.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr}`)
   return result.stdout.trim()
 }
@@ -35,7 +53,7 @@ function writeMigration(dir: string, name: string, content = '-- migration\n'): 
 }
 
 function run(dir: string, baseRef: string) {
-  return spawnSync('sh', [script, baseRef], { cwd: dir, encoding: 'utf8' })
+  return spawnSync('sh', [script, baseRef], { cwd: dir, encoding: 'utf8', env: cleanEnv() })
 }
 
 afterEach(() => {
