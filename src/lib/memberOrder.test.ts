@@ -57,6 +57,8 @@ describe('memberOrder', () => {
 
   it('exposes a comparator that ignores case', () => {
     expect(compareMembers({ user_id: 'a', character_name: 'bobby' }, { user_id: 'b', character_name: 'Arden' })).toBeGreaterThan(0)
-    expect(compareMembers({ user_id: 'a', character_name: 'arden' }, { user_id: 'b', character_name: 'Arden' })).not.toBe(0)
+    // Same user_id so the user_id fallback cannot decide: names differing
+    // only by case must compare equal.
+    expect(compareMembers({ user_id: 'a', character_name: 'arden' }, { user_id: 'a', character_name: 'Arden' })).toBe(0)
   })
 })

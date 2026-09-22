@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- **Player lists show the GM at the top, then players A–Z** — the channel sidebar roster, the Active Player picker, and the admin channel view now list the GM first and everyone else by character name, so the same people appear in the same order everywhere.
+- **Player lists show the GM at the top, then players A–Z** — the channel sidebar roster and the admin channel view now list the GM first and everyone else by character name; the Active Player picker (which excludes the GM) lists its players by character name too, so the same people appear in the same order everywhere.
 
 ## 2026-09-21
 
