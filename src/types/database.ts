@@ -91,7 +91,8 @@ export type Database = {
           created_at: string
           id: string
           is_deleted: boolean
-          sender_id: string
+          is_system: boolean
+          sender_id: string | null
           thread_id: string
           updated_at: string
         }
@@ -100,7 +101,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_deleted?: boolean
-          sender_id: string
+          is_system?: boolean
+          sender_id?: string | null
           thread_id: string
           updated_at?: string
         }
@@ -109,7 +111,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_deleted?: boolean
-          sender_id?: string
+          is_system?: boolean
+          sender_id?: string | null
           thread_id?: string
           updated_at?: string
         }
@@ -1204,6 +1207,7 @@ export type Database = {
         }
         Returns: string
       }
+      escape_markdown: { Args: { p_text: string }; Returns: string }
       get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
       get_admin_unread_totals: {
         Args: { p_user_ids: string[] }
@@ -1234,6 +1238,7 @@ export type Database = {
           name: string
         }[]
       }
+      get_or_create_system_thread: { Args: never; Returns: string }
       get_unread_totals: {
         Args: { p_user_ids: string[] }
         Returns: {
@@ -1279,6 +1284,7 @@ export type Database = {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
         Returns: undefined
       }
+      post_system_message: { Args: { p_content: string }; Returns: undefined }
       push_notification_config_value: {
         Args: { p_key: string }
         Returns: string
@@ -1393,7 +1399,7 @@ export type Database = {
     }
     Enums: {
       admin_thread_audience: "all_users" | "gms"
-      admin_thread_type: "announcement" | "dm"
+      admin_thread_type: "announcement" | "dm" | "system"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1525,7 +1531,7 @@ export const Constants = {
   public: {
     Enums: {
       admin_thread_audience: ["all_users", "gms"],
-      admin_thread_type: ["announcement", "dm"],
+      admin_thread_type: ["announcement", "dm", "system"],
     },
   },
 } as const

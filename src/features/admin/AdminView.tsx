@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
@@ -114,10 +114,38 @@ export function AdminView() {
   const [viewMessageLoading, setViewMessageLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<UserFilter>('all')
+  // ?user=<id> deep link from system alerts (#562 P1): opens that user's
+  // detail modal once the list is loaded.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkedUserId = searchParams.get('user')
+  // The replace navigation that consumes the link lands a few renders after
+  // the modal opens; without this guard, closing the modal in between would
+  // reopen it from the still-present param.
+  const consumedDeepLink = useRef<string | null>(null)
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
   const { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
+
+  useEffect(() => {
+    // A failed load leaves users empty: don't consume the link or cry
+    // not-found over what was never fetched.
+    if (loading || error || !deepLinkedUserId || detailUser) return
+    if (consumedDeepLink.current === deepLinkedUserId) return
+    consumedDeepLink.current = deepLinkedUserId
+    // Consume the link on first sight: closing the modal must never reopen
+    // it, even while the replace navigation below is still in flight.
+    setSearchParams({}, { replace: true })
+    const found = users.find(u => u.id === deepLinkedUserId)
+    if (found) {
+      setTab('users')
+      setDetailUser(found)
+    } else {
+      // Alert links can outlive their target (a deleted account): say so
+      // instead of silently swallowing the link.
+      addToast('That user could not be found. They may have deleted their account.', 'error')
+    }
+  }, [loading, error, deepLinkedUserId, users, detailUser, setSearchParams, addToast])
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')

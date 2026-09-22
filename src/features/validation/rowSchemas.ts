@@ -109,6 +109,7 @@ export const AdminMessageRowSchema = z.looseObject({
   thread_id: z.string().nullish(),
   sender_id: z.string().nullish(),
   is_deleted: z.boolean().nullish(),
+  is_system: z.boolean().nullish(),
   created_at: z.string().nullish(),
   updated_at: z.string().nullish(),
   sender: JoinedProfileRefSchema.nullish(),

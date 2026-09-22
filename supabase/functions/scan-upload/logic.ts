@@ -122,3 +122,43 @@ export function buildImageMetadata(
   }
   return { width, height }
 }
+
+export interface CsamAlertDetails {
+  uploaderId: string
+  uploaderName: string
+  channelId: string
+  channelName: string
+  objectPath: string
+  sha256: string
+  detectedAt: string
+  // Whether the automatic suspension landed. The alert must state the truth:
+  // a failed suspension needs a human to finish it.
+  suspended: boolean
+}
+
+// Backslash-escapes Markdown metacharacters in user-controlled labels before
+// they are interpolated into the alert body (mirrors escape_markdown() in
+// SQL: code, emphasis, links, images, headers, quotes).
+export function escapeMarkdown(value: string): string {
+  return value.replace(/[\\`*_\[\]()#!>]/g, '\\$&')
+}
+
+// Builds the markdown body posted to the admin's System thread on a Safer
+// match (#562 P1). Root-relative links so the admin inbox's SPA renderer can
+// intercept them; the channel link points at the admin's read-only channel
+// view because the admin is not a channel member.
+export function buildCsamAlertMessage(details: CsamAlertDetails): string {
+  return [
+    '**Blocked upload — possible child sexual abuse material**',
+    '',
+    `- **Uploaded by:** [${escapeMarkdown(details.uploaderName)}](/admin?user=${details.uploaderId})`,
+    `- **Channel:** [${escapeMarkdown(details.channelName)}](/admin/channels/${details.channelId})`,
+    `- **Attempted path:** \`${details.objectPath}\``,
+    `- **SHA-256:** \`${details.sha256}\``,
+    `- **Detected:** ${details.detectedAt}`,
+    '',
+    details.suspended
+      ? 'The upload was blocked and the account suspended automatically. If this is confirmed CSAM, file a report with NCMEC (US) or an INHOPE hotline such as Hotline.ie (IE), then reply here to record it.'
+      : 'The upload was blocked, but the automatic suspension FAILED — suspend the account manually, then file a report with NCMEC (US) or an INHOPE hotline such as Hotline.ie (IE) if this is confirmed CSAM, and reply here to record it.',
+  ].join('\n')
+}
