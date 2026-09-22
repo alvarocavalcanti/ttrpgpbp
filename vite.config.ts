@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
 import type { Plugin } from 'rollup'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -15,13 +16,16 @@ const swOutputCompat: Plugin = {
   },
 }
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   // #562: production bundles must name the data controller (GDPR Art 13).
   // Fail the build loudly rather than shipping a bundle whose policies
   // render a generic line with no contact. Dev/test builds stay optional.
   if (command === 'build') {
+    // Shell env first, then .env files — Vite's own precedence, so both
+    // dashboard-exported and file-based setups are honored.
+    const fileEnv = loadEnv(mode, process.cwd())
     const missing = ['VITE_CONTROLLER_NAME', 'VITE_CONTROLLER_EMAIL'].filter(
-      (key) => !process.env[key],
+      (key) => !(process.env[key] || fileEnv[key]),
     )
     if (missing.length > 0) {
       throw new Error(
