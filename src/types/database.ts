@@ -865,6 +865,8 @@ export type Database = {
           id: string
           is_suspended: boolean
           server_admin: boolean
+          terms_accepted_at: string | null
+          terms_version: string | null
         }
         Insert: {
           age_verified_at?: string | null
@@ -876,6 +878,8 @@ export type Database = {
           id: string
           is_suspended?: boolean
           server_admin?: boolean
+          terms_accepted_at?: string | null
+          terms_version?: string | null
         }
         Update: {
           age_verified_at?: string | null
@@ -887,6 +891,8 @@ export type Database = {
           id?: string
           is_suspended?: boolean
           server_admin?: boolean
+          terms_accepted_at?: string | null
+          terms_version?: string | null
         }
         Relationships: []
       }
@@ -1194,6 +1200,7 @@ export type Database = {
         Returns: string
       }
       confirm_age: { Args: never; Returns: undefined }
+      confirm_terms: { Args: { p_version: string }; Returns: undefined }
       create_channel: {
         Args: {
           p_character_avatar_url?: string

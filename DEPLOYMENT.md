@@ -45,6 +45,8 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key | Static host env (build) |
 | `VITE_VAPID_PUBLIC_KEY` | Public half of the VAPID keypair | Static host env (build) and `supabase secrets set` |
 | `VITE_GA_MEASUREMENT_ID` | Optional Google Analytics 4 measurement ID (e.g. `G-XXXXXXXXXX`). When set, Google Analytics loads and page views are tracked; omit to disable analytics (local dev, self-hosted instances) | Static host env (build) |
+| `VITE_CONTROLLER_NAME` | **Required for production builds** — data-controller name shown in the Privacy Policy and Terms footer (GDPR Art 13). The build fails without it; omit only for local dev. Anyone deploying their own copy must put their own identity here | Static host env (build) |
+| `VITE_CONTROLLER_EMAIL` | **Required for production builds** — data-controller contact email shown next to the name. The build fails without it or with an invalid address; omit only for local dev | Static host env (build) |
 | `VAPID_PRIVATE_KEY` | Private half of the VAPID keypair | `supabase secrets set VAPID_PRIVATE_KEY` |
 | `ALLOWED_ORIGINS` | Optional comma-separated list of app origins allowed to call the push-notifications function (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, `https://rolebypost.com`, and any `*.ttrpgpbp.pages.dev` preview | `supabase secrets set ALLOWED_ORIGINS=...` |
 | `SUPABASE_AUTH_GOOGLE_SECRET` | Google OAuth client secret | Supabase Dashboard → Auth → Providers → Google |

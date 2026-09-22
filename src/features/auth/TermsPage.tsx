@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { DataControllerLine } from './DataController'
 
 export function TermsPage() {
   return (
@@ -202,13 +203,14 @@ export function TermsPage() {
             You must be at least 16 years of age to use Role by Post. If you are under 16, you may not create an account or
             use the service. If you are a resident of a country that requires a higher minimum age or parental consent (for
             example, Brazil, where parental consent may be required for users under 18), you must meet that higher requirement.
-            If we learn that we have collected personal information from a user below the applicable age of consent, we will
-            take steps to delete it.
+            We rely on your confirmation that you meet the minimum age: we do not verify age and do not collect a date of birth.
+            If we learn that an account belongs to someone below the applicable minimum age, we will close the account and
+            delete the personal information associated with it.
           </p>
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: September 17, 2026. For questions regarding these Terms, contact the server administrator.
+          Last updated: September 21, 2026. For questions regarding these Terms, contact the server administrator. <DataControllerLine />
         </p>
       </div>
     </div>

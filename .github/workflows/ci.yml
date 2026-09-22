@@ -41,6 +41,11 @@ jobs:
   test:
     needs: migrate-check
     runs-on: ubuntu-latest
+    env:
+      # The production build (npm run build below) requires the
+      # data-controller identity (#562); values mirror .env.example.
+      VITE_CONTROLLER_NAME: Alvaro Cavalcanti
+      VITE_CONTROLLER_EMAIL: alvarovictor@gmail.com
     steps:
       - uses: actions/checkout@v5
       

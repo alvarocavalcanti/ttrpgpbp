@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { env } from '../../env'
+import { DataControllerLine } from './DataController'
 
 export function PrivacyPage() {
   return (
@@ -21,7 +22,16 @@ export function PrivacyPage() {
             email address, and profile picture. We store your display name, avatar, and the
             messages, dice rolls, and channel memberships you create in the app. When you confirm
             you meet the minimum age, we record the date of that confirmation so we can show you
-            meet our eligibility requirement.
+            meet our eligibility requirement. When you accept these terms, we record the date and
+            the version of your acceptance.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data controller</h2>
+          <p>
+            <DataControllerLine /> For the fastest response, use the self-serve controls in{' '}
+            <span className="font-medium">Settings → Account &amp; Data</span> to download or delete your data.
           </p>
         </section>
 
@@ -31,6 +41,15 @@ export function PrivacyPage() {
             Your data is stored in a Supabase-hosted PostgreSQL database, including the
             authentication records used by Google Sign-In. Push notification subscriptions
             (browser endpoints) are stored so we can deliver notifications you opt into.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">How long we keep things</h2>
+          <p>
+            Uploaded images are kept according to the server&apos;s retention setting — indefinitely by default.
+            A hash record of each upload is kept for 90 days so uploads can be safety-scanned and de-duplicated.
+            Records of blocked uploads are kept for as long as needed for legal reporting.
           </p>
         </section>
 
@@ -156,8 +175,8 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: September 17, 2026. This policy describes data handling for the Role by Post application. Contact the server
-          admin to exercise any of these rights on behalf of an account you cannot access.
+          Last updated: September 21, 2026. This policy describes data handling for the Role by Post application. Contact the server
+          admin to exercise any of these rights on behalf of an account you cannot access. <DataControllerLine />
         </p>
       </div>
     </div>

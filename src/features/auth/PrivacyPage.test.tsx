@@ -3,13 +3,15 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { PrivacyPage } from './PrivacyPage'
 
-const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: '', VITE_SENTRY_DSN: '' }))
+const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: '', VITE_SENTRY_DSN: '', VITE_CONTROLLER_NAME: '', VITE_CONTROLLER_EMAIL: '' }))
 
 vi.mock('../../env', () => ({ env: mockEnv }))
 
 beforeEach(() => {
   mockEnv.VITE_GA_MEASUREMENT_ID = ''
   mockEnv.VITE_SENTRY_DSN = ''
+  mockEnv.VITE_CONTROLLER_NAME = ''
+  mockEnv.VITE_CONTROLLER_EMAIL = ''
 })
 
 function BackProbe() {
@@ -181,5 +183,56 @@ describe('PrivacyPage', () => {
     )
 
     expect(screen.getByText(/we record the date of that confirmation/)).toBeInTheDocument()
+  })
+
+  it('discloses the recorded terms acceptance in what we collect', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(/we record the date and\s*the version of your acceptance/)).toBeInTheDocument()
+  })
+
+  it('names the data controller from env', () => {
+    mockEnv.VITE_CONTROLLER_NAME = 'Alvaro Cavalcanti'
+    mockEnv.VITE_CONTROLLER_EMAIL = 'alvarovictor@gmail.com'
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Data controller')).toBeInTheDocument()
+    expect(screen.getAllByText(/Alvaro Cavalcanti/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'alvarovictor@gmail.com' })).toHaveLength(2)
+    screen.getAllByRole('link', { name: 'alvarovictor@gmail.com' }).forEach((link) => {
+      expect(link).toHaveAttribute('href', 'mailto:alvarovictor@gmail.com')
+    })
+  })
+
+  it('renders a generic controller line without contact when env is unset', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getAllByText(/the operator of this Role by Post instance/).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: /@/ })).not.toBeInTheDocument()
+  })
+
+  it('discloses image, hash, and blocked-upload retention', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('How long we keep things')).toBeInTheDocument()
+    expect(screen.getByText(/indefinitely by default/)).toBeInTheDocument()
+    expect(screen.getByText(/kept for 90 days/)).toBeInTheDocument()
+    expect(screen.getByText(/as long as needed for legal reporting/)).toBeInTheDocument()
   })
 })

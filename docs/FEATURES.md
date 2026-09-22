@@ -5,7 +5,7 @@
 - **Dark mode** — a sun/moon toggle in the app header (and login page) switches between light and dark themes. On small screens it moves into the app menu drawer. The choice persists per device; the default follows the OS light/dark preference (applied before first paint to avoid a flash)
 
 - Google account sign-in
-- **Age requirement** — you must confirm you are at least 16 before signing in; the confirmation is remembered on the device and recorded once on your account
+- **Age requirement** — you must confirm you are at least 16 before signing in; the confirmation is remembered on the device and recorded once on your account. The sign-in checkbox also covers agreement to the Terms; your acceptance (with its version) is recorded when you accept in the app, and when the Terms change the app asks you to accept the new version once before continuing
 - **Display name** — up to 40 characters; optional character sheet links are limited to 500 characters
 - **About** page — creator attribution, donation links, and GitHub project link
 - Per-channel **character name** (max 20 characters) and **avatar**
@@ -22,7 +22,7 @@
 - **Account & Data** (in Settings) — GDPR controls:
   - **Download My Data** — exports profile, channel memberships (with channel names and character notes), authored messages (including authored whispers), dice rolls, reactions, and notification preferences as a downloadable JSON file
   - **Delete Account** — permanent erasure. Confirmation requires typing `DELETE`. Deletes the account and personal data (auth record, profile, memberships, dice rolls, reactions, preferences, push subscriptions); past messages are kept **anonymized** and the user's GM channels are **orphaned** for server-admin reclaim. The sole server admin cannot delete their own account.
-  - **Privacy Policy & Terms of Service** links — publicly accessible `/privacy` and `/terms` pages detailing Google OAuth scopes (`email`, `profile`), Supabase data storage, access/erasure rights, the fact that messages are **not end-to-end encrypted** and may be reviewed for safety, EEA-to-US transfer safeguards, GDPR rights and lawful bases, acceptable-use rules, indemnity, and disclaimers
+  - **Privacy Policy & Terms of Service** links — publicly accessible `/privacy` and `/terms` pages detailing Google OAuth scopes (`email`, `profile`), Supabase data storage, access/erasure rights, the fact that messages are **not end-to-end encrypted** and may be reviewed for safety, EEA-to-US transfer safeguards, GDPR rights and lawful bases, the data controller identity and contact, retention periods for uploads and safety records, acceptable-use rules, indemnity, and disclaimers
 - **Google Analytics** — optional anonymous page-view tracking via Google Analytics 4, enabled only when the `VITE_GA_MEASUREMENT_ID` build-time env var is set (self-hosted instances can leave it unset to disable analytics entirely). Only the page path is reported — search strings are stripped and never leave the device
 - **Sentry** — optional error reporting enabled only when the `VITE_SENTRY_DSN` build-time env var is set: error reports, browser tracing (performance), and screen recordings of about 1 in 10 sessions (every session where an error occurs). See `docs/OBSERVABILITY.md` for setup
 

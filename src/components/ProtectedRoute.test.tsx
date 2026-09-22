@@ -1,11 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProtectedRoute } from './ProtectedRoute'
 import { useAuth } from '../features/auth/useAuth'
+import { confirmTerms } from '../features/auth/authApi'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 vi.mock('../features/auth/useAuth', () => ({
   useAuth: vi.fn(),
+}))
+
+vi.mock('../features/auth/authApi', () => ({
+  confirmTerms: vi.fn(),
 }))
 
 function LoginSpy() {
@@ -152,7 +157,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: null,
+      profile: { id: 'test', terms_version: '2026-09-21' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -179,7 +184,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: null,
+      profile: { id: 'test', terms_version: '2026-09-21' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -200,5 +205,122 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByTestId('protected-content')).toBeInTheDocument()
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+  })
+
+  it('holds the loading state while the signed-in profile is unresolved', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('gates the app behind re-consent when the stored terms version is stale', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: '1999-01-01' } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  })
+
+  it('renders outlet content when the stored terms version is current', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: '2026-09-21' } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('stamps the acceptance and refreshes the profile on agree', async () => {
+    const refreshProfile = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: '1999-01-01' } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile,
+    })
+    vi.mocked(confirmTerms).mockResolvedValue(undefined)
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /I agree to the Terms/ }))
+
+    await waitFor(() => {
+      expect(confirmTerms).toHaveBeenCalledWith('2026-09-21')
+    })
+    await waitFor(() => {
+      expect(refreshProfile).toHaveBeenCalled()
+    })
   })
 })

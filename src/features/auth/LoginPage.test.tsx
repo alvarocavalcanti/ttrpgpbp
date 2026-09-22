@@ -218,6 +218,31 @@ describe('LoginPage', () => {
     )
   })
 
+  it('covers age and terms acceptance in a single required checkbox', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    // One checkbox records both consents: the 16+ attestation (stamped by
+    // confirm_age) and the terms acceptance (stamped by confirm_terms).
+    const checkbox = screen.getByLabelText(/I am at least 16 years old and agree to the/)
+    expect(checkbox).toHaveAttribute('type', 'checkbox')
+    expect(checkbox).not.toBeChecked()
+  })
+
   it('renders the feature grid with responsive layout', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,

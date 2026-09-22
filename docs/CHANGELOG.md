@@ -7,6 +7,8 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Safety alerts now reach the team directly** — when someone files an abuse report, or an uploaded image is blocked by the safety scan, the details land in a new **System** thread in Messages, with links to the channel and the people involved, so reports can be acted on right away.
+- **Your acceptance of the rules is now on record** — the app records that you agreed to the Terms and Privacy Policy, and when those documents change you'll be asked to accept the new version once before continuing.
+- **Clearer privacy details** — the Privacy Policy now names who is responsible for your data and how to reach them, and says plainly how long uploads and safety records are kept.
 
 ### Fixed
 
