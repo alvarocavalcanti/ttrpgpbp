@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelStatusBar } from './ChannelStatusBar'
 import { supabase } from '../../lib/supabase'
@@ -96,6 +96,31 @@ describe('ChannelStatusBar', () => {
     // The 10px hit-expansion needs room next to the Edit button (CodeRabbit):
     // the row gap is 12px (space-x-3) so the pseudo cannot overlap it.
     expect(chevron.parentElement?.className).toContain('space-x-3')
+  })
+
+  // #577: the status text arrives while the lazy Markdown chunk is still
+  // resolving, so the first measure sees a single-line skeleton and the
+  // chevron is dropped for the rest of the mount. A later re-measure must
+  // bring it back without a statusText change.
+  it('re-shows the chevron when the content starts overflowing after mount', () => {
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="A very long status line that wraps past a single clamped line." activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    expect(container.querySelector('button[aria-label="Expand Status"]')).toBeNull()
+
+    setOverflow(100, 30)
+    const observer = (globalThis as unknown as { __resizeObservers: { trigger: () => void }[] }).__resizeObservers.at(-1)!
+    act(() => observer.trigger())
+    expect(container.querySelector('button[aria-label="Expand Status"]')).toBeInTheDocument()
+  })
+
+  it('hides the chevron when the box stops overflowing after a resize', () => {
+    setOverflow(100, 30)
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText="A very long status line that wraps past a single clamped line." activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    expect(container.querySelector('button[aria-label="Expand Status"]')).toBeInTheDocument()
+
+    setOverflow(30, 30)
+    const observer = (globalThis as unknown as { __resizeObservers: { trigger: () => void }[] }).__resizeObservers.at(-1)!
+    act(() => observer.trigger())
+    expect(container.querySelector('button[aria-label="Expand Status"]')).toBeNull()
   })
 
   it('applies dark-mode prose variants to the status markdown', () => {
