@@ -1,8 +1,9 @@
 import { Avatar } from '../../components/Avatar'
-import { useRef, useState } from 'react'
+import { useRef, useState, useMemo } from 'react'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useActivePlayers } from './useActivePlayers'
+import { sortMembers } from '../../lib/memberOrder'
 
 interface SelectableMember {
   id: string
@@ -33,6 +34,10 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
   const [error, setError] = useState<string | null>(null)
 
   const { setActivePlayers } = useActivePlayers()
+
+  // #571: same roster order as the sidebar — players by character name A-Z
+  // case-insensitively. The parent excludes the GM, so no GM pin applies.
+  const orderedMembers = useMemo(() => sortMembers(members), [members])
 
   const toggle = (userId: string) => {
     setSelected(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId])
@@ -83,7 +88,7 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
           <p className="text-sm text-gray-500 dark:text-gray-400 py-4">No other players in this channel yet.</p>
         ) : (
           <ul className="space-y-2 mb-4">
-            {members.map(m => {
+            {orderedMembers.map(m => {
               const checked = selected.includes(m.user_id)
               return (
                 <li key={m.id}>

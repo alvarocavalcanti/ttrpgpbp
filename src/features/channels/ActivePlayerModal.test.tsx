@@ -88,6 +88,24 @@ describe('ActivePlayerModal', () => {
     expect(screen.getByText('No other players in this channel yet.')).toBeInTheDocument()
   })
 
+  it('lists players by character name case-insensitively (#571)', () => {
+    const unordered: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Zara', profile: { display_name: 'P1' } },
+      { id: 'm2', user_id: 'u2', character_name: 'arden', profile: { display_name: 'P2' } },
+      { id: 'm3', user_id: 'u3', character_name: 'Bobby', profile: { display_name: 'P3' } },
+    ]
+    render(<ActivePlayerModal channelId="c1" members={unordered} currentActiveIds={[]} onClose={vi.fn()} onSaved={vi.fn()} />)
+
+    // The checkbox accessible name comes from the wrapping label, so its DOM
+    // order is the rendered roster order.
+    const labels = screen.getAllByRole('checkbox').map(c => (c.closest('label') as HTMLElement).textContent)
+    expect(labels).toEqual([
+      expect.stringContaining('arden'),
+      expect.stringContaining('Bobby'),
+      expect.stringContaining('Zara'),
+    ])
+  })
+
   it('closes on Escape', () => {
     const onClose = vi.fn()
     render(<ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={onClose} onSaved={vi.fn()} />)

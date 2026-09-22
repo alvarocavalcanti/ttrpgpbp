@@ -13,7 +13,7 @@ The sidebar groups items by who uses them:
 
 **Table** — available to everyone:
 
-- **Member List** — everyone in the channel, with role badges, AFK states, and character info
+- **Member List** — everyone in the channel, with role badges, AFK states, and character info; the GM is always at the top and players are listed alphabetically by character name
 - **Notifications** — configure what you're notified about for this channel
 - **Safety Tools** — view the channel's Lines & Veils, or press the X-Card
 - **Channel Media** — browse every image shared in this channel and view one fullscreen

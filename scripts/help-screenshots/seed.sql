@@ -76,6 +76,18 @@ begin
     (gm,'Mira GM'),(p1,'Dorn'),(p2,'Kess'),(p3,'Pip')
   on conflict (id) do update set display_name = excluded.display_name;
 
+  -- Re-consent gate (#562): shot users must hold the current terms version
+  -- or ProtectedRoute blocks the app (and captures) behind ReConsentGate.
+  -- The terms guard trigger reverts direct writes, so flip the
+  -- transaction-local confirmation flag first (the same mechanism
+  -- confirm_terms() uses). Bump alongside CURRENT_TERMS_VERSION in
+  -- src/features/auth/terms.ts.
+  perform set_config('app.terms_confirmation', 'on', true);
+  update public.profiles
+  set terms_accepted_at = coalesce(terms_accepted_at, now()),
+      terms_version = '2026-09-21'
+  where id in (gm, p1, p2, p3);
+
   -- Recreate the screenshot channel so re-runs stay deterministic. Constrain
   -- by the fixture-only invite code too, so a real channel that happens to
   -- share the name is never deleted.

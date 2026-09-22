@@ -4,6 +4,7 @@ import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { Markdown } from '../../components/Markdown'
 import { SignedImg } from '../../components/SignedImg'
 import { useAdminChannelMessages, type AdminChannelMessage } from './useAdminChannelMessages'
+import { sortMembers } from '../../lib/memberOrder'
 
 // Pure link sanitizer; hoisted so ReactMarkdown gets a stable reference.
 // Mirrors the chat urlTransform minus the dice/check/user chips, which are
@@ -62,6 +63,14 @@ export function AdminChannelView() {
       />
     ),
   }), [])
+
+  // Same roster order as the channel sidebar (#571): GM first, then players
+  // by character name A-Z case-insensitively. channel is still possibly null
+  // here (the early return below runs after hooks), hence the optional chain.
+  const orderedMembers = useMemo(
+    () => sortMembers(members, channel?.gm_id ?? null),
+    [members, channel?.gm_id],
+  )
 
   useEffect(() => {
     if (loadOlderHeightRef.current !== null) {
@@ -140,7 +149,7 @@ export function AdminChannelView() {
               <p className="text-surface-500">No players yet.</p>
             ) : (
               <ul className="space-y-1.5">
-                {members.map(member => (
+                {orderedMembers.map(member => (
                   <li key={member.user_id} className="flex items-center gap-2 min-w-0">
                     <span className="font-medium text-surface-900 dark:text-surface-100 truncate">{member.character_name}</span>
                     {member.display_name && member.display_name !== member.character_name && (

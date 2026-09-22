@@ -562,4 +562,38 @@ describe('MemberList', () => {
 
     expect(screen.getByText('Wary of goblins.')).toBeInTheDocument()
   })
+
+  it('lists the GM first, then players by character name case-insensitively (#571)', () => {
+    const members: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Zara', is_blocked: false, profile: { display_name: 'Player One' } },
+      { id: 'm2', user_id: 'u2', character_name: 'arden', is_blocked: false, profile: { display_name: 'Player Two' } },
+      { id: 'm3', user_id: 'u3', character_name: 'Bobby', is_blocked: false, profile: { display_name: 'Player Three' } },
+      { id: 'm4', user_id: 'u4', character_name: 'Grandmaster', is_blocked: false, profile: { display_name: 'The GM' } },
+    ]
+    render(<StatefulMemberList members={members} isGM={true} gmId="u4" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    // The GM row keeps the accessibility label as its probe: the button order
+    // follows the DOM order of the roster.
+    const labels = screen.getAllByRole('button', { name: /Member options for/ }).map(b => b.getAttribute('aria-label'))
+    expect(labels).toEqual([
+      'Member options for Grandmaster',
+      'Member options for arden',
+      'Member options for Bobby',
+      'Member options for Zara',
+    ])
+  })
+
+  it('lists blocked members by character name (#571)', () => {
+    const members: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Zara', is_blocked: true, profile: { display_name: 'Player One' } },
+      { id: 'm2', user_id: 'u2', character_name: 'arden', is_blocked: true, profile: { display_name: 'Player Two' } },
+      { id: 'm3', user_id: 'u3', character_name: 'Hero', is_blocked: false, profile: { display_name: 'Player Three' } },
+    ]
+    render(<StatefulMemberList members={members} isGM={true} gmId="u3" myUserId="u3" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText('Blocked — 2')).toBeInTheDocument()
+    const blockedHeading = screen.getByText('Blocked — 2').closest('div')!.parentElement!
+    const names = Array.from(blockedHeading.querySelectorAll('ul p')).map(p => p.textContent)
+    expect(names.filter(n => n === 'arden' || n === 'Zara')).toEqual(['arden', 'Zara'])
+  })
 })

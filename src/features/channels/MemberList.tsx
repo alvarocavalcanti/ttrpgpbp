@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Database } from '../../types/database'
 import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
+import { sortMembers } from '../../lib/memberOrder'
 
 import { EditCharacterModal } from './EditCharacterModal'
 import { SignedImg } from '../../components/SignedImg'
@@ -153,8 +154,16 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     }
   }
 
-  const activeMembers = members.filter(m => !m.is_blocked)
-  const blockedMembers = members.filter(m => m.is_blocked)
+  // #571: roster order — GM first, then players by character name A-Z
+  // (case-insensitive); the blocked section is name-only, no GM pin.
+  const activeMembers = useMemo(
+    () => sortMembers(members.filter(m => !m.is_blocked), gmId),
+    [members, gmId],
+  )
+  const blockedMembers = useMemo(
+    () => sortMembers(members.filter(m => m.is_blocked)),
+    [members],
+  )
 
   return (
     <div className="py-4">
