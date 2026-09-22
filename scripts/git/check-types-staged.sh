@@ -1,8 +1,12 @@
 #!/bin/sh
-# Pre-commit guard: a commit staging migrations must also stage the
-# regenerated types. CI diffs `supabase gen types` output and fails the PR
-# on any drift; this catches the recurring miss of landing a (follow-up)
-# migration without re-running typegen, with no database needed.
+# Pre-commit guard: a commit that adds, modifies, or copies a migration must
+# also stage the regenerated types. CI diffs `supabase gen types` output and
+# fails the PR on any drift; this catches the recurring miss of landing a
+# (follow-up) migration without re-running typegen, with no database needed.
+# A pure rename (git reports R) changes no schema — that matters when an
+# unapplied migration is renamed to restore timestamp order (see
+# check-migration-order.sh) — so renames are exempt. Every other migration
+# change (add/modify/delete) still needs the regenerated types.
 # Correctness of the regenerated file itself remains CI's job.
 set -eu
 
@@ -18,7 +22,13 @@ staged="$(git diff --cached --name-only)" || {
   echo "error: check-types-staged could not read the staged files." >&2
   exit 2
 }
-if printf '%s\n' "$staged" | grep -q '^supabase/migrations/'; then
+# `-M` rename detection keeps a pure rename (status R…) out of the trigger.
+migration_content_changed="$(git diff --cached --name-status -M | awk -F'\t' \
+  '$1 !~ /^R/ && $2 ~ /^supabase\/migrations\// { print "yes"; exit }')" || {
+  echo "error: check-types-staged could not inspect the staged changes." >&2
+  exit 2
+}
+if [ -n "$migration_content_changed" ]; then
   if ! printf '%s\n' "$staged" | grep -q '^src/types/database.ts$'; then
     echo "error: staged migrations without src/types/database.ts." >&2
     echo "Run: npx supabase gen types typescript --local > src/types/database.ts" >&2

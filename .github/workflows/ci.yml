@@ -11,7 +11,16 @@ jobs:
   migrate-check:
     runs-on: ubuntu-latest
     steps:
+      # Full history so the base ref is available to the migration-order guard.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify new migrations sort after the base branch
+        # Out-of-order migrations make `supabase db push` refuse on main
+        # (2026-09-22 incident). Branch protection requires PRs to be up to
+        # date with main, so this blocks the merge instead of the deploy.
+        run: sh scripts/git/check-migration-order.sh "${{ github.event.pull_request.base.sha || 'origin/main' }}"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v3

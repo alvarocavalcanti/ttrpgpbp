@@ -1,4 +1,4 @@
--- 20260921172949: profiles.terms_accepted_at + terms_version + confirm_terms().
+-- 20260922190814: profiles.terms_accepted_at + terms_version + confirm_terms().
 --
 -- The acceptance record is evidence, so it must be self-only (never another
 -- user's row), unreachable by anon/PUBLIC, re-stampable on a version bump,
