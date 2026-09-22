@@ -1,7 +1,8 @@
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useState } from 'react'
 import { Markdown } from '../../components/Markdown'
 import { proseAmber } from '../chat/composerChip'
 import { useChannelStatus } from './useChannelStatus'
+import { useElementOverflow } from '../../hooks/useElementOverflow'
 import { MAX_STATUS_LENGTH } from '../../constants'
 
 interface ActivePlayer {
@@ -25,16 +26,10 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Chevron only when the clamped (collapsed) status text actually overflows
-  // one line; single-line text has nothing to expand.
-  const statusRef = useRef<HTMLDivElement>(null)
-  const [overflows, setOverflows] = useState(false)
+  // one line; single-line text has nothing to expand. The hook re-measures as
+  // the lazy markdown resolves and the box resizes (#577).
+  const { ref: statusRef, overflows } = useElementOverflow<HTMLDivElement>()
   const { updateStatus } = useChannelStatus()
-
-  useLayoutEffect(() => {
-    const el = statusRef.current
-    if (!el) return
-    setOverflows(el.scrollHeight > el.clientHeight + 1)
-  }, [statusText, isExpanded])
 
   const handleSave = async () => {
     setIsSubmitting(true)
