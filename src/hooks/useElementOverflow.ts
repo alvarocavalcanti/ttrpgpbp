@@ -27,9 +27,10 @@ export function useElementOverflow<T extends HTMLElement>(): {
   const measure = useCallback((el: T | null) => {
     if (!el) return
     const clamped = el.clientHeight
-    // ponytail: inline un-clamp to read the full height; the clamp always
-    // comes from the Tailwind class here, never an inline style. Swap to the
-    // clone-based measurement if a host ever sets an inline line-clamp.
+    // ponytail: read the full height by dropping the clamp inline. The clamp
+    // always comes from the Tailwind class on this element, never an inline
+    // style, so removing the property is a clean restore. Switch to the
+    // clone-based measurement if an inline line-clamp is ever introduced.
     el.style.setProperty('-webkit-line-clamp', 'unset')
     const full = el.scrollHeight
     el.style.removeProperty('-webkit-line-clamp')

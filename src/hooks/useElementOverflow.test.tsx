@@ -21,6 +21,7 @@ function Harness() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks()
   setHeights(0, 0)
 })
 
@@ -71,11 +72,13 @@ describe('useElementOverflow', () => {
 
   it('disconnects both observers on unmount', () => {
     setHeights(30, 30)
+    const mutationDisconnect = vi.spyOn(MutationObserver.prototype, 'disconnect')
     const { unmount } = render(<Harness />)
     const observer = (globalThis as unknown as { __resizeObservers: ResizeObserverMock[] }).__resizeObservers.at(-1)!
-    const disconnect = vi.spyOn(observer, 'disconnect')
+    const resizeDisconnect = vi.spyOn(observer, 'disconnect')
     unmount()
-    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(resizeDisconnect).toHaveBeenCalledTimes(1)
+    expect(mutationDisconnect).toHaveBeenCalledTimes(1)
   })
 
   it('does nothing until a node is attached', () => {
