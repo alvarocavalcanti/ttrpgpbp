@@ -247,8 +247,25 @@ describe('AdminChannelView', () => {
     expect(screen.getByText('Blocked')).toBeInTheDocument()
   })
 
-  it('hides a display name identical to the character name', async () => {
+  it('lists the Players roster with the GM first, then players by character name (#571)', async () => {
     vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+      channel: { ...baseChannel, gm_id: 'u2' },
+      members: [
+        { user_id: 'u1', display_name: 'Alice', character_name: 'Alicia the Bold', is_blocked: false, is_active_player: false },
+        { user_id: 'u2', display_name: 'Zed', character_name: 'Zed', is_blocked: false, is_active_player: false },
+        { user_id: 'u3', display_name: 'Bob', character_name: 'Bobby', is_blocked: false, is_active_player: true },
+      ],
+    }) as any)
+
+    renderView()
+
+    expect(await screen.findByText('Players (2)')).toBeInTheDocument()
+    const items = screen.getAllByRole('listitem')
+    const names = items.map(li => (li.querySelector('span') as HTMLElement).textContent)
+    expect(names).toEqual(['Zed', 'Alicia the Bold', 'Bobby'])
+  })
+
+  it('hides a display name identical to the character name', async () => {    vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
       members: [
         { user_id: 'u2', display_name: 'Bobby', character_name: 'Bobby', is_blocked: false, is_active_player: false },
       ],
