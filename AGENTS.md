@@ -162,19 +162,21 @@ Every UI change must follow these conventions:
 ## Database Migrations
 
 - **Create a migration**: `npx supabase migration new <name>`
+- **Ordering matters — always create the migration last**: `supabase db push` applies migrations in filename (timestamp) order and refuses one that predates the last migration already on the remote. That is exactly what broke main on 2026-09-22: the terms-acceptance migration (`20260921172949`, PR #574) merged after the newer `20260921190433` (PR #573) had already been pushed, so `Apply Migrations` failed. The timestamp is fixed when you run `supabase migration new`, so a branch opened before a newer migration lands keeps an older name. **Before pushing, run `npm run check:migration-order`**; if main gained a newer migration since you branched, rebase and recreate yours (`npx supabase migration new <name>`, then re-run typegen) so it sorts last. Branch protection requires PRs to be up to date with main, so the `migrate-check` guard blocks the merge rather than the deploy.
 - **Apply locally**: `npm run supabase:up` (applies pending migrations)
 - **Verify from scratch**: `npm run supabase:reset` — wraps `supabase db reset` locally; CI itself runs `supabase db start` + `supabase db reset` on every PR
-- **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration.
+- **Never edit merged migrations**: once a migration is merged/pushed, it is immutable. To fix a schema issue, create a new migration. The one exception is an **unapplied** migration left out of order by a late merge (the push error above): rename the file to a newer timestamp with its contents unchanged — that is Supabase's documented remedy. Do not add `--include-all` to the workflow to force it through.
 - **Regenerate types after EVERY schema change — including follow-ups**: `npx supabase gen types typescript --local > src/types/database.ts` must be re-run after any migration is added or edited, including review-fix migrations landed after the first typegen. Enforced locally by the pre-commit `check:types-staged` step, which blocks commits staging migrations without `src/types/database.ts`; CI diffs the regenerated file for correctness and fails the PR on any drift. The recurring miss: landing a follow-up migration without re-running typegen.
   - **CLI formatting drift**: the npm-distributed CLI (`npx supabase`) strips blank lines that the setup-cli binary used in CI keeps (same pinned version, different output). If CI reports drift consisting only of blank lines, restore them at the top-level declaration boundaries (plus the trailing blank line) instead of fighting the generator.
 - **CI enforcement**:
-  - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `supabase db start` + `supabase db reset`. A PR that breaks migrations fails CI.
+  - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `scripts/git/check-migration-order.sh` first, then `supabase db start` + `supabase db reset`. A PR that breaks migrations or adds a migration that sorts at or before main's latest fails CI.
   - On merge to main, [.github/workflows/migrate.yml](.github/workflows/migrate.yml) runs `supabase db push` against the remote project. If it fails, fix via a new migration.
   - The Supabase CLI version is pinned in both workflows to the latest release (`v2.117.0`). Keep the pin and your local `npx supabase` in sync — drift between CLI versions changes generated types and migration behavior (see below). Bump the pin together with `npx supabase` locally.
   - **`CREATE INDEX CONCURRENTLY` must be its own single-statement migration** — the CLI runs `db reset` as a pipeline, and concurrent index creation cannot run inside one. Give it a dedicated file (see `20260908170031_admin_user_details_sender_index.sql`, matching `20260905175441`).
 - **Troubleshooting**:
   - `supabase db reset` failing locally = migration depends on existing state. Fix before pushing.
-  - Remote push failing = check the `Apply Migrations` workflow logs in GitHub Actions, then push a corrective migration.
+  - Remote push failing with "Found local migration files to be inserted before the last migration on remote database" = an out-of-order merge. Rename the unapplied migration to a newer timestamp (contents unchanged) in a small PR; it applies on the next push to main. The `migrate-check` guard prevents the next one.
+  - Remote push failing for any other reason = check the `Apply Migrations` workflow logs in GitHub Actions, then push a corrective migration.
 
 ## Git Hygiene
 

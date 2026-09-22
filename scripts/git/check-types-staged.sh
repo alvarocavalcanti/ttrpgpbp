@@ -1,8 +1,13 @@
 #!/bin/sh
-# Pre-commit guard: a commit staging migrations must also stage the
-# regenerated types. CI diffs `supabase gen types` output and fails the PR
-# on any drift; this catches the recurring miss of landing a (follow-up)
-# migration without re-running typegen, with no database needed.
+# Pre-commit guard: a commit that adds, modifies, or copies a migration must
+# also stage the regenerated types. CI diffs `supabase gen types` output and
+# fails the PR on any drift; this catches the recurring miss of landing a
+# (follow-up) migration without re-running typegen, with no database needed.
+# Only an exact, in-place migration rename (git reports R100) is exempt: it
+# changes no schema, which matters when an unapplied migration is renamed to
+# restore timestamp order (see check-migration-order.sh). A rename that also
+# edits the SQL, or that moves a migration into or out of supabase/migrations/,
+# still needs the regenerated types.
 # Correctness of the regenerated file itself remains CI's job.
 set -eu
 
@@ -18,7 +23,17 @@ staged="$(git diff --cached --name-only)" || {
   echo "error: check-types-staged could not read the staged files." >&2
   exit 2
 }
-if printf '%s\n' "$staged" | grep -q '^supabase/migrations/'; then
+migration_content_changed="$(git diff --cached --name-status -M | awk -F'\t' '
+  # Exact in-place migration rename: schema unchanged, exempt.
+  $1 == "R100" && $2 ~ /^supabase\/migrations\// && $3 ~ /^supabase\/migrations\// { next }
+  # Any other change that touches a migration path needs regenerated types.
+  $2 ~ /^supabase\/migrations\// { print "yes"; exit }
+  $3 ~ /^supabase\/migrations\// { print "yes"; exit }
+')" || {
+  echo "error: check-types-staged could not inspect the staged changes." >&2
+  exit 2
+}
+if [ -n "$migration_content_changed" ]; then
   if ! printf '%s\n' "$staged" | grep -q '^src/types/database.ts$'; then
     echo "error: staged migrations without src/types/database.ts." >&2
     echo "Run: npx supabase gen types typescript --local > src/types/database.ts" >&2

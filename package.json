@@ -11,6 +11,7 @@
     "lint:md": "markdownlint-cli2 \"*.md\" \"docs/**/*.md\"",
     "spellcheck": "cspell \"src/**/*.{ts,tsx}\" \"*.md\" \"docs/**/*.md\"",
     "check:types-staged": "sh scripts/git/check-types-staged.sh",
+    "check:migration-order": "sh scripts/git/check-migration-order.sh",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "supabase:up": "sh scripts/supabase/up.sh",
