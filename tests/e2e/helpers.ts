@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
+import { CURRENT_TERMS_VERSION } from '../../src/features/auth/terms';
 
 // A fresh session has never seen the changelog, so the What's New dialog
 // overlays the lobby and intercepts clicks. Wait for it briefly, then dismiss
@@ -40,6 +41,7 @@ const unquote = (v: string | undefined) => v?.replace(/^["']|["']$/g, '') ?? '';
 // redirect seeding away from the local stack.
 const supabaseUrl = unquote(process.env.SUPABASE_URL) || unquote(localEnv.VITE_SUPABASE_URL);
 const serviceRoleKey = unquote(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const anonKey = unquote(localEnv.VITE_SUPABASE_ANON_KEY);
 
 export const TEST_PASSWORD = 'Password123!';
 
@@ -89,11 +91,49 @@ export async function seedUser(email: string, password: string = TEST_PASSWORD):
   });
   if (res.ok) {
     const body = await res.json().catch(() => null);
-    return { ok: true, id: body?.id as string | undefined };
+    const id = body?.id as string | undefined;
+    if (id) await stampTermsAcceptance(email, password);
+    return { ok: true, id };
   }
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   const error = (body.msg || body.message || body.error_description || body.error || `HTTP ${res.status}`) as string;
   return { ok: false, error };
+}
+
+// Stamps the current terms acceptance for a freshly seeded user through the
+// self-only confirm_terms() RPC (#562). Seeded users model post-onboarding
+// accounts, so the re-consent gate must not block specs that bypass the
+// sign-up checkbox flow. A service-role write is not an option: the evidence
+// guard reverts any direct write without the RPC's transaction marker —
+// hence the sign-in as the user first.
+async function stampTermsAcceptance(email: string, password: string): Promise<void> {
+  if (!anonKey) {
+    throw new Error('E2E terms stamping needs VITE_SUPABASE_ANON_KEY in .env.local.');
+  }
+  const signInRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!signInRes.ok) {
+    throw new Error(`E2E terms stamping sign-in failed: ${signInRes.status}`);
+  }
+  const { access_token: accessToken } = await signInRes.json().catch(() => ({}));
+  if (!accessToken) {
+    throw new Error('E2E terms stamping sign-in returned no token.');
+  }
+  const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/confirm_terms`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_version: CURRENT_TERMS_VERSION }),
+  });
+  if (!rpcRes.ok) {
+    throw new Error(`E2E terms stamping failed: ${rpcRes.status} ${await rpcRes.text().catch(() => '')}`);
+  }
 }
 
 // Signs the seeded user in through the app's own client (exposed in dev for

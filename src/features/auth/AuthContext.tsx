@@ -108,6 +108,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // client checkbox was accepted (localStorage flag). The RPC is idempotent.
   // The user is marked confirmed only after the RPC succeeds, so a failed call
   // is retried on the next auth event instead of being silently dropped.
+  //
+  // Terms acceptance is deliberately NOT stamped here: confirm_terms()
+  // re-stamps, so stamping on load would silently accept a new version on
+  // the user's behalf and bypass the re-consent gate (#562 review). The
+  // gate is the single path that records terms acceptance, always with an
+  // explicit user action.
   useEffect(() => {
     if (loading || !user) return
     if (localStorage.getItem('age-confirmed') !== 'true') return

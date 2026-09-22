@@ -121,6 +121,8 @@ export const ProfileRowSchema = z.looseObject({
   avatar_url: z.string().nullish(),
   created_at: z.string().nullish(),
   is_suspended: z.boolean().nullish(),
+  terms_version: z.string().nullish(),
+  terms_accepted_at: z.string().nullish(),
 })
 
 // RPC scalars (unread counts, GM/admin flags) are equally untrusted.

@@ -8,6 +8,7 @@ import {
   deleteAccount,
   subscribeToAuthEvents,
   confirmAge,
+  confirmTerms,
 } from './authApi'
 import { supabase } from '../../lib/supabase'
 
@@ -74,7 +75,7 @@ describe('authApi', () => {
   it('fetchProfileRow selects the profile columns for the user', () => {
     fetchProfileRow('u1')
     expect(supabase.from).toHaveBeenCalledWith('profiles')
-    expect(query.select).toHaveBeenCalledWith('id, display_name, avatar_url, created_at, is_suspended, email_opt_in, email_opt_in_at')
+    expect(query.select).toHaveBeenCalledWith('id, display_name, avatar_url, created_at, is_suspended, email_opt_in, email_opt_in_at, terms_accepted_at, terms_version')
     expect(query.eq).toHaveBeenCalledWith('id', 'u1')
     expect(query.single).toHaveBeenCalled()
   })
@@ -104,5 +105,18 @@ describe('authApi', () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('nope') } as any)
 
     await expect(confirmAge()).rejects.toThrow('nope')
+  })
+
+  it('confirmTerms calls the confirm_terms RPC with the version', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    await confirmTerms('2026-09-21')
+    expect(supabase.rpc).toHaveBeenCalledWith('confirm_terms', { p_version: '2026-09-21' })
+  })
+
+  it('confirmTerms throws when the RPC fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('nope') } as any)
+
+    await expect(confirmTerms('2026-09-21')).rejects.toThrow('nope')
   })
 })
