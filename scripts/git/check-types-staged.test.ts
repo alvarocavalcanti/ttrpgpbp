@@ -9,12 +9,18 @@ const script = resolve(process.cwd(), 'scripts/git/check-types-staged.sh')
 // Spawned git must never inherit a redirected repository environment
 // (GIT_DIR and friends leak in from IDEs, wrappers, and hooks): without
 // this, temp-repo commands can commit into — or read — the wrong repo.
+// NOTE: GIT_INDEX_FILE is scrubbed here (test isolation) but deliberately
+// NOT in the guard script — git points the pre-commit hook at the index
+// being committed, and the guard must inspect that same index.
 function cleanEnv(): NodeJS.ProcessEnv {
   const {
     GIT_DIR: _dir,
     GIT_WORK_TREE: _tree,
     GIT_CEILING_DIRECTORIES: _ceil,
     GIT_COMMON_DIR: _common,
+    GIT_INDEX_FILE: _index,
+    GIT_OBJECT_DIRECTORY: _objects,
+    GIT_ALTERNATE_OBJECT_DIRECTORIES: _alternates,
     ...rest
   } = process.env
   return rest
@@ -55,7 +61,7 @@ describe('scripts/git/check-types-staged', () => {
   // would silently bless a bad commit, so any mismatch must show exactly
   // what the script saw.
   function stagedNow(): string {
-    return spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: dir, encoding: 'utf8' }).stdout as string
+    return spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: dir, encoding: 'utf8', env: cleanEnv() }).stdout as string
   }
 
   it('passes when nothing migration-related is staged', () => {
@@ -99,6 +105,28 @@ describe('scripts/git/check-types-staged', () => {
       expect(r.status, diag).toBe(1)
     } finally {
       delete process.env.GIT_DIR
+    }
+  })
+
+  it('ignores redirected index and object directories', () => {
+    // Same isolation for GIT_INDEX_FILE / GIT_OBJECT_DIRECTORY /
+    // GIT_ALTERNATE_OBJECT_DIRECTORIES: index selection and object lookup
+    // must follow the temp repo, never the ambient environment.
+    const emptyDir = mkdtempSync(join(tmpdir(), 'types-staged-empty-'))
+    process.env.GIT_INDEX_FILE = join(emptyDir, 'index')
+    process.env.GIT_OBJECT_DIRECTORY = join(emptyDir, 'objects')
+    process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = join(emptyDir, 'alternates')
+    try {
+      write(dir, 'supabase/migrations/20260000000000_x.sql')
+      git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+      const r = run()
+      const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
+      expect(r.status, diag).toBe(1)
+    } finally {
+      delete process.env.GIT_INDEX_FILE
+      delete process.env.GIT_OBJECT_DIRECTORY
+      delete process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES
+      rmSync(emptyDir, { recursive: true, force: true })
     }
   })
 })
