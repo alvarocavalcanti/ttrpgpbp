@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { captureException } from '../lib/sentry'
+import { hardReload } from '../lib/hardReload'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -25,7 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   handleReload = () => {
-    window.location.reload()
+    hardReload()
   }
 
   render() {

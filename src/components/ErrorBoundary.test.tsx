@@ -4,8 +4,10 @@ import type { ReactNode } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 
 vi.mock('../lib/sentry', () => ({ captureException: vi.fn() }))
+vi.mock('../lib/hardReload', () => ({ hardReload: vi.fn() }))
 
 import { captureException } from '../lib/sentry'
+import { hardReload } from '../lib/hardReload'
 
 function Bomb(): ReactNode {
   throw new Error('kaboom')
@@ -40,11 +42,6 @@ describe('ErrorBoundary', () => {
 
   it('reloads the page from the fallback', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const reload = vi.fn()
-    Object.defineProperty(window, 'location', {
-      value: { reload },
-      configurable: true,
-    })
 
     render(
       <ErrorBoundary>
@@ -52,6 +49,6 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     )
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
-    expect(reload).toHaveBeenCalled()
+    expect(hardReload).toHaveBeenCalled()
   })
 })

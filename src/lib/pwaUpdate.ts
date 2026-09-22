@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { registerSW } from 'virtual:pwa-register'
+import { hardReload } from './hardReload'
 
 export type PwaUpdateStatus = 'idle' | 'offline-ready' | 'update-available' | 'updating'
 
@@ -60,7 +61,7 @@ export function reloadToUpdate() {
     if (finished) return
     finished = true
     window.clearTimeout(timer)
-    window.location.reload()
+    hardReload()
   }
 
   // Belt and braces: browsers that do fire controllerchange take this path.
