@@ -8,7 +8,7 @@ const capture = vi.hoisted(() => ({
   opts: null as { onNeedRefresh?: () => void; onOfflineReady?: () => void } | null,
   getRegistration: vi.fn(),
   addEventListener: vi.fn(),
-  reload: vi.fn(),
+  hardReload: vi.fn(),
 }))
 
 vi.mock('virtual:pwa-register', () => ({
@@ -18,6 +18,8 @@ vi.mock('virtual:pwa-register', () => ({
   },
 }))
 
+vi.mock('./hardReload', () => ({ hardReload: capture.hardReload }))
+
 let pwaUpdate: typeof import('./pwaUpdate')
 
 beforeEach(async () => {
@@ -26,15 +28,10 @@ beforeEach(async () => {
   capture.getRegistration.mockReset()
   capture.getRegistration.mockResolvedValue(undefined)
   capture.addEventListener.mockReset()
-  capture.reload.mockReset()
+  capture.hardReload.mockReset()
   Object.defineProperty(navigator, 'serviceWorker', {
     value: { getRegistration: capture.getRegistration, addEventListener: capture.addEventListener },
     configurable: true,
-  })
-  // Avoid reloading the page during tests.
-  Object.defineProperty(window, 'location', {
-    configurable: true,
-    value: { reload: capture.reload },
   })
   pwaUpdate = await import('./pwaUpdate')
 })
@@ -97,20 +94,20 @@ describe('reloadToUpdate', () => {
     capture.getRegistration.mockResolvedValue({ waiting: worker })
     await act(async () => pwaUpdate.reloadToUpdate())
     expect(worker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
-    expect(capture.reload).not.toHaveBeenCalled()
+    expect(capture.hardReload).not.toHaveBeenCalled()
     worker.state = 'activated'
     await act(async () => stateListeners.forEach((listener) => listener()))
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
     // The safety net must not fire a second reload.
     await act(async () => vi.advanceTimersByTime(3000))
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
   it('reloads immediately when the worker already activated', async () => {
     const worker = { state: 'activated', postMessage: vi.fn(), addEventListener: vi.fn() }
     capture.getRegistration.mockResolvedValue({ waiting: worker })
     await act(async () => pwaUpdate.reloadToUpdate())
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
     expect(worker.postMessage).not.toHaveBeenCalled()
   })
 
@@ -128,9 +125,9 @@ describe('reloadToUpdate', () => {
     await act(async () => pwaUpdate.reloadToUpdate())
     worker.state = 'redundant'
     await act(async () => stateListeners.forEach((listener) => listener()))
-    expect(capture.reload).not.toHaveBeenCalled()
+    expect(capture.hardReload).not.toHaveBeenCalled()
     await act(async () => vi.advanceTimersByTime(3000))
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
   it('still wires the controllerchange listener when no registration exists', async () => {
@@ -148,15 +145,15 @@ describe('reloadToUpdate', () => {
     const onChange = capture.addEventListener.mock.calls.find(([type]) => type === 'controllerchange')?.[1]
     expect(onChange).toBeTypeOf('function')
     await act(async () => onChange())
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
   it('force-reloads after 3s when the worker never takes control', async () => {
     vi.useFakeTimers()
     await act(async () => pwaUpdate.reloadToUpdate())
-    expect(capture.reload).not.toHaveBeenCalled()
+    expect(capture.hardReload).not.toHaveBeenCalled()
     await act(async () => vi.advanceTimersByTime(3000))
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
   it('falls back to the 3s reload when a registration has no waiting or installing worker', async () => {
@@ -165,11 +162,11 @@ describe('reloadToUpdate', () => {
     vi.useFakeTimers()
     capture.getRegistration.mockResolvedValue({ waiting: null, installing: null })
     await act(async () => pwaUpdate.reloadToUpdate())
-    expect(capture.reload).not.toHaveBeenCalled()
+    expect(capture.hardReload).not.toHaveBeenCalled()
     await act(async () => vi.advanceTimersByTime(2999))
-    expect(capture.reload).not.toHaveBeenCalled()
+    expect(capture.hardReload).not.toHaveBeenCalled()
     await act(async () => vi.advanceTimersByTime(1))
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
   it('cancels the 3s fallback once the new worker takes control', async () => {
@@ -177,9 +174,9 @@ describe('reloadToUpdate', () => {
     await act(async () => pwaUpdate.reloadToUpdate())
     const onChange = capture.addEventListener.mock.calls.find(([type]) => type === 'controllerchange')?.[1]
     await act(async () => onChange())
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
     await act(async () => vi.advanceTimersByTime(3000))
-    expect(capture.reload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
   it('ignores a second tap while a reload is already in flight', async () => {
