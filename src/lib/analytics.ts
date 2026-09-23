@@ -33,8 +33,13 @@ export function initAnalytics(): void {
   }
 
   window.dataLayer = window.dataLayer || []
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer!.push(args)
+  // Mirror Google's snippet exactly: it pushes the array-like `arguments`
+  // object, and gtag.js's drain of the pre-load dataLayer ignores real Arrays.
+  // Pushing an Array here left the destination unregistered, so every hit was
+  // silently dropped and GA never recorded a single visit (#582 follow-up).
+  // Must stay a plain function — an arrow function has no `arguments`.
+  window.gtag = function gtag() {
+    window.dataLayer!.push(arguments)
   }
   window.gtag('js', new Date())
   // send_page_view is disabled because the automatic page_view fires with the

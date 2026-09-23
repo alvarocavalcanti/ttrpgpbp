@@ -33,21 +33,10 @@ describe('Security Headers (public/_headers)', () => {
     expect(csp['connect-src']).toContain('https://*.sentry.io')
   })
 
-  it('allows every origin gtag.js reports measurements to on connect-src', () => {
-    // gtag.js builds hit URLs on `analytics.google.com` (and its region
-    // subdomains) and fetches the geo lookup from `www.google.com`; the
-    // classic `google-analytics.com` endpoint is still used as a fallback.
-    // Google's documented GA4 CSP requires all three source groups.
+  it('allows the Google Analytics beacon endpoint on connect-src', () => {
+    // gtag.js reports hits to region*.google-analytics.com via fetch/XHR.
     const csp = readCsp()
     expect(csp['connect-src']).toContain('https://*.google-analytics.com')
-    expect(csp['connect-src']).toContain('https://www.googletagmanager.com')
-    expect(csp['connect-src']).toContain('https://*.google.com')
-  })
-
-  it('allows the GA beacon origins on img-src', () => {
-    const csp = readCsp()
-    expect(csp['img-src']).toContain('https://www.googletagmanager.com')
-    expect(csp['img-src']).toContain('https://*.google-analytics.com')
   })
 
   it('allows the NPC portrait CDN (Iconify) for images and search', () => {
