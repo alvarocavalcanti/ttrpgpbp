@@ -31,8 +31,9 @@ CREATE POLICY "Users manage their own dice favorites"
   );
 
 -- Race-proof the 3-favorite cap (the UI disables the checkbox; this is the
--- backstop). SECURITY DEFINER so the count sees past RLS like
--- handle_new_user_prefs.
+-- backstop). Fires on insert and on channel changes: an UPDATE moving a row
+-- into a channel that already holds three must fail too. SECURITY DEFINER
+-- so the count sees past RLS like handle_new_user_prefs.
 CREATE OR REPLACE FUNCTION public.enforce_dice_favorite_cap()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -41,7 +42,8 @@ SET search_path = public
 AS $$
 BEGIN
   IF (SELECT COUNT(*) FROM public.dice_roll_favorites
-      WHERE user_id = NEW.user_id AND channel_id = NEW.channel_id) >= 3 THEN
+      WHERE user_id = NEW.user_id AND channel_id = NEW.channel_id
+        AND id <> NEW.id) >= 3 THEN
     RAISE EXCEPTION 'You can only pin three favorite rolls per channel.';
   END IF;
   RETURN NEW;
@@ -49,7 +51,7 @@ END;
 $$;
 
 CREATE TRIGGER dice_roll_favorites_cap
-  BEFORE INSERT ON public.dice_roll_favorites
+  BEFORE INSERT OR UPDATE OF channel_id ON public.dice_roll_favorites
   FOR EACH ROW EXECUTE FUNCTION public.enforce_dice_favorite_cap();
 
 -- Trigger helpers are wired via CREATE TRIGGER only and must never be

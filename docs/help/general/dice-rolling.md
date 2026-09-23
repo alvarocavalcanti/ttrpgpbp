@@ -29,7 +29,7 @@ Both GMs and players can use the **Dice Roller Panel**:
 - Pick a dice type (d4, d6, d8, d10, d12, d20, d100)
 - Set the quantity
 - Add a modifier (+N / -N) — on phones, use the − / + steppers
-- Tap a chip to load one of the last three distinct roll notations used in the channel into the roller — check the values, then tap **Roll** to confirm (no more accidental rolls)
+- Tap a chip to load one of the last three distinct roll notations used in the channel into the roller — check the values, then tap **Roll** to confirm, so an accidental tap no longer rolls. A few exotic rolls the panel can't rebuild (like drop-lowest) still roll the instant you tap.
 - Pin up to three favorite notations per channel with the star checkbox on each chip — favorites stay pinned to the front in amber, and unchecking one frees the slot
 - Toggle advantage / disadvantage (d20 only)
 - Roll — the result is posted as a dice roll message, and the roller closes so you can see it right away

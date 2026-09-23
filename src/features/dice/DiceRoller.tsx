@@ -44,9 +44,9 @@ export interface RollerValues {
 // Inverse of buildNotation: maps a channel-history notation back onto the
 // roller form so a chip tap loads the values instead of rolling. Returns
 // null for notations the form can't represent (drop-highest/lowest,
-// keep/drop counts other than 1, or die sizes outside DICE_TYPES) — those
-// chips keep the old one-click roll so the user never confirms a roll
-// different from the one shown.
+// keep/drop counts other than 1, die sizes outside DICE_TYPES, or counts /
+// modifiers outside the form bounds) — those chips keep the old one-click
+// roll so the user never confirms a roll different from the one shown.
 export function parseRollerNotation(notation: string): RollerValues | null {
   const match = notation.replace(/\s+/g, '').toLowerCase()
     .match(/^(\d{1,3})d(\d{1,3})(?:(kh|kl|dh|dl)(\d{0,3}))?([+-]\d{1,4})?$/)
@@ -60,7 +60,8 @@ export function parseRollerNotation(notation: string): RollerValues | null {
 
   if (keepDrop) {
     // The form only does d20 advantage/disadvantage (2d20 keep-high/low 1).
-    if ((keepDrop === 'kh' || keepDrop === 'kl') && keepDropAmount === 1 && count === 2 && sides === 20) {
+    if ((keepDrop === 'kh' || keepDrop === 'kl') && keepDropAmount === 1 && count === 2 && sides === 20
+      && modifier >= -999 && modifier <= 999) {
       return { diceType: 'd20', quantity: 1, modifier, advDis: keepDrop === 'kh' ? 'adv' : 'dis' }
     }
     return null
@@ -68,13 +69,11 @@ export function parseRollerNotation(notation: string): RollerValues | null {
 
   const diceType = `d${sides}`
   if (!(DICE_TYPES as readonly string[]).includes(diceType)) return null
-  // Same bounds the inputs enforce at keystroke time.
-  return {
-    diceType,
-    quantity: Math.min(100, Math.max(1, count)),
-    modifier: Math.min(999, Math.max(-999, modifier)),
-    advDis: 'none'
-  }
+  // The form bounds (1–100 dice, ±999 modifier) match the inputs' keystroke
+  // clamps; out-of-range history notations fall back to one-click roll
+  // instead of loading silently different values.
+  if (count < 1 || count > 100 || modifier < -999 || modifier > 999) return null
+  return { diceType, quantity: count, modifier, advDis: 'none' }
 }
 
 export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps) {

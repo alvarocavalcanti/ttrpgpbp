@@ -256,4 +256,147 @@ describe('useDiceFavorites', () => {
     })
     expect(insert).not.toHaveBeenCalled()
   })
+
+  it('applies concurrent toggles of different notations without losing one', async () => {
+    const { insert } = mockFrom({ data: [], error: null })
+    const { result } = renderHook(() => useDiceFavorites('c1', true))
+    await act(async () => {})
+
+    // Both toggles read the same render; functional updates keep both.
+    await act(async () => {
+      await Promise.all([
+        result.current.toggleFavorite('1d20'),
+        result.current.toggleFavorite('1d8')
+      ])
+    })
+    expect(insert).toHaveBeenCalledTimes(2)
+    expect(result.current.favorites).toEqual(['1d20', '1d8'])
+  })
+
+  it('keeps a toggle made while the fetch is in flight', async () => {
+    let resolveFetch: (value: unknown) => void = () => {}
+    const order = vi.fn().mockImplementation(() => new Promise(resolve => { resolveFetch = resolve }))
+    const eq = vi.fn(() => ({ eq, order }))
+    const insert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn(() => ({ eq })),
+      insert
+    } as any)
+
+    const { result } = renderHook(() => useDiceFavorites('c1', true))
+    await act(async () => {
+      await result.current.toggleFavorite('2d6+1')
+    })
+    expect(result.current.favorites).toEqual(['2d6+1'])
+
+    // The stale (empty) snapshot arrives after the pin; it must not evict it.
+    await act(async () => {
+      resolveFetch({ data: [], error: null })
+    })
+    expect(result.current.favorites).toEqual(['2d6+1'])
+  })
+
+  it('honors a removal made while the fetch is in flight', async () => {
+    let resolveFetch: (value: unknown) => void = () => {}
+    const order = vi.fn().mockImplementation(() => new Promise(resolve => { resolveFetch = resolve }))
+    const eq = vi.fn(() => ({ eq, order }))
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn(() => ({ eq })),
+      insert: vi.fn().mockResolvedValue({ error: null }),
+      delete: vi.fn(() => terminal({ error: null }))
+    } as any)
+
+    const { result } = renderHook(() => useDiceFavorites('c1', true))
+    // Pin then unpin while the fetch is still pending.
+    await act(async () => {
+      await result.current.toggleFavorite('1d20')
+    })
+    expect(result.current.favorites).toEqual(['1d20'])
+    await act(async () => {
+      await result.current.toggleFavorite('1d20')
+    })
+    expect(result.current.favorites).toEqual([])
+
+    // The stale snapshot containing it must not resurrect it.
+    await act(async () => {
+      resolveFetch({
+        data: [{ notation: '1d20', created_at: '2026-01-01T00:00:01Z' }],
+        error: null
+      })
+    })
+    await act(async () => {})
+    expect(result.current.favorites).toEqual([])
+  })
+
+  it('clears favorites when the channel changes, before the new fetch lands', async () => {
+    let resolveFetch: (value: unknown) => void = () => {}
+    const order = vi.fn().mockImplementation(() => new Promise(resolve => { resolveFetch = resolve }))
+    const eq = vi.fn(() => ({ eq, order }))
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn(() => ({ eq })) } as any)
+
+    const { result, rerender } = renderHook(
+      ({ channelId }: { channelId: string | undefined }) => useDiceFavorites(channelId, true),
+      { initialProps: { channelId: 'c1' as string | undefined } }
+    )
+    await act(async () => {
+      resolveFetch({
+        data: [{ notation: '1d20', created_at: '2026-01-01T00:00:01Z' }],
+        error: null
+      })
+    })
+    await waitFor(() => {
+      expect(result.current.favorites).toEqual(['1d20'])
+    })
+
+    rerender({ channelId: 'c2' })
+    // Old channel's chips are gone immediately, not when c2's fetch lands.
+    expect(result.current.favorites).toEqual([])
+  })
+
+  it('ignores a failed-toggle rollback from the previous channel', async () => {
+    let resolveDelete: (value: unknown) => void = () => {}
+    let requestedChannel = 'c1'
+    const c1Rows = {
+      data: [{ notation: '1d20', created_at: '2026-01-01T00:00:01Z' }],
+      error: null
+    }
+    const order = vi.fn().mockImplementation(() => Promise.resolve(
+      requestedChannel === 'c1' ? c1Rows : { data: [], error: null }
+    ))
+    const eq = vi.fn((col: string, val: unknown) => {
+      if (col === 'channel_id') requestedChannel = val as string
+      return { eq, order }
+    })
+    const del = vi.fn().mockImplementation(() => terminal(new Promise(resolve => { resolveDelete = resolve })))
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn(() => ({ eq })),
+      delete: del
+    } as any)
+
+    const { result, rerender } = renderHook(
+      ({ channelId }: { channelId: string | undefined }) => useDiceFavorites(channelId, true),
+      { initialProps: { channelId: 'c1' as string | undefined } }
+    )
+    await waitFor(() => {
+      expect(result.current.favorites).toEqual(['1d20'])
+    })
+
+    let removal: Promise<void>
+    act(() => {
+      removal = result.current.toggleFavorite('1d20')
+    })
+    expect(result.current.favorites).toEqual([])
+
+    // Switch channels while the delete is in flight; c2 has no favorites.
+    rerender({ channelId: 'c2' })
+    await act(async () => {})
+    expect(result.current.favorites).toEqual([])
+
+    // … then the delete fails: the c1 row must not reappear under c2.
+    await act(async () => {
+      resolveDelete({ error: new Error('DB error') })
+      await removal
+    })
+    expect(result.current.favorites).toEqual([])
+  })
 })

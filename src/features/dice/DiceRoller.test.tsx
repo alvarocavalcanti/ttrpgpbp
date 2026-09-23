@@ -73,9 +73,22 @@ describe('parseRollerNotation', () => {
     // Die sizes outside the select options.
     expect(parseRollerNotation('1d30')).toBeNull()
     expect(parseRollerNotation('5d1000')).toBeNull()
+    // Counts / modifiers outside the form bounds load nothing — the chip
+    // keeps one-click roll instead of confirming different values.
+    expect(parseRollerNotation('0d6')).toBeNull()
+    expect(parseRollerNotation('101d6')).toBeNull()
+    expect(parseRollerNotation('1d6+1000')).toBeNull()
+    expect(parseRollerNotation('1d6-1000')).toBeNull()
+    expect(parseRollerNotation('2d20kh1+1000')).toBeNull()
     // Not notations at all.
     expect(parseRollerNotation('')).toBeNull()
     expect(parseRollerNotation('hello')).toBeNull()
+  })
+
+  it('parses values at the edge of the form bounds', () => {
+    expect(parseRollerNotation('100d6')).toEqual({ diceType: 'd6', quantity: 100, modifier: 0, advDis: 'none' })
+    expect(parseRollerNotation('1d20+999')).toEqual({ diceType: 'd20', quantity: 1, modifier: 999, advDis: 'none' })
+    expect(parseRollerNotation('1d20-999')).toEqual({ diceType: 'd20', quantity: 1, modifier: -999, advDis: 'none' })
   })
 })
 

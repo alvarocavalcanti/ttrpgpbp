@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Pin your favorite dice rolls** — the dice roller's history chips now load the roll's values into the panel for a final check before you tap **Roll**, instead of rolling the instant you tap. Tick the star on up to three rolls per channel to keep them pinned at the front in amber.
+- **Pin your favorite dice rolls** — the dice roller's history chips now load the roll's values into the panel for a final check before you tap **Roll**, instead of rolling the instant you tap. Tick the star on up to three rolls per channel to keep them pinned at the front in amber. (A few exotic rolls the panel can't rebuild still roll right away.)
 
 ### Changed
 
