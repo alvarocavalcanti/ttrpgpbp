@@ -21,6 +21,15 @@ export const handlers = [
   http.get(`${supabaseUrl}/rest/v1/channel_npcs`, async () => {
     return HttpResponse.json([])
   }),
+  http.get(`${supabaseUrl}/rest/v1/dice_roll_favorites`, async () => {
+    return HttpResponse.json([])
+  }),
+  http.post(`${supabaseUrl}/rest/v1/dice_roll_favorites`, async () => {
+    return HttpResponse.json([{}], { status: 201 })
+  }),
+  http.delete(`${supabaseUrl}/rest/v1/dice_roll_favorites`, async () => {
+    return HttpResponse.json([])
+  }),
   http.post(`${supabaseUrl}/rest/v1/push_subscriptions`, async () => {
     return HttpResponse.json([{ id: 'mock-subscription' }])
   }),

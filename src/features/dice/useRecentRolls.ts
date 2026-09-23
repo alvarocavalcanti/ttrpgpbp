@@ -10,6 +10,12 @@ const recentRollRowSchema = z.object({
   created_at: z.string()
 })
 
+// Merges the chip row: favorites pin to the front, recent non-favorites
+// fill the remaining slots, capped at 3 total.
+export function mergeChips(favorites: string[], recent: string[]): string[] {
+  return [...favorites, ...recent.filter(n => !favorites.includes(n))].slice(0, 3)
+}
+
 // Data layer for the quick-roll chips (ARCH-1): the history RPC, sorting,
 // dedup, and the cap live here; DiceRoller keeps the form UX.
 export function useRecentRolls(channelId: string | undefined, enabled: boolean) {

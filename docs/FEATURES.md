@@ -136,7 +136,8 @@
   - Set quantity
   - Add modifier (+N / -N)
   - Advantage/disadvantage toggle (d20 only)
-  - Quick-roll chips for the last 3 notations used in the channel — tap to re-roll
+  - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm
+  - Pin up to 3 favorite notations per channel with the star checkbox — favorites stay pinned to the front of the chip row in amber
   - On phones the roller opens as a bottom sheet (no clipping) with +/− modifier steppers
   - The options panel closes after rolling, so the result message is immediately visible
   - Roll button sends result as dice roll message

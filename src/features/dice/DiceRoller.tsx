@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { chipBase, chipIdle } from '../chat/composerChip'
 import { BottomSheet } from '../../components/BottomSheet'
-import { useRecentRolls } from './useRecentRolls'
+import { useRecentRolls, mergeChips } from './useRecentRolls'
+import { useDiceFavorites } from './useDiceFavorites'
 
 interface DiceRollerProps {
   onRoll: (notation: string) => void
   // Renders the roller panel as a BottomSheet instead of an anchored popup,
   // so it can't clip inside the composer's scrollable options sheet.
   popup?: boolean
-  // When set, the last notations rolled in this channel become tappable chips.
+  // When set, the last notations rolled in this channel become tappable
+  // chips, with pinned favorites first.
   channelId?: string
 }
 
@@ -28,6 +30,53 @@ export function buildNotation(diceType: string, quantity: number, modifier: numb
   return notation
 }
 
+// The dice types the roller form can render (the `<select>` options).
+// Anything else the server accepts (d30, d1000, …) can't be shown.
+export const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'] as const
+
+export interface RollerValues {
+  diceType: string
+  quantity: number
+  modifier: number
+  advDis: 'none' | 'adv' | 'dis'
+}
+
+// Inverse of buildNotation: maps a channel-history notation back onto the
+// roller form so a chip tap loads the values instead of rolling. Returns
+// null for notations the form can't represent (drop-highest/lowest,
+// keep/drop counts other than 1, or die sizes outside DICE_TYPES) — those
+// chips keep the old one-click roll so the user never confirms a roll
+// different from the one shown.
+export function parseRollerNotation(notation: string): RollerValues | null {
+  const match = notation.replace(/\s+/g, '').toLowerCase()
+    .match(/^(\d{1,3})d(\d{1,3})(?:(kh|kl|dh|dl)(\d{0,3}))?([+-]\d{1,4})?$/)
+  if (!match) return null
+
+  const count = Number(match[1])
+  const sides = Number(match[2])
+  const keepDrop = match[3]
+  const keepDropAmount = match[4] ? Number(match[4]) : 1
+  const modifier = match[5] ? Number(match[5]) : 0
+
+  if (keepDrop) {
+    // The form only does d20 advantage/disadvantage (2d20 keep-high/low 1).
+    if ((keepDrop === 'kh' || keepDrop === 'kl') && keepDropAmount === 1 && count === 2 && sides === 20) {
+      return { diceType: 'd20', quantity: 1, modifier, advDis: keepDrop === 'kh' ? 'adv' : 'dis' }
+    }
+    return null
+  }
+
+  const diceType = `d${sides}`
+  if (!(DICE_TYPES as readonly string[]).includes(diceType)) return null
+  // Same bounds the inputs enforce at keystroke time.
+  return {
+    diceType,
+    quantity: Math.min(100, Math.max(1, count)),
+    modifier: Math.min(999, Math.max(-999, modifier)),
+    advDis: 'none'
+  }
+}
+
 export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [diceType, setDiceType] = useState('d20')
@@ -35,6 +84,8 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
   const [modifier, setModifier] = useState(0)
   const [advDis, setAdvDis] = useState<'none' | 'adv' | 'dis'>('none')
   const { recent, recordRoll } = useRecentRolls(channelId, isOpen)
+  const { favorites, isFavorite, canFavorite, toggleFavorite } = useDiceFavorites(channelId, isOpen)
+  const chips = mergeChips(favorites, recent)
 
   const roll = (notation: string) => {
     recordRoll(notation)
@@ -44,6 +95,21 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
 
   const handleRoll = () => {
     roll(buildNotation(diceType, quantity, modifier, advDis))
+  }
+
+  // A chip tap loads the notation's values into the form for review instead
+  // of rolling at once. Notations the form can't represent keep the old
+  // one-click roll so the user never confirms a different roll.
+  const applyNotation = (notation: string) => {
+    const parsed = parseRollerNotation(notation)
+    if (!parsed) {
+      roll(notation)
+      return
+    }
+    setDiceType(parsed.diceType)
+    setQuantity(parsed.quantity)
+    setModifier(parsed.modifier)
+    setAdvDis(parsed.advDis)
   }
 
   const panel = (
@@ -71,13 +137,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           }}
           className="bg-white dark:bg-gray-800 flex-1 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 pl-2 pr-8"
         >
-          <option value="d4">d4</option>
-          <option value="d6">d6</option>
-          <option value="d8">d8</option>
-          <option value="d10">d10</option>
-          <option value="d12">d12</option>
-          <option value="d20">d20</option>
-          <option value="d100">d100</option>
+          {DICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 
@@ -147,19 +207,44 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
     </div>
   )
 
-  const recentChips = recent.length > 0 && (
+  // Favorites pin to the front; a star checkbox on each chip pins or
+  // unpins it (pinned chips are amber with a thicker border). The toggle
+  // disables once three favorites exist, except on pinned chips so they can
+  // still be unpinned.
+  const recentChips = chips.length > 0 && (
     <div className="flex flex-wrap gap-2 pb-3 mb-1 border-b border-gray-200 dark:border-gray-700">
-      {recent.map(n => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => roll(n)}
-          aria-label={`Quick roll ${n}`}
-          className="font-mono text-sm text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 rounded-full px-3 py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900"
-        >
-          {n}
-        </button>
-      ))}
+      {chips.map(n => {
+        const favorite = isFavorite(n)
+        const quick = parseRollerNotation(n) === null
+        return (
+          <span
+            key={n}
+            className={`inline-flex items-center gap-1 rounded-full pl-3 pr-1 py-1 font-mono text-sm border-2 ${favorite ? 'text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950 border-amber-400 dark:border-amber-600' : 'text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950 border-indigo-200 dark:border-indigo-800'}`}
+          >
+            <button
+              type="button"
+              onClick={() => applyNotation(n)}
+              aria-label={quick ? `Quick roll ${n}` : `Use ${n}`}
+              className="hover:underline"
+            >
+              {n}
+            </button>
+            <label className="inline-flex items-center p-1 cursor-pointer">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={favorite}
+                disabled={!favorite && !canFavorite}
+                onChange={() => void toggleFavorite(n)}
+                aria-label={favorite ? `Unfavorite ${n}` : `Favorite ${n}`}
+              />
+              <svg className={`w-5 h-5 ${favorite ? 'fill-amber-400 text-amber-500 dark:text-amber-400' : 'fill-none stroke-current'} peer-focus-visible:ring-2 peer-focus-visible:ring-amber-500 peer-disabled:opacity-40 rounded`} viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+              </svg>
+            </label>
+          </span>
+        )
+      })}
     </div>
   )
 
