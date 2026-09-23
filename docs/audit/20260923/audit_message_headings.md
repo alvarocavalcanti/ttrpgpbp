@@ -83,7 +83,9 @@ typography: {
       // Chat is not a document. Sizes are em, so each prose surface keeps
       // its own base (chat 18.06px, scene 17px, channel status 14.88px)
       // while the ratio stays constant. h1 lands on the old h3 size
-      // (1.2857em); h3-h6 collapse to body size and share one style.
+      // (1.2857em) — exact on prose-sm surfaces (chat, dice, status); on the
+      // prose scene surface (h3 = 1.25em) it lands 0.61px above today's h3,
+      // visually identical. h3-h6 collapse to body size and share one style.
       h1: { fontSize: '1.2857em' },
       h2: { fontSize: '1.1429em' },
       'h3, h4, h5, h6': {
@@ -103,7 +105,7 @@ Why this shape:
 - **h1/h2 weights come from the existing `prose` DEFAULT** (800/700) — not restated. h3–h6 get explicit `600` because h5/h6 have no DEFAULT rule. (Decision: h1 keeps 800; size was the complaint, not weight.)
 - **Margins reuse h3's current values** (`em(28,18)`/`em(8,18)`), so h3 is visually unchanged; h4 adopts them (was `em(20,14)`/`em(8,14)`); h5/h6 gain margins they never had.
 - Comma-separated selector keys are plugin-idiomatic (`'ul ul, ul ol, ol ul, ol ol'` at `styles.js:153`).
-- **Cascade verified**: `resolveConfig` emits theme keys `DEFAULT, sm, base, …, invert`; `extend` appends `chat` last, and both modifiers compile to `:where(…)` (specificity 0), so source order decides — `prose-chat` wins over `prose-sm`.
+- **Cascade verified at two levels**: `resolveConfig` emits theme keys `DEFAULT, sm, base, …, invert` with `extend` appending `chat` last; and a scratch Tailwind compile of this exact modifier (kept out of the repo) confirms the emitted `.prose-chat :where(h1)` rule (font-size `1.2857em`) lands after `.prose-sm :where(h1)`. Both compile to `:where(…)` (specificity 0), so source order decides — `prose-chat` wins over `prose-sm`.
 
 ### 2. Call sites — four edits
 
@@ -122,7 +124,7 @@ Not touched: `MessageItem.tsx:47-58` (`MESSAGE_TEXT_SCALE` still feeds inline di
 | scene | 17.00px | 38.3 → **21.9** | 25.5 → **19.4** | 17.0px |
 | channel status | 14.88px | 31.9 → **19.1** | 21.3 → **17.0** | 14.9px |
 
-Weights: 800 / 700 / 600. h1 equals today's h3 exactly, as requested. h4/h5/h6 identical to h3. Nothing below body size.
+Weights: 800 / 700 / 600. h1 equals today's h3 exactly on prose-sm surfaces (chat, dice, status); on scene it is 21.86px vs today's 21.25px (+0.61px, visually identical). h4/h5/h6 identical to h3. Nothing below body size.
 
 ### 4. Test plan
 
