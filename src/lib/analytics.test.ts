@@ -33,8 +33,22 @@ describe('analytics', () => {
 
       expect(window.dataLayer).toBeDefined()
       expect(window.gtag).toBeTypeOf('function')
-      expect(window.dataLayer![0]).toEqual(['js', expect.any(Date)])
-      expect(window.dataLayer![1]).toEqual(['config', 'G-TEST123', { send_page_view: false }])
+      expect(Array.from(window.dataLayer![0] as ArrayLike<unknown>)).toEqual(['js', expect.any(Date)])
+      expect(Array.from(window.dataLayer![1] as ArrayLike<unknown>)).toEqual(['config', 'G-TEST123', { send_page_view: false }])
+    })
+
+    it('queues commands as array-like arguments objects, never as arrays', () => {
+      // gtag.js ignores real Arrays when it drains the pre-load dataLayer, so
+      // the commands must be pushed as the array-like `arguments` object the
+      // official snippet uses. An Array here means the destination is never
+      // registered and no hit is ever sent (#582 follow-up).
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+
+      expect(Array.isArray(window.dataLayer![0])).toBe(false)
+      expect(Array.from(window.dataLayer![0] as ArrayLike<unknown>)[0]).toBe('js')
+      expect(Array.isArray(window.dataLayer![1])).toBe(false)
+      expect(Array.from(window.dataLayer![1] as ArrayLike<unknown>)[0]).toBe('config')
     })
 
     it('does not duplicate the script on repeated calls', () => {
