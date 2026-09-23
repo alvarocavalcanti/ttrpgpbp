@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-23
 
+### Added
+
+- **Pin your favorite dice rolls** — the dice roller's history chips now load the roll's values into the panel for a final check before you tap **Roll**, instead of rolling the instant you tap. Tick the star on up to three rolls per channel to keep them pinned at the front in amber. (A few exotic rolls the panel can't rebuild still roll right away.)
+
 ### Changed
 
 - **The sign-in page now says how the table stays connected** — the "Not a VTT" note keeps its promise about what the app doesn't do, and now also points out the links that bridge it to a full virtual tabletop: each channel's **Map** and **Resources** links, the **GM-only resources** link, and the **character sheet URL** every player can pin.

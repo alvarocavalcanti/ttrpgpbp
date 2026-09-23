@@ -570,6 +570,45 @@ export type Database = {
           },
         ]
       }
+      dice_roll_favorites: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          notation: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          notation: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          notation?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dice_roll_favorites_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dice_roll_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dice_rolls: {
         Row: {
           breakdown: Json

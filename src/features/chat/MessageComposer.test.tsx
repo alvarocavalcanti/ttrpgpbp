@@ -14,6 +14,13 @@ vi.mock('../../hooks/useImageUpload', () => ({
   })),
 }))
 
+// The dice roller pins favorites per user (useDiceFavorites); the composer
+// tests render outside an AuthProvider, so the hook gets a stubbed user and
+// the MSW default handlers serve empty favorites.
+vi.mock('../auth/useAuth', () => ({
+  useAuth: vi.fn(() => ({ user: { id: 'u1' } })),
+}))
+
 describe('MessageComposer', () => {
   const members: any[] = [
     { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } }

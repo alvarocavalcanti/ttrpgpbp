@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useRecentRolls } from './useRecentRolls'
+import { useRecentRolls, mergeChips } from './useRecentRolls'
 import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
@@ -141,5 +141,23 @@ describe('useRecentRolls', () => {
     })
 
     expect(result.current.recent).toEqual([])
+  })
+})
+
+describe('mergeChips', () => {
+  it('pins favorites first and fills the rest with recent', () => {
+    expect(mergeChips(['1d20'], ['2d6+1', '1d8'])).toEqual(['1d20', '2d6+1', '1d8'])
+  })
+
+  it('dedupes a notation that is both favorited and recent', () => {
+    expect(mergeChips(['1d20'], ['1d20', '2d6+1', '1d8'])).toEqual(['1d20', '2d6+1', '1d8'])
+  })
+
+  it('caps at 3 total, favorites winning every slot', () => {
+    expect(mergeChips(['1d20', '1d8', '1d4'], ['2d6+1'])).toEqual(['1d20', '1d8', '1d4'])
+  })
+
+  it('shows plain recent chips with no favorites', () => {
+    expect(mergeChips([], ['2d6+1', '1d8'])).toEqual(['2d6+1', '1d8'])
   })
 })
