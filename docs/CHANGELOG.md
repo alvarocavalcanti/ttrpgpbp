@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- **Visit statistics are recorded again** — the app's anonymous page-view statistics were being silently blocked by the browser's security policy, so the privacy-preserving usage numbers described in the Privacy Policy never arrived. They do now. Nothing new is collected: still just the page address, with search terms stripped.
+- **Visit statistics are recorded again** — the app's anonymous page-view statistics were being silently blocked by the browser's security policy, so the usage numbers described in the Privacy Policy never arrived. They do now, and the app still sends only the page address, with search terms stripped. The Privacy Policy now spells out the standard browser and device details, session counts, and approximate location that Google Analytics records on its own.
 
 ## 2026-09-22
 
