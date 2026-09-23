@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-23
 
+### Changed
+
+- **The sign-in page now says how the table stays connected** — the "Not a VTT" note keeps its promise about what the app doesn't do, and now also points out the links that bridge it to a full virtual tabletop: each channel's **Map** and **Resources** links, the **GM-only resources** link, and the **character sheet URL** every player can pin.
+
 ### Fixed
 
 - **Visit statistics actually arrive now** — the app's anonymous page-view statistics had never been sent at all: a bug in the way the app handed them to Google Analytics meant every one was quietly dropped before it left the device. They work now, so the usage numbers described in the Privacy Policy are real for the first time. The app still sends only the page address, with search terms stripped; the Privacy Policy spells out the standard browser and device details, session counts, and approximate location that Google Analytics records on its own.

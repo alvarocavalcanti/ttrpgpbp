@@ -179,6 +179,9 @@ export function LoginPage() {
             <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
               You won&apos;t find battle maps, tactical combat automation, animated dice, or AI-generated content here. Role by Post keeps the conversation flowing while reducing app and tab switching.
             </p>
+            <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
+              Instead, each channel links out to its Map and shared Resources (plus a GM-only resources link), and every player can pin a character sheet URL — so your table stays one tap away without leaving the conversation.
+            </p>
           </div>
         </section>
 

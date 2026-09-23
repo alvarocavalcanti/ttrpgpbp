@@ -160,6 +160,8 @@ describe('LoginPage', () => {
     expect(screen.getByText(/chat-first app for asynchronous tabletop RPGs/)).toBeInTheDocument()
     expect(screen.getByText(/generic play is built in, with optional Shadowdark character stats/)).toBeInTheDocument()
     expect(screen.getByText(/battle maps, tactical combat automation, animated dice/)).toBeInTheDocument()
+    expect(screen.getByText(/links out to its Map and shared Resources/)).toBeInTheDocument()
+    expect(screen.getByText(/pin a character sheet URL/)).toBeInTheDocument()
   })
 
   it('renders the creator attribution link', () => {
