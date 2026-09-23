@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-23
+
+### Fixed
+
+- **Visit statistics are recorded again** — the app's anonymous page-view statistics were being silently blocked by the browser's security policy, so the privacy-preserving usage numbers described in the Privacy Policy never arrived. They do now. Nothing new is collected: still just the page address, with search terms stripped.
+
 ## 2026-09-22
 
 ### Fixed
@@ -9,7 +15,6 @@ All notable changes to this project are documented in this file.
 - **The status bar's expand arrow no longer goes missing** — after reloading the app, the arrow that reveals a long channel status is back as soon as the text needs it, instead of only appearing after you edit and save the status.
 - **Updating the app works on macOS Safari** — tapping **Reload** in the "New version available" banner now refreshes the app instead of sitting on "Updating…" and leaving you to refresh by hand. The "Reload" button on the "Something went wrong" screen got the same fix.
 - **Player lists show the GM at the top, then players A–Z** — the channel sidebar roster and the admin channel view now list the GM first and everyone else by character name; the Active Player picker (which excludes the GM) lists its players by character name too, so the same people appear in the same order everywhere.
-- **Visit statistics are recorded again** — the app's anonymous page-view statistics were being silently blocked by the browser's security policy, so the privacy-preserving usage numbers described in the Privacy Policy never arrived. They do now. Nothing new is collected: still just the page address, with search terms stripped.
 
 ## 2026-09-21
 
