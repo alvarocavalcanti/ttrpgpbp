@@ -128,7 +128,8 @@ Weights: 800 / 700 / 600. h1 equals today's h3 exactly on prose-sm surfaces (cha
 
 ### 4. Test plan
 
-- `src/tailwind.config.test.ts`: extend the existing `extend` cast with `typography`, add a `describe('message heading scale')` block asserting the three rules by literal (DAMP): `h1.fontSize === '1.2857em'`, `h2.fontSize === '1.1429em'`, `css['h3, h4, h5, h6']` matches `{ fontSize: '1em', fontWeight: '600' }`.
+- `src/tailwind.config.test.ts`: extend the existing `extend` cast with `typography`, add a `describe('message heading scale')` block asserting the three rules by literal (DAMP): `h1.fontSize === '1.2857em'`, `h2.fontSize === '1.1429em'`, `css['h3, h4, h5, h6']` matches `{ fontSize: '1em', fontWeight: '600' }`. Values only — order is covered by the next bullet.
+- Compile-level order guard (durable cover for R1): a vitest in `src/tailwind.config.test.ts` that builds the committed `tailwind.config.js` through `postcss` + `tailwindcss` (both already devDeps) with `prose prose-sm prose-chat` in content, asserting the emitted `.prose-chat :where(h1)` rule lands after `.prose-sm :where(h1)` with `font-size: 1.2857em`. Expected runtime ~1–3s. Proven feasible at audit time via a scratch build (kept out of the repo).
 - `src/features/chat/MessageItem.test.tsx:1214`: `toContain('prose dark:prose-invert prose-p:text-parchment-ink')` → `toContain('prose prose-chat dark:prose-invert')`; add `toContain('prose-chat')`.
 - `src/features/chat/MessageItem.test.tsx:1222` and `src/features/channels/ChannelStatusBar.test.tsx:47`: update the `proseAmber` `startsWith` literal to `'prose prose-sm prose-chat max-w-none dark:prose-invert text-amber-900'`.
 - New: regular message body contains `prose-chat`; dice card body contains `prose-chat` and `dark:prose-invert`.
@@ -154,7 +155,7 @@ Manual (`npm run dev`): post `#` through `######` in a channel message, a scene 
 
 ## Risks
 
-1. **Cascade order** — `prose-chat` must emit after `prose-sm`. Verified via `resolveConfig`; guarded by the config test. If Tailwind ever reorders, migrate to `prose-h1:`/`prose-h2:` utilities on the four containers.
+1. **Cascade order** — `prose-chat` must emit after `prose-sm`. Verified at audit time by a manual scratch compile (emitted `.prose-chat :where(h1)` after `.prose-sm :where(h1)`); the committed value assertions guard the scale only, not order. The compile-level order test in the test plan guards this going forward; the manual visual check is the backstop. If Tailwind ever reorders, migrate to `prose-h1:`/`prose-h2:` utilities on the four containers.
 2. **Dice card gains full prose** — paragraph gaps (0 → ~20.6px), list/code/link styling. Deliberate consistency fix; accepted.
 3. **No visual-regression tests exist** — the manual check plus help screenshots are the only pixel guard.
 
