@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-24
+
+### Fixed
+
+- **Upload errors can be dismissed** — when an image fails to upload, the message box's error notice now has a close button, so you can clear it once you've read it instead of waiting for your next upload attempt.
+
 ## 2026-09-23
 
 ### Added
