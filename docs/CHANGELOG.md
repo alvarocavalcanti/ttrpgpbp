@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 - **Upload errors can be dismissed** — when an image fails to upload, the message box's error notice now has a close button, so you can clear it once you've read it instead of waiting for your next upload attempt.
 - **Image uploads work again** — attaching a picture to a message, or setting a channel avatar, no longer fails before the upload even starts.
 - **Deleting your account works again** — the delete-account request is no longer rejected by the browser before it is sent.
+- **Your own messages are readable in light mode** — in the server-admin conversation, your replies used to show dark grey text on the blue bubble and were hard to read. They're white now, so they stand out as they always did in dark mode.
 
 ## 2026-09-23
 

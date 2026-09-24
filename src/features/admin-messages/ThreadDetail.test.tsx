@@ -99,6 +99,22 @@ describe('ThreadDetail', () => {
     expect(screen.getByText('Hello world')).toBeInTheDocument()
   })
 
+  it('inverts prose on own bubbles so text stays legible on the indigo background (#590)', () => {
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    const prose = screen.getByText('Hello world').closest('.prose')
+    expect(prose).toHaveClass('prose-invert')
+  })
+
+  it("keeps the normal prose palette on other people's bubbles (#590)", () => {
+    const other: Message = { ...mockMessage, sender_id: 'someone-else' }
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [other], loading: false } as any)
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    const prose = screen.getByText('Hello world').closest('.prose')
+    expect(prose).toHaveClass('dark:prose-invert')
+    expect(prose).not.toHaveClass('prose-invert')
+  })
+
   it('calls loadMore when Load earlier messages is clicked', () => {
     const loadMore = vi.fn()
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false, hasMore: true, loadMore } as any)
