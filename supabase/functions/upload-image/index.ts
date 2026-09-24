@@ -4,6 +4,7 @@ import {
   buildCorsHeaders,
   buildImageMetadata,
   evaluateUploadGuards,
+  isJpegSignature,
   isValidUploadPath,
 } from "./logic.ts"
 
@@ -111,6 +112,9 @@ serve(async (req) => {
     const bytes = new Uint8Array(await file.arrayBuffer())
     if (bytes.byteLength === 0) {
       return json({ error: "Empty upload" }, 400, req)
+    }
+    if (!isJpegSignature(bytes)) {
+      return json({ error: "Invalid image" }, 400, req)
     }
 
     const metadata = buildImageMetadata(form.get("width"), form.get("height"))

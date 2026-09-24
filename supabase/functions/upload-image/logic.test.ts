@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isValidUploadPath } from './logic'
+import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
@@ -67,6 +67,19 @@ describe('buildCorsHeaders', () => {
   it('honours an env allowlist override', () => {
     expect(buildCorsHeaders('https://other.example.com', ['https://other.example.com'])['Access-Control-Allow-Origin']).toBe('https://other.example.com')
     expect(buildCorsHeaders('https://rolebypost.com', ['https://other.example.com'])['Access-Control-Allow-Origin']).toBeUndefined()
+  })
+})
+
+describe('isJpegSignature', () => {
+  it('accepts the JPEG SOI marker', () => {
+    expect(isJpegSignature(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe(true)
+  })
+
+  it('rejects short, empty, and non-JPEG payloads', () => {
+    expect(isJpegSignature(new Uint8Array([]))).toBe(false)
+    expect(isJpegSignature(new Uint8Array([0xff, 0xd8]))).toBe(false)
+    expect(isJpegSignature(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(false)
+    expect(isJpegSignature(new Uint8Array([0xff, 0xd8, 0x00]))).toBe(false)
   })
 })
 

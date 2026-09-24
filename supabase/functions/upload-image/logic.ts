@@ -82,6 +82,14 @@ export function evaluateUploadGuards(
   return byteLength > maxMb * 1024 * 1024 ? 'too_large' : 'ok'
 }
 
+// The client always re-encodes uploads to JPEG, so a valid upload starts with
+// the SOI marker FF D8 FF. Anything else is a crafted bypass of the client,
+// not an image — reject it before storing (the stored object is served as
+// image/jpeg to channel members).
+export function isJpegSignature(bytes: Uint8Array): boolean {
+  return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+}
+
 // Upload dimensions arrive as strings from the FormData. Absent must stay
 // absent — Number(null) is 0, which would write a bogus 0x0 box into the object
 // metadata (the client uses it to reserve space before the image loads).

@@ -211,7 +211,7 @@ export function TermsPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: September 21, 2026. For questions regarding these Terms, contact the server administrator. <DataControllerLine />
+          Last updated: September 24, 2026. For questions regarding these Terms, contact the server administrator. <DataControllerLine />
         </p>
       </div>
     </div>
