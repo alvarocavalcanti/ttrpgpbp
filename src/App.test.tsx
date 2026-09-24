@@ -124,7 +124,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Test User', avatar_url: 'http://example.com/avatar.png', terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Test User', avatar_url: 'http://example.com/avatar.png', terms_version: '2026-09-24' },
       error: null,
     })
     // Profile fetch: select().eq().single()
@@ -166,7 +166,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -210,7 +210,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Regular', avatar_url: null, server_admin: false, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Regular', avatar_url: null, server_admin: false, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -249,7 +249,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -290,7 +290,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -331,7 +331,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -376,7 +376,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -417,7 +417,7 @@ describe('App', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -476,7 +476,7 @@ describe('App main menu drawer', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
@@ -636,7 +636,7 @@ describe('App messages menu item', () => {
     } as any)
 
     const mockSingle = vi.fn().mockResolvedValue({
-      data: { id: '123', display_name: 'Regular User', avatar_url: null, terms_version: '2026-09-21' },
+      data: { id: '123', display_name: 'Regular User', avatar_url: null, terms_version: '2026-09-24' },
       error: null,
     })
     const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }

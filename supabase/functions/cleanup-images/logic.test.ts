@@ -136,8 +136,7 @@ describe('runCleanup', () => {
       markBatchDeleted: vi.fn(),
       markBatchFailed: vi.fn(),
       removeImages,
-      pruneHashRecords: async () => 0,
-    })).resolves.toEqual({ deleted: 0, retentionDays: 0, prunedHashes: 0 })
+    })).resolves.toEqual({ deleted: 0, retentionDays: 0 })
 
     expect(listImages).not.toHaveBeenCalled()
     expect(auditBatch).not.toHaveBeenCalled()
@@ -159,8 +158,7 @@ describe('runCleanup', () => {
       markBatchDeleted,
       markBatchFailed: vi.fn(),
       removeImages,
-      pruneHashRecords: async () => 0,
-    }, NOW, 'run-1')).resolves.toEqual({ deleted: 501, retentionDays: 7, prunedHashes: 0 })
+    }, NOW, 'run-1')).resolves.toEqual({ deleted: 501, retentionDays: 7 })
 
     expect(auditBatch).toHaveBeenCalledTimes(2)
     expect(auditBatch.mock.calls[0][0]).toMatchObject({ runId: 'run-1', retentionDays: 7, objectPaths: paths.slice(0, 500) })
@@ -182,28 +180,8 @@ describe('runCleanup', () => {
       markBatchDeleted: vi.fn(),
       markBatchFailed,
       removeImages,
-      pruneHashRecords: async () => 0,
     }, NOW, 'run-1')).rejects.toThrow('storage unavailable')
 
     expect(markBatchFailed).toHaveBeenCalledWith('audit-1', 'storage unavailable')
-  })
-
-  it('prunes scan provenance on its own clock, even when images are kept forever', async () => {
-    const pruneHashRecords = vi.fn().mockResolvedValue(3)
-    const listImages = vi.fn()
-
-    await expect(runCleanup({
-      getRetentionDays: async () => 0,
-      listImages,
-      auditBatch: vi.fn(),
-      markBatchDeleted: vi.fn(),
-      markBatchFailed: vi.fn(),
-      removeImages: vi.fn(),
-      pruneHashRecords,
-    }, NOW, 'run-1')).resolves.toEqual({ deleted: 0, retentionDays: 0, prunedHashes: 3 })
-
-    // 90 days before NOW.
-    expect(pruneHashRecords).toHaveBeenCalledWith(new Date(NOW - 90 * DAY_MS).toISOString())
-    expect(listImages).not.toHaveBeenCalled()
   })
 })

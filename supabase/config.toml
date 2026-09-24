@@ -30,13 +30,13 @@ enabled = true
 # CLEANUP_IMAGES_SECRET header; no-op while app_settings.image_retention_days is 0.
 verify_jwt = false
 
-[functions.scan-upload]
+[functions.upload-image]
 enabled = true
 # Browser-invoked with the user's JWT. The function resolves identity from that
 # token and enforces GM-of-channel itself (it stores with the service role), so
 # it never trusts the request body for authorization.
 verify_jwt = true
-entrypoint = "./functions/scan-upload/index.ts"
+entrypoint = "./functions/upload-image/index.ts"
 
 # The app signs in with redirectTo = window.location.origin, so every origin the
 # app is served from must be allowed here. Applied to the hosted project via

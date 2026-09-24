@@ -125,7 +125,7 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, cross-channel reply targets, and non-member whisper targets.
 - **dice_rolls**: Readable by channel members. **Insert is revoked from clients** — rolls are only created by the `roll_dice` command, so a fabricated result can never be persisted. Realtime INSERT events are published (`ALTER PUBLICATION`), and the roll history RPC excludes rolls from soft-deleted messages.
 - **notification_preferences**: Users can only read/write their own row.
-- **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`scan-upload`, which stores an object only after a CSAM scan) may INSERT/UPDATE, so an image cannot be stored unscanned. Adding an INSERT/UPDATE policy on this bucket re-opens that bypass. `images_delete` remains GM-gated (deleting a stored object destroys its provenance — revisit if that matters more than letting a GM clean up their own uploads). Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`.
+- **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`upload-image`, which enforces the admin toggle, the size cap, the path shape, and GM-of-channel) may INSERT/UPDATE. Adding an INSERT/UPDATE policy on this bucket re-opens a bypass of those server-side gates. `images_delete` remains GM-gated. Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`. Uploads are stored unscanned; abusive uploads are handled through player reports.
 
 ### `app_settings`
 
@@ -136,32 +136,13 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 | `image_max_size_mb` | number | 5 | Max upload size before client-side resize |
 | `image_retention_days` | number | 0 | `0` keeps images forever; otherwise the `cleanup-images` edge function deletes images older than this many days |
 
-### `content_hashes`
-
-Service-role-only provenance for scanned uploads. Browser clients have no access (no RLS policies).
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID, PK | |
-| `object_path` | text, unique | `{channel_id}/{folder}/{uuid}.jpg`. For a `match`, the path that was *attempted* (never stored) |
-| `channel_id` | UUID, FK → channels, nullable | `ON DELETE SET NULL` |
-| `uploaded_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
-| `sha256` | text | Always recorded |
-| `pdq_hash` | text, nullable | Reserved for local perceptual dedupe (not yet populated) |
-| `safer_status` | text | `unscanned` (attempt recorded, provider outcome unknown), `clear`, or `match` |
-| `created_at` | timestamptz | |
-
-A row is written **before** the scan (status `unscanned`) and updated after, so every attempt has provenance and counts against the per-user hourly cap — including attempts where the provider failed. The cap query is served by `content_hashes_uploaded_by_created_idx (uploaded_by, created_at DESC)`.
-
-Retention: the daily `cleanup-images` job prunes rows older than **90 days**, except `match` rows, which are never pruned (a blocked upload is legal evidence, not routine telemetry). This runs on its own clock, independent of `image_retention_days` (which defaults to 0 = keep forever).
-
 ### Admin / data-lifecycle functions
 
-- **System thread** (`admin_threads` type `system`, at most one row via a partial unique index): the server admin's safety-alert inbox in `/messages`. Rows carry a `subject` (`'System'`) and no participant/audience; visibility, reads, and the unread counter are admin-only. `admin_messages.is_system` marks database-authored alerts (`sender_id` NULL, enforced by a CHECK that also keeps browser clients from forging such rows or sending ordinary messages without a sender); the admin can reply in the thread with ordinary messages to record a filed report. User-controlled labels are neutralized with `escape_markdown()` (SQL) / `escapeMarkdown()` (scan-upload) before interpolation so names and reasons cannot inject live links. Producers: `post_system_message(content)` (SECURITY DEFINER, service-role only — called by `scan-upload` on a Safer match, with the true suspension outcome in the body) and the `on_abuse_report_alert` trigger (SECURITY DEFINER, best-effort: a delivery failure warns instead of rolling back the report).
+- **System thread** (`admin_threads` type `system`, at most one row via a partial unique index): the server admin's safety-alert inbox in `/messages`. Rows carry a `subject` (`'System'`) and no participant/audience; visibility, reads, and the unread counter are admin-only. `admin_messages.is_system` marks database-authored alerts (`sender_id` NULL, enforced by a CHECK that also keeps browser clients from forging such rows or sending ordinary messages without a sender); the admin can reply in the thread with ordinary messages to record a filed report. User-controlled labels are neutralized with `escape_markdown()` (SQL) before interpolation so names and reasons cannot inject live links. Producer: the `on_abuse_report_alert` trigger (SECURITY DEFINER, best-effort: a delivery failure warns instead of rolling back the report).
 
 - **`admin_read_message(message_id)`** (SECURITY DEFINER, server admin only): returns one message with its sender and channel for report investigation, or no rows if the message no longer exists. Writes a `read_message` row to `audit_logs` on every call.
 - **`admin_list_user_messages(user_id, before, before_id, limit)`** (SECURITY DEFINER, server admin only): paged message history for a user, newest first, including soft-deleted rows (served by `messages_sender_created_idx`). Records a `list_user_messages` audit row. The cursor is `(created_at, id)` — `before_id` breaks ties between rows sharing a timestamp — and the admin modal pages with a "Load older messages" control.
-- **`scan-upload` edge function**: the only writer of `content_hashes`. Hashes the upload (`sha256`), submits it to Thorn Safer, blocks + records + suspends the uploader on a match, and otherwise stores the object with the service role. Fails closed when `SAFER_API_KEY` is unset or the provider reply is unrecognized. Caps a user at `MAX_UPLOADS_PER_HOUR` attempts.
+- **`upload-image` edge function**: the only writer of stored objects. Verifies the caller's JWT, checks the path shape and that the caller is the channel's GM, enforces the admin toggle (`image_uploading_enabled`) and the size cap (`image_max_size_mb`), then stores the object with the service role. Uploads are stored unscanned.
 - **Admin image access**: there is no admin RPC for images. The `images_select` storage policy admits the server admin, so a reported image can be inspected through the Storage API or the dashboard.
 - **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.
 - **`delete-account` edge function**: verifies the caller's JWT, rejects the sole server admin (would leave the app headless), then calls `auth.admin.deleteUser`. Cascades erase the user's profiles, memberships, dice rolls, reactions, preferences, and push subscriptions; their sent messages are anonymized (`sender_id SET NULL`) and whispers addressed to them are deleted (`whisper_to CASCADE`).

@@ -15,7 +15,7 @@ describe('ReConsentGate', () => {
     expect(screen.getByText('Terms of Service & Privacy Policy')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
-    expect(screen.getByRole('button', { name: /I agree to the Terms \(v2026-09-21\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /I agree to the Terms \(v2026-09-24\)/ })).toBeInTheDocument()
   })
 
   it('calls onAccept when the user agrees', async () => {

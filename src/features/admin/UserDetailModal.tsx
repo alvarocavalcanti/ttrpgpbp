@@ -25,14 +25,13 @@ function formatDate(value: string | null): string {
 
 // Labels for the audit actions that can appear in a user's history. Anything
 // unlisted falls back to its raw action name — never to "Unsuspended", which
-// mislabelled every read-audit and CSAM-block row.
+// mislabelled every read-audit row.
 const ACTION_LABELS: Record<string, string> = {
   suspend_user: 'Suspended',
   unsuspend_user: 'Unsuspended',
   list_user_messages: 'Viewed message history',
   read_message: 'Viewed a reported message',
   read_image: 'Viewed a reported image',
-  csam_match_blocked: 'Upload blocked and account suspended',
 }
 
 // Detail view for a single user opened from the admin Users table (issue
