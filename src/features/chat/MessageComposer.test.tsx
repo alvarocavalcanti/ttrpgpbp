@@ -798,6 +798,37 @@ describe('MessageComposer', () => {
     expect(await screen.findByText('Image uploads are disabled by the server admin')).toBeInTheDocument()
   })
 
+  it('dismisses the upload error banner via its close button', async () => {
+    mockUploadImage.mockRejectedValue(new Error('Image upload failed. Please try again.'))
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.change(screen.getByLabelText('Upload Image'), {
+      target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    expect(await screen.findByText('Image upload failed. Please try again.')).toBeInTheDocument()
+    const dismiss = screen.getByLabelText('Dismiss upload error')
+    expect(dismiss.className).toContain('after:-inset-2.5')
+    fireEvent.click(dismiss)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('dismisses a drag-and-drop batch upload error', async () => {
+    mockUploadImage.mockRejectedValueOnce(new Error('storage down'))
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.drop(screen.getByTestId('composer-dropzone'), {
+      dataTransfer: {
+        files: [new File(['a'], 'one.png', { type: 'image/png' })],
+      },
+    })
+
+    expect(await screen.findByText('Failed to upload image.')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Dismiss upload error'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('disables the upload button while uploads are disabled by the admin', () => {
     vi.mocked(useImageUpload).mockReturnValue({
       uploadEnabled: false,
