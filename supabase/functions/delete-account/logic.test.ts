@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { evaluateDeletion, isAllowedOrigin } from './logic.ts'
+import { buildCorsHeaders, evaluateDeletion, isAllowedOrigin } from './logic.ts'
 
 describe('evaluateDeletion', () => {
   it('allows a non-admin user to delete their account', () => {
@@ -39,5 +39,35 @@ describe('isAllowedOrigin', () => {
 
   it('an empty env list falls back to the defaults', () => {
     expect(isAllowedOrigin('https://rolebypost.com', [])).toBe(true)
+  })
+})
+
+describe('buildCorsHeaders', () => {
+  it('allows every header the Supabase browser client sends', () => {
+    const allowed = buildCorsHeaders('https://rolebypost.com')['Access-Control-Allow-Headers']
+    expect(allowed).toContain('x-client-info')
+    expect(allowed).toContain('authorization')
+    expect(allowed).toContain('apikey')
+    expect(allowed).toContain('content-type')
+  })
+
+  it('allows POST and the preflight OPTIONS method', () => {
+    const methods = buildCorsHeaders('https://rolebypost.com')['Access-Control-Allow-Methods']
+    expect(methods).toContain('POST')
+    expect(methods).toContain('OPTIONS')
+  })
+
+  it('echoes an allowed origin but not a disallowed one', () => {
+    expect(buildCorsHeaders('https://rolebypost.com')['Access-Control-Allow-Origin']).toBe('https://rolebypost.com')
+    expect(buildCorsHeaders('https://evil.example.com')['Access-Control-Allow-Origin']).toBeUndefined()
+  })
+
+  it('omits Allow-Origin when the request has no Origin', () => {
+    expect(buildCorsHeaders(null)['Access-Control-Allow-Origin']).toBeUndefined()
+  })
+
+  it('honours an env allowlist override', () => {
+    expect(buildCorsHeaders('https://other.example.com', ['https://other.example.com'])['Access-Control-Allow-Origin']).toBe('https://other.example.com')
+    expect(buildCorsHeaders('https://rolebypost.com', ['https://other.example.com'])['Access-Control-Allow-Origin']).toBeUndefined()
   })
 })

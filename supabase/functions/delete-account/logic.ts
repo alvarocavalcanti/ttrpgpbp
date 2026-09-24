@@ -35,3 +35,27 @@ export function isAllowedOrigin(origin: string, envList?: string[]): boolean {
   if (allowed.includes(origin)) return true
   return origin.endsWith('.ttrpgpbp.pages.dev')
 }
+
+// Headers the Supabase browser client sends on functions.invoke. The CORS
+// preflight only passes when every requested header is echoed here; a missing
+// one blocks the request before it reaches this function (#593: x-client-info).
+// Kept in sync with @supabase/supabase-js/cors.
+export const CORS_ALLOWED_HEADERS =
+  'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage'
+
+// Builds the full CORS header set for a request. Pure: no IO, so it runs in
+// vitest. The origin is echoed only when allowlisted; a null origin (non-
+// browser call) gets headers without Allow-Origin.
+export function buildCorsHeaders(
+  origin: string | null,
+  envList?: string[]
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': CORS_ALLOWED_HEADERS,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
+  if (origin && isAllowedOrigin(origin, envList)) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
+  return headers
+}

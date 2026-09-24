@@ -2,11 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import {
   attemptInsertFailureStatus,
+  buildCorsHeaders,
   buildCsamAlertMessage,
   buildImageMetadata,
   evaluatePreScanGuards,
   interpretSaferResponse,
-  isAllowedOrigin,
   isValidUploadPath,
   MAX_UPLOADS_PER_HOUR,
   SAFER_TIMEOUT_MS,
@@ -14,24 +14,12 @@ import {
 
 // Origin allowlist for CORS. Reads the ALLOWED_ORIGINS secret (comma separated)
 // if set; otherwise falls back to the shared defaults in logic.ts.
-function checkAllowedOrigin(origin: string): boolean {
+function corsHeaders(req: Request): Record<string, string> {
   const env = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
     .split(",")
     .map(o => o.trim())
     .filter(Boolean)
-  return isAllowedOrigin(origin, env.length > 0 ? env : undefined)
-}
-
-function corsHeaders(req: Request): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  }
-  const origin = req.headers.get("origin")
-  if (origin && checkAllowedOrigin(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin
-  }
-  return headers
+  return buildCorsHeaders(req.headers.get("origin"), env.length > 0 ? env : undefined)
 }
 
 function json(body: unknown, status: number, req: Request): Response {
