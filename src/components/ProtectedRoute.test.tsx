@@ -157,7 +157,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: { id: 'test', terms_version: '2026-09-21' } as any,
+      profile: { id: 'test', terms_version: '2026-09-24' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -184,7 +184,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: { id: 'test', terms_version: '2026-09-21' } as any,
+      profile: { id: 'test', terms_version: '2026-09-24' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -266,7 +266,7 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: { id: 'test', terms_version: '2026-09-21' } as any,
+      profile: { id: 'test', terms_version: '2026-09-24' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
@@ -317,7 +317,7 @@ describe('ProtectedRoute', () => {
     fireEvent.click(screen.getByRole('button', { name: /I agree to the Terms/ }))
 
     await waitFor(() => {
-      expect(confirmTerms).toHaveBeenCalledWith('2026-09-21')
+      expect(confirmTerms).toHaveBeenCalledWith('2026-09-24')
     })
     await waitFor(() => {
       expect(refreshProfile).toHaveBeenCalled()

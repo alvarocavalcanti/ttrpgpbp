@@ -92,7 +92,7 @@ describe('UserDetailModal', () => {
     expect(screen.getByText(/deleted/)).toBeInTheDocument()
   })
 
-  it('labels a CSAM block rather than calling it unsuspended', async () => {
+  it('labels a legacy CSAM block rather than calling it unsuspended', async () => {
     renderModal({
       getUserHistory: vi.fn().mockResolvedValue([
         { id: 'a1', action: 'csam_match_blocked', reason: null, admin_name: null, created_at: '2026-03-02T00:00:00Z' },
@@ -100,6 +100,17 @@ describe('UserDetailModal', () => {
     })
 
     expect(await screen.findByText('Upload blocked and account suspended')).toBeInTheDocument()
+    expect(screen.queryByText('Unsuspended')).not.toBeInTheDocument()
+  })
+
+  it('falls back to the raw action name for unlisted actions', async () => {
+    renderModal({
+      getUserHistory: vi.fn().mockResolvedValue([
+        { id: 'a2', action: 'legacy_unknown_row', reason: null, admin_name: null, created_at: '2026-03-02T00:00:00Z' },
+      ]),
+    })
+
+    expect(await screen.findByText('legacy_unknown_row')).toBeInTheDocument()
     expect(screen.queryByText('Unsuspended')).not.toBeInTheDocument()
   })
 

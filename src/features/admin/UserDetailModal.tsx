@@ -25,7 +25,9 @@ function formatDate(value: string | null): string {
 
 // Labels for the audit actions that can appear in a user's history. Anything
 // unlisted falls back to its raw action name — never to "Unsuspended", which
-// mislabelled every read-audit and CSAM-block row.
+// mislabelled every read-audit row. csam_match_blocked is legacy (no new rows
+// since the scanner was removed) but stays labelled so old entries keep their
+// meaning.
 const ACTION_LABELS: Record<string, string> = {
   suspend_user: 'Suspended',
   unsuspend_user: 'Unsuspended',

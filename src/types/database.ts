@@ -522,54 +522,6 @@ export type Database = {
           },
         ]
       }
-      content_hashes: {
-        Row: {
-          channel_id: string | null
-          created_at: string
-          id: string
-          object_path: string
-          pdq_hash: string | null
-          safer_status: string
-          sha256: string
-          uploaded_by: string | null
-        }
-        Insert: {
-          channel_id?: string | null
-          created_at?: string
-          id?: string
-          object_path: string
-          pdq_hash?: string | null
-          safer_status?: string
-          sha256: string
-          uploaded_by?: string | null
-        }
-        Update: {
-          channel_id?: string | null
-          created_at?: string
-          id?: string
-          object_path?: string
-          pdq_hash?: string | null
-          safer_status?: string
-          sha256?: string
-          uploaded_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "content_hashes_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "content_hashes_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       dice_roll_favorites: {
         Row: {
           channel_id: string

@@ -93,7 +93,8 @@ describe('TermsPage', () => {
     )
 
     expect(screen.getByText(/not end-to-end encrypted/)).toBeInTheDocument()
-    expect(screen.getByText(/system administrators and automated safety systems can access/)).toBeInTheDocument()
+    expect(screen.getByText(/Our system administrators can access and review/)).toBeInTheDocument()
+    expect(screen.getByText(/There is no automated scanning of uploads/)).toBeInTheDocument()
   })
 
   it('bans illegal content, conspiracy, and illicit imagery in the Acceptable Use policy', () => {

@@ -147,7 +147,7 @@ describe('PrivacyPage', () => {
 
     expect(screen.getByText('How your messages are stored & who can access them')).toBeInTheDocument()
     expect(screen.getByText(/not end-to-end encrypted/)).toBeInTheDocument()
-    expect(screen.getByText(/system administrators and automated safety systems\s*can read/)).toBeInTheDocument()
+    expect(screen.getByText(/in a form our system administrators\s*can read/)).toBeInTheDocument()
   })
 
   it('documents EEA-to-US data transfers and GDPR-specific rights', () => {
@@ -223,7 +223,7 @@ describe('PrivacyPage', () => {
     expect(screen.queryByRole('link', { name: /@/ })).not.toBeInTheDocument()
   })
 
-  it('discloses image, hash, and blocked-upload retention', () => {
+  it('discloses image retention and the lack of automated scanning', () => {
     render(
       <MemoryRouter>
         <PrivacyPage />
@@ -232,7 +232,7 @@ describe('PrivacyPage', () => {
 
     expect(screen.getByText('How long we keep things')).toBeInTheDocument()
     expect(screen.getByText(/indefinitely by default/)).toBeInTheDocument()
-    expect(screen.getByText(/kept for 90 days/)).toBeInTheDocument()
-    expect(screen.getByText(/as long as needed for legal reporting/)).toBeInTheDocument()
+    expect(screen.getByText(/not automatically scanned/)).toBeInTheDocument()
+    expect(screen.getByText(/as long as\s*needed for moderation and legal reporting/)).toBeInTheDocument()
   })
 })

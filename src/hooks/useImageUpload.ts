@@ -13,12 +13,14 @@ export interface ImageUploadApi {
 }
 
 // Uploads an image into a folder of the channel's private 'images' bucket:
-// client-side resize, then hand the bytes to the scan-upload edge function,
-// which hashes them, checks them against known CSAM hashes, and only then
-// stores the object (returning its bare object path, signed at render time via
-// useSignedImageUrl). Gated by the admin's image_uploading_enabled setting (off
-// by default) and image_max_size_mb; the server enforces both again, and
-// storage RLS gates reads to channel members.
+// client-side resize, then hand the bytes to the upload-image edge function,
+// which stores the object (returning its bare object path, signed at render
+// time via useSignedImageUrl). Gated by the admin's image_uploading_enabled
+// setting (off by default) and image_max_size_mb; the server enforces both
+// again, and storage RLS gates reads to channel members.
+//
+// Uploads are not scanned for illegal material: reported images are reviewed
+// by the server admin instead (see Terms §7).
 export function useImageUpload(channelId: string | undefined): ImageUploadApi {
   const { value: uploadEnabled, loading: settingsLoading } = useAppSetting<boolean>('image_uploading_enabled', false)
   const { value: maxSizeMb } = useAppSetting<number>('image_max_size_mb', DEFAULT_MAX_SIZE_MB)
@@ -48,11 +50,9 @@ export function useImageUpload(channelId: string | undefined): ImageUploadApi {
       form.append('width', String(width))
       form.append('height', String(height))
 
-      const { data, error: fnError } = await supabase.functions.invoke('scan-upload', { body: form })
+      const { data, error: fnError } = await supabase.functions.invoke('upload-image', { body: form })
       if (fnError) throw new Error('Image upload failed. Please try again.')
-      if (data?.status === 'blocked') throw new Error('This image could not be uploaded.')
-      if (data?.status === 'throttled') throw new Error('Too many image uploads. Please wait a while and try again.')
-      if (data?.status !== 'stored') throw new Error('Image uploads are temporarily unavailable.')
+      if (data?.status !== 'stored') throw new Error('Image upload failed. Please try again.')
 
       return path
     } finally {

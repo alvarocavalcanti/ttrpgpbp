@@ -96,10 +96,11 @@ export function TermsPage() {
           <p>
             Messages and files on Role by Post are <strong>not end-to-end encrypted.</strong> While data is encrypted
             in transit (over the network) and at rest (on our hosting provider&apos;s infrastructure), messages are stored
-            in a form readable by Role by Post. Our system administrators and automated safety systems can access and review
+            in a form readable by Role by Post. Our system administrators can access and review
             content on the service for the purposes described in these Terms and our Privacy Policy — including investigating
-            reports, enforcing this Acceptable Use Policy, detecting unlawful or abusive content, and responding to lawful
-            requests from authorities.
+            reports, enforcing this Acceptable Use Policy, and responding to lawful
+            requests from authorities. There is no automated scanning of uploads: images are stored as uploaded and are
+            reviewed only when a player reports them.
           </p>
           <p>
             Do not use Role by Post to transmit information you would not want a system administrator to be able to read.
@@ -210,7 +211,7 @@ export function TermsPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: September 21, 2026. For questions regarding these Terms, contact the server administrator. <DataControllerLine />
+          Last updated: September 24, 2026. For questions regarding these Terms, contact the server administrator. <DataControllerLine />
         </p>
       </div>
     </div>

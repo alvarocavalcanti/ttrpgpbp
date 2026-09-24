@@ -41,13 +41,13 @@ describe('useImageUpload', () => {
     })
   })
 
-  it('scans a resized image and returns the object path', async () => {
+  it('uploads a resized image and returns the object path', async () => {
     const { result } = renderHook(() => useImageUpload('c1'))
 
     const path = await result.current.uploadImage(makeFile(1024), 'message', 1200)
 
     expect(resizeImageFile).toHaveBeenCalledWith(expect.any(File), 1200)
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('scan-upload', { body: expect.any(FormData) })
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('upload-image', { body: expect.any(FormData) })
     const form = mockInvoke.mock.calls[0][1].body as FormData
     expect(form.get('channelId')).toBe('c1')
     expect(form.get('path')).toBe(path)
@@ -57,25 +57,11 @@ describe('useImageUpload', () => {
     expect(result.current.uploading).toBe(false)
   })
 
-  it('throws when the scan blocks the image', async () => {
-    mockInvoke.mockResolvedValue({ data: { status: 'blocked' }, error: null })
+  it('throws a generic failure when the store status is missing', async () => {
+    mockInvoke.mockResolvedValue({ data: {}, error: null })
     const { result } = renderHook(() => useImageUpload('c1'))
 
-    await expect(result.current.uploadImage(makeFile(1024), 'message')).rejects.toThrow('This image could not be uploaded.')
-  })
-
-  it('throws when scanning is unavailable', async () => {
-    mockInvoke.mockResolvedValue({ data: { status: 'unavailable' }, error: null })
-    const { result } = renderHook(() => useImageUpload('c1'))
-
-    await expect(result.current.uploadImage(makeFile(1024), 'message')).rejects.toThrow('temporarily unavailable')
-  })
-
-  it('throws a throttle message when the upload cap is hit', async () => {
-    mockInvoke.mockResolvedValue({ data: { status: 'throttled' }, error: null })
-    const { result } = renderHook(() => useImageUpload('c1'))
-
-    await expect(result.current.uploadImage(makeFile(1024), 'message')).rejects.toThrow('Too many image uploads')
+    await expect(result.current.uploadImage(makeFile(1024), 'message')).rejects.toThrow('Image upload failed')
   })
 
   it('propagates edge function errors', async () => {

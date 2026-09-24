@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-24
 
+### Changed
+
+- **Image uploads now work without the safety scanner** — pictures attach to messages and channel avatars again. The automated illegal-material check is gone: it needed a paid service the app can't afford, so uploads store directly and are reviewed only when a player reports them (the Terms and Privacy Policy say the same now). If you run your own copy, leave image uploads off unless your group accepts that trade-off.
+
 ### Fixed
 
 - **Upload errors can be dismissed** — when an image fails to upload, the message box's error notice now has a close button, so you can clear it once you've read it instead of waiting for your next upload attempt.

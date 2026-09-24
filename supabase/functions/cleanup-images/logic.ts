@@ -20,15 +20,9 @@ export interface CleanupDependencies {
   markBatchDeleted: (auditId: string) => Promise<void>
   markBatchFailed: (auditId: string, errorMessage: string) => Promise<void>
   removeImages: (paths: string[]) => Promise<void>
-  pruneHashRecords: (cutoffAt: string) => Promise<number>
 }
 
 export const CLEANUP_BATCH_SIZE = 500
-
-// content_hashes rows are pruned on their own clock, independent of the
-// image-retention setting (which defaults to 0 = keep forever). 'match' rows
-// are never pruned: a blocked upload is legal evidence, not routine telemetry.
-export const CONTENT_HASH_RETENTION_DAYS = 90
 
 export interface StorageListOptions {
   limit: number
@@ -101,14 +95,9 @@ export async function runCleanup(
   dependencies: CleanupDependencies,
   nowMs = Date.now(),
   runId = crypto.randomUUID(),
-): Promise<{ deleted: number; retentionDays: number; prunedHashes: number }> {
-  // Runs before the image-retention early return, so scan provenance stays
-  // bounded even when images are kept forever.
-  const hashCutoffMs = nowMs - CONTENT_HASH_RETENTION_DAYS * 24 * 60 * 60 * 1000
-  const prunedHashes = await dependencies.pruneHashRecords(new Date(hashCutoffMs).toISOString())
-
+): Promise<{ deleted: number; retentionDays: number }> {
   const retentionDays = positiveRetentionDays(await dependencies.getRetentionDays())
-  if (retentionDays === 0) return { deleted: 0, retentionDays: 0, prunedHashes }
+  if (retentionDays === 0) return { deleted: 0, retentionDays: 0 }
 
   const cutoffMs = nowMs - retentionDays * 24 * 60 * 60 * 1000
   const expired = collectExpiredImages(await dependencies.listImages(), cutoffMs)
@@ -133,7 +122,7 @@ export async function runCleanup(
     }
   }
 
-  return { deleted, retentionDays, prunedHashes }
+  return { deleted, retentionDays }
 }
 
 // Returns the object paths older than the cutoff. Images without a usable

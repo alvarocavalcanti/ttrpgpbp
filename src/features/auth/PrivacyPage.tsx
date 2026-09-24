@@ -48,8 +48,8 @@ export function PrivacyPage() {
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">How long we keep things</h2>
           <p>
             Uploaded images are kept according to the server&apos;s retention setting — indefinitely by default.
-            A hash record of each upload is kept for 90 days so uploads can be safety-scanned and de-duplicated.
-            Records of blocked uploads are kept for as long as needed for legal reporting.
+            Uploads are not automatically scanned. Abuse reports and images under review are kept for as long as
+            needed for moderation and legal reporting.
           </p>
         </section>
 
@@ -57,9 +57,9 @@ export function PrivacyPage() {
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">How your messages are stored &amp; who can access them</h2>
           <p>
             Messages are <strong>not end-to-end encrypted.</strong> They are stored on our hosting provider&apos;s database,
-            which is encrypted at rest and in transit, but in a form our system administrators and automated safety systems
+            which is encrypted at rest and in transit, but in a form our system administrators
             can read. We access message content only for limited purposes: operating the service, investigating user reports,
-            enforcing our Acceptable Use Policy, detecting unlawful or abusive content, and responding to lawful requests from
+            enforcing our Acceptable Use Policy, and responding to lawful requests from
             authorities. We do not sell or share your messages with third parties for advertising.
           </p>
         </section>
@@ -175,7 +175,7 @@ export function PrivacyPage() {
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
-          Last updated: September 21, 2026. This policy describes data handling for the Role by Post application. Contact the server
+          Last updated: September 24, 2026. This policy describes data handling for the Role by Post application. Contact the server
           admin to exercise any of these rights on behalf of an account you cannot access. <DataControllerLine />
         </p>
       </div>

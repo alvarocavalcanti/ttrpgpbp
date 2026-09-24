@@ -111,19 +111,6 @@ serve(async (req) => {
         const { error } = await bucket.remove(paths)
         if (error) throw error
       },
-      pruneHashRecords: async (cutoffAt) => {
-        // content_hashes has RLS enabled with no client policies; the service
-        // role bypasses it. Blocked uploads ('match') are never pruned — a CSAM
-        // block is legal evidence, not routine telemetry.
-        const { data, error } = await client
-          .from("content_hashes")
-          .delete()
-          .neq("safer_status", "match")
-          .lt("created_at", cutoffAt)
-          .select("id")
-        if (error) throw error
-        return data?.length ?? 0
-      },
     })
 
     return jsonResponse(result, 200)

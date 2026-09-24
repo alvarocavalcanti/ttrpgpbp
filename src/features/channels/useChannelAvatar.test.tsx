@@ -56,7 +56,7 @@ describe('useChannelAvatar', () => {
     const url = await result.current.uploadAvatar(makeFile(1024))
 
     expect(resizeImageFile).toHaveBeenCalled()
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('scan-upload', { body: expect.any(FormData) })
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('upload-image', { body: expect.any(FormData) })
     const form = mockInvoke.mock.calls[0][1].body as FormData
     const path = form.get('path')
     expect(path).toMatch(/^c1\/avatar\/.+\.jpg$/)
