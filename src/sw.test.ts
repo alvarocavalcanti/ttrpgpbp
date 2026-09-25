@@ -1,15 +1,16 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach } from 'vitest'
 
-const { registerRoute, createHandlerBoundToURL, NavigationRoute } = vi.hoisted(() => {
+const { registerRoute, createHandlerBoundToURL, NavigationRoute, offlineHandler } = vi.hoisted(() => {
   const registerRoute = vi.fn()
-  const createHandlerBoundToURL = vi.fn().mockReturnValue('index-handler')
+  const offlineHandler = vi.fn().mockReturnValue('index-handler')
+  const createHandlerBoundToURL = vi.fn().mockReturnValue(offlineHandler)
   class NavigationRoute {
     handler: unknown
     constructor(handler: unknown) {
       this.handler = handler
     }
   }
-  return { registerRoute, createHandlerBoundToURL, NavigationRoute }
+  return { registerRoute, createHandlerBoundToURL, NavigationRoute, offlineHandler }
 })
 
 vi.mock('workbox-precaching', () => ({
@@ -64,13 +65,66 @@ function dispatchNotificationClick(data: unknown, clients: { url: string; focus?
 }
 
 describe('sw navigation fallback', () => {
-  it('serves the pre-cached app shell for every navigation', async () => {
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    offlineHandler.mockClear()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function route() {
+    return registerRoute.mock.calls[0][0] as { handler: (options: { request: Request }) => Promise<unknown> }
+  }
+
+  it('registers one navigation route with the pre-cached shell as fallback', async () => {
     await import('./sw')
     expect(registerRoute).toHaveBeenCalledTimes(1)
-    const route = registerRoute.mock.calls[0][0]
-    expect(route).toBeInstanceOf(NavigationRoute)
-    expect(route.handler).toBe('index-handler')
+    expect(route()).toBeInstanceOf(NavigationRoute)
+    expect(route().handler).toBeTypeOf('function')
     expect(createHandlerBoundToURL).toHaveBeenCalledWith('index.html')
+  })
+
+  it('serves the network shell whenever online', async () => {
+    fetchMock.mockResolvedValue({ ok: true, body: 'network-shell' })
+    const request = new Request('https://app.example/channel/c1')
+    await expect(route().handler({ request })).resolves.toEqual({ ok: true, body: 'network-shell' })
+    expect(fetchMock).toHaveBeenCalledWith(request)
+    expect(offlineHandler).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the pre-cached shell when the network fails', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'))
+    const options = { request: new Request('https://app.example/channel/c1') }
+    await expect(route().handler(options)).resolves.toBe('index-handler')
+    expect(offlineHandler).toHaveBeenCalledWith(options)
+  })
+
+  it('falls back to the pre-cached shell on a non-OK response', async () => {
+    // The host serves the shell for app routes; an edge error page must never
+    // replace the app.
+    fetchMock.mockResolvedValue({ ok: false, status: 404 })
+    const options = { request: new Request('https://app.example/channel/c1') }
+    await expect(route().handler(options)).resolves.toBe('index-handler')
+    expect(offlineHandler).toHaveBeenCalledWith(options)
+  })
+
+  it('falls back to the pre-cached shell when the network stalls', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockReturnValue(new Promise(() => {}))
+      const options = { request: new Request('https://app.example/channel/c1') }
+      const pending = route().handler(options)
+      await vi.advanceTimersByTimeAsync(10_000)
+      await expect(pending).resolves.toBe('index-handler')
+      expect(offlineHandler).toHaveBeenCalledWith(options)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
