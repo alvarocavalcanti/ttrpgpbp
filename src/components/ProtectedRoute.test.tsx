@@ -21,6 +21,7 @@ function LoginSpy() {
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     sessionStorage.clear()
+    localStorage.clear()
   })
 
   it('renders loading spinner when loading is true', () => {
@@ -259,6 +260,66 @@ describe('ProtectedRoute', () => {
     )
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Our Terms and Privacy Policy have changed')).toBeInTheDocument()
+    expect(screen.getByText(/You last accepted version 1999-01-01\./)).toBeInTheDocument()
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  })
+
+  it('does not gate a first-time acceptance covered by the sign-in checkbox', () => {
+    localStorage.setItem('terms-agreed-version', '2026-09-24')
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: null } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    // The checkbox evidence is being stamped by AuthContext — no gate.
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('gates once as a fail-safe when no acceptance was ever recorded', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: null } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    // Pre-terms account with nothing recorded and no checkbox evidence.
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.queryByText(/You last accepted version/)).not.toBeInTheDocument()
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
   })
 
@@ -314,7 +375,7 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /I agree to the Terms/ }))
+    fireEvent.click(screen.getByRole('button', { name: /I accept the updated Terms/ }))
 
     await waitFor(() => {
       expect(confirmTerms).toHaveBeenCalledWith('2026-09-24')

@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
 import { confirmTerms } from '../features/auth/authApi'
-import { CURRENT_TERMS_VERSION } from '../features/auth/terms'
+import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from '../features/auth/terms'
 import { ReConsentGate } from '../features/auth/ReConsentGate'
 import { lazy, Suspense } from 'react'
 const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -54,11 +54,18 @@ export function ProtectedRoute() {
     )
   }
 
-  // Re-consent gate (#562 P2-2): a signed-in user whose stored terms version
-  // is behind must re-accept before using the app.
-  if (profile.terms_version !== CURRENT_TERMS_VERSION) {
+  // Update-only re-consent gate: first-time acceptance is recorded from the
+  // sign-in checkbox (AuthContext stamps it), so a stale record with matching
+  // checkbox evidence for the current version is still being recorded — not
+  // gated. A stale record with no such evidence (a real terms bump, or a
+  // pre-terms account with nothing recorded) must re-accept before using
+  // the app.
+  const termsStale = profile.terms_version !== CURRENT_TERMS_VERSION
+  const checkboxCoversCurrent = localStorage.getItem(TERMS_AGREED_KEY) === CURRENT_TERMS_VERSION
+  if (termsStale && !checkboxCoversCurrent) {
     return (
       <ReConsentGate
+        previousVersion={profile.terms_version}
         onAccept={async () => {
           await confirmTerms(CURRENT_TERMS_VERSION)
           await refreshProfile()

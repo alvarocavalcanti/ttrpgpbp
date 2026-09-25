@@ -4,7 +4,7 @@ title: Account & Settings
 
 ## Signing in and age
 
-You sign in with your Google account. **You must be at least 16** to use Role by Post: the sign-in page asks you to confirm this before continuing, and your answer is remembered on that device. Signing out clears it, so you confirm again next time. The same checkbox covers agreement to the Terms of Service and Privacy Policy; your acceptance is recorded when you accept in the app, and when those documents change the app asks you to accept the new version once before continuing.
+You sign in with your Google account. **You must be at least 16** to use Role by Post: the sign-in page asks you to confirm this before continuing, and your answer is remembered on that device. Signing out clears it, so you confirm again next time. The same checkbox covers agreement to the Terms of Service and Privacy Policy and names the version you are accepting; your acceptance is recorded when you sign in, so you are never asked twice. When those documents change, the app asks you to accept the new version once before continuing, and shows which version you last accepted.
 
 ## Display name and avatar
 
