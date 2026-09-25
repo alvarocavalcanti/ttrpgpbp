@@ -313,6 +313,52 @@ describe('Lobby', () => {
     expect(screen.getByText('04/05/2020')).toBeInTheDocument()
     expect(screen.getByText('The tale begins...')).toBeInTheDocument()
   })
+
+  it('strips complete and DB-truncated mention chips from the preview (#606)', () => {
+    // The DB caps the stored preview at 120 chars of raw markdown, so a long
+    // message can slice a `[@Name](user:uuid)` chip in half — the preview must
+    // never show the raw `[@…` or `](user:…` fragments.
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: 'Mention',
+          last_message_preview: 'Hero: [@Sir Reginald the Bold](user:6f1e2d3c-4b5a-6789-0123-456789abcdef) charges!',
+          member: { character_name: 'Hero' },
+        } as any,
+        {
+          id: '2',
+          name: 'TruncatedUrl',
+          last_message_preview: 'Hero: [@Hero](user:6f1e2d3c-4b5a-6789-0123-456',
+          member: { character_name: 'Hero' },
+        } as any,
+        {
+          id: '3',
+          name: 'TruncatedLabel',
+          last_message_preview: 'Hero: the ground shakes as the dragon stirs [@Sir Reginald the ',
+          member: { character_name: 'Hero' },
+        } as any,
+        {
+          id: '4',
+          name: 'AllAndImage',
+          last_message_preview: 'Roll init [@all](user:all), look ![tavern map](https://x/m.pn',
+          member: { character_name: 'Hero' },
+        } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText('Hero: @Sir Reginald the Bold charges!')).toBeInTheDocument()
+    expect(screen.getByText('Hero: @Hero')).toBeInTheDocument()
+    expect(screen.getByText('Hero: the ground shakes as the dragon stirs @Sir Reginald the')).toBeInTheDocument()
+    expect(screen.getByText('Roll init @all, look tavern map')).toBeInTheDocument()
+    expect(screen.queryByText(/\[\@/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\]\(user:/)).not.toBeInTheDocument()
+  })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {
     // Regression test for #369: the row's name container must allow its
     // truncate class to shrink, otherwise an 80-char name (the DB max) pushes

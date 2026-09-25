@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **Updating the app finishes on Android** — tapping **Reload** in the "New version available" banner now lands on the new version instead of reopening the old one and asking again. If the reload ever serves the old copy anyway, the app detects it and repairs itself rather than looping.
+- **No more leftover mention code in channel previews** — when a long message gets cut short in the channel list, a mention near the cut could show up as raw formatting instead of the player's name. Previews now always show the plain name.
 
 ## 2026-09-24
 

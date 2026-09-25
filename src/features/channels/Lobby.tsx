@@ -44,12 +44,16 @@ function unreadBadgeAria(count: number): string {
 }
 
 // Plain-text preview of the most recent message; CSS `truncate` adds the ellipsis.
+// The DB caps the stored preview at 120 chars of raw markdown, so a long
+// message can slice a mention/link chip in half (#606): strip both complete
+// `[label](url)` tokens and the two dangling shapes the truncation leaves
+// behind — `[label](url` (no closing paren) and `[label` (no closing bracket).
 function channelPreview(preview?: string | null): string {
   if (!preview) return 'No messages yet'
   return preview
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/[*_`#>]/g, '')
+    .replace(/!?\[([^\]]*)\](?:\([^)]*\)?)?/g, '$1')
+    .replace(/!?\[([^\]]*)$/g, '$1')
+    .replace(/[*_`#>\[\]]/g, '')
     .trim()
 }
 
