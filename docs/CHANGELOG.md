@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file.
 
 - **Clearer rules prompt** — signing in now records your agreement to the Terms and Privacy Policy in one step: the sign-in checkbox names the version you're accepting, so new players are never asked twice. You'll only see the acceptance screen again when those documents actually change — and it now tells you which version you last accepted. If saving your agreement fails, the app waits and offers a retry instead of letting you in without a record.
 
+### Fixed
+
+- **Updating the app finishes on Android** — tapping **Reload** in the "New version available" banner now lands on the new version instead of reopening the old one and asking again. If the reload ever serves the old copy anyway, the app detects it and repairs itself rather than looping.
+
 ## 2026-09-24
 
 ### Changed

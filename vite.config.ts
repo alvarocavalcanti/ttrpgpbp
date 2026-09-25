@@ -17,6 +17,10 @@ const swOutputCompat: Plugin = {
 }
 
 export default defineConfig(({ command, mode }) => {
+  // #601: the PWA update flow verifies the reload actually landed on the new
+  // build (src/lib/pwaUpdate.ts). GITHUB_SHA is deterministic per CI commit;
+  // local builds fall back to a timestamp so every local build is distinct.
+  const appBuild = process.env.GITHUB_SHA ?? String(Date.now())
   // #562: production bundles must name the data controller (GDPR Art 13).
   // Fail the build loudly rather than shipping a bundle whose policies
   // render a generic line with no contact. Dev/test builds stay optional.
@@ -35,6 +39,9 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
+  define: {
+    __APP_BUILD__: JSON.stringify(appBuild),
+  },
   plugins: [
     react(),
     VitePWA({

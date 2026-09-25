@@ -48,4 +48,18 @@ describe('hardReload', () => {
     hardReload()
     expect(capture.reload).toHaveBeenCalledTimes(1)
   })
+
+  it('appends a cache-busting query when asked', () => {
+    hardReload({ bustCache: true })
+    expect(capture.replace).toHaveBeenCalledTimes(1)
+    const href = capture.replace.mock.calls[0][0] as string
+    expect(href).toMatch(/^http:\/\/localhost\/channel\/1\?v=\d+$/)
+  })
+
+  it('keeps existing query and hash when cache-busting', () => {
+    capture.href = 'http://localhost/channel/1?tab=posts#latest'
+    hardReload({ bustCache: true })
+    const href = capture.replace.mock.calls[0][0] as string
+    expect(href).toMatch(/^http:\/\/localhost\/channel\/1\?tab=posts&v=\d+#latest$/)
+  })
 })

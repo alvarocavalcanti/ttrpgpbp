@@ -2,6 +2,7 @@
   "name": "RoleByPost",
   "short_name": "RoleByPost",
   "description": "A modern Play-by-Post App",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111827",

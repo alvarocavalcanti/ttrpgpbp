@@ -40,10 +40,26 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-// SPA navigation fallback: deep links like /channel/:id serve the pre-cached
-// app shell when offline instead of a browser error page (#336). The shell
+// SPA navigation: network first, pre-cached shell as the offline fallback.
+// A precache-only navigation (#336) serves the OLD shell whenever the reload
+// lands under the old worker, so an update reload can trap the PWA on the old
+// version forever (issue #601). Reaching the network whenever online guarantees
+// a reload gets the fresh shell; deep links like /channel/:id still serve the
+// pre-cached shell when offline instead of a browser error page. The shell
 // itself renders its own empty/error states for unreachable data.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
+//
+// ponytail: plain fetch, no strategy cache and no network timeout. The network
+// response is never stored — the precache stays the only offline source. Add an
+// AbortController timeout before the fallback only if a hanging network (not a
+// failing one) is ever observed in the wild.
+const offlineShell = createHandlerBoundToURL('index.html')
+registerRoute(new NavigationRoute(async (options) => {
+  try {
+    return await fetch(options.request)
+  } catch {
+    return offlineShell(options)
+  }
+}))
 
 // Exact pathname comparison (not substring) so `/channel/c1` can never match
 // `/channel/c10`. Both sides are resolved against the worker origin so a
