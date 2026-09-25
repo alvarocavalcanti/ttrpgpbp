@@ -22,6 +22,7 @@ All notable changes to this project are documented in this file.
 - **Reported images are no longer deleted by housekeeping** — when a channel has an open abuse report, its images are held back from the automatic retention cleanup, so review evidence stays available.
 - **A message can only be reported once per person** — reporting the same message twice no longer floods the safety inbox with duplicates.
 - **The last server admin can't delete their own account by accident** — if the check fails, account deletion now stops instead of assuming you're a normal player.
+- **No more leftover mention code in channel previews** — when a long message gets cut short in the channel list, a mention near the cut could show up as raw formatting instead of the player's name. Previews now always show the plain name.
 
 ## 2026-09-24
 
