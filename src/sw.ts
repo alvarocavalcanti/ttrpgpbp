@@ -48,17 +48,31 @@ self.addEventListener('activate', (event) => {
 // pre-cached shell when offline instead of a browser error page. The shell
 // itself renders its own empty/error states for unreachable data.
 //
-// ponytail: plain fetch, no strategy cache and no network timeout. The network
-// response is never stored — the precache stays the only offline source. Add an
-// AbortController timeout before the fallback only if a hanging network (not a
-// failing one) is ever observed in the wild.
+// ponytail: plain fetch + a bounded wait, no strategy cache. The network
+// response is never stored — the precache stays the only offline source.
 const offlineShell = createHandlerBoundToURL('index.html')
+// A stalled (not failed) request must not hang the navigation forever when the
+// offline shell is ready: 10s is patient on slow mobile networks, finite
+// everywhere else.
+const NAVIGATION_TIMEOUT = 10_000
 registerRoute(new NavigationRoute(async (options) => {
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    return await fetch(options.request)
+    const response = await Promise.race([
+      fetch(options.request),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('navigation timeout')), NAVIGATION_TIMEOUT)
+      }),
+    ])
+    // The host serves the shell for app routes; anything else (e.g. an edge
+    // 404 page) must never replace the app — fall back to the precache.
+    if (response.ok) return response
   } catch {
-    return offlineShell(options)
+    // Offline, stalled, or non-OK: fall through to the pre-cached shell.
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
   }
+  return offlineShell(options)
 }))
 
 // Exact pathname comparison (not substring) so `/channel/c1` can never match

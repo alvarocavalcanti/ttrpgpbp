@@ -91,19 +91,29 @@ function bootHandshake() {
 
 // The update didn't take, or the worker stalled: drop everything the old
 // version cached and reload with a cache-busting URL so a pinned container
-// can't re-serve the stale shell. Once per app session — if the WebAPK
-// container itself is pinned, retrying would just loop (issue #601).
+// can't re-serve the stale shell. The destructive cleanup runs once per app
+// session — if the WebAPK container itself is pinned, re-nuking would just
+// loop — but the reload always runs, so a later update attempt after the
+// timeout can never leave the banner stuck on "Updating…" (issue #601).
 export async function selfHeal(): Promise<void> {
-  if (readStore(() => sessionStorage.getItem(SESSION_HEAL)) !== null) return
-  writeStore(() => sessionStorage.setItem(SESSION_HEAL, '1'))
-  try {
-    const registrations = await navigator.serviceWorker.getRegistrations()
-    await Promise.all(registrations.map((registration) => registration.unregister()))
-    const names = await caches.keys()
-    await Promise.all(names.map((name) => caches.delete(name)))
-  } catch {
-    // Even a partial nuke beats the stale shell; the busted reload below
-    // still goes to the network.
+  // Offline the cached shell is the only thing that opens the app: never
+  // delete it, reload plainly, and retry the update on the next online boot.
+  if (navigator.onLine === false) {
+    hardReload()
+    return
+  }
+  if (readStore(() => sessionStorage.getItem(SESSION_HEAL)) === null) {
+    writeStore(() => sessionStorage.setItem(SESSION_HEAL, '1'))
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      // allSettled: one failed unregister must not skip the cache cleanup.
+      await Promise.allSettled(registrations.map((registration) => registration.unregister()))
+      const names = await caches.keys()
+      await Promise.all(names.map((name) => caches.delete(name)))
+    } catch {
+      // Even a partial nuke beats the stale shell; the busted reload below
+      // still goes to the network.
+    }
   }
   hardReload({ bustCache: true })
 }
@@ -117,7 +127,9 @@ function checkForUpdate() {
   if (now - lastUpdateCheck < UPDATE_CHECK_INTERVAL) return
   lastUpdateCheck = now
   swRegistration.update().catch(() => {
-    // Transient network failure: the next resume/online event retries.
+    // Transient failure: reset the throttle so the `online` event retries
+    // immediately instead of waiting out the minute.
+    lastUpdateCheck = 0
   })
 }
 

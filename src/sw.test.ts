@@ -90,11 +90,9 @@ describe('sw navigation fallback', () => {
   })
 
   it('serves the network shell whenever online', async () => {
-    // Network-first: a reload while online always gets the fresh shell, so an
-    // update can never trap the PWA on the old worker's pre-cached copy (#601).
-    fetchMock.mockResolvedValue('network-shell')
+    fetchMock.mockResolvedValue({ ok: true, body: 'network-shell' })
     const request = new Request('https://app.example/channel/c1')
-    await expect(route().handler({ request })).resolves.toBe('network-shell')
+    await expect(route().handler({ request })).resolves.toEqual({ ok: true, body: 'network-shell' })
     expect(fetchMock).toHaveBeenCalledWith(request)
     expect(offlineHandler).not.toHaveBeenCalled()
   })
@@ -104,6 +102,29 @@ describe('sw navigation fallback', () => {
     const options = { request: new Request('https://app.example/channel/c1') }
     await expect(route().handler(options)).resolves.toBe('index-handler')
     expect(offlineHandler).toHaveBeenCalledWith(options)
+  })
+
+  it('falls back to the pre-cached shell on a non-OK response', async () => {
+    // The host serves the shell for app routes; an edge error page must never
+    // replace the app.
+    fetchMock.mockResolvedValue({ ok: false, status: 404 })
+    const options = { request: new Request('https://app.example/channel/c1') }
+    await expect(route().handler(options)).resolves.toBe('index-handler')
+    expect(offlineHandler).toHaveBeenCalledWith(options)
+  })
+
+  it('falls back to the pre-cached shell when the network stalls', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockReturnValue(new Promise(() => {}))
+      const options = { request: new Request('https://app.example/channel/c1') }
+      const pending = route().handler(options)
+      await vi.advanceTimersByTimeAsync(10_000)
+      await expect(pending).resolves.toBe('index-handler')
+      expect(offlineHandler).toHaveBeenCalledWith(options)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

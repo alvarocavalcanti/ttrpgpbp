@@ -294,8 +294,12 @@ describe('boot handshake', () => {
     localStorage.setItem('pwa-build', pwaUpdate.APP_BUILD)
     vi.resetModules()
     pwaUpdate = await import('./pwaUpdate')
-    // Let any async heal path run; a short sleep with real timers is enough.
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    // Deterministic: the boot heal path is microtask-driven (no timers), so
+    // draining the queue proves no heal was scheduled — no real-time sleep.
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+    expect(capture.getRegistrations).not.toHaveBeenCalled()
     expect(capture.hardReload).not.toHaveBeenCalled()
     expect(capture.unregister).not.toHaveBeenCalled()
   })
@@ -318,17 +322,44 @@ describe('boot handshake', () => {
 })
 
 describe('selfHeal', () => {
-  it('runs once per session even when called directly', async () => {
+  it('cleans up once per session but always reloads', async () => {
+    // A later update attempt in the same tab must still reload after the
+    // timeout — only the destructive cleanup is once-per-session.
     await act(async () => pwaUpdate.selfHeal())
     await act(async () => pwaUpdate.selfHeal())
     expect(capture.getRegistrations).toHaveBeenCalledTimes(1)
-    expect(capture.hardReload).toHaveBeenCalledTimes(1)
+    expect(capture.hardReload).toHaveBeenCalledTimes(2)
+    expect(capture.hardReload).toHaveBeenNthCalledWith(2, { bustCache: true })
   })
 
   it('still reloads busted when the nuke itself throws', async () => {
     capture.getRegistrations.mockRejectedValue(new Error('gone'))
     await act(async () => pwaUpdate.selfHeal())
     expect(capture.hardReload).toHaveBeenCalledWith({ bustCache: true })
+  })
+
+  it('cleans the caches even when an unregister rejects', async () => {
+    capture.getRegistrations.mockResolvedValue([
+      { unregister: vi.fn().mockRejectedValue(new Error('gone')) },
+    ])
+    capture.cachesKeys.mockResolvedValue(['precache'])
+    await act(async () => pwaUpdate.selfHeal())
+    expect(capture.cachesDelete).toHaveBeenCalledWith('precache')
+    expect(capture.hardReload).toHaveBeenCalledWith({ bustCache: true })
+  })
+
+  it('keeps the cached shell and reloads plainly when offline', async () => {
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+    try {
+      await act(async () => pwaUpdate.selfHeal())
+    } finally {
+      Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true })
+    }
+    // Deleting the precache offline would brick the installed app until the
+    // network returns; the plain reload keeps the old shell usable.
+    expect(capture.getRegistrations).not.toHaveBeenCalled()
+    expect(capture.cachesKeys).not.toHaveBeenCalled()
+    expect(capture.hardReload).toHaveBeenCalledWith()
   })
 })
 
@@ -379,6 +410,21 @@ describe('update re-checks', () => {
     })
     expect(update).toHaveBeenCalledTimes(1)
     // No unhandled rejection: the test process reaching the end proves it.
+  })
+
+  it('does not let a failed check throttle the online retry', async () => {
+    const update = vi.fn().mockRejectedValue(new Error('offline'))
+    capture.opts?.onRegisteredSW?.('sw.js', { update } as unknown as ServiceWorkerRegistration)
+    setVisible(true)
+    // Separate flushes: the throttle reset runs in the rejection microtask,
+    // so the online retry must dispatch after it has settled.
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
+    expect(update).toHaveBeenCalledTimes(2)
   })
 
   it('does nothing before the registration arrives', async () => {

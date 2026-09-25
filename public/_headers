@@ -6,9 +6,44 @@
 # (and Android WebAPK containers) cache navigations, so a pinned old copy
 # traps the PWA on the old version after an update reload (issue #601).
 # no-cache (not no-store) still allows cheap 304 revalidation.
+#
+# Every app route needs the rule — a reload at /channel/c1 requests that path,
+# not / or /index.html. Keep this list in sync with the Route list in
+# src/App.tsx. Fingerprinted assets (/assets/*, icons) are deliberately
+# excluded so their long-term caching is untouched.
 /
   Cache-Control: no-cache
 /index.html
+  Cache-Control: no-cache
+/login
+  Cache-Control: no-cache
+/archived
+  Cache-Control: no-cache
+/messages
+  Cache-Control: no-cache
+/admin
+  Cache-Control: no-cache
+/settings
+  Cache-Control: no-cache
+/help
+  Cache-Control: no-cache
+/changelog
+  Cache-Control: no-cache
+/about
+  Cache-Control: no-cache
+/privacy
+  Cache-Control: no-cache
+/terms
+  Cache-Control: no-cache
+/features
+  Cache-Control: no-cache
+/admin/channels/:id
+  Cache-Control: no-cache
+/join/:id
+  Cache-Control: no-cache
+/channel/:id
+  Cache-Control: no-cache
+/help/:topic
   Cache-Control: no-cache
 /sw.js
   Cache-Control: no-cache
