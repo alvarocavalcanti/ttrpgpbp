@@ -109,17 +109,25 @@ export async function runCleanup(
   let deleted = 0
 
   for (const batch of splitCleanupBatches(expired)) {
+    // Re-check protection right before deleting this batch: a report opened
+    // after the initial snapshot must still hold its channel's images. This
+    // narrows the window to the batch itself; a fully race-proof guarantee
+    // would need a database-side retention hold.
+    const stillProtected = new Set(await dependencies.getProtectedChannelIds?.() ?? [])
+    const deletable = batch.filter(path => !stillProtected.has(path.split('/')[0]))
+    if (deletable.length === 0) continue
+
     const auditId = await dependencies.auditBatch({
       runId,
       retentionDays,
       cutoffAt: new Date(cutoffMs).toISOString(),
-      objectPaths: batch,
+      objectPaths: deletable,
     })
 
     try {
-      await dependencies.removeImages(batch)
+      await dependencies.removeImages(deletable)
       await dependencies.markBatchDeleted(auditId)
-      deleted += batch.length
+      deleted += deletable.length
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       await dependencies.markBatchFailed(auditId, errorMessage)

@@ -80,14 +80,27 @@ serve(async (req) => {
       },
       // Hold images in any channel with an open abuse report so moderation and
       // legal-review evidence is not deleted (the Privacy Policy promises it).
+      // PostgREST caps a select at max_rows (1000), so page with a stable
+      // order until a short page — a partial list could delete protected images.
       getProtectedChannelIds: async () => {
-        const { data, error } = await client
-          .from("abuse_reports")
-          .select("channel_id")
-          .eq("status", "pending")
-          .not("channel_id", "is", null)
-        if (error) throw error
-        return [...new Set((data ?? []).map(row => String(row.channel_id)))]
+        const ids = new Set<string>()
+        const pageSize = 1000
+        for (let from = 0; ; from += pageSize) {
+          const { data, error } = await client
+            .from("abuse_reports")
+            .select("channel_id")
+            .eq("status", "pending")
+            .not("channel_id", "is", null)
+            .order("id", { ascending: true })
+            .range(from, from + pageSize - 1)
+          if (error) throw error
+          const rows = data ?? []
+          for (const row of rows) {
+            if (row.channel_id) ids.add(String(row.channel_id))
+          }
+          if (rows.length < pageSize) break
+        }
+        return [...ids]
       },
       auditBatch: async ({ runId, retentionDays, cutoffAt, objectPaths }) => {
         const { data, error } = await client

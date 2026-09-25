@@ -109,6 +109,37 @@ describe('scripts/git/check-types-staged', () => {
     expect(r.status, diag).toBe(0)
   })
 
+  it('does not require types for a modified migration that only changes non-schema statements', () => {
+    write(dir, 'supabase/migrations/20260000000000_x.sql', 'GRANT SELECT ON public.profiles TO authenticated;\n')
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'commit', '-q', '-m', 'add migration')
+    write(dir, 'supabase/migrations/20260000000000_x.sql', 'GRANT SELECT, UPDATE ON public.profiles TO authenticated;\n')
+    git(dir, 'add', '-A')
+    expect(run().status).toBe(0)
+  })
+
+  it('blocks a modified migration that removes a DDL statement', () => {
+    write(dir, 'supabase/migrations/20260000000000_x.sql', 'CREATE TABLE t (id uuid);\n')
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'commit', '-q', '-m', 'add migration')
+    // The removed CREATE TABLE line carries the keyword, so the both-lines
+    // check catches it even though the replacement has none.
+    write(dir, 'supabase/migrations/20260000000000_x.sql', '-- table dropped\n')
+    git(dir, 'add', '-A')
+    expect(run().status).toBe(1)
+  })
+
+  it('requires types when a schema-neutral addition is staged alongside a deletion', () => {
+    write(dir, 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    git(dir, 'commit', '-q', '-m', 'add migration')
+    git(dir, 'rm', '-q', 'supabase/migrations/20260000000000_x.sql')
+    write(dir, 'supabase/migrations/20260000000001_y.sql', 'GRANT SELECT ON public.profiles TO authenticated;\n')
+    git(dir, 'add', '-A')
+    // The deletion must win over the schema-neutral addition.
+    expect(run().status).toBe(1)
+  })
+
   it('passes for a types-only commit', () => {
     write(dir, 'src/types/database.ts')
     git(dir, 'add', 'src/types/database.ts')

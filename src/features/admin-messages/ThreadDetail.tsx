@@ -71,9 +71,9 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
 
   const title = thread.type === 'announcement' ? thread.subject : thread.type === 'system' ? (thread.subject || 'System') : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
 
-  // Announcements are admin-authored broadcasts: non-admins read them but
-  // cannot reply (the DB INSERT policy is admin-only, 20260925163921).
-  const canReply = thread.type !== 'announcement' || isServerAdmin
+  // Announcements and system threads are admin-authored: non-admins read
+  // them but cannot reply (the DB INSERT policy is admin-only, 20260925163921).
+  const canReply = thread.type === 'dm' || isServerAdmin
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">

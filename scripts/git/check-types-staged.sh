@@ -28,27 +28,44 @@ staged="$(git diff --cached --name-only)" || {
   echo "error: check-types-staged could not read the staged files." >&2
   exit 2
 }
-# Status of the migration-path change: A/M/C (content to inspect), R### (rename
-# with edits), or D (deleted / moved out of the migrations directory).
+# Status of the migration-path change. "A" = added/copied, "M" = modified or
+# renamed-with-edits, "D" = deleted or moved. For A/M the changed lines are
+# inspected for a DDL keyword; a deletion/move always requires types.
+#
+# Known ceiling: a line-based keyword check cannot see a column type change
+# (`id integer` -> `id text`) or a removed CREATE TABLE that carries no keyword
+# on the changed line. CI diffs the regenerated types authoritatively, so this
+# local guard is a fast heuristic, not the final word.
 migration_change="$(git diff --cached --name-status -M | awk -F'\t' '
   # Exact in-place migration rename: schema unchanged, exempt.
   $1 == "R100" && $2 ~ /^supabase\/migrations\// && $3 ~ /^supabase\/migrations\// { next }
-  # Added / modified / copied / renamed-with-edits in place: inspect content.
-  $2 ~ /^supabase\/migrations\// && $1 ~ /^[AMC]/ { print "A"; exit }
-  $1 ~ /^R/ && $2 ~ /^supabase\/migrations\// && $3 ~ /^supabase\/migrations\// { print "A"; exit }
-  # Deleted, moved out of, or moved into the migrations directory: needs types.
-  $2 ~ /^supabase\/migrations\// { print "D"; exit }
-  $3 ~ /^supabase\/migrations\// { print "D"; exit }
+  # Added / copied in place: inspect the added lines for DDL.
+  $1 ~ /^[AC]/ && ($2 ~ /^supabase\/migrations\// || $3 ~ /^supabase\/migrations\//) { print "A"; next }
+  # Modified in place (2 fields) or renamed-with-edits (3 fields): inspect
+  # added + removed lines.
+  $1 ~ /^M/ && $2 ~ /^supabase\/migrations\// { print "M"; next }
+  $1 ~ /^R/ && $2 ~ /^supabase\/migrations\// && $3 ~ /^supabase\/migrations\// { print "M"; next }
+  # Deleted, moved out of, or moved into the migrations directory: require types.
+  $2 ~ /^supabase\/migrations\// || $3 ~ /^supabase\/migrations\// { print "D"; next }
 ')" || {
   echo "error: check-types-staged could not inspect the staged changes." >&2
   exit 2
 }
 
+# "D" wins over "A"/"M": a deletion or move in the staged set must force types
+# even when another migration is added or edited.
 types_required=""
 case "$migration_change" in
   "") ;;
-  D*) types_required="yes" ;;
-  *)
+  *D*) types_required="yes" ;;
+  *M*)
+    if git diff --cached -U0 -M -- supabase/migrations \
+      | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
+      | grep -Eiq '\b(CREATE|ALTER|DROP)[[:space:]]+(OR[[:space:]]+REPLACE[[:space:]]+)?(TABLE|FUNCTION|TYPE|VIEW|MATERIALIZED[[:space:]]+VIEW|SEQUENCE)\b'; then
+      types_required="yes"
+    fi
+    ;;
+  *A*)
     # Only a schema-shape statement can change the generated types; grants,
     # policies, indexes and comments cannot.
     if git diff --cached -U0 -M -- supabase/migrations \
