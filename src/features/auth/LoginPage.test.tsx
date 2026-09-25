@@ -24,6 +24,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = render(
@@ -45,6 +47,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -67,6 +71,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -94,6 +100,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -121,6 +129,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -147,6 +157,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -174,6 +186,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -201,6 +215,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -230,6 +246,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -255,6 +273,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = render(
@@ -278,6 +298,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -304,6 +326,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -328,6 +352,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -350,6 +376,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -377,6 +405,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(

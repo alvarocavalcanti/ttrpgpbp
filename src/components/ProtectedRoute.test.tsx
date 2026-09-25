@@ -34,6 +34,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = render(
@@ -55,6 +57,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -82,6 +86,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -110,6 +116,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -137,6 +145,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -164,6 +174,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -191,6 +203,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -218,6 +232,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = render(
@@ -246,6 +262,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -265,7 +283,7 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
   })
 
-  it('does not gate a first-time acceptance covered by the sign-in checkbox', () => {
+  it('holds the app while a checkbox-covered acceptance is being recorded', () => {
     localStorage.setItem('terms-agreed-version', '2026-09-24')
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
@@ -276,6 +294,41 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'pending',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    // The server record has not landed yet: no gate, no content — spinner.
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  })
+
+  it('offers a retry without re-accepting when recording the acceptance fails', () => {
+    const retryTermsConfirm = vi.fn()
+    localStorage.setItem('terms-agreed-version', '2026-09-24')
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: null } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'failed',
+      retryTermsConfirm,
     })
 
     render(
@@ -289,9 +342,12 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     )
 
-    // The checkbox evidence is being stamped by AuthContext — no gate.
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/We could not save your agreement to the Terms/)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(retryTermsConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('gates once as a fail-safe when no acceptance was ever recorded', () => {
@@ -304,6 +360,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -333,6 +391,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -361,6 +421,8 @@ describe('ProtectedRoute', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile,
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
     vi.mocked(confirmTerms).mockResolvedValue(undefined)
 

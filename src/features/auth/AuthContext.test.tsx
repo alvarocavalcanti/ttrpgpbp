@@ -30,6 +30,8 @@ function TestComponent() {
       <button type="button" onClick={context.signInWithGoogle}>Sign In</button>
       <button type="button" onClick={context.signOut}>Sign Out</button>
       <button type="button" onClick={() => void context.refreshProfile()}>Refresh Profile</button>
+      <div data-testid="terms">{context.termsConfirmState}</div>
+      <button type="button" onClick={context.retryTermsConfirm}>Retry Terms</button>
     </div>
   )
 }
@@ -836,6 +838,90 @@ describe('AuthContext', () => {
       expect(console.error).toHaveBeenCalledWith('Error confirming terms:', expect.any(Error))
     })
     expect(screen.getByTestId('profile')).toHaveTextContent('Test User')
+    expect(screen.getByTestId('terms')).toHaveTextContent('failed')
+  })
+
+  it('retries a failed terms confirmation without asking the user to accept again', async () => {
+    localStorage.setItem('terms-agreed-version', '2026-09-24')
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User', terms_version: null },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('down') } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('terms')).toHaveTextContent('failed')
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+
+    // The retry reuses the checkbox evidence already on this device.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+    fireEvent.click(screen.getByText('Retry Terms'))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledTimes(2)
+    })
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, 'confirm_terms', { p_version: '2026-09-24' })
+    await waitFor(() => {
+      expect(screen.getByTestId('terms')).toHaveTextContent('idle')
+    })
+  })
+
+  it('drops device consent evidence when the identity switches without sign-out', async () => {
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-A' } } },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-A', display_name: 'User A', terms_version: '2026-09-24' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(screen.getByTestId('user')).toHaveTextContent('user-A')
+
+    // Checkbox evidence belonged to user A; a switch to user B must not
+    // inherit it and stamp B from consent B never gave.
+    localStorage.setItem('age-confirmed', 'true')
+    localStorage.setItem('terms-agreed-version', '2026-09-24')
+    await act(async () => {
+      authCallback('SIGNED_IN', { user: { id: 'user-B' } })
+    })
+
+    await waitFor(() => {
+      expect(localStorage.getItem('age-confirmed')).toBeNull()
+      expect(localStorage.getItem('terms-agreed-version')).toBeNull()
+    })
   })
 
   it('clears the agreed terms version on sign-out', async () => {

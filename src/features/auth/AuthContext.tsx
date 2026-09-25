@@ -10,6 +10,8 @@ import type { Database } from '../../types/database'
 // status comes from the is_server_admin() RPC via useIsServerAdmin.
 type Profile = Omit<Database['public']['Tables']['profiles']['Row'], 'server_admin'>
 
+type TermsConfirmState = 'idle' | 'pending' | 'failed'
+
 interface AuthContextType {
   session: Session | null
   user: User | null
@@ -19,6 +21,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  termsConfirmState: TermsConfirmState
+  retryTermsConfirm: () => void
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -32,6 +36,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const lastFetchedUserId = useRef<string | null>(null)
   const confirmedAgeFor = useRef<string | null>(null)
   const confirmedTermsFor = useRef<string | null>(null)
+  // Recording state for the checkbox-evidence terms stamp below. ProtectedRoute
+  // reads it to hold the app (never the Outlet) until the server record lands,
+  // and to offer a retry — not a re-accept — when recording fails.
+  const [termsConfirmState, setTermsConfirmState] = useState<TermsConfirmState>('idle')
 
   useEffect(() => {
     let mounted = true
@@ -81,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentSession?.user) {
           const userId = currentSession.user.id
+          if (lastFetchedUserId.current !== null && lastFetchedUserId.current !== userId) {
+            // Account switch without app sign-out: the device checkbox evidence
+            // belonged to the previous identity — drop it so nothing is stamped
+            // for the new identity from consent it never gave.
+            localStorage.removeItem('age-confirmed')
+            localStorage.removeItem(TERMS_AGREED_KEY)
+          }
           // Skip refetch unless the user actually changed (e.g. TOKEN_REFRESHED
           // fires hourly and on tab refocus with the same identity).
           if (lastFetchedUserId.current !== userId) {
@@ -147,21 +162,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // version. A terms bump leaves the stored agreement behind, so a new version
   // is never stamped on load without fresh checkbox evidence — the re-consent
   // gate stays the path for those (#562 review). The user is marked accepted
-  // only after the RPC succeeds, so a failed call is retried on the next auth
-  // event instead of being silently dropped (same pattern as the age effect).
+  // only after the RPC succeeds; a failure surfaces via termsConfirmState so
+  // ProtectedRoute can hold the app and offer a retry instead of rendering
+  // protected content with no server record.
   useEffect(() => {
     if (loading || !user || !profile) return
-    if (profile.terms_version === CURRENT_TERMS_VERSION) return
-    if (localStorage.getItem(TERMS_AGREED_KEY) !== CURRENT_TERMS_VERSION) return
+    if (profile.terms_version === CURRENT_TERMS_VERSION || localStorage.getItem(TERMS_AGREED_KEY) !== CURRENT_TERMS_VERSION) {
+      if (termsConfirmState !== 'idle') setTermsConfirmState('idle')
+      return
+    }
     const stampKey = `${user.id}:${CURRENT_TERMS_VERSION}`
-    if (confirmedTermsFor.current === stampKey) return
+    if (confirmedTermsFor.current === stampKey || termsConfirmState !== 'idle') return
+    setTermsConfirmState('pending')
     void confirmTerms(CURRENT_TERMS_VERSION)
-      .then(() => {
+      .then(async () => {
         confirmedTermsFor.current = stampKey
-        return refreshProfile()
+        await refreshProfile()
+        setTermsConfirmState('idle')
       })
-      .catch((err) => console.error('Error confirming terms:', err))
-  }, [loading, user, profile, refreshProfile])
+      .catch((err) => {
+        console.error('Error confirming terms:', err)
+        setTermsConfirmState('failed')
+      })
+  }, [loading, user, profile, refreshProfile, termsConfirmState])
+
+  // Re-runs a failed checkbox-evidence stamp without asking the user to accept
+  // again — the evidence is still on this device. No-op unless the last
+  // attempt failed; the effect above picks the retry up from the idle state.
+  const retryTermsConfirm = useCallback(() => {
+    setTermsConfirmState((prev) => (prev === 'failed' ? 'idle' : prev))
+  }, [])
 
   const signInWithGoogle = useCallback(async () => {
     setError(null)
@@ -186,8 +216,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile }),
-    [session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile]
+    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile, termsConfirmState, retryTermsConfirm }),
+    [session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile, termsConfirmState, retryTermsConfirm]
   )
 
   return (

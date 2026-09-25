@@ -34,6 +34,8 @@ describe('useAuth', () => {
       signInWithGoogle: () => Promise.resolve(),
       signOut: () => Promise.resolve(),
       refreshProfile: () => Promise.resolve(),
+      termsConfirmState: 'idle' as const,
+      retryTermsConfirm: () => {},
     }
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
