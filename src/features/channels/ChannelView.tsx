@@ -199,7 +199,13 @@ export function ChannelView() {
     const error = await reportMessage(user.id, message, reason)
     if (error) {
       console.error('Failed to submit report:', error)
-      addToast('Failed to submit report. Please try again.', 'error')
+      // 23505 = the (reporter, message) unique index: one report per message.
+      addToast(
+        error.code === '23505'
+          ? "You've already reported this message."
+          : 'Failed to submit report. Please try again.',
+        'error',
+      )
       throw error
     }
     addToast('Report submitted. Thank you for helping keep the game safe.')

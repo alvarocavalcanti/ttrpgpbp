@@ -1211,7 +1211,7 @@ it('renders scene-message prose from the shared proseParchment constant (P2-18)'
 it('proseParchment constant keeps the extracted scene-prose classes (P2-18)', () => {
   // Import is literal on purpose: renaming the export must break this test.
   expect(proseParchment.startsWith('max-w-2xl w-full text-center font-serif text-parchment-ink')).toBe(true)
-  expect(proseParchment).toContain('prose dark:prose-invert prose-p:text-parchment-ink')
+  expect(proseParchment).toContain('prose prose-chat dark:prose-invert prose-p:text-parchment-ink')
   expect(proseParchment).toContain('prose-ol:text-parchment-ink dark:prose-ol:text-parchment-ink-dark')
   expect(proseParchment).toContain('max-w-none break-words')
   expect(proseParchment).toContain('[&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark')
@@ -1219,11 +1219,23 @@ it('proseParchment constant keeps the extracted scene-prose classes (P2-18)', ()
 
 it('proseAmber constant keeps the extracted status-prose classes (P2-18)', () => {
   // Import is literal on purpose: renaming the export must break this test.
-  expect(proseAmber.startsWith('prose prose-sm max-w-none dark:prose-invert text-amber-900')).toBe(true)
+  expect(proseAmber.startsWith('prose prose-sm prose-chat max-w-none dark:prose-invert text-amber-900')).toBe(true)
   expect(proseAmber).toContain('prose-p:text-amber-900 dark:prose-p:text-amber-200')
   expect(proseAmber).toContain('prose-a:text-amber-700 dark:prose-a:text-amber-300')
   expect(proseAmber).toContain('prose-blockquote:border-amber-300 dark:prose-blockquote:border-amber-700')
   expect(proseAmber).toContain('prose-ol:text-amber-900 dark:prose-ol:text-amber-200')
+})
+
+it('applies the chat heading scale to regular and dice bodies (20260923 plan)', () => {
+  const regular: any = { id: 'm1', type: 'regular', content: 'A paragraph', created_at: new Date().toISOString(), sender_id: 'u1' }
+  const { container: regularContainer } = render(<MessageItem message={regular} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  expect(regularContainer.querySelector('.prose-chat')).not.toBeNull()
+
+  const dice: any = { id: 'd1', type: 'dice_roll', content: 'Rolled 1d20: **15**', sender: { display_name: 'Hero' } }
+  const { container: diceContainer } = render(<MessageItem message={dice} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const diceProse = diceContainer.querySelector('.prose-chat')
+  expect(diceProse).not.toBeNull()
+  expect(diceProse?.className).toContain('dark:prose-invert')
 })
 
 it('scrolls highlighted messages into view instantly under prefers-reduced-motion (UX-6)', () => {

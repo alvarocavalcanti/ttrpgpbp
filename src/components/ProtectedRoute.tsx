@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
-import { confirmTerms } from '../features/auth/authApi'
+import { confirmAge, confirmTerms } from '../features/auth/authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from '../features/auth/terms'
 import { ReConsentGate } from '../features/auth/ReConsentGate'
 import { lazy, Suspense } from 'react'
@@ -90,7 +90,12 @@ export function ProtectedRoute() {
     return (
       <ReConsentGate
         previousVersion={profile.terms_version}
+        requiresAge={!profile.age_verified_at}
         onAccept={async () => {
+          // Pre-age-gate accounts never stamped 16+; collect it with the
+          // re-acceptance so the age evidence is not left NULL (2026-09-25
+          // legal audit P2-1).
+          if (!profile.age_verified_at) await confirmAge()
           await confirmTerms(CURRENT_TERMS_VERSION)
           await refreshProfile()
         }}

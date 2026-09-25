@@ -43,6 +43,7 @@ describe('AboutPage', () => {
       'href',
       'https://github.com/alvarocavalcanti/ttrpgpbp'
     )
+    expect(screen.getByText(/Role by Post v\d+\.\d+\.\d+/)).toBeInTheDocument()
   })
 
   it('replaces the entry when returning to lobby so back does not re-enter the page', () => {

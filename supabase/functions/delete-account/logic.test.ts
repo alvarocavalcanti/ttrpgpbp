@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCorsHeaders, evaluateDeletion, isAllowedOrigin } from './logic.ts'
+import { buildCorsHeaders, evaluateDeletion, isAllowedOrigin, resolveAdminLookup } from './logic.ts'
 
 describe('evaluateDeletion', () => {
   it('allows a non-admin user to delete their account', () => {
@@ -13,6 +13,21 @@ describe('evaluateDeletion', () => {
       status: 403,
       reason: 'Server admin cannot delete their own account. Transfer admin first.',
     })
+  })
+})
+
+describe('resolveAdminLookup', () => {
+  it('reports the admin flag from a successful lookup', () => {
+    expect(resolveAdminLookup({ data: true, error: null })).toEqual({ ok: true, isServerAdmin: true })
+    expect(resolveAdminLookup({ data: false, error: null })).toEqual({ ok: true, isServerAdmin: false })
+  })
+
+  it('fails closed when the RPC errors', () => {
+    expect(resolveAdminLookup({ data: null, error: { message: 'boom' } })).toEqual({ ok: false })
+  })
+
+  it('treats a non-true payload as not-admin', () => {
+    expect(resolveAdminLookup({ data: null, error: null })).toEqual({ ok: true, isServerAdmin: false })
   })
 })
 

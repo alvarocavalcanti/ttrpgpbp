@@ -1,8 +1,12 @@
 import { defineConfig } from 'vitest/config'
 import { loadEnv } from 'vite'
+import { readFileSync } from 'node:fs'
 import type { Plugin } from 'rollup'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// Single source of truth for the app version, surfaced in the About page.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
 // vite-plugin-pwa hardcodes `output.inlineDynamicImports` for the service-worker
 // build; rolldown (vite 8) deprecates that in favour of `codeSplitting: false`.
@@ -41,6 +45,7 @@ export default defineConfig(({ command, mode }) => {
   return {
   define: {
     __APP_BUILD__: JSON.stringify(appBuild),
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   plugins: [
     react(),

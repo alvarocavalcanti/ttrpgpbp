@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import postcss from 'postcss'
+import tailwindcss from 'tailwindcss'
 // @ts-expect-error — tailwind config is an untyped JS module
 import config from '../tailwind.config.js'
 
@@ -34,5 +36,30 @@ describe('tailwind design tokens', () => {
       shade: '#f4e4c1',
       'shade-dark': '#3a342a',
     })
+  })
+})
+
+// Message heading scale (docs/audit/20260923). Values are literal (DAMP) so a
+// silent edit to the modifier fails here. The compile-level test guards the
+// cascade: `prose-chat` must emit after `prose-sm`, or prose-sm's h1 wins.
+describe('message heading scale', () => {
+  const extend = (config.theme as { extend: { typography: { chat: { css: Record<string, any> } } } }).extend
+  const typography = extend.typography
+
+  it('sizes chat h1 to the old h3 ratio and flattens h3-h6 to body size', () => {
+    expect(typography.chat.css.h1.fontSize).toBe('1.2857em')
+    expect(typography.chat.css.h2.fontSize).toBe('1.1429em')
+    expect(typography.chat.css['h3, h4, h5, h6']).toMatchObject({ fontSize: '1em', fontWeight: '600' })
+  })
+
+  it('emits the prose-chat h1 rule after prose-sm so it wins the cascade', async () => {
+    const result = await postcss([
+      tailwindcss({ ...config, content: [{ raw: '<div class="prose prose-sm prose-chat"></div>' }] }),
+    ]).process('@tailwind base;@tailwind components;@tailwind utilities;', { from: undefined })
+    const smIndex = result.css.indexOf('.prose-sm :where(h1)')
+    const chatIndex = result.css.indexOf('.prose-chat :where(h1)')
+    expect(smIndex).toBeGreaterThan(-1)
+    expect(chatIndex).toBeGreaterThan(smIndex)
+    expect(result.css.slice(chatIndex, chatIndex + 200)).toMatch(/font-size:\s*1\.2857em/)
   })
 })

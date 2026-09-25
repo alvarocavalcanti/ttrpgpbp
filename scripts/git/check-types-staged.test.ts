@@ -80,7 +80,7 @@ describe('scripts/git/check-types-staged', () => {
   })
 
   it('blocks a staged migration without staged types', () => {
-    write(dir, 'supabase/migrations/20260000000000_x.sql')
+    write(dir, 'supabase/migrations/20260000000000_x.sql', 'CREATE TABLE t (id uuid);\n')
     git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
     const r = run()
     const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
@@ -93,6 +93,20 @@ describe('scripts/git/check-types-staged', () => {
     write(dir, 'src/types/database.ts')
     git(dir, 'add', 'supabase/migrations/20260000000000_x.sql', 'src/types/database.ts')
     expect(run().status).toBe(0)
+  })
+
+  it('does not require types for a migration that only grants, adds a policy, or adds an index', () => {
+    // These statements cannot change the generated types, so demanding a
+    // regenerated (byte-identical) database.ts would be a false block.
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'REVOKE SELECT ON public.profiles FROM anon;\nCREATE POLICY p ON public.profiles FOR SELECT USING (true);\nCREATE UNIQUE INDEX i ON public.profiles (id);\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    const r = run()
+    const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
+    expect(r.status, diag).toBe(0)
   })
 
   it('passes for a types-only commit', () => {
@@ -117,7 +131,7 @@ describe('scripts/git/check-types-staged', () => {
     git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
     git(dir, 'commit', '-q', '-m', 'add migration')
     git(dir, 'mv', 'supabase/migrations/20260000000000_x.sql', 'supabase/migrations/20260000000001_x.sql')
-    write(dir, 'supabase/migrations/20260000000001_x.sql', '-- changed\n')
+    write(dir, 'supabase/migrations/20260000000001_x.sql', 'CREATE TABLE t (id uuid);\n')
     git(dir, 'add', '-A')
     expect(run().status).toBe(1)
   })
@@ -142,7 +156,7 @@ describe('scripts/git/check-types-staged', () => {
   it('ignores a redirected git directory', () => {
     // The poison reaches the guard script itself (not a scrubbed helper),
     // proving the guard's own unset list neutralizes it.
-    write(dir, 'supabase/migrations/20260000000000_x.sql')
+    write(dir, 'supabase/migrations/20260000000000_x.sql', 'CREATE TABLE t (id uuid);\n')
     git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
     const r = run({ GIT_DIR: join(dir, 'bogus.git') })
     const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
@@ -155,7 +169,7 @@ describe('scripts/git/check-types-staged', () => {
     // exits 2 instead of blocking with 1.
     const emptyDir = mkdtempSync(join(tmpdir(), 'types-staged-empty-'))
     try {
-      write(dir, 'supabase/migrations/20260000000000_x.sql')
+      write(dir, 'supabase/migrations/20260000000000_x.sql', 'CREATE TABLE t (id uuid);\n')
       git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
       const r = run({
         GIT_OBJECT_DIRECTORY: join(emptyDir, 'objects'),

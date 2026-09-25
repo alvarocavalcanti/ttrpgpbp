@@ -199,7 +199,11 @@ Every UI change must follow these conventions:
 
 ## Release Management
 
-- When instructed to generate a new version, update the version in all relevant files
+- When instructed to generate a new version:
+  1. Bump `version` in [package.json](package.json) — it is the single source of truth; `vite.config.ts` injects it as `__APP_VERSION__` and the About page renders it.
+  2. Add a release-notes entry to the top of [docs/CHANGELOG.md](docs/CHANGELOG.md) (the date heading is the release body).
+  3. Tag the release commit (`git tag v<version>`) and push the tag.
+  4. Confirm `DEPLOYMENT.md` still matches the deployed surface (edge functions, env vars, secrets).
 
 ## Dependencies Hygiene
 

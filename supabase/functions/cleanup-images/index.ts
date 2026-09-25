@@ -78,6 +78,17 @@ serve(async (req) => {
 
         return listChannelImages(listBucket)
       },
+      // Hold images in any channel with an open abuse report so moderation and
+      // legal-review evidence is not deleted (the Privacy Policy promises it).
+      getProtectedChannelIds: async () => {
+        const { data, error } = await client
+          .from("abuse_reports")
+          .select("channel_id")
+          .eq("status", "pending")
+          .not("channel_id", "is", null)
+        if (error) throw error
+        return [...new Set((data ?? []).map(row => String(row.channel_id)))]
+      },
       auditBatch: async ({ runId, retentionDays, cutoffAt, objectPaths }) => {
         const { data, error } = await client
           .from("image_cleanup_audit")

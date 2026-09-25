@@ -71,6 +71,10 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
 
   const title = thread.type === 'announcement' ? thread.subject : thread.type === 'system' ? (thread.subject || 'System') : (isServerAdmin ? thread.gm?.display_name || 'GM' : 'Server Admin')
 
+  // Announcements are admin-authored broadcasts: non-admins read them but
+  // cannot reply (the DB INSERT policy is admin-only, 20260925163921).
+  const canReply = thread.type !== 'announcement' || isServerAdmin
+
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
@@ -142,6 +146,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
         <div ref={messagesEndRef} />
       </div>
 
+      {canReply && (
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         {replyError && (
           <div className="mb-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded px-3 py-2" role="alert">
@@ -172,6 +177,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
           </button>
         </form>
       </div>
+      )}
 
       {confirmAction?.type === 'thread' && (
         <ConfirmDialog

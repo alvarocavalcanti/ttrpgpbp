@@ -210,14 +210,14 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                       </button>
-                      <label className="h-11 w-11 flex items-center justify-center text-gray-400 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer disabled:opacity-50" title="Upload portrait">
+                      <label className="h-11 w-11 flex items-center justify-center text-gray-400 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50" title="Upload portrait">
                         <input
                           type="file"
                           accept="image/*"
                           aria-label={`Upload portrait for ${npc.name}`}
                           disabled={uploading || !uploadEnabled || settingsLoading}
                           onChange={(e) => handleUpload(e, npc.id)}
-                          className="hidden"
+                          className="sr-only"
                         />
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                       </label>
@@ -272,14 +272,14 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
-                <label className="h-11 w-11 flex items-center justify-center text-gray-400 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer disabled:opacity-50" title="Upload portrait">
+                <label className="h-11 w-11 flex items-center justify-center text-gray-400 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50" title="Upload portrait">
                   <input
                     type="file"
                     accept="image/*"
                     aria-label="Upload new NPC portrait"
                     disabled={uploading || !uploadEnabled || settingsLoading}
                     onChange={(e) => handleUpload(e, 'new')}
-                    className="hidden"
+                    className="sr-only"
                   />
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                 </label>

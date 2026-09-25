@@ -56,6 +56,7 @@ export function AboutPage() {
         >
           Role by Post on GitHub
         </a>
+        <p className="mt-6 text-xs text-gray-400 dark:text-gray-500">Role by Post v{__APP_VERSION__}</p>
       </div>
     </div>
   )

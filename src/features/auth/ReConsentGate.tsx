@@ -11,9 +11,13 @@ import { CURRENT_TERMS_VERSION } from './terms'
 // user reads the policies (public routes, so the gate unmounts while reading)
 // and accepts; the caller stamps the acceptance and refreshes the profile.
 // Escape does not dismiss — acceptance is required to use the app.
-export function ReConsentGate({ onAccept, previousVersion }: { onAccept: () => Promise<void>; previousVersion: string | null }) {
+export function ReConsentGate({ onAccept, previousVersion, requiresAge = false }: { onAccept: () => Promise<void>; previousVersion: string | null; requiresAge?: boolean }) {
   const [accepting, setAccepting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Accounts that predate the age gate (or never stamped it) must attest 16+
+  // here too, otherwise accepting the updated terms would let them in without
+  // an age record.
+  const [ageConfirmed, setAgeConfirmed] = useState(!requiresAge)
 
   const handleAccept = async () => {
     setAccepting(true)
@@ -46,6 +50,17 @@ export function ReConsentGate({ onAccept, previousVersion }: { onAccept: () => P
             Privacy Policy
           </Link>
         </div>
+        {requiresAge && (
+          <label className="mt-4 flex items-start gap-2 text-sm text-surface-700 dark:text-surface-300">
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={e => setAgeConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+            />
+            <span>I am at least 16 years old.</span>
+          </label>
+        )}
         {error && (
           <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
             {error}
@@ -54,7 +69,7 @@ export function ReConsentGate({ onAccept, previousVersion }: { onAccept: () => P
         <button
           type="button"
           onClick={() => { void handleAccept() }}
-          disabled={accepting}
+          disabled={accepting || !ageConfirmed}
           className="mt-6 w-full flex justify-center py-3 px-4 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {accepting ? 'Recording…' : `I accept the updated Terms (v${CURRENT_TERMS_VERSION})`}

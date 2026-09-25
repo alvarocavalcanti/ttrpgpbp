@@ -2,15 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
-## 2026-09-25
+## 1.0.0 — 2026-09-25
+
+### Added
+
+- **Version shown in About** — the About page now shows which version of Role by Post you are on, so bug reports and release notes have something to point at.
 
 ### Changed
 
 - **Clearer rules prompt** — signing in now records your agreement to the Terms and Privacy Policy in one step: the sign-in checkbox names the version you're accepting, so new players are never asked twice. You'll only see the acceptance screen again when those documents actually change — and it now tells you which version you last accepted. If saving your agreement fails, the app waits and offers a retry instead of letting you in without a record.
+- **Headings in posts are now sized to fit** — a `#` heading in a message no longer towers over the text; it matches what used to be the third level, and the smaller levels no longer look like plain paragraphs. Headings work the same in regular posts, scene messages, channel statuses, and dice-roll notes.
+- **The age confirmation can be completed on the update screen** — if your account was created before the age gate existed, the screen that asks you to accept updated rules now also asks you to confirm you're 16 or older, so your record is complete.
 
 ### Fixed
 
 - **Updating the app finishes on Android** — tapping **Reload** in the "New version available" banner now lands on the new version instead of reopening the old one and asking again. If the reload ever serves the old copy anyway, the app detects it and repairs itself rather than looping.
+- **Image uploads can be reached with a keyboard** — the upload buttons in the composer and channel settings can now be focused and opened without a mouse.
+- **Reported images are no longer deleted by housekeeping** — when a channel has an open abuse report, its images are held back from the automatic retention cleanup, so review evidence stays available.
+- **A message can only be reported once per person** — reporting the same message twice no longer floods the safety inbox with duplicates.
+- **The last server admin can't delete their own account by accident** — if the check fails, account deletion now stops instead of assuming you're a normal player.
 
 ## 2026-09-24
 
@@ -51,7 +61,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Safety alerts now reach the team directly** — when someone files an abuse report, or an uploaded image is blocked by the safety scan, the details land in a new **System** thread in Messages, with links to the channel and the people involved, so reports can be acted on right away.
+- **Safety alerts now reach the team directly** — when someone files an abuse report, the details land in a new **System** thread in Messages, with links to the channel and the people involved, so reports can be acted on right away.
 - **Your acceptance of the rules is now on record** — the app records that you agreed to the Terms and Privacy Policy, and when those documents change you'll be asked to accept the new version once before continuing.
 - **Clearer privacy details** — the Privacy Policy now names who is responsible for your data and how to reach them, and says plainly how long uploads and safety records are kept.
 
@@ -82,9 +92,9 @@ All notable changes to this project are documented in this file.
 
 - **You must be 16 or older to sign up** — the sign-in page now asks you to confirm your age before continuing, and remembers your answer on that device.
 - **Clearer rules for what belongs here** — the Terms now spell out what is not allowed, including illegal content and imagery, harassment, and using Role by Post for anything other than roleplaying and storytelling.
-- **Safer image sharing** — every uploaded image is now checked against known illegal material before it is stored. If something matches, the upload is blocked and the account is suspended automatically.
+- **Safer image sharing** — every uploaded image is now checked against known illegal material before it is stored. If something matches, the upload is blocked and the account is suspended automatically. *(Removed 2026-09-24 — the scanner was a paid service; uploads are no longer scanned. See that entry.)*
 - **Reviewing a reported message** — when you report a message, the team can now open that message to review your report. These views are recorded.
-- **Reviewing a player's history** — the admin console can page back through a player's older messages when reviewing a report, and older scan records are cleared out on a schedule while blocked-upload records are kept.
+- **Reviewing a player's history** — the admin console can page back through a player's older messages when reviewing a report. *(The scan-record cleanup described here was removed 2026-09-24 along with the scanner.)*
 
 ### Changed
 

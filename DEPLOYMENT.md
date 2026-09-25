@@ -47,8 +47,9 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 | `VITE_GA_MEASUREMENT_ID` | Optional Google Analytics 4 measurement ID (e.g. `G-XXXXXXXXXX`). When set, Google Analytics loads and page views are tracked; omit to disable analytics (local dev, self-hosted instances) | Static host env (build) |
 | `VITE_CONTROLLER_NAME` | **Required for production builds** — data-controller name shown in the Privacy Policy and Terms footer (GDPR Art 13). The build fails without it; omit only for local dev. Anyone deploying their own copy must put their own identity here | Static host env (build) |
 | `VITE_CONTROLLER_EMAIL` | **Required for production builds** — data-controller contact email shown next to the name. The build fails without it or with an invalid address; omit only for local dev | Static host env (build) |
+| `VITE_SENTRY_DSN` | Optional client error reporting. Leave unset to disable Sentry entirely. See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) | Static host env (build) |
 | `VAPID_PRIVATE_KEY` | Private half of the VAPID keypair | `supabase secrets set VAPID_PRIVATE_KEY` |
-| `ALLOWED_ORIGINS` | Optional comma-separated list of app origins allowed to call the push-notifications function (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, `https://rolebypost.com`, and any `*.ttrpgpbp.pages.dev` preview | `supabase secrets set ALLOWED_ORIGINS=...` |
+| `ALLOWED_ORIGINS` | **Required if the app is served from any origin outside the defaults** — comma-separated list of app origins allowed to call `upload-image`, `delete-account`, and `push-notifications` (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, `https://rolebypost.com`, and any `*.ttrpgpbp.pages.dev` preview. A self-hosted domain that is not in the list has its image uploads and account deletion blocked at the CORS preflight | `supabase secrets set ALLOWED_ORIGINS=...` |
 | `SUPABASE_AUTH_GOOGLE_SECRET` | Google OAuth client secret | Supabase Dashboard → Auth → Providers → Google |
 
 - [ ] Set the VAPID keys (and `ALLOWED_ORIGINS` if you host the frontend elsewhere) and any other Supabase secrets:
@@ -56,7 +57,10 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
   ```bash
   supabase link --project-ref <project-ref>
   supabase secrets set VITE_VAPID_PUBLIC_KEY=<public-key> VAPID_PRIVATE_KEY=<private-key>
+  supabase secrets set ALLOWED_ORIGINS=https://your-domain.example
   ```
+
+  (Only set `ALLOWED_ORIGINS` when the app is served from an origin outside the defaults listed above.)
 
 ## 5. Apply database migrations
 
@@ -129,6 +133,25 @@ browser, so no user JWT is involved.
   only available scanner is a paid service — so keep the admin's image-upload
   toggle off unless the group accepts that, and rely on player reports reviewed
   by the admin (Terms §7).
+
+- [ ] Deploy the account-deletion function (GDPR erasure; the "Delete Account"
+  control in Settings calls it directly from the browser with the user's JWT):
+
+  ```bash
+  supabase functions deploy delete-account --project-ref <project-ref>
+  ```
+
+- [ ] Decide the image-upload posture before announcing. Uploads ship **off**
+  (`app_settings.image_uploading_enabled = false`). To allow them, flip the
+  toggle in the admin console's Settings tab, or run:
+
+  ```sql
+  UPDATE app_settings SET value = 'true' WHERE key = 'image_uploading_enabled';
+  ```
+
+  Leave it off if the group does not accept unscanned uploads reviewed only on
+  report. See the [image-upload trade-off](#6-deploy-the-edge-function) above
+  and Terms §7.
 
 - [ ] Store the same secret as a GitHub Actions repository secret named
   `CLEANUP_IMAGES_SECRET` (Settings → Secrets and variables → Actions). The
