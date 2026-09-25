@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { env } from '../env'
-import { initAnalytics } from '../lib/analytics'
+import { initAnalytics, trackPageView } from '../lib/analytics'
 import { getAnalyticsConsent, setAnalyticsConsent } from '../lib/analyticsConsent'
 
 // Prior-consent banner for Google Analytics. Rendered only when the operator
@@ -14,6 +14,9 @@ export function AnalyticsConsentBanner() {
   const allow = () => {
     setAnalyticsConsent('granted')
     initAnalytics()
+    // initAnalytics disables automatic page views and RouteTracker only fires
+    // on pathname change, so report the current route now or it is never sent.
+    trackPageView(window.location.pathname)
     setDecided(true)
   }
   const deny = () => {

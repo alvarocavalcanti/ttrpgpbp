@@ -12,7 +12,7 @@ All notable changes to this project are documented in this file.
 
 - **Clearer rules prompt** — signing in now records your agreement to the Terms and Privacy Policy in one step: the sign-in checkbox names the version you're accepting, so new players are never asked twice. You'll only see the acceptance screen again when those documents actually change — and it now tells you which version you last accepted. If saving your agreement fails, the app waits and offers a retry instead of letting you in without a record.
 - **Headings in posts are now sized to fit** — a `#` heading in a message no longer towers over the text; it matches what used to be the third level, and the smaller levels no longer look like plain paragraphs. Headings work the same in regular posts, scene messages, channel statuses, and dice-roll notes.
-- **You choose whether usage statistics run** — the app now asks before collecting page-view statistics, and never loads them if you decline (no analytics cookies are set). Your choice is remembered on this device; clear this site's data to change it.
+- **You choose whether usage statistics run** — the app now asks before collecting page-view statistics, and never loads them if you decline (no analytics cookies are set). You can change your mind at any time from the **Allow usage analytics** switch in Settings; turning it off stops all further statistics immediately.
 - **The age confirmation can be completed on the update screen** — if your account was created before the age gate existed, the screen that asks you to accept updated rules now also asks you to confirm you're 16 or older, so your record is complete.
 
 ### Fixed

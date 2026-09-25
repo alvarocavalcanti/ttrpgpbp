@@ -43,11 +43,12 @@ backfill, etc.):
 
 ```bash
 supabase link --project-ref <PROJECT_ID>
-mkdir -p backup-$(date +%Y%m%d)
-supabase db dump -f backup-$(date +%Y%m%d)/schema.sql
-supabase db dump --data-only -f backup-$(date +%Y%m%d)/data.sql
-supabase db dump --schema auth --data-only -f backup-$(date +%Y%m%d)/auth-data.sql
-supabase db dump --role-only -f backup-$(date +%Y%m%d)/roles.sql
+BACKUP_DIR="backup-$(date +%Y%m%d)"
+mkdir -p "$BACKUP_DIR"
+supabase db dump -f "$BACKUP_DIR/schema.sql"
+supabase db dump --data-only -f "$BACKUP_DIR/data.sql"
+supabase db dump --schema auth --data-only -f "$BACKUP_DIR/auth-data.sql"
+supabase db dump --role-only -f "$BACKUP_DIR/roles.sql"
 ```
 
 Store the directory somewhere durable and outside the repository (it contains
@@ -60,12 +61,16 @@ all user data), together with a copy of the `images` bucket objects.
 Restore **all four parts** — a schema-only restore leaves an empty app.
 
 ```bash
+set -euo pipefail
 npx supabase start                                    # empty local stack
-psql -h localhost -p 54322 -U postgres -f roles.sql
-psql -h localhost -p 54322 -U postgres -f schema.sql
-psql -h localhost -p 54322 -U postgres -f data.sql
-psql -h localhost -p 54322 -U postgres -f auth-data.sql
+psql --set ON_ERROR_STOP=on -h localhost -p 54322 -U postgres -f roles.sql
+psql --set ON_ERROR_STOP=on -h localhost -p 54322 -U postgres -f schema.sql
+psql --set ON_ERROR_STOP=on -h localhost -p 54322 -U postgres -f data.sql
+psql --set ON_ERROR_STOP=on -h localhost -p 54322 -U postgres -f auth-data.sql
 ```
+
+`ON_ERROR_STOP=on` (with `set -e`) makes the restore halt on the first SQL
+error instead of continuing into a partial restore.
 
 Then copy the `images` bucket objects back through the Storage S3 endpoint.
 Do **not** run `supabase db reset` after importing: it recreates the database

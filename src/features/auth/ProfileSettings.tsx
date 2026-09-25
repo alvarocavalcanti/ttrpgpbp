@@ -9,6 +9,9 @@ import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { buildUserDataExport, downloadJson } from './exportUserData'
 import { MAX_DISPLAY_NAME_LENGTH } from '../../constants'
+import { env } from '../../env'
+import { initAnalytics, trackPageView, disableAnalytics } from '../../lib/analytics'
+import { hasAnalyticsConsent, setAnalyticsConsent } from '../../lib/analyticsConsent'
 
 /**
  * Account settings page: display name, notification preferences, data
@@ -45,6 +48,22 @@ export function ProfileSettings() {
   }, [profile])
 
   const emailOptIn = profile?.email_opt_in ?? false
+
+  // Analytics consent can be changed here after the first-run banner; the
+  // control only exists when the operator configured a measurement ID.
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(() => hasAnalyticsConsent())
+  const handleAnalyticsConsent = (allowed: boolean) => {
+    setAnalyticsAllowed(allowed)
+    if (allowed) {
+      setAnalyticsConsent('granted')
+      initAnalytics()
+      trackPageView(window.location.pathname)
+    } else {
+      setAnalyticsConsent('denied')
+      disableAnalytics()
+    }
+    addToast(allowed ? 'Usage analytics turned on.' : 'Usage analytics turned off.', 'success')
+  }
 
   // Consent checkbox persists immediately (not on the form's Save button):
   // unchecking must take effect as soon as the user flips it.
@@ -201,6 +220,29 @@ export function ProfileSettings() {
                 </p>
               </div>
             </div>
+
+            {env.VITE_GA_MEASUREMENT_ID && (
+              <div className="flex items-start">
+                <div className="flex h-5 items-center">
+                  <input
+                    id="analytics_consent"
+                    type="checkbox"
+                    checked={analyticsAllowed}
+                    onChange={(e) => handleAnalyticsConsent(e.target.checked)}
+                    className="h-4 w-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="analytics_consent" className="font-medium text-surface-700 dark:text-surface-300">
+                    Allow usage analytics
+                  </label>
+                  <p className="text-surface-500 dark:text-surface-400">
+                    Off until you allow it; turn it off anytime here. See the{' '}
+                    <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline">Privacy Policy</Link>.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div>
               <label htmlFor="displayName" className="block text-sm font-medium text-surface-700 dark:text-surface-300">

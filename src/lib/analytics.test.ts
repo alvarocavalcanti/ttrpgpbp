@@ -5,6 +5,7 @@ const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: '' }))
 vi.mock('../env', () => ({ env: mockEnv }))
 
 import { initAnalytics, trackEvent, trackPageView } from './analytics'
+import { setAnalyticsConsent } from './analyticsConsent'
 
 describe('analytics', () => {
   beforeEach(() => {
@@ -12,6 +13,11 @@ describe('analytics', () => {
     document.head.innerHTML = ''
     delete (window as unknown as Record<string, unknown>).dataLayer
     delete (window as unknown as Record<string, unknown>).gtag
+    localStorage.clear()
+    sessionStorage.clear()
+    // Consent is granted for the firing tests; the no-op tests below cover the
+    // gtag-absent case, and a dedicated test covers withdrawal.
+    setAnalyticsConsent('granted')
   })
 
   describe('initAnalytics', () => {
@@ -117,6 +123,19 @@ describe('analytics', () => {
         method: 'button',
         menu: 'main',
       })
+    })
+
+    it('stops sending events once consent is withdrawn', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      setAnalyticsConsent('denied')
+      trackEvent('menu_close', { method: 'button' })
+      trackPageView('/lobby')
+
+      expect(gtag).not.toHaveBeenCalled()
     })
   })
 })

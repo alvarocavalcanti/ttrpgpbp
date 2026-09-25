@@ -121,7 +121,7 @@ Accepted residual risks: unscanned uploads with report-only moderation (disclose
 
 ## Suggested execution order (post-release)
 
-1. Security P2-1 upload cap — first, since uploads are enabled.
+1. Security P2-1 upload cap — first if uploads are enabled (or before enabling them), since the cap is the free-tier storage bound.
 2. PbP P2-1 reconnect twin — the only remaining user-visible correctness bug on flaky connections.
 3. React Compiler direction (#567) — clears the growing lint signal.
 4. Release backup workflow — close the last residual P1.
