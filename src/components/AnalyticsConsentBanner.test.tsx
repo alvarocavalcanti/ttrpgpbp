@@ -8,7 +8,8 @@ const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: 'G-TEST' }))
 vi.mock('../env', () => ({ env: mockEnv }))
 
 const initAnalytics = vi.hoisted(() => vi.fn())
-vi.mock('../lib/analytics', () => ({ initAnalytics }))
+const trackPageView = vi.hoisted(() => vi.fn())
+vi.mock('../lib/analytics', () => ({ initAnalytics, trackPageView }))
 
 function renderBanner() {
   return render(
@@ -21,7 +22,9 @@ function renderBanner() {
 describe('AnalyticsConsentBanner', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
     initAnalytics.mockReset()
+    trackPageView.mockReset()
     mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST'
   })
 
@@ -33,6 +36,9 @@ describe('AnalyticsConsentBanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Allow' }))
 
     expect(initAnalytics).toHaveBeenCalledTimes(1)
+    // The current route is reported now: initAnalytics disables automatic page
+    // views and RouteTracker only fires on navigation.
+    expect(trackPageView).toHaveBeenCalledWith(window.location.pathname)
     expect(getAnalyticsConsent()).toBe('granted')
     expect(screen.queryByRole('region', { name: 'Usage analytics choice' })).not.toBeInTheDocument()
   })

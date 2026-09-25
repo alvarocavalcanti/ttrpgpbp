@@ -1,4 +1,5 @@
 import { env } from '../env'
+import { hasAnalyticsConsent } from './analyticsConsent'
 
 declare global {
   interface Window {
@@ -8,8 +9,11 @@ declare global {
 }
 
 // gtag is only defined once the gtag.js script loads; guard every call so a
-// failure to load (or analytics being disabled) never throws.
+// failure to load (or analytics being disabled) never throws. Events are also
+// gated on consent so withdrawing it stops tracking immediately, even though
+// gtag is already loaded.
 function push(...args: unknown[]): void {
+  if (!hasAnalyticsConsent()) return
   window.gtag?.(...args)
 }
 
@@ -46,6 +50,13 @@ export function initAnalytics(): void {
   // full page_location (query string included) on initial load — before our
   // query-stripping applies. RouteTracker fires the manual event instead.
   window.gtag('config', id, { send_page_view: false })
+}
+
+// Stops GA from collecting further hits even though gtag.js is already loaded
+// (used when consent is withdrawn). Google's documented opt-out flag.
+export function disableAnalytics(): void {
+  const id = env.VITE_GA_MEASUREMENT_ID
+  if (id) (window as unknown as Record<string, unknown>)[`ga-disable-${id}`] = true
 }
 
 // Fires a custom event with optional parameters. Guards against gtag being

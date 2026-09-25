@@ -31,6 +31,17 @@ vi.mock('./exportUserData', () => ({
   downloadJson: vi.fn(),
 }))
 
+const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: 'G-TEST' }))
+vi.mock('../../env', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../env')>()
+  return { env: { ...actual.env, VITE_GA_MEASUREMENT_ID: mockEnv.VITE_GA_MEASUREMENT_ID } }
+})
+
+const initAnalytics = vi.hoisted(() => vi.fn())
+const trackPageView = vi.hoisted(() => vi.fn())
+const disableAnalytics = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/analytics', () => ({ initAnalytics, trackPageView, disableAnalytics }))
+
 vi.mock('../../contexts/ToastContext', () => ({
   useToast: vi.fn().mockReturnValue({
     addToast: vi.fn()
@@ -45,6 +56,7 @@ describe('ProfileSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
+    window.sessionStorage.clear()
 
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true, needsInstall: false,
@@ -108,6 +120,40 @@ describe('ProfileSettings', () => {
     expect(screen.getByLabelText('Display Name')).toHaveAttribute('maxLength', '40')
     expect(screen.getByDisplayValue('user@example.com')).toBeDisabled()
     expect(screen.getByRole('img', { name: 'Avatar' })).toHaveAttribute('src', 'https://example.com/avatar.jpg')
+  })
+
+  it('lets the player turn usage analytics on and off from settings', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    const checkbox = screen.getByLabelText('Allow usage analytics')
+    expect(checkbox).not.toBeChecked()
+
+    fireEvent.click(checkbox)
+    expect(initAnalytics).toHaveBeenCalled()
+    expect(localStorage.getItem('analytics-consent')).toBe('granted')
+
+    fireEvent.click(checkbox)
+    expect(disableAnalytics).toHaveBeenCalled()
+    expect(localStorage.getItem('analytics-consent')).toBe('denied')
   })
 
   it('updates display name on submit and shows success message', async () => {

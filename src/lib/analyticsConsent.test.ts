@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ANALYTICS_CONSENT_KEY, getAnalyticsConsent, hasAnalyticsConsent, setAnalyticsConsent } from './analyticsConsent'
 
 describe('analytics consent', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
+    vi.restoreAllMocks()
   })
 
   it('is unset until a choice is made', () => {
@@ -27,5 +29,16 @@ describe('analytics consent', () => {
   it('treats an unrecognized stored value as unset', () => {
     localStorage.setItem(ANALYTICS_CONSENT_KEY, 'maybe')
     expect(getAnalyticsConsent()).toBeNull()
+  })
+
+  it('falls back to session storage when local storage writes fail', () => {
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+
+    setAnalyticsConsent('granted')
+
+    expect(sessionStorage.getItem(ANALYTICS_CONSENT_KEY)).toBe('granted')
+    expect(getAnalyticsConsent()).toBe('granted')
   })
 })
