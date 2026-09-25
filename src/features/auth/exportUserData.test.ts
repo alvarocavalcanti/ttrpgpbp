@@ -8,7 +8,14 @@ vi.mock('../../lib/supabase', () => ({
   },
 }))
 
-const mockProfile = { display_name: 'Alv', avatar_url: null, created_at: '2026-01-01T00:00:00Z' }
+const mockProfile = {
+  display_name: 'Alv',
+  avatar_url: null,
+  created_at: '2026-01-01T00:00:00Z',
+  age_verified_at: '2026-01-01T00:00:00Z',
+  terms_accepted_at: '2026-09-22T00:00:00Z',
+  terms_version: '2026-09-24',
+}
 const mockMemberships = [
   {
     channel_id: 'c1',
@@ -28,6 +35,7 @@ const mockMessages = [
 ]
 const mockDice = [{ id: 'd1', channel_id: 'c1', notation: 'd20', result: 17, breakdown: {}, created_at: '2026-01-03T00:00:00Z' }]
 const mockReactions = [{ id: 'r1', channel_id: 'c1', emoji: '🎲', created_at: '2026-01-03T00:00:00Z' }]
+const mockFavorites = [{ channel_id: 'c1', notation: '2d20kh1', created_at: '2026-01-07T00:00:00Z' }]
 const mockPrefs = { push_enabled: true, badge_enabled: false, email_enabled: false }
 const mockAbuseReports = [
   { id: 'ar1', reported_user_id: 'u2', reason: 'spam in chat', status: 'pending', created_at: '2026-01-05T00:00:00Z' },
@@ -57,6 +65,7 @@ function setupQueries() {
     if (table === 'messages') return mockChain(mockMessages)
     if (table === 'dice_rolls') return mockChain(mockDice)
     if (table === 'message_reactions') return mockChain(mockReactions)
+    if (table === 'dice_roll_favorites') return mockChain(mockFavorites)
     if (table === 'notification_preferences') return mockChain(mockPrefs)
     if (table === 'abuse_reports') return mockChain(mockAbuseReports)
     if (table === 'admin_messages') return mockChain(mockAdminMessages)
@@ -88,6 +97,9 @@ describe('buildUserDataExport', () => {
     expect(result.messages[1].whisper_to).toBe('other-user') // authored whisper included
     expect(result.dice_rolls).toEqual(mockDice)
     expect(result.reactions).toEqual(mockReactions)
+    expect(result.dice_roll_favorites).toEqual(mockFavorites)
+    expect(result.profile?.terms_version).toBe('2026-09-24')
+    expect(result.profile?.age_verified_at).toBe('2026-01-01T00:00:00Z')
     expect(result.notification_preferences).toEqual(mockPrefs)
     expect(result.abuse_reports).toEqual(mockAbuseReports)
     expect(result.admin_messages).toEqual(mockAdminMessages)
@@ -100,7 +112,7 @@ describe('buildUserDataExport', () => {
     const fromCalls = vi.mocked(supabase.from).mock.calls.map(c => c[0])
     expect(fromCalls).toEqual([
       'profiles', 'channel_members', 'messages', 'dice_rolls', 'message_reactions',
-      'notification_preferences', 'abuse_reports', 'admin_messages',
+      'dice_roll_favorites', 'notification_preferences', 'abuse_reports', 'admin_messages',
     ])
   })
 

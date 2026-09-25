@@ -19,6 +19,8 @@ import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { trackEvent, trackPageView } from './lib/analytics'
+import { hasAnalyticsConsent } from './lib/analyticsConsent'
+import { AnalyticsConsentBanner } from './components/AnalyticsConsentBanner'
 import { isMarketingPath } from './lib/marketing'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -63,7 +65,7 @@ function RouteTracker() {
   const { pathname } = location
 
   useEffect(() => {
-    trackPageView(pathname)
+    if (hasAnalyticsConsent()) trackPageView(pathname)
   }, [pathname])
 
   return null
@@ -336,6 +338,7 @@ export default function App() {
         <BrowserRouter>
           <ScrollToTop />
           <RouteTracker />
+          <AnalyticsConsentBanner />
           <ChangelogProvider>
             <div className="min-h-[100dvh] bg-surface-50 dark:bg-surface-900 flex flex-col">
               <AppNav />

@@ -172,6 +172,30 @@ describe('ThreadDetail', () => {
     expect(screen.getByText('Test Announcement')).toBeInTheDocument()
   })
 
+  it('hides the reply box on an announcement for a non-admin', () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(screen.queryByPlaceholderText('Type a reply...')).not.toBeInTheDocument()
+  })
+
+  it('keeps the reply box on an announcement for the server admin', () => {
+    render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(screen.getByPlaceholderText('Type a reply...')).toBeInTheDocument()
+  })
+
+  it('keeps the reply box on a DM for a non-admin', () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    const dmThread: Thread = { ...mockThread, type: 'dm', subject: null, gm_id: 'gm-1' }
+    render(<ThreadDetail thread={dmThread} onBack={vi.fn()} />)
+    expect(screen.getByPlaceholderText('Type a reply...')).toBeInTheDocument()
+  })
+
+  it('hides the reply box on a system thread for a non-admin', () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    render(<ThreadDetail thread={mockSystemThread} onBack={vi.fn()} />)
+    expect(screen.queryByPlaceholderText('Type a reply...')).not.toBeInTheDocument()
+  })
+
   it('shows DM title for non-admin viewing DM', () => {
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
     const dmThread: Thread = { ...mockThread, type: 'dm', subject: null, gm_id: 'gm-1', gm: { display_name: 'GM Bob', avatar_url: null } }

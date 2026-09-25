@@ -2097,4 +2097,19 @@ describe('ChannelView report a message (#467)', () => {
     )
     expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
   })
+
+  it('tells the player when the message was already reported', async () => {
+    insertMock.mockResolvedValue({ error: { code: '23505', message: 'duplicate key value violates unique constraint' } })
+    renderView()
+
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
+      target: { value: 'inappropriate content' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+
+    await waitFor(() =>
+      expect(screen.getByText("You've already reported this message.")).toBeInTheDocument(),
+    )
+  })
 })

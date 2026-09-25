@@ -18,6 +18,16 @@ export function evaluateDeletion(isServerAdmin: boolean): DeletionDecision {
   return { allow: true }
 }
 
+// The is_server_admin RPC feeds the sole-admin guard. A failed lookup must fail
+// closed: treating an RPC error as "not an admin" would let the last admin
+// self-delete and leave the instance without one.
+export function resolveAdminLookup(result: { data: unknown; error: unknown }):
+  | { ok: true; isServerAdmin: boolean }
+  | { ok: false } {
+  if (result.error) return { ok: false }
+  return { ok: true, isServerAdmin: result.data === true }
+}
+
 // Deployed app origins. Override with the ALLOWED_ORIGINS secret (comma
 // separated) for self-hosting.
 export const DEFAULT_ALLOWED_ORIGINS = [

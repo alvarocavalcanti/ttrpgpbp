@@ -19,6 +19,9 @@ export interface UserDataExport {
     display_name: string | null
     avatar_url: string | null
     created_at: string
+    age_verified_at: string | null
+    terms_accepted_at: string | null
+    terms_version: string | null
   } | null
   channel_memberships: ChannelMembership[]
   messages: {
@@ -44,6 +47,11 @@ export interface UserDataExport {
     id: string
     channel_id: string
     emoji: string
+    created_at: string
+  }[]
+  dice_roll_favorites: {
+    channel_id: string
+    notation: string
     created_at: string
   }[]
   notification_preferences: {
@@ -75,7 +83,7 @@ export interface UserDataExport {
 export async function buildUserDataExport(userId: string): Promise<UserDataExport> {
   const profile = supabase
     .from('profiles')
-    .select('display_name, avatar_url, created_at')
+    .select('display_name, avatar_url, created_at, age_verified_at, terms_accepted_at, terms_version')
     .eq('id', userId)
     .maybeSingle()
   const membershipsQuery = supabase
@@ -98,6 +106,11 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .select('id, channel_id, emoji, created_at')
     .eq('user_id', userId)
     .order('id', { ascending: true })
+  const diceFavoritesQuery = supabase
+    .from('dice_roll_favorites')
+    .select('channel_id, notation, created_at')
+    .eq('user_id', userId)
+    .order('id', { ascending: true })
   const prefs = supabase
     .from('notification_preferences')
     .select('push_enabled, badge_enabled, email_enabled')
@@ -114,12 +127,13 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .eq('sender_id', userId)
     .order('id', { ascending: true })
 
-  const [profileResult, memberships, messages, diceRolls, reactions, prefsResult, abuseReports, adminMessages] = await Promise.all([
+  const [profileResult, memberships, messages, diceRolls, reactions, diceFavorites, prefsResult, abuseReports, adminMessages] = await Promise.all([
     profile,
     fetchAllRows(membershipsQuery),
     fetchAllRows(messagesQuery),
     fetchAllRows(diceRollsQuery),
     fetchAllRows(reactionsQuery),
+    fetchAllRows(diceFavoritesQuery),
     prefs,
     fetchAllRows(abuseReportsQuery),
     fetchAllRows(adminMessagesQuery),
@@ -146,6 +160,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     messages,
     dice_rolls: diceRolls,
     reactions,
+    dice_roll_favorites: diceFavorites,
     notification_preferences: prefsResult.data ?? null,
     abuse_reports: abuseReports.map(r => ({
       id: r.id,

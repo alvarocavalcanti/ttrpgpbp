@@ -733,7 +733,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </span>
             )}
           </div>
-          <div className={`text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT}`}>
+          <div className={`prose prose-sm prose-chat dark:prose-invert max-w-none text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT}`}>
             <Markdown>{message.content}</Markdown>
           </div>
           {errorOverlay}
@@ -815,7 +815,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
         {replyBlock}
 
-        <div className={`mt-1 ${MESSAGE_BODY_TEXT} text-surface-800 dark:text-surface-200 prose prose-sm prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
+        <div className={`mt-1 ${MESSAGE_BODY_TEXT} text-surface-800 dark:text-surface-200 prose prose-sm prose-chat prose-indigo dark:prose-invert max-w-none break-words ${isNpc ? 'font-serif text-parchment-ink dark:text-parchment-ink-dark prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark prose-a:text-parchment-ink-strong dark:prose-a:text-parchment-ink-strong-dark prose-strong:text-parchment-ink-strong dark:prose-strong:text-parchment-ink-strong-dark' : ''}`}>
           {message.is_deleted ? (
             <span className="text-surface-400 dark:text-surface-400 italic">This message was deleted.</span>
           ) : isEditing ? (

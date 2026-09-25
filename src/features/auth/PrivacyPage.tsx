@@ -130,7 +130,7 @@ export function PrivacyPage() {
             </li>
             {env.VITE_GA_MEASUREMENT_ID && (
               <li>
-                <span className="font-semibold">Google Analytics</span> — anonymous page-view statistics so we understand which screens are used. The app sends the page address only, never your search terms, messages, or dice rolls. Google Analytics also records standard browser and device details, session counts, and an approximate location derived from your IP address.
+                <span className="font-semibold">Google Analytics</span> — optional page-view statistics so we understand which screens are used. The app asks for your permission before loading it and never loads it if you decline; if you allow it, it sets first-party cookies. The app sends the page address only, never your search terms, messages, or dice rolls. Google Analytics also records standard browser and device details, session counts, and an approximate location derived from your IP address. It is only available where the operator has configured it.
               </li>
             )}
             {env.VITE_SENTRY_DSN && (

@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProtectedRoute } from './ProtectedRoute'
 import { useAuth } from '../features/auth/useAuth'
-import { confirmTerms } from '../features/auth/authApi'
+import { confirmAge, confirmTerms } from '../features/auth/authApi'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 vi.mock('../features/auth/useAuth', () => ({
@@ -10,6 +10,7 @@ vi.mock('../features/auth/useAuth', () => ({
 }))
 
 vi.mock('../features/auth/authApi', () => ({
+  confirmAge: vi.fn(),
   confirmTerms: vi.fn(),
 }))
 
@@ -424,6 +425,7 @@ describe('ProtectedRoute', () => {
       termsConfirmState: 'idle',
       retryTermsConfirm: vi.fn(),
     })
+    vi.mocked(confirmAge).mockResolvedValue(undefined)
     vi.mocked(confirmTerms).mockResolvedValue(undefined)
 
     render(
@@ -437,8 +439,13 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     )
 
+    // The account has no age record, so the gate collects the attestation too.
+    fireEvent.click(screen.getByLabelText('I am at least 16 years old.'))
     fireEvent.click(screen.getByRole('button', { name: /I accept the updated Terms/ }))
 
+    await waitFor(() => {
+      expect(confirmAge).toHaveBeenCalledTimes(1)
+    })
     await waitFor(() => {
       expect(confirmTerms).toHaveBeenCalledWith('2026-09-24')
     })

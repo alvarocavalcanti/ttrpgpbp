@@ -20,6 +20,10 @@ export interface CleanupDependencies {
   markBatchDeleted: (auditId: string) => Promise<void>
   markBatchFailed: (auditId: string, errorMessage: string) => Promise<void>
   removeImages: (paths: string[]) => Promise<void>
+  // Channels with an open abuse report. Their images are exempt from cleanup so
+  // evidence under review survives (the Privacy Policy promises it). Optional so
+  // the pure logic and its tests stay dependency-free.
+  getProtectedChannelIds?: () => Promise<string[]>
 }
 
 export const CLEANUP_BATCH_SIZE = 500
@@ -100,21 +104,30 @@ export async function runCleanup(
   if (retentionDays === 0) return { deleted: 0, retentionDays: 0 }
 
   const cutoffMs = nowMs - retentionDays * 24 * 60 * 60 * 1000
-  const expired = collectExpiredImages(await dependencies.listImages(), cutoffMs)
+  const protectedChannelIds = new Set(await dependencies.getProtectedChannelIds?.() ?? [])
+  const expired = collectExpiredImages(await dependencies.listImages(), cutoffMs, protectedChannelIds)
   let deleted = 0
 
   for (const batch of splitCleanupBatches(expired)) {
+    // Re-check protection right before deleting this batch: a report opened
+    // after the initial snapshot must still hold its channel's images. This
+    // narrows the window to the batch itself; a fully race-proof guarantee
+    // would need a database-side retention hold.
+    const stillProtected = new Set(await dependencies.getProtectedChannelIds?.() ?? [])
+    const deletable = batch.filter(path => !stillProtected.has(path.split('/')[0]))
+    if (deletable.length === 0) continue
+
     const auditId = await dependencies.auditBatch({
       runId,
       retentionDays,
       cutoffAt: new Date(cutoffMs).toISOString(),
-      objectPaths: batch,
+      objectPaths: deletable,
     })
 
     try {
-      await dependencies.removeImages(batch)
+      await dependencies.removeImages(deletable)
       await dependencies.markBatchDeleted(auditId)
-      deleted += batch.length
+      deleted += deletable.length
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       await dependencies.markBatchFailed(auditId, errorMessage)
@@ -127,11 +140,19 @@ export async function runCleanup(
 
 // Returns the object paths older than the cutoff. Images without a usable
 // lastModified are never deleted (a missing date must not nuke a file).
-export function collectExpiredImages(files: ListedImage[], cutoffMs: number): string[] {
+// Images inside a channel with an open abuse report are held back: the report
+// may be under moderation or legal review, and the evidence must survive.
+export function collectExpiredImages(
+  files: ListedImage[],
+  cutoffMs: number,
+  protectedChannelIds: Set<string> = new Set(),
+): string[] {
   return files
     .filter(f => {
       const t = new Date(f.lastModified).getTime()
-      return Number.isFinite(t) && t > 0 && t < cutoffMs
+      if (!(Number.isFinite(t) && t > 0 && t < cutoffMs)) return false
+      const channelId = f.path.split('/')[0]
+      return !protectedChannelIds.has(channelId)
     })
     .map(f => f.path)
 }

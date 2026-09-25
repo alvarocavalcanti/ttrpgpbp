@@ -375,14 +375,14 @@ setIsSubmitting(true)
               <div>
                 <div className="flex items-center justify-between">
                   <label htmlFor="mapUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Map URL</label>
-                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium disabled:opacity-50">
+                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium rounded focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50">
                     <input
                       type="file"
                       accept="image/*"
                       aria-label="Upload map image"
                       disabled={mapUploading || !uploadEnabled || settingsLoading}
                       onChange={handleMapUpload}
-                      className="hidden"
+                      className="sr-only"
                     />
                     {mapUploading ? 'Uploading...' : 'Upload image'}
                   </label>
@@ -402,14 +402,14 @@ setIsSubmitting(true)
               <div>
                 <div className="flex items-center justify-between">
                   <label htmlFor="resourcesUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Resources URL</label>
-                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium disabled:opacity-50">
+                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium rounded focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50">
                     <input
                       type="file"
                       accept="image/*"
                       aria-label="Upload resources image"
                       disabled={mapUploading || !uploadEnabled || settingsLoading}
                       onChange={handleResourcesUpload}
-                      className="hidden"
+                      className="sr-only"
                     />
                     {mapUploading ? 'Uploading...' : 'Upload image'}
                   </label>

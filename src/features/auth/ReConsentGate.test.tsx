@@ -78,4 +78,33 @@ describe('ReConsentGate', () => {
       expect(button).not.toBeDisabled()
     })
   })
+
+  it('omits the age attestation when the account already has one', () => {
+    render(
+      <MemoryRouter>
+        <ReConsentGate onAccept={vi.fn()} previousVersion="2026-09-21" />
+      </MemoryRouter>
+    )
+    expect(screen.queryByLabelText('I am at least 16 years old.')).not.toBeInTheDocument()
+  })
+
+  it('requires the age attestation before accepting when the account has no record', async () => {
+    const onAccept = vi.fn().mockResolvedValue(undefined)
+    render(
+      <MemoryRouter>
+        <ReConsentGate onAccept={onAccept} previousVersion="2026-09-21" requiresAge />
+      </MemoryRouter>
+    )
+
+    const button = screen.getByRole('button', { name: /I accept the updated Terms/ })
+    expect(button).toBeDisabled()
+
+    fireEvent.click(screen.getByLabelText('I am at least 16 years old.'))
+    expect(button).not.toBeDisabled()
+
+    fireEvent.click(button)
+    await waitFor(() => {
+      expect(onAccept).toHaveBeenCalledTimes(1)
+    })
+  })
 })

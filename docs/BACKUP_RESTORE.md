@@ -1,64 +1,100 @@
 # Backup and Restore
 
-## RPO and RTO Targets
+## Free-tier reality (read this first)
 
-- **Recovery Point Objective (RPO):** 24 hours (daily backups in Supabase Pro tier) or up to the minute using Point-in-Time Recovery (PITR).
-- **Recovery Time Objective (RTO):** 1-2 hours (time required to restore a database snapshot into a new or existing instance).
+The project's zero-cost constraint means **Supabase's free tier keeps no
+automated database backups** (only ~1 day of logs). Daily backups and
+Point-in-Time Recovery are **Pro-plan features — Supabase Pro is
+$25/org/month, and PITR is a paid add-on on top** — so they are not available
+here unless the operator chooses to pay.
 
-## Restore Procedure (Point in Time Recovery)
+On the free tier the real recovery point is **whenever the operator last ran a
+manual dump**. Treat the cadence below as the backup plan, not a fallback.
 
-If you have PITR enabled (Pro Tier):
+- **Target RPO (manual cadence):** up to 7 days.
+- **Target RTO:** 1–2 hours to restore a dump into a scratch/local instance.
 
-1. Go to the Supabase Dashboard -> Database -> Backups.
-2. Select PITR.
-3. Choose the exact minute you want to restore to.
-4. Click **Restore**.
+A scheduled GitHub Actions dump is the intended upgrade (tracked in
+[#604](https://github.com/alvarocavalcanti/ttrpgpbp/issues/604)); until it
+exists, run the manual backup on a fixed cadence.
 
-## Manual Restore Drill (CLI)
+## What a complete backup contains
 
-1. Export the database:
+`supabase db dump` is **schema-only by default** and **excludes the `auth` and
+`storage` schemas**. A real backup of this app needs four parts:
+
+| Part | What it holds | Command |
+|---|---|---|
+| Schema | tables, functions, policies, triggers | `supabase db dump -f schema.sql` |
+| Application data | profiles, channels, messages, dice rolls, favorites, … | `supabase db dump --data-only -f data.sql` |
+| Auth data | `auth.users`, sessions | `supabase db dump --schema auth --data-only -f auth-data.sql` |
+| Roles | database roles/grants | `supabase db dump --role-only -f roles.sql` |
+
+**Storage objects are not in a database dump.** Uploaded images live in the
+`images` bucket and must be copied separately from the S3-compatible Storage
+endpoint (Dashboard → Storage → S3 connection, or `rclone`/`aws s3` against
+that endpoint). Keep the object copy alongside the dumps so the two stay in
+sync.
+
+## Manual backup (free tier — do this on a schedule)
+
+Run at least weekly, and before any risky change (bulk update, migration
+backfill, etc.):
+
+```bash
+supabase link --project-ref <PROJECT_ID>
+mkdir -p backup-$(date +%Y%m%d)
+supabase db dump -f backup-$(date +%Y%m%d)/schema.sql
+supabase db dump --data-only -f backup-$(date +%Y%m%d)/data.sql
+supabase db dump --schema auth --data-only -f backup-$(date +%Y%m%d)/auth-data.sql
+supabase db dump --role-only -f backup-$(date +%Y%m%d)/roles.sql
+```
+
+Store the directory somewhere durable and outside the repository (it contains
+all user data), together with a copy of the `images` bucket objects.
+`supabase db dump` needs the database password for the linked project — export
+`SUPABASE_DB_PASSWORD` or pass `-p`.
+
+## Restore into a local or scratch instance
+
+Restore **all four parts** — a schema-only restore leaves an empty app.
+
+```bash
+npx supabase start                                    # empty local stack
+psql -h localhost -p 54322 -U postgres -f roles.sql
+psql -h localhost -p 54322 -U postgres -f schema.sql
+psql -h localhost -p 54322 -U postgres -f data.sql
+psql -h localhost -p 54322 -U postgres -f auth-data.sql
+```
+
+Then copy the `images` bucket objects back through the Storage S3 endpoint.
+Do **not** run `supabase db reset` after importing: it recreates the database
+and reapplies migrations, discarding everything you just restored.
+
+Verify the app against the restored database (start it and exercise the core
+flows), then record the drill.
+
+## Restore drill (verification)
+
+Prove a dump is usable — do not just take them:
+
+1. **Back up production** with the four commands above.
+2. **Spin up a clean local environment:** `npx supabase start`.
+3. **Restore** `roles.sql`, `schema.sql`, `data.sql`, `auth-data.sql` (in that
+   order), then the Storage objects.
+4. **Run the suites:**
 
    ```bash
-   supabase db dump --project-ref <PROJECT_ID> > backup.sql
+   npx vitest run
+   npx playwright test
    ```
 
-2. Restore to a local or scratch project:
+Record the date of each drill and the observed RTO.
 
-   ```bash
-   supabase db start
-   psql -h localhost -p 54322 -U postgres -f backup.sql
-   ```
+## Pro-tier options (only if the operator pays)
 
-3. Run integration tests or manually verify the application flow.
+Supabase Pro ($25/org/month) enables daily backups; PITR is a paid add-on and
+restores to the minute:
 
-## Backup/Restore Drill Plan (Verification)
-
-Run a regular verification check to ensure backup integrity:
-
-1. **Dump production data:**
-
-   ```bash
-   npx supabase db dump --db-url "$PRODUCTION_DB_URL" --data-only > data_dump.sql
-   npx supabase db dump --db-url "$PRODUCTION_DB_URL" --role-only > roles_dump.sql
-   ```
-
-2. **Spin up a local clean environment:**
-
-   ```bash
-   npx supabase db reset
-   ```
-
-3. **Restore dumps to the local database:**
-
-   ```bash
-   psql "$LOCAL_DB_URL" -f roles_dump.sql
-   psql "$LOCAL_DB_URL" -f data_dump.sql
-   ```
-
-4. **Run integration and E2E tests:**
-
-   Verify that restoring the backup does not break schemas, triggers, or existing relationships by running:
-
-   ```bash
-   npm run test:e2e
-   ```
+1. Supabase Dashboard → Database → Backups.
+2. Select PITR, choose the exact minute, click **Restore**.

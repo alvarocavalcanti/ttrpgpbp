@@ -44,7 +44,7 @@ describe('ChannelStatusBar', () => {
     const prose = container.querySelector('.prose')!
     // Literals mirror src/features/chat/composerChip.ts on purpose (DAMP):
     // rewording the constant or inlining it back fails here.
-    expect(prose.className).toContain('prose prose-sm max-w-none dark:prose-invert text-amber-900')
+    expect(prose.className).toContain('prose prose-sm prose-chat max-w-none dark:prose-invert text-amber-900')
     expect(prose.className).toContain('prose-p:text-amber-900 dark:prose-p:text-amber-200')
     expect(prose.className).toContain('prose-ol:text-amber-900 dark:prose-ol:text-amber-200')
     // Collapsed by default: the space between the constant and line-clamp-1

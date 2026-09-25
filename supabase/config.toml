@@ -38,6 +38,13 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/upload-image/index.ts"
 
+[functions.delete-account]
+enabled = true
+# Browser-invoked with the user's JWT (GDPR erasure). verify_jwt stays at the
+# platform default (true); the function resolves the user from the token.
+verify_jwt = true
+entrypoint = "./functions/delete-account/index.ts"
+
 # The app signs in with redirectTo = window.location.origin, so every origin the
 # app is served from must be allowed here. Applied to the hosted project via
 # `supabase config push` (or the dashboard's Auth → URL Configuration).

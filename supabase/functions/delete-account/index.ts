@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
-import { buildCorsHeaders, evaluateDeletion } from "./logic.ts"
+import { buildCorsHeaders, evaluateDeletion, resolveAdminLookup } from "./logic.ts"
 
 // Origin allowlist for CORS. Reads the ALLOWED_ORIGINS secret (comma separated)
 // if set; otherwise falls back to the shared defaults in logic.ts.
@@ -52,8 +52,13 @@ serve(async (req) => {
       return json({ error: "Unauthorized" }, 401, req)
     }
 
-    const { data: isServerAdmin } = await userClient.rpc("is_server_admin")
-    const decision = evaluateDeletion(isServerAdmin === true)
+    const adminLookup = resolveAdminLookup(await userClient.rpc("is_server_admin"))
+    if (!adminLookup.ok) {
+      console.error("is_server_admin lookup failed; refusing to delete")
+      return json({ error: "Internal server error" }, 500, req)
+    }
+
+    const decision = evaluateDeletion(adminLookup.isServerAdmin)
     if (!decision.allow) {
       return json({ error: decision.reason }, decision.status, req)
     }

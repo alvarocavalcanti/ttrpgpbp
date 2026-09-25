@@ -37,6 +37,14 @@ describe('collectExpiredImages', () => {
     ]
     expect(collectExpiredImages(files, now)).toEqual([])
   })
+
+  it('holds back images in channels with an open abuse report', () => {
+    const files = [
+      { path: 'c1/message/a.jpg', lastModified: new Date(now - 10 * DAY_MS).toISOString() },
+      { path: 'c2/message/b.jpg', lastModified: new Date(now - 10 * DAY_MS).toISOString() },
+    ]
+    expect(collectExpiredImages(files, now - 7 * DAY_MS, new Set(['c1']))).toEqual(['c2/message/b.jpg'])
+  })
 })
 
 describe('cleanup authorization', () => {
@@ -168,8 +176,52 @@ describe('runCleanup', () => {
     expect(markBatchDeleted).toHaveBeenCalledWith('audit-2')
   })
 
-  it('marks failed batches and stops before deleting later batches', async () => {
-    const markBatchFailed = vi.fn().mockResolvedValue(undefined)
+  it('skips images in channels protected by an open abuse report', async () => {
+    const removeImages = vi.fn().mockResolvedValue(undefined)
+    const auditBatch = vi.fn().mockResolvedValue('audit-1')
+    const getProtectedChannelIds = vi.fn().mockResolvedValue(['c1'])
+
+    await expect(runCleanup({
+      getRetentionDays: async () => 7,
+      listImages: async () => [
+        { path: 'c1/message/held.jpg', lastModified: new Date(NOW - 8 * DAY_MS).toISOString() },
+        { path: 'c2/message/gone.jpg', lastModified: new Date(NOW - 8 * DAY_MS).toISOString() },
+      ],
+      auditBatch,
+      markBatchDeleted: vi.fn(),
+      markBatchFailed: vi.fn(),
+      removeImages,
+      getProtectedChannelIds,
+    }, NOW, 'run-1')).resolves.toEqual({ deleted: 1, retentionDays: 7 })
+
+    expect(removeImages).toHaveBeenCalledWith(['c2/message/gone.jpg'])
+    expect(auditBatch.mock.calls[0][0]).toMatchObject({ objectPaths: ['c2/message/gone.jpg'] })
+  })
+
+  it('rechecks protection before deleting a batch (report opened after the snapshot)', async () => {
+    const removeImages = vi.fn().mockResolvedValue(undefined)
+    const auditBatch = vi.fn().mockResolvedValue('audit-1')
+    const getProtectedChannelIds = vi.fn()
+      .mockResolvedValueOnce([]) // initial snapshot: nothing protected yet
+      .mockResolvedValue(['c1']) // by deletion time, c1 has a pending report
+
+    await expect(runCleanup({
+      getRetentionDays: async () => 7,
+      listImages: async () => [
+        { path: 'c1/message/held.jpg', lastModified: new Date(NOW - 8 * DAY_MS).toISOString() },
+        { path: 'c2/message/gone.jpg', lastModified: new Date(NOW - 8 * DAY_MS).toISOString() },
+      ],
+      auditBatch,
+      markBatchDeleted: vi.fn(),
+      markBatchFailed: vi.fn(),
+      removeImages,
+      getProtectedChannelIds,
+    }, NOW, 'run-1')).resolves.toEqual({ deleted: 1, retentionDays: 7 })
+
+    expect(removeImages).toHaveBeenCalledWith(['c2/message/gone.jpg'])
+  })
+
+  it('marks failed batches and stops before deleting later batches', async () => {    const markBatchFailed = vi.fn().mockResolvedValue(undefined)
     const removeImages = vi.fn().mockRejectedValue(new Error('storage unavailable'))
     const auditBatch = vi.fn().mockResolvedValue('audit-1')
 

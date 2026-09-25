@@ -105,4 +105,20 @@ describe('token adoption', () => {
       .map(({ rel }) => rel)
     expect(corrupted).toEqual([])
   })
+
+  // Regression guard for the 2026-09-25 audit (UX P1-2): a `display:none` file
+  // input inside a label can never receive focus, so keyboard-only users cannot
+  // reach the file picker. Visually-hidden inputs must use `sr-only`, which
+  // stays focusable.
+  it('no file input is display:none', () => {
+    const offenders = listSourceFiles()
+      .map((full) => {
+        const { rel, source } = readSource(full)
+        const inputs = source.match(/<input\b[^>]*type="file"[^>]*>/g) ?? []
+        return { rel, hidden: inputs.filter(i => /className="[^"]*\bhidden\b/.test(i)) }
+      })
+      .filter(({ hidden }) => hidden.length > 0)
+      .map(({ rel }) => rel)
+    expect(offenders).toEqual([])
+  })
 })

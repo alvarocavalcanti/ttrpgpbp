@@ -1,5 +1,14 @@
 # Observability
 
+## Free-tier reality
+
+On the Supabase free tier, logs are retained for roughly **1 day** and there are
+no log drains. Log Alerts and longer retention require **Supabase Pro
+($25/org/month)**. Sentry's free Developer quota is small (about 5k errors and
+50 session replays per month). Practically, this means: **check the dashboard
+within a day of any suspected incident**, and treat automated alerting as a
+paid upgrade. The queries below still work for manual review.
+
 ## Client Telemetry (Sentry)
 
 Client-side render errors and boundary catches are reported to Sentry.
