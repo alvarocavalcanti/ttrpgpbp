@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-25
+
+### Changed
+
+- **Clearer rules prompt** — signing in now records your agreement to the Terms and Privacy Policy in one step: the sign-in checkbox names the version you're accepting, so new players are never asked twice. You'll only see the acceptance screen again when those documents actually change — and it now tells you which version you last accepted. If saving your agreement fails, the app waits and offers a retry instead of letting you in without a record.
+
 ## 2026-09-24
 
 ### Changed

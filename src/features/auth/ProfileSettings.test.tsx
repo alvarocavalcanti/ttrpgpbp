@@ -74,6 +74,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = renderWithRouter(<ProfileSettings />)
@@ -96,6 +98,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -123,6 +127,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: mockRefreshProfile,
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const mockEq = vi.fn().mockResolvedValue({ error: null })
@@ -163,6 +169,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const mockEq = vi.fn().mockResolvedValue({ error: new Error('Database error') })
@@ -190,6 +198,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -212,6 +222,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { rerender } = renderWithRouter(<ProfileSettings />)
@@ -250,6 +262,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     mockSubscribe.mockRejectedValue(new Error('boom'))
@@ -275,6 +289,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -307,6 +323,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -338,6 +356,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(usePushNotifications).mockReturnValue({
@@ -369,6 +389,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(buildUserDataExport).mockResolvedValue({ exported_at: 'x' } as any)
@@ -395,6 +417,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(buildUserDataExport).mockRejectedValue(new Error('boom'))
@@ -420,6 +444,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -448,6 +474,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: mockSignOut,
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: null, error: null } as any)
@@ -475,6 +503,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: null, error: new Error('down') } as any)
@@ -503,6 +533,8 @@ describe('ProfileSettings', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     renderWithRouter(<ProfileSettings />)
@@ -533,6 +565,8 @@ describe('ProfileSettings email consent', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
   }
 
@@ -572,6 +606,7 @@ describe('ProfileSettings email consent', () => {
       loading: false, error: null, user: { id: '123' } as any,
       profile: profile({ email_opt_in: false }), session: null,
       signInWithGoogle: vi.fn(), signOut: vi.fn(), refreshProfile,
+      termsConfirmState: 'idle', retryTermsConfirm: vi.fn(),
     })
 
     render(<MemoryRouter><ProfileSettings /></MemoryRouter>)

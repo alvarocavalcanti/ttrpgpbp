@@ -2,12 +2,15 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
-import { authSignOut, confirmAge, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
+import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
+import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import type { Database } from '../../types/database'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
 // status comes from the is_server_admin() RPC via useIsServerAdmin.
 type Profile = Omit<Database['public']['Tables']['profiles']['Row'], 'server_admin'>
+
+type TermsConfirmState = 'idle' | 'pending' | 'failed'
 
 interface AuthContextType {
   session: Session | null
@@ -18,6 +21,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  termsConfirmState: TermsConfirmState
+  retryTermsConfirm: () => void
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -30,6 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null)
   const lastFetchedUserId = useRef<string | null>(null)
   const confirmedAgeFor = useRef<string | null>(null)
+  const confirmedTermsFor = useRef<string | null>(null)
+  // Recording state for the checkbox-evidence terms stamp below. ProtectedRoute
+  // reads it to hold the app (never the Outlet) until the server record lands,
+  // and to offer a retry — not a re-accept — when recording fails.
+  const [termsConfirmState, setTermsConfirmState] = useState<TermsConfirmState>('idle')
 
   useEffect(() => {
     let mounted = true
@@ -79,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentSession?.user) {
           const userId = currentSession.user.id
+          if (lastFetchedUserId.current !== null && lastFetchedUserId.current !== userId) {
+            // Account switch without app sign-out: the device checkbox evidence
+            // belonged to the previous identity — drop it so nothing is stamped
+            // for the new identity from consent it never gave.
+            localStorage.removeItem('age-confirmed')
+            localStorage.removeItem(TERMS_AGREED_KEY)
+          }
           // Skip refetch unless the user actually changed (e.g. TOKEN_REFRESHED
           // fires hourly and on tab refocus with the same identity).
           if (lastFetchedUserId.current !== userId) {
@@ -104,49 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Stamp server-side age-confirmation evidence once per user, only when the
-  // client checkbox was accepted (localStorage flag). The RPC is idempotent.
-  // The user is marked confirmed only after the RPC succeeds, so a failed call
-  // is retried on the next auth event instead of being silently dropped.
-  //
-  // Terms acceptance is deliberately NOT stamped here: confirm_terms()
-  // re-stamps, so stamping on load would silently accept a new version on
-  // the user's behalf and bypass the re-consent gate (#562 review). The
-  // gate is the single path that records terms acceptance, always with an
-  // explicit user action.
-  useEffect(() => {
-    if (loading || !user) return
-    if (localStorage.getItem('age-confirmed') !== 'true') return
-    if (confirmedAgeFor.current === user.id) return
-    const userId = user.id
-    void confirmAge()
-      .then(() => { confirmedAgeFor.current = userId })
-      .catch((err) => console.error('Error confirming age:', err))
-  }, [loading, user])
-
-  const signInWithGoogle = useCallback(async () => {
-    setError(null)
-    try {
-      const { error: signInError } = await apiSignInWithGoogle()
-      if (signInError) throw signInError
-    } catch (err) {
-      console.error('Error signing in with Google:', err)
-      setError(err as Error)
-    }
-  }, [])
-
-  const signOut = useCallback(async () => {
-    setError(null)
-    // The age-confirmation flag is per-browser, not per-account: leaving it set
-    // would pre-check the box for whoever signs in next and let confirm_age()
-    // stamp an attestation they never made.
-    localStorage.removeItem('age-confirmed')
-    await authSignOut()
-  }, [])
-
   // Re-fetches the signed-in user's profile so direct profile writes (e.g. the
   // display-name save in ProfileSettings) are reflected in context state
-  // without waiting for an auth event (ARCH-4).
+  // without waiting for an auth event (ARCH-4). Declared before the stamping
+  // effects below because the terms effect refreshes through it.
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return
     const userId = user.id
@@ -165,9 +143,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id])
 
+  // Stamp server-side age-confirmation evidence once per user, only when the
+  // client checkbox was accepted (localStorage flag). The RPC is idempotent.
+  // The user is marked confirmed only after the RPC succeeds, so a failed call
+  // is retried on the next auth event instead of being silently dropped.
+  useEffect(() => {
+    if (loading || !user) return
+    if (localStorage.getItem('age-confirmed') !== 'true') return
+    if (confirmedAgeFor.current === user.id) return
+    const userId = user.id
+    void confirmAge()
+      .then(() => { confirmedAgeFor.current = userId })
+      .catch((err) => console.error('Error confirming age:', err))
+  }, [loading, user])
+
+  // Stamp server-side terms-acceptance evidence once per user, only when this
+  // device recorded an explicit sign-in checkbox agreement for the CURRENT
+  // version. A terms bump leaves the stored agreement behind, so a new version
+  // is never stamped on load without fresh checkbox evidence — the re-consent
+  // gate stays the path for those (#562 review). The user is marked accepted
+  // only after the RPC succeeds; a failure surfaces via termsConfirmState so
+  // ProtectedRoute can hold the app and offer a retry instead of rendering
+  // protected content with no server record.
+  useEffect(() => {
+    if (loading || !user || !profile) return
+    if (profile.terms_version === CURRENT_TERMS_VERSION || localStorage.getItem(TERMS_AGREED_KEY) !== CURRENT_TERMS_VERSION) {
+      if (termsConfirmState !== 'idle') setTermsConfirmState('idle')
+      return
+    }
+    const stampKey = `${user.id}:${CURRENT_TERMS_VERSION}`
+    if (confirmedTermsFor.current === stampKey || termsConfirmState !== 'idle') return
+    setTermsConfirmState('pending')
+    void confirmTerms(CURRENT_TERMS_VERSION)
+      .then(async () => {
+        confirmedTermsFor.current = stampKey
+        await refreshProfile()
+        setTermsConfirmState('idle')
+      })
+      .catch((err) => {
+        console.error('Error confirming terms:', err)
+        setTermsConfirmState('failed')
+      })
+  }, [loading, user, profile, refreshProfile, termsConfirmState])
+
+  // Re-runs a failed checkbox-evidence stamp without asking the user to accept
+  // again — the evidence is still on this device. No-op unless the last
+  // attempt failed; the effect above picks the retry up from the idle state.
+  const retryTermsConfirm = useCallback(() => {
+    setTermsConfirmState((prev) => (prev === 'failed' ? 'idle' : prev))
+  }, [])
+
+  const signInWithGoogle = useCallback(async () => {
+    setError(null)
+    try {
+      const { error: signInError } = await apiSignInWithGoogle()
+      if (signInError) throw signInError
+    } catch (err) {
+      console.error('Error signing in with Google:', err)
+      setError(err as Error)
+    }
+  }, [])
+
+  const signOut = useCallback(async () => {
+    setError(null)
+    // The age-confirmation and terms-agreement flags are per-browser, not
+    // per-account: leaving them set would pre-check the box for whoever signs
+    // in next and let confirm_age()/confirm_terms() stamp evidence they never
+    // agreed to.
+    localStorage.removeItem('age-confirmed')
+    localStorage.removeItem(TERMS_AGREED_KEY)
+    await authSignOut()
+  }, [])
+
   const value = useMemo(
-    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile }),
-    [session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile]
+    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile, termsConfirmState, retryTermsConfirm }),
+    [session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile, termsConfirmState, retryTermsConfirm]
   )
 
   return (

@@ -64,10 +64,11 @@ export async function confirmAge() {
   if (error) throw error
 }
 
-// Terms-acceptance evidence. Called with the CURRENT_TERMS_VERSION after the
-// sign-in checkbox (which covers the terms too) and by the re-consent gate.
-// Self-only; re-stamps on every call so a version bump re-records. Throws on
-// failure so the caller only records an acceptance that actually landed.
+// Terms-acceptance evidence. Called with the CURRENT_TERMS_VERSION only when
+// the device recorded an explicit sign-in checkbox agreement for that version
+// (see AuthContext) and by the re-consent gate. Self-only; re-stamps on every
+// call so a version bump re-records. Throws on failure so the caller only
+// records an acceptance that actually landed.
 export async function confirmTerms(version: string) {
   const { error } = await supabase.rpc('confirm_terms', { p_version: version })
   if (error) throw error

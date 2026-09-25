@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './useAuth'
+import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import { ThemeToggle } from '../../components/ThemeToggle'
 
 const FEATURES = [
@@ -62,9 +63,11 @@ const FEATURES = [
 export function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth()
   const location = useLocation()
-  // Required age confirmation. Persisted per-device so returning users aren't
-  // asked again; the server-side evidence is stamped by confirm_age() on first
-  // authenticated load (see AuthContext).
+  // Required age + terms confirmation. Persisted per-device so returning users
+  // aren't asked again; the server-side evidence is stamped by confirm_age()
+  // and confirm_terms() on first authenticated load (see AuthContext). The
+  // terms agreement records the exact version shown, so a terms bump
+  // invalidates it and returning users re-confirm explicitly.
   const [ageConfirmed, setAgeConfirmed] = useState(() => localStorage.getItem('age-confirmed') === 'true')
 
   if (loading) {
@@ -92,8 +95,10 @@ export function LoginPage() {
     setAgeConfirmed(checked)
     if (checked) {
       localStorage.setItem('age-confirmed', 'true')
+      localStorage.setItem(TERMS_AGREED_KEY, CURRENT_TERMS_VERSION)
     } else {
       localStorage.removeItem('age-confirmed')
+      localStorage.removeItem(TERMS_AGREED_KEY)
     }
   }
 
@@ -131,7 +136,8 @@ export function LoginPage() {
               <label htmlFor="age-confirm" className="text-sm text-surface-600 dark:text-surface-400">
                 I am at least 16 years old and agree to the{' '}
                 <Link to="/terms" className="text-primary-600 dark:text-primary-400 hover:underline">Terms of Service</Link>
-                {' '}and{' '}
+                {` (v${CURRENT_TERMS_VERSION}) `}
+                and{' '}
                 <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline">Privacy Policy</Link>
               </label>
             </div>

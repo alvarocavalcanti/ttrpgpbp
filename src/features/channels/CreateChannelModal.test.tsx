@@ -41,7 +41,9 @@ describe('CreateChannelModal', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
-      refreshProfile: vi.fn()
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn()
     } as any)
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false } as any)
     mockCountMyChannels.mockResolvedValue(0)

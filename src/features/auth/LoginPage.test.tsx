@@ -24,6 +24,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = render(
@@ -45,6 +47,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -67,6 +71,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -94,6 +100,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -121,6 +129,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -147,6 +157,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -174,6 +186,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -201,6 +215,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -230,6 +246,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -255,6 +273,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     const { container } = render(
@@ -278,6 +298,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -304,6 +326,8 @@ describe('LoginPage', () => {
       signInWithGoogle: mockSignIn,
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(
@@ -318,6 +342,58 @@ describe('LoginPage', () => {
     expect(screen.getByText('Sign in with Google')).toBeEnabled()
   })
 
+  it('names the terms version the checkbox agrees to', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByLabelText(/I am at least 16 years old and agree to the/)).toBeInTheDocument()
+    expect(screen.getByText(/\(v2026-09-24\)/)).toBeInTheDocument()
+  })
+
+  it('records the agreed terms version when the checkbox is checked', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    )
+
+    const checkbox = screen.getByLabelText(/at least 16 years old/)
+    fireEvent.click(checkbox)
+    expect(localStorage.getItem('terms-agreed-version')).toBe('2026-09-24')
+
+    fireEvent.click(checkbox)
+    expect(localStorage.getItem('terms-agreed-version')).toBeNull()
+  })
+
   it('keeps sign in enabled when the age flag is already stored', () => {
     localStorage.setItem('age-confirmed', 'true')
     vi.mocked(useAuth).mockReturnValue({
@@ -329,6 +405,8 @@ describe('LoginPage', () => {
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
     })
 
     render(

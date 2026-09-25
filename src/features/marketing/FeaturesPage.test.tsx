@@ -25,6 +25,8 @@ function mockAuth(user: unknown, loading = false) {
     signInWithGoogle: vi.fn(),
     signOut: vi.fn(),
     refreshProfile: vi.fn(),
+    termsConfirmState: 'idle',
+    retryTermsConfirm: vi.fn(),
   })
 }
 

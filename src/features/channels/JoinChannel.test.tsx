@@ -59,7 +59,9 @@ describe('JoinChannel', () => {
       error: null,
       signInWithGoogle: vi.fn(),
       signOut: vi.fn(),
-      refreshProfile: vi.fn()
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn()
     })
   })
 
