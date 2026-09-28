@@ -1,16 +1,19 @@
 # r/pbp launch post
 
 Ready-to-paste copy for announcing Role by Post on [r/pbp](https://www.reddit.com/r/pbp/).
-Post body goes in a **text post**; the title is the first line below.
-
----
+Post the title and the body as a **text post**; the body below is kept verbatim in a code
+block so it copies exactly as written (Reddit renders the `**bold**` markers as headings-like
+emphasis, and auto-links the bare URLs).
 
 ## Title
 
+```text
 I built a text-first PbP app — Role by Post (free, feedback welcome)
+```
 
 ## Body
 
+```text
 Hi everyone — I'm the dev behind [Role by Post](https://rolebypost.com), a web app built specifically for play-by-post. It isn't a VTT.
 
 I've run PbP in WhatsApp since 2021. The writing was never the problem — everything around it was: sheets in one tab, dice in another, and turn order and scene notes in a separate note outside the game. So I built one place for all of it. I switch tabs a lot less now.
@@ -39,8 +42,7 @@ More detail and screenshots: https://rolebypost.com/features
 Questions? Ask me in the comments — I'll answer all of them. If you find a bug or want to report something, the issue tracker is here: https://github.com/alvarocavalcanti/ttrpgpbp/issues
 
 "You're missing X" is welcome too — I'd rather fix it than sell it.
-
----
+```
 
 ## Posting notes
 
