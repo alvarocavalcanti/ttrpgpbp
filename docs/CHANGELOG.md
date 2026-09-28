@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-28
+
+### Fixed
+
+- **Scene text with lists now lines up** — in a scene message, bullet and numbered lists used to sit against the left edge while their text drifted to the middle. The list text now starts beside its bullet, so scenes read cleanly.
+
 ## 1.0.0 — 2026-09-25
 
 ### Added
