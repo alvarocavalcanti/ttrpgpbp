@@ -1070,6 +1070,21 @@ export type Database = {
           updated_at: string
         }[]
       }
+      admin_list_archived_channels: {
+        Args: never
+        Returns: {
+          created_at: string
+          game_system: string
+          gm_display_name: string
+          gm_email: string
+          gm_id: string
+          id: string
+          last_message_at: string
+          member_count: number
+          name: string
+          player_characters: string[]
+        }[]
+      }
       admin_list_channel_members: {
         Args: { p_channel_id: string }
         Returns: {
