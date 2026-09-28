@@ -46,7 +46,7 @@ Questions? Ask me in the comments — I'll answer all of them. If you find a bug
 
 - **Subreddit:** r/pbp
 - **Flair:** `Website` (tool/site posts carry it there; `App` also appears). Not one of the five mandatory flairs (Closed / Community / Discussion / eRP / PAY), so any optional tool flair works.
-- **Rule that matters — No Spamming:** "No posting the link to the same game or the same community more than once a week." Post once; don't repost this link (or cross-post it elsewhere) within 7 days.
-- **No approval gate:** r/pbp has no self-promotion rule and no modmail requirement. The rules are: PbP only, no spam, correct flair, be respectful, LFG posts go in the stickied thread. This post is PbP-only and is not an LFG, so a top-level text post is correct.
-- **Rules verified:** sidebar captured 2026-03-19 (Wayback); re-check the live sidebar while logged in before posting, since flairs and rules can change.
-- **Expectation setting:** the sub is small (~22k readers) and promo posts commonly sit at 0–2 points. Don't read early downvotes as failure; the replies are what matter.
+- **Rule that matters — No Spamming:** "No posting the link to the same game or the same community more than once a week." Post once; don't post this link again within 7 days, here or in another subreddit.
+- **No approval gate:** r/pbp has no self-promotion rule and no requirement to message the mods first. The rules are: PbP only, no spam, correct flair, be respectful, and Looking-for-GM posts go in the pinned thread. This post is PbP-only and is not an LFG, so a top-level text post is correct.
+- **Rules verified:** sidebar captured 2026-03-19 from the archive.org copy of the sub; re-check the live sidebar while logged in before posting, since flairs and rules can change.
+- **Expectation setting:** the sub is small (~22k readers) and promo posts often sit at 0–2 points. Don't read a low score as failure; the replies are what matter.
