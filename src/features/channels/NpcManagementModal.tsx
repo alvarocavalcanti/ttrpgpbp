@@ -291,6 +291,18 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                   Add
                 </button>
               </div>
+              <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Looking for token art?{' '}
+                <a
+                  href="https://youseethis.blog"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  You See This
+                </a>{' '}
+                is a recommended source.
+              </p>
             </div>
           </>
         )}

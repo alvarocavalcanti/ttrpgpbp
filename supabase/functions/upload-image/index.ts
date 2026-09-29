@@ -5,6 +5,7 @@ import {
   buildImageMetadata,
   evaluateUploadGuards,
   isJpegSignature,
+  isValidProfileUploadPath,
   isValidUploadPath,
 } from "./logic.ts"
 
@@ -25,11 +26,13 @@ function json(body: unknown, status: number, req: Request): Response {
   })
 }
 
-// Stores a GM's image into the private 'images' bucket. The only writer of
+// Stores an image into the private 'images' bucket. The only writer of
 // stored objects (storage RLS has no client write policy), so the admin
-// toggle, the size cap, the path shape, and GM-of-channel are all enforced
-// here. Responses use 200 with a discriminated `status` so the browser client
-// can tell a store from a refusal without parsing non-2xx bodies.
+// toggle, the size cap, the path shape, and ownership are all enforced here:
+// channel uploads require the GM of the named channel; profile uploads
+// require the path owner to match the caller. Responses use 200 with a
+// discriminated `status` so the browser client can tell a store from a
+// refusal without parsing non-2xx bodies.
 //
 // Uploads are NOT scanned for illegal material: there is no content-safety
 // provider configured (a paid service the app cannot afford), and user reports
@@ -70,24 +73,35 @@ serve(async (req) => {
 
     const form = await req.formData()
     const path = form.get("path")
+    const scope = form.get("scope")
     const channelId = form.get("channelId")
     const file = form.get("file")
-    if (typeof path !== "string" || typeof channelId !== "string" || !(file instanceof File)) {
+    const isProfileUpload = scope === "profile"
+    if (typeof path !== "string" || !(file instanceof File) || (!isProfileUpload && typeof channelId !== "string")) {
       return json({ error: "Invalid request" }, 400, req)
     }
-    if (!isValidUploadPath(path, channelId)) {
-      return json({ error: "Invalid upload path" }, 400, req)
-    }
 
-    // Uploads are GM-only (storage.objects has no client write policy). The
-    // service-role client bypasses RLS, so the same rule is enforced here.
-    const { data: channel } = await serviceClient
-      .from("channels")
-      .select("id, gm_id")
-      .eq("id", channelId)
-      .single()
-    if (!channel || channel.gm_id !== user.id) {
-      return json({ error: "Not authorized" }, 403, req)
+    if (isProfileUpload) {
+      // Profile pictures are account-global and self-owned. Only the edge
+      // function may write them, so enforce ownership here.
+      if (!isValidProfileUploadPath(path, user.id)) {
+        return json({ error: "Not authorized" }, 403, req)
+      }
+    } else {
+      if (!isValidUploadPath(path, channelId as string)) {
+        return json({ error: "Invalid upload path" }, 400, req)
+      }
+
+      // Uploads are GM-only (storage.objects has no client write policy). The
+      // service-role client bypasses RLS, so the same rule is enforced here.
+      const { data: channel } = await serviceClient
+        .from("channels")
+        .select("id, gm_id")
+        .eq("id", channelId as string)
+        .single()
+      if (!channel || channel.gm_id !== user.id) {
+        return json({ error: "Not authorized" }, 403, req)
+      }
     }
 
     // Server-side gate mirroring the DB store-time trigger: disabled or

@@ -209,6 +209,10 @@ describe('FeaturesPage', () => {
       'href',
       'https://github.com/alvarocavalcanti/ttrpgpbp'
     )
+    expect(screen.getByRole('link', { name: 'You See This — token art' })).toHaveAttribute(
+      'href',
+      'https://youseethis.blog'
+    )
   })
 
   describe('enlarged image viewer (issue #615)', () => {
