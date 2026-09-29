@@ -52,10 +52,16 @@ BEGIN
       -- The GM is a channel_members row too (create_channel inserts one), so
       -- exclude the GM's own character: this is the *player* roster. The
       -- GM's profile survives deletion on orphaned channels (SET NULL), in
-      -- which case IS DISTINCT FROM matches every member.
+      -- which case IS DISTINCT FROM matches every member. character_name is
+      -- NOT NULL in the schema, so a NULL here is always the synthetic row
+      -- from the LEFT JOIN on a memberless channel: without this predicate
+      -- array_agg would return {NULL} and the client would drop the row.
       COALESCE(
         array_agg(cm.character_name ORDER BY cm.joined_at)
-          FILTER (WHERE cm.user_id IS DISTINCT FROM c.gm_id),
+          FILTER (
+            WHERE cm.character_name IS NOT NULL
+              AND cm.user_id IS DISTINCT FROM c.gm_id
+          ),
         '{}'
       ) AS player_characters,
       c.created_at,
