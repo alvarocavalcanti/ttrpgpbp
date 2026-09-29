@@ -50,10 +50,10 @@ entrypoint = "./functions/delete-account/index.ts"
 # with <origin>/login?redirect=<path> for email magic links, so every origin
 # the app is served from must be allowed here. Applied to the hosted project
 # via `supabase config push` (or the dashboard's Auth → URL Configuration).
-# (`site_url` is deliberately NOT set here: config push would overwrite the
-# hosted project's Site URL; the code always passes an explicit redirect, so
-# the Site URL fallback is never used for these flows.)
+# site_url is the fallback for auth emails that pass no explicit redirect; the
+# app's own flows always pass one, so local development is unaffected.
 [auth]
+site_url = "https://rolebypost.com"
 additional_redirect_urls = [
   "http://127.0.0.1:5173/**",
   "http://localhost:5173/**",
