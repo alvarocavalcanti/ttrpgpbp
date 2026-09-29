@@ -23,6 +23,22 @@ export async function signInWithGoogle() {
   })
 }
 
+// Passwordless email sign-in (#205). `shouldCreateUser` stays enabled so
+// first-time users can register through this flow, mirroring Google OAuth.
+// `fullName` seeds raw_user_meta_data for the handle_new_user trigger only
+// when a brand-new account is created (existing users are untouched), so
+// email-only signups get a sensible display name instead of NULL.
+export async function signInWithOtp(email: string, emailRedirectTo: string, fullName: string) {
+  return supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo,
+      shouldCreateUser: true,
+      data: { full_name: fullName },
+    },
+  })
+}
+
 export async function authSignOut() {
   await supabase.auth.signOut()
 }

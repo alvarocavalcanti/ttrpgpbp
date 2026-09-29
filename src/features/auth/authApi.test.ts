@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   getCurrentSession,
   signInWithGoogle,
+  signInWithOtp,
   authSignOut,
   fetchProfileRow,
   updateDisplayName,
@@ -18,6 +19,7 @@ vi.mock('../../lib/supabase', () => ({
     auth: {
       getSession: vi.fn(),
       signInWithOAuth: vi.fn(),
+      signInWithOtp: vi.fn(),
       signOut: vi.fn(),
       onAuthStateChange: vi.fn(),
     },
@@ -63,6 +65,20 @@ describe('authApi', () => {
     expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: { redirectTo: window.location.origin },
+    })
+  })
+
+  it('signInWithOtp sends a magic link with signup enabled and profile metadata', async () => {
+    vi.mocked(supabase.auth.signInWithOtp).mockResolvedValue({ data: {}, error: null } as any)
+
+    await signInWithOtp('player@example.com', 'https://rolebypost.com/login', 'player')
+    expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
+      email: 'player@example.com',
+      options: {
+        emailRedirectTo: 'https://rolebypost.com/login',
+        shouldCreateUser: true,
+        data: { full_name: 'player' },
+      },
     })
   })
 

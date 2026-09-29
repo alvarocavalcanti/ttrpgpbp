@@ -25,6 +25,24 @@ Checklist for setting up your own RoleByPost server. The app is a static fronten
 - [ ] Add the redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
 - [ ] In Supabase Dashboard → Authentication → Providers → Google, enable Google and paste the client ID and secret.
 
+## 2b. Set up email magic-link sign-in (custom SMTP)
+
+Email sign-in needs a real SMTP provider. Supabase's built-in sender is a demo — roughly **2 messages/hour, and only to project team members** — so real players never receive a link on it. It is fine for local development only, where the local stack captures mail in **Mailpit** at <http://127.0.0.1:54324>. The reference deployment uses **Resend** (free tier: 3,000 emails/month, 100/day, no card).
+
+- [ ] Enable the **Email** provider: Authentication → **Sign In / Providers → Email**, or set `[auth.email] enable_signup = true` in `supabase/config.toml`. The reference project shipped with it **off** (Google-only), which makes every sign-in link fail.
+- [ ] Create a [Resend](https://resend.com) account and add the sending domain (`rolebypost.com`).
+- [ ] Add the DKIM/SPF DNS records Resend shows to your DNS provider (Cloudflare) and wait for domain verification.
+- [ ] Create a Resend API key.
+- [ ] Supabase Dashboard → Authentication → Email → **SMTP Settings**: host `smtp.resend.com`, port `465` (SSL) or `587` (STARTTLS), username `resend`, password = the API key, sender `no-reply@rolebypost.com`.
+- [ ] Leave link/click tracking **off** — a tracking rewrite breaks the single-use magic link.
+- [ ] Only raise Authentication → **Rate Limits** if real traffic needs it; the default (about 30 magic-link requests / 5 min / IP) suits a small table.
+
+Behavior notes:
+
+- A first-time email sign-in creates an account (`shouldCreateUser` stays on, matching Google OAuth); the profile row is created by the `handle_new_user` trigger, using the email's local part as the initial display name.
+- The link returns to `<origin>/login?redirect=<path>`; every origin must be in the redirect allowlist (step 7).
+- `site_url` is intentionally **not** committed in `supabase/config.toml` — `config push` would overwrite the hosted project's Site URL. The app always passes an explicit redirect, so the Site URL fallback is never used for these flows.
+
 ## 3. Generate VAPID keys
 
 - [ ] Generate a VAPID keypair:
@@ -182,7 +200,7 @@ browser, so no user JWT is involved.
   - Add the `VITE_*` environment variables (Production and Preview).
   - Add your custom domain (Workers & Pages → project → **Custom domains**). The reference deployment serves both `https://rolebypost.com` and the default `https://<project>.pages.dev`; keep both live so installed PWAs and old links keep working. Do **not** redirect `pages.dev` to the custom domain — PWA installs, service workers, and push subscriptions are origin-bound, so a redirect would break them.
 - [ ] Point DNS: for a Cloudflare-managed zone, add an apex CNAME (`rolebypost.com` → `<project>.pages.dev`, proxied) and wait for certificate issuance.
-- [ ] Allow OAuth redirects for every origin the app is served from: `supabase config push` (or Dashboard → Auth → URL Configuration) so `https://rolebypost.com` and `https://<project>.pages.dev` are in the additional redirect URLs.
+- [ ] Allow auth redirects for every origin the app is served from: `supabase config push` (or Dashboard → Auth → URL Configuration). `supabase/config.toml` already lists the local (`localhost:5173`), `rolebypost.com`, and `*.ttrpgpbp.pages.dev` entries — with `/**` path wildcards for the magic-link `/login?redirect=…` return. Keep the list complete: `config push` replaces the whole allowlist. See step 2b for email delivery.
 - [ ] Any other static host works — point it at `dist/`, set the `VITE_*` vars, and make sure all routes fall back to `index.html` (SPA routing). Cloudflare Pages does this automatically. Whichever host you use, the app shell on every app route (see public/_headers for the list — keep it in sync with src/App.tsx) and the worker script must be served `Cache-Control: no-cache` (`/` and `/index.html` alone are not enough: a reload at `/channel/c1` requests that path); a long-cached shell traps installed PWAs on the old version after an update, which the update banner cannot fix on its own.
 
 ## 8. Promote the first server admin

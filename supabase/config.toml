@@ -46,16 +46,31 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/delete-account/index.ts"
 
-# The app signs in with redirectTo = window.location.origin, so every origin the
-# app is served from must be allowed here. Applied to the hosted project via
-# `supabase config push` (or the dashboard's Auth → URL Configuration).
+# The app signs in with redirectTo = window.location.origin (Google OAuth) and
+# with <origin>/login?redirect=<path> for email magic links, so every origin
+# the app is served from must be allowed here. Applied to the hosted project
+# via `supabase config push` (or the dashboard's Auth → URL Configuration).
+# site_url is the fallback for auth emails that pass no explicit redirect; the
+# app's own flows always pass one, so local development is unaffected.
 [auth]
+site_url = "https://rolebypost.com"
 additional_redirect_urls = [
+  "http://127.0.0.1:5173/**",
+  "http://localhost:5173/**",
   "https://ttrpgpbp.pages.dev",
+  "https://ttrpgpbp.pages.dev/**",
+  "https://*.ttrpgpbp.pages.dev/**",
   "https://rolebypost.com",
+  "https://rolebypost.com/**",
 ]
 
 [auth.external.google]
 enabled = true
 client_id = "874851725148-ti03e8gh6mjmc5j3ddt57tku9upcm6oj.apps.googleusercontent.com"
 secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+
+# Passwordless email sign-in (#205). The hosted project had the email provider
+# disabled (Google-only), which blocks magic links entirely. enable_signup also
+# lets first-time users register through a link, matching the Google flow.
+[auth.email]
+enable_signup = true

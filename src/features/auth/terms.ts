@@ -2,7 +2,7 @@
 // Stamped into profiles.terms_version by confirm_terms(). Bump on every
 // terms or privacy edit: signed-in users whose stored version is behind are
 // gated by ReConsentGate until they re-accept.
-export const CURRENT_TERMS_VERSION = '2026-09-24'
+export const CURRENT_TERMS_VERSION = '2026-09-29'
 
 // localStorage key recording which terms version this device's sign-in
 // checkbox explicitly agreed to. AuthContext only stamps an acceptance when

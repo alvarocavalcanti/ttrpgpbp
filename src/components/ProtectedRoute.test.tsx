@@ -33,6 +33,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -56,6 +57,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: new Error('Session error'),
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -85,6 +87,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -115,6 +118,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -144,6 +148,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -169,10 +174,11 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: { id: 'test', terms_version: '2026-09-24' } as any,
+      profile: { id: 'test', terms_version: '2026-09-29' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -194,14 +200,46 @@ describe('ProtectedRoute', () => {
     expect(sessionStorage.getItem('auth_redirect')).toBeNull()
   })
 
+  it('ignores a backslash-smuggled saved destination', () => {
+    sessionStorage.setItem('auth_redirect', '/\\evil.example.com')
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: { id: 'test' } as any,
+      profile: { id: 'test', terms_version: '2026-09-29' } as any,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="lobby" />} />
+          </Route>
+          <Route path="/join/:id" element={<div data-testid="join-page" />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByTestId('lobby')).toBeInTheDocument()
+    expect(screen.queryByTestId('join-page')).not.toBeInTheDocument()
+  })
+
   it('renders outlet content when user is authenticated', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: { id: 'test', terms_version: '2026-09-24' } as any,
+      profile: { id: 'test', terms_version: '2026-09-29' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -231,6 +269,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -261,6 +300,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -285,7 +325,7 @@ describe('ProtectedRoute', () => {
   })
 
   it('holds the app while a checkbox-covered acceptance is being recorded', () => {
-    localStorage.setItem('terms-agreed-version', '2026-09-24')
+    localStorage.setItem('terms-agreed-version', '2026-09-29')
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
@@ -293,6 +333,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'pending',
@@ -318,7 +359,7 @@ describe('ProtectedRoute', () => {
 
   it('offers a retry without re-accepting when recording the acceptance fails', () => {
     const retryTermsConfirm = vi.fn()
-    localStorage.setItem('terms-agreed-version', '2026-09-24')
+    localStorage.setItem('terms-agreed-version', '2026-09-29')
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
@@ -326,6 +367,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'failed',
@@ -359,6 +401,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -386,10 +429,11 @@ describe('ProtectedRoute', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: { id: 'test' } as any,
-      profile: { id: 'test', terms_version: '2026-09-24' } as any,
+      profile: { id: 'test', terms_version: '2026-09-29' } as any,
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -420,6 +464,7 @@ describe('ProtectedRoute', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile,
       termsConfirmState: 'idle',
@@ -447,7 +492,7 @@ describe('ProtectedRoute', () => {
       expect(confirmAge).toHaveBeenCalledTimes(1)
     })
     await waitFor(() => {
-      expect(confirmTerms).toHaveBeenCalledWith('2026-09-24')
+      expect(confirmTerms).toHaveBeenCalledWith('2026-09-29')
     })
     await waitFor(() => {
       expect(refreshProfile).toHaveBeenCalled()

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Sign in with an email link** — you can now sign in without Google. Enter your email on the sign-in page and we send you a one-time link that signs you in when you tap it. The link is good for one use and expires after about an hour; if it has expired or was already used, the page tells you and you can request a fresh one.
 - **Change your profile picture** — in Profile Settings, select the pencil badge on your avatar to upload a new picture. If your server allows image uploads and your Google account has a picture, you can restore it with **Use Google picture**. The screen now says whether you are using an uploaded picture, your Google picture, or your initial.
 - **Find recommended art for tokens** — the Features page, NPC roster, and NPC help now link to [You See This](https://youseethis.blog) as a recommended source for character and NPC token art.
 - **Feature screenshots open larger** — on the Features page you can tap any screenshot to see it enlarged, then step through the rest with Next and Previous.

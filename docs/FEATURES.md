@@ -4,7 +4,7 @@
 
 - **Dark mode** — a sun/moon toggle in the app header (and login page) switches between light and dark themes. On small screens it moves into the app menu drawer. The choice persists per device; the default follows the OS light/dark preference (applied before first paint to avoid a flash)
 
-- Google account sign-in
+- Google account sign-in, or passwordless sign-in with a one-time email link
 - **Age requirement** — you must confirm you are at least 16 before signing in; the confirmation is remembered on the device and recorded once on your account. The sign-in checkbox names the Terms version you are agreeing to and your acceptance is recorded when you sign in, so new players are never asked twice; when the Terms change the app asks you to accept the new version once before continuing, showing which version you last accepted
 - **Display name** — up to 40 characters; optional character sheet links are limited to 500 characters
 - **Profile avatar** — upload a picture by selecting the avatar's pencil badge in Profile Settings. Requires the server admin to enable image uploads. When the user's Google account provides a picture and the current avatar is different, Settings offers a one-click **Use Google picture** restore. Uploaded profile pictures are downscaled client-side (JPEG) and stored under `{user_id}/profile/{uuid}.jpg`

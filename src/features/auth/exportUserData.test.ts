@@ -14,7 +14,7 @@ const mockProfile = {
   created_at: '2026-01-01T00:00:00Z',
   age_verified_at: '2026-01-01T00:00:00Z',
   terms_accepted_at: '2026-09-22T00:00:00Z',
-  terms_version: '2026-09-24',
+  terms_version: '2026-09-29',
 }
 const mockMemberships = [
   {
@@ -98,7 +98,7 @@ describe('buildUserDataExport', () => {
     expect(result.dice_rolls).toEqual(mockDice)
     expect(result.reactions).toEqual(mockReactions)
     expect(result.dice_roll_favorites).toEqual(mockFavorites)
-    expect(result.profile?.terms_version).toBe('2026-09-24')
+    expect(result.profile?.terms_version).toBe('2026-09-29')
     expect(result.profile?.age_verified_at).toBe('2026-01-01T00:00:00Z')
     expect(result.notification_preferences).toEqual(mockPrefs)
     expect(result.abuse_reports).toEqual(mockAbuseReports)

@@ -18,8 +18,10 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">What we collect</h2>
           <p>
-            Role by Post uses Google Sign-In (OAuth). When you sign in, we receive your name,
-            email address, and profile picture. We store your display name, avatar, and the
+            Role by Post lets you sign in with Google Sign-In (OAuth) or with a one-time
+            email sign-in link. With Google we receive your name, email address, and profile
+            picture; with an email link we receive and store the email address you enter. We
+            store your display name, avatar, and the
             messages, dice rolls, and channel memberships you create in the app. When you confirm
             you meet the minimum age, we record the date of that confirmation so we can show you
             meet our eligibility requirement. When you accept these terms, we record the date and
