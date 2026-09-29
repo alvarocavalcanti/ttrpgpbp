@@ -32,6 +32,7 @@ describe('useAuth', () => {
       error: null,
       loading: false,
       signInWithGoogle: () => Promise.resolve(),
+      signInWithEmail: () => Promise.resolve({ error: null }),
       signOut: () => Promise.resolve(),
       refreshProfile: () => Promise.resolve(),
       termsConfirmState: 'idle' as const,

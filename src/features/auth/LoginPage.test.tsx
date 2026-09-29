@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { LoginPage } from './LoginPage'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { LoginPage, isValidEmail } from './LoginPage'
 import { useAuth } from './useAuth'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 
@@ -12,6 +12,11 @@ describe('LoginPage', () => {
   beforeEach(() => {
     sessionStorage.clear()
     localStorage.clear()
+    window.location.hash = ''
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders loading state', () => {
@@ -22,6 +27,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -45,6 +51,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -69,6 +76,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: mockSignIn,
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -98,6 +106,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: mockSignIn,
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -127,6 +136,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -155,6 +165,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -184,6 +195,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -213,6 +225,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -244,6 +257,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -271,6 +285,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -296,6 +311,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: mockSignIn,
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -324,6 +340,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: mockSignIn,
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -350,6 +367,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -374,6 +392,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -403,6 +422,7 @@ describe('LoginPage', () => {
       session: null,
       error: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -417,5 +437,306 @@ describe('LoginPage', () => {
 
     expect(screen.getByText('Sign in with Google')).toBeEnabled()
     expect(screen.getByLabelText(/at least 16 years old/)).toBeChecked()
+  })
+
+  describe('email magic link', () => {
+    it('validates email shape without any network call', () => {
+      expect(isValidEmail('player@example.com')).toBe(true)
+      expect(isValidEmail('player@example')).toBe(false)
+      expect(isValidEmail('not-an-email')).toBe(false)
+      expect(isValidEmail('')).toBe(false)
+    })
+
+    it('rejects an invalid email before requesting a link', () => {
+      const mockEmail = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: mockEmail,
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      fireEvent.click(screen.getByLabelText(/at least 16 years old/))
+      fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'not-an-email' } })
+      fireEvent.click(screen.getByText('Email me a sign-in link'))
+
+      expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument()
+      expect(mockEmail).not.toHaveBeenCalled()
+    })
+
+    it('keeps the email submit disabled until the age checkbox is checked', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      expect(screen.getByText('Email me a sign-in link')).toBeDisabled()
+      fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'player@example.com' } })
+      expect(screen.getByText('Email me a sign-in link')).toBeDisabled()
+    })
+
+    it('shows a pending-confirmation panel after a successful request', async () => {
+      const mockEmail = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: mockEmail,
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      fireEvent.click(screen.getByLabelText(/at least 16 years old/))
+      fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'player@example.com' } })
+      fireEvent.click(screen.getByText('Email me a sign-in link'))
+      await act(async () => {})
+
+      expect(mockEmail).toHaveBeenCalledWith('player@example.com', undefined)
+      expect(screen.getByText('Check your email')).toBeInTheDocument()
+      expect(screen.getByText('player@example.com')).toBeInTheDocument()
+    })
+
+    it('shows a friendly error when the request fails', async () => {
+      const mockEmail = vi.fn().mockResolvedValue({ error: new Error('rate limited') })
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: mockEmail,
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      fireEvent.click(screen.getByLabelText(/at least 16 years old/))
+      fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'player@example.com' } })
+      fireEvent.click(screen.getByText('Email me a sign-in link'))
+      await act(async () => {})
+
+      expect(screen.getByText(/couldn't send your sign-in link/)).toBeInTheDocument()
+    })
+
+    it('enforces a resend cooldown and requests a fresh link afterwards', async () => {
+      vi.useFakeTimers()
+      const mockEmail = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: mockEmail,
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      fireEvent.click(screen.getByLabelText(/at least 16 years old/))
+      fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'player@example.com' } })
+      fireEvent.click(screen.getByText('Email me a sign-in link'))
+      await act(async () => {})
+
+      expect(screen.getByRole('button', { name: /Resend link/ })).toBeDisabled()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000)
+      })
+
+      const resend = screen.getByRole('button', { name: 'Resend link' })
+      expect(resend).toBeEnabled()
+      fireEvent.click(resend)
+      await act(async () => {})
+
+      expect(mockEmail).toHaveBeenCalledTimes(2)
+    })
+
+    it('lets the player go back and use a different email', async () => {
+      const mockEmail = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: mockEmail,
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      fireEvent.click(screen.getByLabelText(/at least 16 years old/))
+      fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'player@example.com' } })
+      fireEvent.click(screen.getByText('Email me a sign-in link'))
+      await act(async () => {})
+
+      fireEvent.click(screen.getByText('Use a different email'))
+      expect(screen.getByLabelText('Email address')).toHaveValue('')
+    })
+  })
+
+  describe('magic-link return handling', () => {
+    it('seeds the intended destination from the redirect param', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent('/join/123?code=abc')}`]}>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      expect(sessionStorage.getItem('auth_redirect')).toBe('/join/123?code=abc')
+    })
+
+    it('ignores an unsafe redirect param', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent('//evil.example.com')}`]}>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      expect(sessionStorage.getItem('auth_redirect')).toBeNull()
+    })
+
+    it('shows an actionable error for an expired link and clears the fragment', () => {
+      window.location.hash = '#error=access_denied&error_code=otp_expired'
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/expired or was already used/)
+      expect(window.location.hash).toBe('')
+    })
+
+    it('shows an actionable error for an invalid link', () => {
+      window.location.hash = '#error=access_denied&error_code=bad_code'
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/isn't valid/)
+    })
   })
 })

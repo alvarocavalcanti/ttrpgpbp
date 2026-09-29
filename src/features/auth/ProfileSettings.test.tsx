@@ -101,6 +101,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -125,6 +126,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -162,6 +164,7 @@ describe('ProfileSettings', () => {
         session: null,
 
         signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
         signOut: vi.fn(),
         refreshProfile: vi.fn(),
         termsConfirmState: 'idle',
@@ -197,6 +200,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: mockRefreshProfile,
       termsConfirmState: 'idle',
@@ -235,6 +239,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -271,6 +276,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -303,6 +309,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -331,6 +338,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: mockRefreshProfile,
       termsConfirmState: 'idle',
@@ -367,6 +375,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -399,6 +408,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -434,6 +444,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: mockRefreshProfile,
       termsConfirmState: 'idle',
@@ -476,6 +487,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -505,6 +517,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -529,6 +542,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -569,6 +583,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -596,6 +611,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -630,6 +646,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -663,6 +680,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -696,6 +714,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -724,6 +743,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -751,6 +771,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -781,6 +802,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: mockSignOut,
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -810,6 +832,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -840,6 +863,7 @@ describe('ProfileSettings', () => {
       session: null,
 
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -872,6 +896,7 @@ describe('ProfileSettings email consent', () => {
       profile: profile({ email_opt_in }),
       session: null,
       signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
       signOut: vi.fn(),
       refreshProfile: vi.fn(),
       termsConfirmState: 'idle',
@@ -914,7 +939,8 @@ describe('ProfileSettings email consent', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false, error: null, user: { id: '123' } as any,
       profile: profile({ email_opt_in: false }), session: null,
-      signInWithGoogle: vi.fn(), signOut: vi.fn(), refreshProfile,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(), signOut: vi.fn(), refreshProfile,
       termsConfirmState: 'idle', retryTermsConfirm: vi.fn(),
     })
 

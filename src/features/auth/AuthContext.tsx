@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
-import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, subscribeToAuthEvents } from './authApi'
+import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, signInWithOtp as apiSignInWithOtp, subscribeToAuthEvents } from './authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import type { Database } from '../../types/database'
 
@@ -19,6 +19,7 @@ interface AuthContextType {
   loading: boolean
   error: Error | null
   signInWithGoogle: () => Promise<void>
+  signInWithEmail: (email: string, redirectPath?: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
   termsConfirmState: TermsConfirmState
@@ -26,6 +27,26 @@ interface AuthContextType {
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Same-origin relative-path guard shared with ProtectedRoute's
+// sessionStorage check. A magic-link `redirect` that fails this is dropped
+// (the user lands on /) instead of becoming an open redirect.
+export function isSafeRedirectPath(path: string | null | undefined): path is string {
+  return !!path && path.startsWith('/') && !path.startsWith('//')
+}
+
+// The Supabase emailRedirectTo for magic links (#205). The `redirect` query
+// param round-trips the intended destination through the email client, where
+// sessionStorage (per-tab) would be lost — a link opened in a new tab or on
+// another device still finds its way back. Same-browser-only callers keep the
+// existing auth_redirect sessionStorage flow untouched.
+export function buildMagicLinkRedirect(redirectPath?: string) {
+  const url = new URL('/login', window.location.origin)
+  if (isSafeRedirectPath(redirectPath)) {
+    url.searchParams.set('redirect', redirectPath)
+  }
+  return url.toString()
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -204,6 +225,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Passwordless email sign-in (#205). Unlike signInWithGoogle this must NOT
+  // touch the context `error` state: a recoverable "link not sent" failure
+  // rendered through ProtectedRoute's fatal full-app error screen would blank
+  // the app instead of showing an inline retry. The result is returned to the
+  // caller (LoginPage) which owns the UI.
+  const signInWithEmail = useCallback(async (email: string, redirectPath?: string) => {
+    try {
+      const { error: otpError } = await apiSignInWithOtp(
+        email,
+        buildMagicLinkRedirect(redirectPath),
+        (email.split('@')[0] ?? '').slice(0, 40),
+      )
+      if (otpError) throw otpError
+      return { error: null as Error | null }
+    } catch (err) {
+      console.error('Error sending magic link:', err)
+      return { error: err as Error }
+    }
+  }, [])
+
   const signOut = useCallback(async () => {
     setError(null)
     // The age-confirmation and terms-agreement flags are per-browser, not
@@ -216,8 +257,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile, termsConfirmState, retryTermsConfirm }),
-    [session, user, profile, loading, error, signInWithGoogle, signOut, refreshProfile, termsConfirmState, retryTermsConfirm]
+    () => ({ session, user, profile, loading, error, signInWithGoogle, signInWithEmail, signOut, refreshProfile, termsConfirmState, retryTermsConfirm }),
+    [session, user, profile, loading, error, signInWithGoogle, signInWithEmail, signOut, refreshProfile, termsConfirmState, retryTermsConfirm]
   )
 
   return (

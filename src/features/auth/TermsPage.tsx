@@ -34,7 +34,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">3. User Accounts</h2>
           <p>
-            You must sign in using a Google account to access Role by Post. You are responsible for maintaining the
+            You must sign in using a Google account or a one-time email sign-in link to access Role by Post. You are responsible for maintaining the
             security of your account and for all activities that occur under your account. You must notify the administrator
             immediately of any unauthorized use of your account.
           </p>

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AuthProvider, AuthContext } from './AuthContext'
+import { AuthProvider, AuthContext, buildMagicLinkRedirect, isSafeRedirectPath } from './AuthContext'
 import { useContext } from 'react'
 import { supabase } from '../../lib/supabase'
 
@@ -10,6 +10,7 @@ vi.mock('../../lib/supabase', () => ({
       getSession: vi.fn(),
       onAuthStateChange: vi.fn(),
       signInWithOAuth: vi.fn(),
+      signInWithOtp: vi.fn(),
       signOut: vi.fn(),
     },
     from: vi.fn(),
@@ -28,6 +29,7 @@ function TestComponent() {
       <div data-testid="profile">{context.profile ? context.profile.display_name : 'no-profile'}</div>
       <div data-testid="error">{context.error ? 'error' : 'no-error'}</div>
       <button type="button" onClick={context.signInWithGoogle}>Sign In</button>
+      <button type="button" onClick={() => void context.signInWithEmail('player@example.com', '/join/123?code=abc')}>Email In</button>
       <button type="button" onClick={context.signOut}>Sign Out</button>
       <button type="button" onClick={() => void context.refreshProfile()}>Refresh Profile</button>
       <div data-testid="terms">{context.termsConfirmState}</div>
@@ -306,6 +308,89 @@ describe('AuthContext', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('error')).toHaveTextContent('error')
+    })
+  })
+
+  it('signInWithEmail requests a magic link with the round-trip redirect and signup metadata', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    vi.mocked(supabase.auth.signInWithOtp).mockResolvedValue({ data: {}, error: null } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Email In'))
+
+    await waitFor(() => {
+      expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
+        email: 'player@example.com',
+        options: {
+          emailRedirectTo: expect.stringContaining(`redirect=${encodeURIComponent('/join/123?code=abc')}`),
+          shouldCreateUser: true,
+          data: { full_name: 'player' },
+        },
+      })
+    })
+    expect(screen.getByTestId('error')).toHaveTextContent('no-error')
+  })
+
+  it('signInWithEmail returns the failure without setting the fatal context error', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    vi.mocked(supabase.auth.signInWithOtp).mockResolvedValue({
+      data: {},
+      error: new Error('rate limited'),
+    } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Email In'))
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith('Error sending magic link:', expect.any(Error))
+    })
+    // R1: a failed send must never blank the app via ProtectedRoute's fatal error screen.
+    expect(screen.getByTestId('error')).toHaveTextContent('no-error')
+  })
+
+  describe('magic-link redirect helpers', () => {
+    it('isSafeRedirectPath accepts same-origin paths only', () => {
+      expect(isSafeRedirectPath('/join/123?code=abc')).toBe(true)
+      expect(isSafeRedirectPath('//evil.example.com')).toBe(false)
+      expect(isSafeRedirectPath('https://evil.example.com')).toBe(false)
+      expect(isSafeRedirectPath('/')).toBe(true)
+      expect(isSafeRedirectPath('')).toBe(false)
+      expect(isSafeRedirectPath(null)).toBe(false)
+      expect(isSafeRedirectPath(undefined)).toBe(false)
+    })
+
+    it('buildMagicLinkRedirect carries a safe path and drops an unsafe one', () => {
+      expect(buildMagicLinkRedirect('/join/123?code=abc')).toContain(`redirect=${encodeURIComponent('/join/123?code=abc')}`)
+      expect(buildMagicLinkRedirect('//evil.example.com')).not.toContain('redirect=')
+      expect(buildMagicLinkRedirect()).not.toContain('redirect=')
     })
   })
 

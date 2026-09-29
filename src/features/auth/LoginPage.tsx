@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from './useAuth'
+import { isSafeRedirectPath } from './AuthContext'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import { ThemeToggle } from '../../components/ThemeToggle'
 
@@ -60,15 +62,72 @@ const FEATURES = [
   },
 ]
 
+// Permissive shape check only: this is a UX speed bump, the address still has
+// to be deliverable. Kept local (not native type=email validity) so it is
+// deterministic in jsdom and rejects before any network call.
+export function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+// Magic links that expired, were reused, or were tampered with redirect back
+// with `#error=...&error_code=...`. supabase-js consumes successful links
+// silently but leaves the failing fragment in place and never notifies
+// subscribers, so this is the only place the user can be told what happened.
+export function readMagicLinkError(): string | null {
+  const hash = window.location.hash.replace(/^#/, '')
+  if (!hash) return null
+  const params = new URLSearchParams(hash)
+  if (!params.get('error') && !params.get('error_code')) return null
+  if (params.get('error_code') === 'otp_expired') {
+    return 'This sign-in link has expired or was already used. Request a new one below.'
+  }
+  return "This sign-in link isn't valid. Request a new one below."
+}
+
 export function LoginPage() {
-  const { user, loading, signInWithGoogle } = useAuth()
+  const { user, loading, signInWithGoogle, signInWithEmail } = useAuth()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   // Required age + terms confirmation. Persisted per-device so returning users
   // aren't asked again; the server-side evidence is stamped by confirm_age()
   // and confirm_terms() on first authenticated load (see AuthContext). The
   // terms agreement records the exact version shown, so a terms bump
   // invalidates it and returning users re-confirm explicitly.
   const [ageConfirmed, setAgeConfirmed] = useState(() => localStorage.getItem('age-confirmed') === 'true')
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
+  const [submittedEmail, setSubmittedEmail] = useState('')
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
+  const [emailSendError, setEmailSendError] = useState('')
+  const [resendAvailableAt, setResendAvailableAt] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  const [linkError] = useState<string | null>(() => readMagicLinkError())
+
+  // The magic link carries the intended destination in `?redirect=`; seed the
+  // existing sessionStorage hand-off before any early return so ProtectedRoute
+  // can honour it once the session lands. sessionStorage alone would not
+  // survive a link opened in a new tab or on another device (fallback: lobby).
+  const redirectParam = searchParams.get('redirect')
+  if (isSafeRedirectPath(redirectParam)) {
+    sessionStorage.setItem('auth_redirect', redirectParam)
+  }
+
+  // Clear the magic-link error fragment so a refresh does not re-show it
+  // (supabase-js leaves the hash untouched on the error path).
+  useEffect(() => {
+    if (!linkError) return
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+  }, [linkError])
+
+  // Client-side resend cooldown: magic-link requests are rate-limited server
+  // side, and a burst of resends would otherwise only surface as a 429.
+  // ponytail: fixed 60s window; switch to the server's Retry-After if it ever matters.
+  useEffect(() => {
+    if (!resendAvailableAt) return
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [resendAvailableAt])
+  const resendSecondsLeft = Math.max(0, Math.ceil((resendAvailableAt - now) / 1000))
 
   if (loading) {
     return (
@@ -82,9 +141,10 @@ export function LoginPage() {
     return <Navigate to="/" replace />
   }
 
+  const from = (location.state as { from?: string } | null)?.from
+
   const handleSignIn = async () => {
     if (!ageConfirmed) return
-    const from = (location.state as { from?: string } | null)?.from
     if (from) {
       sessionStorage.setItem('auth_redirect', from)
     }
@@ -100,6 +160,37 @@ export function LoginPage() {
       localStorage.removeItem('age-confirmed')
       localStorage.removeItem(TERMS_AGREED_KEY)
     }
+  }
+
+  const sendMagicLink = async (address: string) => {
+    setEmailSendError('')
+    setEmailStatus('submitting')
+    const { error } = await signInWithEmail(address, from)
+    if (error) {
+      setEmailStatus('error')
+      setEmailSendError("We couldn't send your sign-in link. Check the address and try again.")
+      return
+    }
+    setSubmittedEmail(address)
+    setEmailStatus('idle')
+    setResendAvailableAt(Date.now() + 60_000)
+  }
+
+  const handleEmailSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!ageConfirmed || emailStatus === 'submitting') return
+    const address = email.trim()
+    if (!isValidEmail(address)) {
+      setEmailError('Enter a valid email address.')
+      return
+    }
+    setEmailError('')
+    await sendMagicLink(address)
+  }
+
+  const handleResend = async () => {
+    if (!submittedEmail || emailStatus === 'submitting' || resendSecondsLeft > 0) return
+    await sendMagicLink(submittedEmail)
   }
 
   return (
@@ -120,9 +211,15 @@ export function LoginPage() {
               A text-based tabletop RPG platform
             </p>
             <p className="mt-2 text-center text-sm text-surface-600 dark:text-surface-400">
-              Sign in with your Google account to securely create and access your roleplaying campaigns.
+              Sign in with Google or an email link to securely create and access your roleplaying campaigns.
             </p>
           </div>
+
+          {linkError && (
+            <div role="alert" className="mt-6 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+              {linkError}
+            </div>
+          )}
 
           <div className="mt-8">
             <div className="flex items-start gap-2 mb-4">
@@ -167,6 +264,90 @@ export function LoginPage() {
               </svg>
               Sign in with Google
             </button>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-surface-200 dark:border-surface-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white dark:bg-surface-800 px-2 text-surface-500 dark:text-surface-400">or</span>
+              </div>
+            </div>
+
+            {submittedEmail ? (
+              <div role="status" className="rounded-md border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 px-4 py-4">
+                <p className="text-sm font-semibold text-surface-900 dark:text-surface-100">Check your email</p>
+                <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">
+                  We sent a sign-in link to{' '}
+                  <span className="font-medium text-surface-900 dark:text-surface-100">{submittedEmail}</span>.
+                  The link expires in 1 hour.
+                </p>
+                {emailSendError && (
+                  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{emailSendError}</p>
+                )}
+                <div className="mt-3 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={emailStatus === 'submitting' || resendSecondsLeft > 0}
+                    className="w-full justify-center py-2 px-4 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {emailStatus === 'submitting'
+                      ? 'Sending…'
+                      : resendSecondsLeft > 0
+                        ? `Resend link (${resendSecondsLeft}s)`
+                        : 'Resend link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmittedEmail('')
+                      setEmail('')
+                      setEmailSendError('')
+                      setEmailStatus('idle')
+                    }}
+                    className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    Use a different email
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleEmailSubmit} noValidate>
+                <label htmlFor="email" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  maxLength={254}
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (emailError) setEmailError('')
+                  }}
+                  aria-invalid={emailError ? true : undefined}
+                  aria-describedby={emailError ? 'email-error' : undefined}
+                  className="mt-1 block w-full rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 px-3 py-2 text-sm text-surface-900 dark:text-surface-100 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="you@example.com"
+                />
+                {emailError && (
+                  <p id="email-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{emailError}</p>
+                )}
+                {emailStatus === 'error' && emailSendError && (
+                  <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{emailSendError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={!ageConfirmed || emailStatus === 'submitting'}
+                  className="mt-3 w-full flex justify-center py-2.5 px-4 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {emailStatus === 'submitting' ? 'Sending…' : 'Email me a sign-in link'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
 

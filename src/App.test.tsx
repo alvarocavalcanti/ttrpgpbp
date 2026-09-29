@@ -52,7 +52,7 @@ describe('App', () => {
     render(<App />)
     
     // Wait for the AuthProvider to resolve loading state
-    expect(await screen.findByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
+    expect(await screen.findByText('Sign in with Google or an email link to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
   })
 
   it('serves the public marketing page to anonymous visitors', async () => {
@@ -69,7 +69,7 @@ describe('App', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })).toBeInTheDocument()
-    expect(screen.queryByText('Sign in with your Google account to securely create and access your roleplaying campaigns.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sign in with Google or an email link to securely create and access your roleplaying campaigns.')).not.toBeInTheDocument()
     window.history.replaceState({}, '', '/')
   })
 
