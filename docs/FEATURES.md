@@ -137,7 +137,7 @@
   - UI available to both GM and players
   - Pick dice type (d4, d6, d8, d10, d12, d20, d100)
   - Set quantity
-  - Add modifier (+N / -N)
+  - Add modifier (+N / -N) in Sum mode only
   - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type)
   - Advantage/disadvantage toggle (d20 only)
   - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm. Notations the roller can't rebuild (drop-lowest, keep counts other than 1) still re-roll on tap

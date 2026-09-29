@@ -44,6 +44,14 @@ describe('getRollCritical', () => {
   it('caps the kept count at the rolled dice for kh/kl', () => {
     expect(getRollCritical('1d20kh2', 20, { rolls: [20] })).toBe('success')
   })
+  it('never flags pool rolls, even on a natural 20 or 1', () => {
+    expect(getRollCritical('1d20p', 0, { rolls: [20], mode: 'pool' })).toBeNull()
+    expect(getRollCritical('1d20>=10', 1, { rolls: [1], mode: 'successes', target: 10, successes: 1 })).toBeNull()
+    expect(getRollCritical('1d20>=10', 1, { rolls: [20], mode: 'successes', target: 10, successes: 1 })).toBeNull()
+  })
+  it('still flags pre-pool rows that carry no mode', () => {
+    expect(getRollCritical('1d20', 20, { rolls: [20] })).toBe('success')
+  })
 })
 
 describe('RollHistoryModal', () => {

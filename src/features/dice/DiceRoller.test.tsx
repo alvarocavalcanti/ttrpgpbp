@@ -302,6 +302,23 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4')
   })
 
+  it('clears advantage when entering a pool mode so quantity stays editable', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+
+    // Quantity unlocks (it is disabled while d20 advantage is active) and
+    // the roll carries no keep/drop.
+    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
+  })
+
   it('hides the modifier and advantage controls in pool modes', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))

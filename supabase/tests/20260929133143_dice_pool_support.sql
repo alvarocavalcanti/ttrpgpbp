@@ -124,8 +124,8 @@ SELECT is(
 );
 SELECT is(
   build_dice_content('2d20>=10', '{1,20}', 0, 1),
-  'Rolled 2d20>=10: 1, 20 — **1 successes (≥10)**',
-  'success pool gets no critical label'
+  'Rolled 2d20>=10: 1, 20 — **1 success (≥10)**',
+  'a single success reads singular and gets no critical label'
 );
 
 -- Sum behavior is untouched (one representative each, full matrix lives in

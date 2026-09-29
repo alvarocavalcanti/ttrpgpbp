@@ -396,7 +396,9 @@ AS $$
         'Rolled ' || p_notation || ': ' || array_to_string(p_rolls, ', ')
       WHEN (SELECT roll_mode FROM kept) = 'successes' THEN
         'Rolled ' || p_notation || ': ' || array_to_string(p_rolls, ', ')
-          || ' — **' || (SELECT n FROM successes) || ' successes (≥' || (SELECT target FROM kept) || ')**'
+          || ' — **' || (SELECT n FROM successes)
+          || CASE WHEN (SELECT n FROM successes) = 1 THEN ' success' ELSE ' successes' END
+          || ' (≥' || (SELECT target FROM kept) || ')**'
       WHEN p_notation ~* '^(\d+)d(\d+)(kh|kl)\d*(?:([+-])(\d+))?$' THEN
         'Rolled ' || regexp_replace(p_notation, '^(\d+)d(\d+).*$', '\1d\2', 'i')
           || ' with ' || CASE WHEN p_notation ~* 'kh' THEN 'ADV' ELSE 'DIS' END

@@ -6,11 +6,13 @@ import { useRollHistory, type RollBreakdown } from './useRollHistory'
 // Mirrors the server's crit rule in build_dice_content: a d20 with exactly one
 // kept die whose unmodified result is 20 (Critical Success) or 1 (Critical
 // Failure). For ADV/DIS the kept die is the higher/lower of the rolled pair.
+// Pool rolls never crit; pre-pool rows carry no mode and read as sum.
 export function getRollCritical(
   notation: string,
   result: number,
   breakdown: RollBreakdown | undefined
 ): 'success' | 'failure' | null {
+  if (breakdown?.mode && breakdown.mode !== 'sum') return null
   const modifier = breakdown?.modifier ?? 0
   const keptCount = (breakdown?.rolls?.length ?? 0) - (breakdown?.dropped?.length ?? 0)
   const sides = Number(notation.replace(/\s+/g, '').match(/d(\d+)/)?.[1])

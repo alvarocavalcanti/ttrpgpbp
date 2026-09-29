@@ -149,14 +149,14 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
         </button>
         <button
           type="button"
-          onClick={() => setPoolMode('pool')}
+          onClick={() => { setPoolMode('pool'); setAdvDis('none') }}
           className={`flex-1 text-sm py-2 rounded transition-colors ${poolMode === 'pool' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
         >
           Pool
         </button>
         <button
           type="button"
-          onClick={() => setPoolMode('successes')}
+          onClick={() => { setPoolMode('successes'); setAdvDis('none') }}
           className={`flex-1 text-sm py-2 rounded transition-colors ${poolMode === 'successes' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
         >
           Successes
