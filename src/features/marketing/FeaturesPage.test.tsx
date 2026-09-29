@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { existsSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -209,5 +209,100 @@ describe('FeaturesPage', () => {
       'href',
       'https://github.com/alvarocavalcanti/ttrpgpbp'
     )
+  })
+
+  describe('enlarged image viewer (issue #615)', () => {
+    function dialogImage(): HTMLElement {
+      return within(screen.getByRole('dialog')).getByRole('img')
+    }
+
+    it('opens the full-size screenshot, not the thumbnail, when a card image is clicked', () => {
+      renderPage()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Run the table your way image fullscreen' })
+      )
+
+      const img = dialogImage()
+      expect(img).toHaveAttribute('src', '/help/gm-settings.png')
+      expect(img).toHaveAttribute(
+        'alt',
+        'Channel settings screen with game system, member, and safety options'
+      )
+    })
+
+    it('opens the hero image enlarged', () => {
+      renderPage()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View campaign lobby image fullscreen' })
+      )
+
+      expect(dialogImage()).toHaveAttribute('src', '/help/lobby-with-channels.png')
+    })
+
+    it('clamps at the first image and steps forward with Next', () => {
+      renderPage()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View campaign lobby image fullscreen' })
+      )
+
+      expect(within(screen.getByRole('dialog')).getByLabelText('Previous image')).toBeDisabled()
+      expect(within(screen.getByRole('dialog')).getByLabelText('Next image')).toBeEnabled()
+      fireEvent.click(within(screen.getByRole('dialog')).getByLabelText('Next image'))
+      expect(dialogImage()).toHaveAttribute('src', '/help/gm-settings.png')
+      expect(within(screen.getByRole('dialog')).getByLabelText('Previous image')).toBeEnabled()
+    })
+
+    it('dedupes the hero with the first player card', () => {
+      renderPage()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View campaign lobby image fullscreen' })
+      )
+      expect(dialogImage()).toHaveAttribute('src', '/help/lobby-with-channels.png')
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Your campaigns in one place image fullscreen' })
+      )
+      expect(dialogImage()).toHaveAttribute('src', '/help/lobby-with-channels.png')
+      // One shared entry: Next steps to the second card, not a duplicate lobby.
+      fireEvent.click(within(screen.getByRole('dialog')).getByLabelText('Next image'))
+      expect(dialogImage()).toHaveAttribute('src', '/help/message-actions.png')
+    })
+
+    it('clamps at the last image and navigates with the arrow keys', () => {
+      renderPage()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Safety tools built in image fullscreen' })
+      )
+
+      expect(within(screen.getByRole('dialog')).getByLabelText('Next image')).toBeDisabled()
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(dialogImage()).toHaveAttribute('src', '/help/status-bar.png')
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+      expect(dialogImage()).toHaveAttribute('src', '/help/safety-tools.png')
+    })
+
+    it('closes via the X button and via Escape', () => {
+      renderPage()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Run the table your way image fullscreen' })
+      )
+      fireEvent.click(screen.getByLabelText('Close'))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Run the table your way image fullscreen' })
+      )
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
   })
 })
