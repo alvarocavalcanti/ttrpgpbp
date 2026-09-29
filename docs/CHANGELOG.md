@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-29
+
+### Added
+
+- **Feature screenshots open larger** — on the Features page you can tap any screenshot to see it enlarged, then step through the rest with Next and Previous.
+
 ## 2026-09-28
 
 ### Added

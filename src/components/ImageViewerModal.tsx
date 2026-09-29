@@ -18,13 +18,21 @@ interface ImageViewerModalProps {
   src: string | null | undefined
   alt: string
   onClose: () => void
+  /**
+   * Gallery navigation (issue #615). Pass only the neighbors that exist —
+   * an absent handler renders its button disabled (clamp, no wrap).
+   * Omit both for a single image: no buttons, no arrow keys.
+   */
+  onPrev?: () => void
+  onNext?: () => void
 }
 
 // Fullscreen image viewer for channel message images (issue #458). Fits the
 // image to the viewport on load, +/- zoom controls, native-scroll panning
 // when zoomed, pinch to zoom on touch devices, double-tap/double-click
-// resets to fit. Escape and the X button close.
-export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
+// resets to fit. Escape and the X button close. Optional prev/next moves
+// between gallery images (issue #615).
+export function ImageViewerModal({ src, alt, onClose, onPrev, onNext }: ImageViewerModalProps) {
   const { src: resolved, loading, error, retry } = useSignedImageUrl(src)
   const dialogRef = useRef<HTMLDivElement>(null)
   const pinch = useRef<{ dist: number; zoom: number } | null>(null)
@@ -39,8 +47,14 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
   // the transfer may fail. A native image-load failure shows the same error
   // branch as a signing failure (issue #561 review).
   const [imgError, setImgError] = useState(false)
-  // A new source clears a previous image-load failure.
-  useEffect(() => { setImgError(false) }, [src])
+  // A new source clears a previous image-load failure, drops the old
+  // intrinsic size (so the next image fits fresh instead of flashing the
+  // previous box — issue #615 navigation), and resets zoom to fit.
+  useEffect(() => {
+    setImgError(false)
+    setNatural(null)
+    setZoom(ZOOM_MIN)
+  }, [src])
   const [viewport, setViewport] = useState(() => ({
     w: window.innerWidth,
     h: window.innerHeight,
@@ -48,6 +62,21 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
 
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
+
+  // Gallery navigation (issue #615): ArrowLeft/ArrowRight move between
+  // images. Attached only when a neighbor exists; single-image callers
+  // pass no handlers and keep today's behavior. Modifier combos are left
+  // alone — the dialog has no text inputs to guard for.
+  useEffect(() => {
+    if (!onPrev && !onNext) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'ArrowLeft') onPrev?.()
+      else if (e.key === 'ArrowRight') onNext?.()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onPrev, onNext])
 
   // Not debounced: resize is cheap (one guarded setState) and `resize` fires
   // on orientation change too, so no second listener. If mobile browser-chrome
@@ -146,6 +175,31 @@ export function ImageViewerModal({ src, alt, onClose }: ImageViewerModalProps) {
           ✕
         </button>
       </div>
+      {/* Gallery navigation (issue #615): side buttons, vertically centered
+          and above the scroll container so panning never swallows the tap.
+          A missing handler renders its button disabled (clamp, no wrap). */}
+      {(onPrev || onNext) && (
+        <>
+          <button
+            type="button"
+            aria-label="Previous image"
+            disabled={!onPrev}
+            onClick={onPrev}
+            className={`${BTN} absolute left-2 top-1/2 z-10 -translate-y-1/2 bg-black/50 disabled:opacity-30`}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Next image"
+            disabled={!onNext}
+            onClick={onNext}
+            className={`${BTN} absolute right-2 top-1/2 z-10 -translate-y-1/2 bg-black/50 disabled:opacity-30`}
+          >
+            ›
+          </button>
+        </>
+      )}
       <div
         className="h-full w-full overflow-auto"
         style={{ touchAction: 'pan-x pan-y' }}

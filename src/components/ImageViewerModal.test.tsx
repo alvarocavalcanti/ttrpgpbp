@@ -294,4 +294,89 @@ describe('ImageViewerModal', () => {
       expect(createSignedUrl).toHaveBeenCalledTimes(2)
     })
   })
+
+  describe('gallery navigation (issue #615)', () => {
+    const NEXT_URL = 'https://example.com/next.png'
+
+    it('renders no nav buttons for a single image', () => {
+      render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} />)
+
+      expect(screen.queryByLabelText('Previous image')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Next image')).not.toBeInTheDocument()
+    })
+
+    it('enables both buttons when both handlers are provided', () => {
+      render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />)
+
+      expect(screen.getByLabelText('Previous image')).toBeEnabled()
+      expect(screen.getByLabelText('Next image')).toBeEnabled()
+    })
+
+    it('disables the missing neighbor (clamp, no wrap)', () => {
+      render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onNext={vi.fn()} />)
+
+      expect(screen.getByLabelText('Previous image')).toBeDisabled()
+      expect(screen.getByLabelText('Next image')).toBeEnabled()
+    })
+
+    it('calls the handlers exactly once per click', () => {
+      const onPrev = vi.fn()
+      const onNext = vi.fn()
+      render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onPrev={onPrev} onNext={onNext} />)
+
+      fireEvent.click(screen.getByLabelText('Next image'))
+      fireEvent.click(screen.getByLabelText('Previous image'))
+      expect(onNext).toHaveBeenCalledTimes(1)
+      expect(onPrev).toHaveBeenCalledTimes(1)
+    })
+
+    it('moves with the arrow keys', () => {
+      const onPrev = vi.fn()
+      const onNext = vi.fn()
+      render(<ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onPrev={onPrev} onNext={onNext} />)
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(onNext).toHaveBeenCalledTimes(1)
+      expect(onPrev).toHaveBeenCalledTimes(1)
+    })
+
+    it('ignores arrow keys without handlers and with modifiers', () => {
+      const onClose = vi.fn()
+      render(<ImageViewerModal src={URL} alt="Map" onClose={onClose} />)
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('resets zoom to fit when the source changes', () => {
+      const { rerender } = render(
+        <ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />
+      )
+      fireEvent.click(screen.getByLabelText('Zoom in'))
+      expect(screen.getByText('125%')).toBeInTheDocument()
+
+      rerender(
+        <ImageViewerModal src={NEXT_URL} alt="Other" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />
+      )
+      expect(screen.getByText('100%')).toBeInTheDocument()
+    })
+
+    it('clears the old fitted box when the source changes', () => {
+      const { container, rerender } = render(
+        <ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />
+      )
+      const img = container.querySelector('img') as HTMLImageElement
+      setNaturalSize(img, 2048, 1024)
+      fireEvent.load(img)
+      expect(img).toHaveStyle({ width: '1024px', height: '512px' })
+
+      // Before the new image loads it falls back to the viewport
+      // constraint instead of flashing the previous image's box.
+      rerender(
+        <ImageViewerModal src={NEXT_URL} alt="Other" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />
+      )
+      expect(container.querySelector('img')).toHaveStyle({ maxWidth: '100%', maxHeight: '100%' })
+    })
+  })
 })

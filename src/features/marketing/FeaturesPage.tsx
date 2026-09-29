@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle'
+import { ImageViewerModal } from '../../components/ImageViewerModal'
 import { useAuth } from '../auth/useAuth'
 import { trackEvent } from '../../lib/analytics'
 
@@ -11,6 +12,31 @@ interface FeatureCard {
   copy: string
   shot: string
   alt: string
+}
+
+interface GalleryImage {
+  src: string
+  alt: string
+}
+
+// The hero phone mockup shows the campaign lobby — the same capture as the
+// first player card. Clicking it opens the enlarged viewer (issue #615); the
+// gallery dedupes by src so it maps to one shared entry, never a duplicate.
+const HERO_SHOT = '/help/lobby-with-channels.png'
+const HERO_ALT = 'Role by Post campaign lobby on a phone'
+
+// Builds the enlarged-viewer sequence for the active track from the
+// full-size PNGs (never the card thumbnails). The hero is prepended only
+// when no card already shows it (the GM track); on the player track the
+// shared lobby entry keeps the card's descriptive alt.
+function buildGallery(cards: FeatureCard[]): { items: GalleryImage[]; heroIndex: number } {
+  const items: GalleryImage[] = cards.map((c) => ({ src: c.shot, alt: c.alt }))
+  const heroIndex = items.findIndex((i) => i.src === HERO_SHOT)
+  if (heroIndex === -1) {
+    items.unshift({ src: HERO_SHOT, alt: HERO_ALT })
+    return { items, heroIndex: 0 }
+  }
+  return { items, heroIndex }
 }
 
 // Screenshots are the committed help captures in public/help/ (360x780 CSS,
@@ -111,6 +137,16 @@ export function FeaturesPage() {
   }
 
   const cards = track === 'gm' ? GM_CARDS : PLAYER_CARDS
+  // Gallery index into the active track's enlarged-viewer sequence
+  // (issue #615). Null means the viewer is closed.
+  const [viewing, setViewing] = useState<number | null>(null)
+  const gallery = buildGallery(cards)
+  // A track switch must not leave a stale gallery index behind.
+  useEffect(() => {
+    setViewing(null)
+  }, [track])
+
+  const current = viewing !== null ? gallery.items[viewing] : undefined
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900">
@@ -150,7 +186,15 @@ export function FeaturesPage() {
               <StartCta location="hero" />
             </div>
           </div>
-          <div className="mx-auto w-52 sm:w-60 overflow-hidden rounded-[2rem] border-8 border-surface-900 dark:border-surface-100 shadow-xl">
+          {/* The hero mockup is also an enlarged-viewer trigger (issue
+              #615). The img keeps alt="" so the button's label is the single
+              accessible name; the viewer itself uses the gallery alt. */}
+          <button
+            type="button"
+            onClick={() => setViewing(gallery.heroIndex)}
+            aria-label="View campaign lobby image fullscreen"
+            className="mx-auto w-52 sm:w-60 overflow-hidden rounded-[2rem] border-8 border-surface-900 dark:border-surface-100 shadow-xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
             <img
               src="/help/lobby-with-channels.png"
               alt=""
@@ -158,7 +202,7 @@ export function FeaturesPage() {
               height={780}
               className="w-full h-auto block"
             />
-          </div>
+          </button>
         </section>
 
         <section className="py-12 border-t border-surface-200 dark:border-surface-700">
@@ -203,14 +247,26 @@ export function FeaturesPage() {
                 key={card.title}
                 className="flex gap-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-4 shadow-sm"
               >
-                <img
-                  src={thumbSrc(card.shot)}
-                  alt={card.alt}
-                  width={360}
-                  height={780}
-                  loading="lazy"
-                  className="w-20 sm:w-24 shrink-0 self-start rounded-xl border-2 border-surface-200 dark:border-surface-700 shadow"
-                />
+                {/* Thumbnail trigger for the enlarged viewer (issue #615).
+                    The index is resolved by src so the hero-prepend/dedupe
+                    shift never opens the wrong image. */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewing(gallery.items.findIndex((i) => i.src === card.shot))
+                  }
+                  aria-label={`View ${card.title} image fullscreen`}
+                  className="shrink-0 self-start rounded-xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <img
+                    src={thumbSrc(card.shot)}
+                    alt={card.alt}
+                    width={360}
+                    height={780}
+                    loading="lazy"
+                    className="w-20 sm:w-24 block rounded-xl border-2 border-surface-200 dark:border-surface-700 shadow"
+                  />
+                </button>
                 <div className="min-w-0">
                   <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">{card.title}</h3>
                   <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{card.copy}</p>
@@ -278,6 +334,22 @@ export function FeaturesPage() {
           </a>
         </nav>
       </footer>
+
+      {/* Enlarged viewer (issue #615). A neighbor handler is passed only
+          when that neighbor exists, so the viewer clamps at both ends. */}
+      {current && (
+        <ImageViewerModal
+          src={current.src}
+          alt={current.alt}
+          onClose={() => setViewing(null)}
+          onPrev={viewing !== null && viewing > 0 ? () => setViewing(viewing - 1) : undefined}
+          onNext={
+            viewing !== null && viewing < gallery.items.length - 1
+              ? () => setViewing(viewing + 1)
+              : undefined
+          }
+        />
+      )}
     </div>
   )
 }
