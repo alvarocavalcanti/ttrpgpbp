@@ -123,4 +123,64 @@ describe('RollHistoryModal', () => {
 
     expect(screen.getByText('Critical Success')).toBeInTheDocument()
   })
+
+  it('renders raw pool faces instead of a zero total', () => {
+    mockHook({
+      rolls: [{
+        id: 'r2',
+        roller_id: 'u1',
+        notation: '5d6p',
+        result: 0,
+        breakdown: { rolls: [2, 5, 3, 6, 1], dropped: [], modifier: 0, mode: 'pool' },
+        created_at: new Date().toISOString(),
+        roller_display_name: 'Hero',
+        roller: { display_name: 'Hero' }
+      }]
+    })
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    const cell = screen.getByText('Result').parentElement!
+    expect(cell).toHaveTextContent('2, 5, 3, 6, 1')
+    expect(cell.textContent).not.toMatch(/Result\s*0/)
+  })
+
+  it('renders success pools as a labeled count with the target', () => {
+    mockHook({
+      rolls: [{
+        id: 'r3',
+        roller_id: 'u1',
+        notation: '5d6>=4',
+        result: 2,
+        breakdown: { rolls: [2, 5, 3, 6, 1], dropped: [], modifier: 0, mode: 'successes', target: 4, successes: 2 },
+        created_at: new Date().toISOString(),
+        roller_display_name: 'Hero',
+        roller: { display_name: 'Hero' }
+      }]
+    })
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    expect(screen.getByText('2 successes (≥4)')).toBeInTheDocument()
+  })
+
+  it('singularizes a single success in history', () => {
+    mockHook({
+      rolls: [{
+        id: 'r4',
+        roller_id: 'u1',
+        notation: '2d20>=10',
+        result: 1,
+        breakdown: { rolls: [1, 20], dropped: [], modifier: 0, mode: 'successes', target: 10, successes: 1 },
+        created_at: new Date().toISOString(),
+        roller_display_name: 'Hero',
+        roller: { display_name: 'Hero' }
+      }]
+    })
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    expect(screen.getByText('1 success (≥10)')).toBeInTheDocument()
+    expect(screen.queryByText('Critical Failure')).not.toBeInTheDocument()
+  })
 })

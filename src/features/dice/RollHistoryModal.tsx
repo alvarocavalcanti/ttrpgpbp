@@ -72,6 +72,9 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
                 {rolls.map(roll => {
                   const bd = roll.breakdown
                   const crit = getRollCritical(roll.notation, roll.result, bd)
+                  // Pool modes carry no meaningful total: raw pools show
+                  // their faces, success pools a labeled count + target.
+                  const successCount = bd?.mode === 'successes' ? (bd.successes ?? roll.result) : null
                   return (
                     <li key={roll.id} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                       <div className="flex justify-between items-start mb-2">
@@ -83,9 +86,15 @@ export function RollHistoryModal({ channelId, onClose }: RollHistoryModalProps) 
                           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Notation</div>
                           <div className="font-mono text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">{roll.notation}</div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right min-w-0">
                           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Result</div>
-                          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{roll.result}</div>
+                          {bd?.mode === 'pool' ? (
+                            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 break-words">{bd.rolls?.join(', ')}</div>
+                          ) : successCount !== null ? (
+                            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{successCount} {successCount === 1 ? 'success' : 'successes'}{bd?.target != null ? ` (≥${bd.target})` : ''}</div>
+                          ) : (
+                            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{roll.result}</div>
+                          )}
                           {crit && (
                             <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase ${crit === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
                               {crit === 'success' ? 'Critical Success' : 'Critical Failure'}
