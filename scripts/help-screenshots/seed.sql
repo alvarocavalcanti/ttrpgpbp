@@ -85,7 +85,7 @@ begin
   perform set_config('app.terms_confirmation', 'on', true);
   update public.profiles
   set terms_accepted_at = coalesce(terms_accepted_at, now()),
-      terms_version = '2026-09-21'
+      terms_version = '2026-09-24'
   where id in (gm, p1, p2, p3);
 
   -- Recreate the screenshot channel so re-runs stay deterministic. Constrain

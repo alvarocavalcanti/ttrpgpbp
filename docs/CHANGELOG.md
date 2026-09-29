@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Feature screenshots open larger** — on the Features page you can tap any screenshot to see it enlarged, then step through the rest with Next and Previous.
+- **Roll dice pools without adding them up** — for games where each die is read on its own, roll `5d6p` to list every face with no total, or `5d6>=4` to count how many dice hit a target number. The dice roller has a matching **Pool** / **Successes** mode with a target-number field.
 
 ## 2026-09-28
 

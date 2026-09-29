@@ -125,9 +125,11 @@
   - `2d20kh` / `2d20kl` (advantage/disadvantage, keep/drop count optional — defaults to 1, e.g. `2d20kh+4`)
   - `4d6dl` (drop lowest)
   - `kh`/`kl`/`dh`/`dl` with or without an explicit count
-- **Roll result shows full breakdown**: plain rolls break down into dice + modifier = total (`Rolled 1d20+3: 10 + 3 = **13**`, `Rolled 2d6: 3 + 5 = **8**`), and keep/drop rolls keep their ADV/DIS form (`Rolled 2d20 with DIS [2, 15]: **2**`); dropped-die rolls (`4d6dl1`) fall back to the plain total.
-- **Critical rolls** — a d20 landing on a natural 20 displays **Critical Success**, and a natural 1 displays **Critical Failure** (based on the unmodified die, so modifiers don't change it). Applies to plain d20 rolls and to Advantage/Disadvantage (the kept die), and the roll history marks the same critical rolls.
-- **Server-authoritative rolls** — every roll is evaluated and recorded server-side (result, individual dice, dropped dice, modifier) in a single atomic step together with the roll message. Modifiers are clamped to the game system's bounds, DC success/failure is computed server-side (meets beats), and no client can fabricate or edit a result. Rolls from soft-deleted messages are excluded from the roll history.
+  - `NdMp` (dice pool — lists every face, no total)
+  - `NdM>=T` (success pool — lists every face, counts faces at or above T, no total)
+- **Roll result shows full breakdown**: plain rolls break down into dice + modifier = total (`Rolled 1d20+3: 10 + 3 = **13**`, `Rolled 2d6: 3 + 5 = **8**`), and keep/drop rolls keep their ADV/DIS form (`Rolled 2d20 with DIS [2, 15]: **2**`); dropped-die rolls (`4d6dl1`) fall back to the plain total. Pool rolls never add up (`Rolled 5d6p: 2, 5, 3, 6, 1`); success pools show the count (`Rolled 5d6>=4: 2, 5, 3, 6, 1 — **2 successes (≥4)**`).
+- **Critical rolls** — a d20 landing on a natural 20 displays **Critical Success**, and a natural 1 displays **Critical Failure** (based on the unmodified die, so modifiers don't change it). Applies to plain d20 rolls and to Advantage/Disadvantage (the kept die), and the roll history marks the same critical rolls. Pool rolls never show critical labels.
+- **Server-authoritative rolls** — every roll is evaluated and recorded server-side (result, individual dice, dropped dice, modifier) in a single atomic step together with the roll message. Modifiers are clamped to the game system's bounds, DC success/failure is computed server-side (meets beats; DCs are rejected for pool rolls, which carry no totals), and no client can fabricate or edit a result. Pool rolls store their mode (and target/success count) alongside the faces. Rolls from soft-deleted messages are excluded from the roll history.
 - **Ability checks** (`STR Check`, `DEX Check`, etc.) — opens a bottom sheet with the modifier pre-filled from your character profile (editable and constrained to the game system's bounds, with an Adv/Dis toggle); rolling a d20, or 2d20 keep-high (kh) / keep-low (kl) with `with advantage` / `with disadvantage` appended. If the modifier isn't set in your profile, the sheet links straight to Edit Character
 - **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats); also supports `with advantage` / `with disadvantage`
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
@@ -136,6 +138,7 @@
   - Pick dice type (d4, d6, d8, d10, d12, d20, d100)
   - Set quantity
   - Add modifier (+N / -N)
+  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type)
   - Advantage/disadvantage toggle (d20 only)
   - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm. Notations the roller can't rebuild (drop-lowest, keep counts other than 1) still re-roll on tap
   - Pin up to 3 favorite notations per channel with the star checkbox — favorites stay pinned to the front of the chip row in amber

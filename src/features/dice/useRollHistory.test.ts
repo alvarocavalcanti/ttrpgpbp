@@ -56,6 +56,30 @@ describe('useRollHistory', () => {
     expect(result.current.error).toBeNull()
   })
 
+  it('loads pool breakdowns with their resolved mode, target, and successes', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [
+        validRoll({
+          id: 'r2',
+          notation: '5d6>=4',
+          result: 2,
+          breakdown: { rolls: [2, 5, 3, 6, 1], dropped: [], modifier: 0, mode: 'successes', target: 4, successes: 2 }
+        })
+      ],
+      error: null
+    } as any)
+    mockChannel()
+
+    const { result } = renderHook(() => useRollHistory('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.rolls).toHaveLength(1)
+    expect(result.current.rolls[0].breakdown).toEqual({
+      rolls: [2, 5, 3, 6, 1], dropped: [], modifier: 0, mode: 'successes', target: 4, successes: 2
+    })
+    expect(result.current.error).toBeNull()
+  })
+
   it('renders an error state when the RPC fails', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('DB error') } as any)
     mockChannel()

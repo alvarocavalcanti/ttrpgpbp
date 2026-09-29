@@ -6,7 +6,12 @@ import { subscribeWithRetry } from '../../lib/realtime'
 const rollBreakdownSchema = z.object({
   rolls: z.array(z.number()).optional(),
   dropped: z.array(z.number()).optional(),
-  modifier: z.number().optional()
+  modifier: z.number().optional(),
+  // Dice-pool rolls (#614) persist their resolved semantics so renderers
+  // never re-parse the notation. Absent on pre-pool rows, which read as sum.
+  mode: z.enum(['sum', 'pool', 'successes']).optional(),
+  target: z.number().optional(),
+  successes: z.number().optional()
 })
 export type RollBreakdown = z.infer<typeof rollBreakdownSchema>
 

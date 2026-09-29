@@ -1297,6 +1297,7 @@ export type Database = {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
         Returns: undefined
       }
+      parse_dice_notation: { Args: { p_notation: string }; Returns: Json }
       post_system_message: { Args: { p_content: string }; Returns: undefined }
       push_notification_config_value: {
         Args: { p_key: string }
