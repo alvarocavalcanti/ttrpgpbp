@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-28
 
+### Added
+
+- **Archived channels are now easy to identify** — the Server Admin view has a new **Archived** tab listing every archived channel with its GM's name and email plus the characters playing in it, so when someone asks for a channel to be brought back, the right one is easy to find.
+
 ### Fixed
 
 - **Scene text with lists now lines up** — in a scene message, bullet and numbered lists used to sit against the left edge while their text drifted to the middle. The list text now starts beside its bullet, so scenes read cleanly.

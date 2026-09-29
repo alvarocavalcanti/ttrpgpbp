@@ -8,9 +8,10 @@ import { BottomSheet } from '../../components/BottomSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useAdminData, type AdminUser, type AdminAbuseReport, type AdminMessageDetail } from './useAdminData'
+import { useAdminArchivedChannels } from './useAdminArchivedChannels'
 import { UserDetailModal } from './UserDetailModal'
 
-type Tab = 'users' | 'channels' | 'reports' | 'settings'
+type Tab = 'users' | 'channels' | 'archived' | 'reports' | 'settings'
 type SortDir = 'asc' | 'desc'
 type UserFilter = 'all' | 'active' | 'inactive' | 'suspended'
 
@@ -126,6 +127,9 @@ export function AdminView() {
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
   const { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
+  // Issue #611: archived channels have their own fetch state so a
+  // broken/late RPC degrades only this tab, never the whole console.
+  const { archivedChannels, loading: archivedLoading, error: archivedError, refetch: refetchArchived } = useAdminArchivedChannels(isServerAdmin)
 
   useEffect(() => {
     // A failed load leaves users empty: don't consume the link or cry
@@ -149,6 +153,7 @@ export function AdminView() {
 
   const userSort = useSort(users, 'display_name')
   const channelSort = useSort(channels, 'name')
+  const archivedSort = useSort(archivedChannels, 'name')
 
   useEffect(() => {
     if (adminLoading) return
@@ -306,6 +311,7 @@ export function AdminView() {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'users', label: 'Users' },
     { id: 'channels', label: 'Channels' },
+    { id: 'archived', label: 'Archived' },
     { id: 'reports', label: 'Reports' },
     { id: 'settings', label: 'Settings' },
   ]
@@ -554,6 +560,86 @@ export function AdminView() {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{channel.member_count}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+                            {new Date(channel.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+                            {channel.last_message_at ? new Date(channel.last_message_at).toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Issue #611: archived-channels support list. Display-only (restore
+          stays GM-only), so channel names are plain text, not links: the
+          read-only channel view resolves through admin_list_channels, which
+          excludes archived channels. Own loading/error states so a failed
+          sub-request degrades this tab only, never the whole console. */}
+          {tab === 'archived' && (
+            <div className="bg-white dark:bg-surface-800 shadow overflow-hidden rounded-md">
+              {archivedLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-500"></div>
+                </div>
+              ) : archivedError ? (
+                <div className="p-6 text-center">
+                  <p className="text-sm text-red-700 dark:text-red-300 mb-4">{archivedError}</p>
+                  <button
+                    type="button"
+                    onClick={() => refetchArchived()}
+                    className="inline-flex min-h-11 items-center px-3 py-2 border border-surface-300 dark:border-surface-600 shadow-sm text-sm font-medium rounded-md text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : archivedSort.sorted.length === 0 ? (
+                <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No archived channels.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
+                    <thead className="bg-surface-50 dark:bg-surface-900">
+                      <tr>
+                        <SortHeader label="Name" sortKey="name" activeKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.handleSort} />
+                        <SortHeader label="System" sortKey="game_system" activeKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.handleSort} />
+                        <SortHeader label="GM" sortKey="gm_display_name" activeKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.handleSort} />
+                        <SortHeader label="Players" sortKey="member_count" activeKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.handleSort} />
+                        <SortHeader label="Created" sortKey="created_at" activeKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.handleSort} />
+                        <SortHeader label="Last Active" sortKey="last_message_at" activeKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.handleSort} />
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
+                      {archivedSort.sorted.map(channel => (
+                        <tr key={channel.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">{channel.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{channel.game_system || 'none'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+                            {channel.gm_id === null ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300">
+                                Orphaned
+                              </span>
+                            ) : (
+                              <span className="block">
+                                <span className="block text-surface-900 dark:text-surface-100">{channel.gm_display_name || '—'}</span>
+                                {channel.gm_email && (
+                                  <span className="block text-xs">{channel.gm_email}</span>
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-surface-500 dark:text-surface-400 max-w-xs">
+                            {channel.player_characters.length === 0 ? (
+                              '—'
+                            ) : (
+                              <span title={channel.player_characters.join(', ')} className="block truncate">
+                                {channel.player_characters.join(', ')}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                             {new Date(channel.created_at).toLocaleString()}
                           </td>

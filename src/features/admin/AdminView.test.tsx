@@ -81,6 +81,7 @@ const defaultRpc = () => {
     if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
     if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_get_user_history') return Promise.resolve({ data: [], error: null })
     return Promise.resolve({ data: null, error: null })
   }) as any)
@@ -94,6 +95,7 @@ const usersRpc = (overrides: Record<string, any>) => {
     if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
     if (overrides[fn] !== undefined) {
       // Allow function overrides so a rejection is created at call time
       // instead of eagerly (which Vitest flags as an unhandled rejection).
@@ -113,6 +115,7 @@ const reportsRpc = (reportData: any[], overrides: Record<string, any> = {}) => {
     if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
     if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reportData, error: null })
     if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
     if (overrides[fn] !== undefined) {
       const value = overrides[fn]
       return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
@@ -120,6 +123,30 @@ const reportsRpc = (reportData: any[], overrides: Record<string, any> = {}) => {
     return Promise.resolve({ data: null, error: null })
   }) as any)
 }
+
+// Archived-focused mock: supplies the archived payload under test and empty
+// users/channels so the loader's malformed-payload guard stays happy.
+const archivedRpc = (archivedData: any[], overrides: Record<string, any> = {}) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (overrides[fn] !== undefined) {
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: archivedData, error: null })
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+const archived = [
+  { id: 'a1', name: 'Winter Archive', game_system: 'dnd5e', gm_id: 'u1', gm_display_name: 'Gina GM', gm_email: 'gina@example.com', member_count: 3, player_characters: ['Tom', 'Cora'], created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z' },
+  { id: 'a2', name: 'Orphaned Archive', game_system: 'none', gm_id: null, gm_display_name: null, gm_email: null, member_count: 0, player_characters: [], created_at: '2026-03-01T00:00:00Z', last_message_at: null },
+  { id: 'a3', name: 'Nameless GM Archive', game_system: 'none', gm_id: 'u9', gm_display_name: null, gm_email: 'noname@example.com', member_count: 1, player_characters: ['Zed'], created_at: '2026-04-01T00:00:00Z', last_message_at: null },
+]
 
 const switchToReportsTab = async () => {
   await screen.findByRole('navigation', { name: 'Admin sections' })
@@ -210,6 +237,132 @@ describe('AdminView', () => {
 
     expect(await screen.findByRole('link', { name: 'Open Curse of Strahd read-only' }))
       .toHaveAttribute('href', '/admin/channels/c1')
+  })
+
+  const switchToArchivedTab = () =>
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Archived' })
+    )
+
+  it('renders archived tab with GM name, GM email, and player characters', async () => {
+    archivedRpc(archived)
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('navigation', { name: 'Admin sections' })
+    switchToArchivedTab()
+
+    expect(await screen.findByText('Winter Archive')).toBeInTheDocument()
+    expect(screen.getByText('Gina GM')).toBeInTheDocument()
+    expect(screen.getByText('gina@example.com')).toBeInTheDocument()
+    expect(screen.getByText('Tom, Cora')).toBeInTheDocument()
+    expect(screen.getByText('dnd5e')).toBeInTheDocument()
+    // A GM with no display name still shows their email, with a dash for the name.
+    expect(await screen.findByText('Nameless GM Archive')).toBeInTheDocument()
+    const namelessRow = screen.getByText('Nameless GM Archive').closest('tr') as HTMLTableRowElement
+    expect(within(namelessRow).getByText('noname@example.com')).toBeInTheDocument()
+    expect(within(namelessRow).getAllByText('—')).toHaveLength(2)
+  })
+
+  it('badges orphaned archived channels and shows a dash for an empty roster', async () => {
+    archivedRpc(archived)
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('navigation', { name: 'Admin sections' })
+    switchToArchivedTab()
+
+    expect(await screen.findByText('Orphaned Archive')).toBeInTheDocument()
+    const row = screen.getByText('Orphaned Archive').closest('tr') as HTMLTableRowElement
+    expect(within(row).getByText('Orphaned')).toBeInTheDocument()
+    expect(within(row).queryByText('gina@example.com')).not.toBeInTheDocument()
+    // The orphaned row's empty roster and missing last-active date are dashes.
+    expect(within(row).getAllByText('—')).toHaveLength(2)
+  })
+
+  it('renders archived channel names as plain text, not links', async () => {
+    archivedRpc(archived)
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('navigation', { name: 'Admin sections' })
+    switchToArchivedTab()
+
+    const cell = await screen.findByText('Winter Archive')
+    expect(cell.tagName).toBe('TD')
+    expect(cell.querySelector('a')).toBeNull()
+  })
+
+  it('shows an empty state when there are no archived channels', async () => {
+    archivedRpc([])
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('navigation', { name: 'Admin sections' })
+    switchToArchivedTab()
+
+    expect(await screen.findByText('No archived channels.')).toBeInTheDocument()
+  })
+
+  it('shows an archived-tab error with Retry and recovers on refetch', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let calls = 0
+    archivedRpc([], {
+      admin_list_archived_channels: () => {
+        calls += 1
+        return calls === 1
+          ? { data: null, error: new Error('DB down') }
+          : { data: archived, error: null }
+      },
+    })
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('navigation', { name: 'Admin sections' })
+    switchToArchivedTab()
+
+    expect(await screen.findByText('Failed to load archived channels.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('Winter Archive')).toBeInTheDocument()
+  })
+
+  it('keeps the rest of the console usable when the archived fetch fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+      if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: null, error: new Error('DB down') })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    // Users tab still renders its rows; only the Archived tab degrades.
+    await screen.findByText('Alice')
+    switchToArchivedTab()
+    expect(await screen.findByText('Failed to load archived channels.')).toBeInTheDocument()
+    expect(screen.queryByText('Failed to load admin data.')).not.toBeInTheDocument()
   })
 
   it('badges orphaned channels and claims them as GM', async () => {
