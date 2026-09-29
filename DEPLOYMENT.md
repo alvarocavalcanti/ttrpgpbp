@@ -29,6 +29,7 @@ Checklist for setting up your own RoleByPost server. The app is a static fronten
 
 Email sign-in needs a real SMTP provider. Supabase's built-in sender is a demo — roughly **2 messages/hour, and only to project team members** — so real players never receive a link on it. It is fine for local development only, where the local stack captures mail in **Mailpit** at <http://127.0.0.1:54324>. The reference deployment uses **Resend** (free tier: 3,000 emails/month, 100/day, no card).
 
+- [ ] Enable the **Email** provider: Authentication → **Sign In / Providers → Email**, or set `[auth.email] enable_signup = true` in `supabase/config.toml`. The reference project shipped with it **off** (Google-only), which makes every sign-in link fail.
 - [ ] Create a [Resend](https://resend.com) account and add the sending domain (`rolebypost.com`).
 - [ ] Add the DKIM/SPF DNS records Resend shows to your DNS provider (Cloudflare) and wait for domain verification.
 - [ ] Create a Resend API key.
