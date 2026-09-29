@@ -378,5 +378,24 @@ describe('ImageViewerModal', () => {
       )
       expect(container.querySelector('img')).toHaveStyle({ maxWidth: '100%', maxHeight: '100%' })
     })
+
+    it('announces the selected image description via a live status', () => {
+      const { rerender } = render(
+        <ImageViewerModal src={URL} alt="Map" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />
+      )
+
+      // role="status" carries an implicit aria-live="polite": a content
+      // change is what the screen reader announces, so assert the text
+      // itself rather than an accessible name.
+      const status = screen.getByRole('status')
+      expect(status).toHaveClass('sr-only')
+      expect(status).toHaveTextContent('Map')
+
+      // Navigation swaps the description, which the live status announces.
+      rerender(
+        <ImageViewerModal src={NEXT_URL} alt="Other" onClose={vi.fn()} onPrev={vi.fn()} onNext={vi.fn()} />
+      )
+      expect(screen.getByRole('status')).toHaveTextContent('Other')
+    })
   })
 })

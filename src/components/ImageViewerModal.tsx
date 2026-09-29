@@ -151,6 +151,13 @@ export function ImageViewerModal({ src, alt, onClose, onPrev, onNext }: ImageVie
       aria-label={alt}
       className="fixed inset-0 z-50 bg-black/90"
     >
+      {/* Screen-reader announcement for gallery navigation (issue #615
+          review): focus stays on the Previous/Next button when the image
+          changes, so the new description is announced via this live status.
+          role="status" carries an implicit aria-live="polite". */}
+      <div role="status" className="sr-only">
+        {alt}
+      </div>
       <div className="absolute right-0 top-0 z-10 flex items-center gap-1 rounded-bl bg-black/50 p-2">
         <button
           type="button"
