@@ -688,6 +688,38 @@ describe('LoginPage', () => {
       expect(sessionStorage.getItem('auth_redirect')).toBeNull()
     })
 
+    it('continues when session storage cannot persist the redirect', () => {
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('QuotaExceededError')
+      })
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent('/join/123?code=abc')}`]}>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      // Storage failure must not reach the route error boundary and block sign-in.
+      expect(screen.getByText('Email me a sign-in link')).toBeInTheDocument()
+
+      setItem.mockRestore()
+      vi.mocked(console.warn).mockRestore()
+    })
+
     it('rejects a backslash-smuggled redirect param', () => {
       vi.mocked(useAuth).mockReturnValue({
         loading: false,

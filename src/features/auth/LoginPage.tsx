@@ -84,6 +84,18 @@ export function readMagicLinkError(): string | null {
   return "This sign-in link isn't valid. Request a new one below."
 }
 
+// Web Storage can throw — quota exhausted, or storage disabled in private
+// browsing. A redirect hint is best-effort: failing to persist it must not take
+// the sign-in page down through the route error boundary, the user just lands
+// on the lobby instead.
+function persistAuthRedirect(path: string) {
+  try {
+    sessionStorage.setItem('auth_redirect', path)
+  } catch (err) {
+    console.warn('Could not persist auth redirect', err)
+  }
+}
+
 export function LoginPage() {
   const { user, loading, signInWithGoogle, signInWithEmail } = useAuth()
   const location = useLocation()
@@ -110,7 +122,7 @@ export function LoginPage() {
   const redirectParam = searchParams.get('redirect')
   useEffect(() => {
     if (isSafeRedirectPath(redirectParam)) {
-      sessionStorage.setItem('auth_redirect', redirectParam)
+      persistAuthRedirect(redirectParam)
     }
   }, [redirectParam])
 
@@ -148,7 +160,7 @@ export function LoginPage() {
   const handleSignIn = async () => {
     if (!ageConfirmed) return
     if (from) {
-      sessionStorage.setItem('auth_redirect', from)
+      persistAuthRedirect(from)
     }
     await signInWithGoogle()
   }
