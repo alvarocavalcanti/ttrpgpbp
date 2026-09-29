@@ -5,6 +5,7 @@ import {
   authSignOut,
   fetchProfileRow,
   updateDisplayName,
+  updateAvatarUrl,
   deleteAccount,
   subscribeToAuthEvents,
   confirmAge,
@@ -85,6 +86,16 @@ describe('authApi', () => {
     expect(supabase.from).toHaveBeenCalledWith('profiles')
     expect(query.update).toHaveBeenCalledWith({ display_name: 'Alvaro' })
     expect(query.eq).toHaveBeenCalledWith('id', 'u1')
+  })
+
+  it('updateAvatarUrl writes a picture or null onto the profile row', () => {
+    updateAvatarUrl('u1', 'https://example.com/avatar.jpg')
+    expect(supabase.from).toHaveBeenCalledWith('profiles')
+    expect(query.update).toHaveBeenCalledWith({ avatar_url: 'https://example.com/avatar.jpg' })
+    expect(query.eq).toHaveBeenCalledWith('id', 'u1')
+
+    updateAvatarUrl('u1', null)
+    expect(query.update).toHaveBeenCalledWith({ avatar_url: null })
   })
 
   it('deleteAccount posts to the delete-account edge function', async () => {

@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProfileSettings } from './ProfileSettings'
 import { useAuth } from './useAuth'
+import { useProfileAvatar } from './useProfileAvatar'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
@@ -17,11 +18,18 @@ vi.mock('../notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn(),
 }))
 
+vi.mock('./useProfileAvatar', () => ({
+  useProfileAvatar: vi.fn(),
+}))
+
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
     functions: {
       invoke: vi.fn(),
+    },
+    storage: {
+      from: vi.fn(),
     },
   },
 }))
@@ -58,6 +66,15 @@ describe('ProfileSettings', () => {
     window.localStorage.clear()
     window.sessionStorage.clear()
 
+    vi.mocked(supabase.storage.from).mockReturnValue({
+      createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed/profile.jpg' }, error: null }),
+    } as any)
+    vi.mocked(useProfileAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar: vi.fn(),
+    })
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true, needsInstall: false,
       permission: 'granted',
@@ -120,6 +137,252 @@ describe('ProfileSettings', () => {
     expect(screen.getByLabelText('Display Name')).toHaveAttribute('maxLength', '40')
     expect(screen.getByDisplayValue('user@example.com')).toBeDisabled()
     expect(screen.getByRole('img', { name: 'Avatar' })).toHaveAttribute('src', 'https://example.com/avatar.jpg')
+  })
+
+  it('describes uploaded, Google, and missing avatars truthfully', () => {
+    const googleUrl = 'https://lh3.googleusercontent.com/photo.jpg'
+    const uploadedPath = '123e4567-e89b-12d3-a456-426614174000/profile/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg'
+    const cases = [
+      { avatar: uploadedPath, description: 'Using your uploaded picture.', googleAction: true },
+      { avatar: googleUrl, description: 'Currently using your Google account picture.', googleAction: false },
+      { avatar: null, description: 'No picture yet — showing your initial.', googleAction: true },
+    ]
+
+    for (const testCase of cases) {
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        error: null,
+        user: { id: '123', email: 'user@example.com', user_metadata: { avatar_url: googleUrl } } as any,
+        profile: {
+          id: '123',
+          display_name: 'Test Player',
+          avatar_url: testCase.avatar,
+          created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+        },
+        session: null,
+
+        signInWithGoogle: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      const { unmount } = renderWithRouter(<ProfileSettings />)
+      expect(screen.getByText(testCase.description)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Use Google picture' }) !== null).toBe(testCase.googleAction)
+      unmount()
+    }
+  })
+
+  it('uploads a profile picture from the avatar control', async () => {
+    const mockRefreshProfile = vi.fn()
+    const mockUploadAvatar = vi.fn().mockResolvedValue('123/profile/avatar.jpg')
+    vi.mocked(useProfileAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar: mockUploadAvatar,
+    })
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: mockRefreshProfile,
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    const file = new File(['picture'], 'photo.png', { type: 'image/png' })
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(mockUploadAvatar).toHaveBeenCalledWith(file)
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Profile picture updated.', 'success')
+    })
+  })
+
+  it('shows upload errors from the avatar control', async () => {
+    const mockUploadAvatar = vi.fn().mockRejectedValue(new Error('Image is too large (max 5 MB)'))
+    vi.mocked(useProfileAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar: mockUploadAvatar,
+    })
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, {
+      target: { files: [new File(['picture'], 'photo.png', { type: 'image/png' })] },
+    })
+
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Image is too large (max 5 MB)', 'error')
+    })
+  })
+
+  it('disables the avatar control when uploads are turned off', () => {
+    vi.mocked(useProfileAvatar).mockReturnValue({
+      uploadEnabled: false,
+      settingsLoading: false,
+      uploading: false,
+      uploadAvatar: vi.fn(),
+    })
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    expect(screen.getByRole('button', { name: 'Change profile picture' })).toBeDisabled()
+    expect(screen.getByText('Image uploads are turned off by the server admin.')).toBeInTheDocument()
+  })
+
+  it('disables the avatar control while settings and uploads are pending', () => {
+    vi.mocked(useProfileAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: true,
+      uploading: true,
+      uploadAvatar: vi.fn(),
+    })
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: null,
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    expect(screen.getByRole('button', { name: 'Change profile picture' })).toBeDisabled()
+    expect(screen.getByText('Checking upload availability.')).toBeInTheDocument()
+  })
+
+  it('restores the Google picture when the revert action succeeds', async () => {
+    const googleUrl = 'https://lh3.googleusercontent.com/photo.jpg'
+    const mockRefreshProfile = vi.fn()
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com', user_metadata: { avatar_url: googleUrl } } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: '123/profile/old.jpg',
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: mockRefreshProfile,
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    renderWithRouter(<ProfileSettings />)
+    fireEvent.click(screen.getByRole('button', { name: 'Use Google picture' }))
+
+    expect(mockUpdate).toHaveBeenCalledWith({ avatar_url: googleUrl })
+    expect(mockEq).toHaveBeenCalledWith('id', '123')
+    await waitFor(() => {
+      expect(mockRefreshProfile).toHaveBeenCalled()
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Profile picture updated.', 'success')
+    })
+  })
+
+  it('shows an error when restoring the Google picture fails', async () => {
+    const googleUrl = 'https://lh3.googleusercontent.com/photo.jpg'
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com', user_metadata: { avatar_url: googleUrl } } as any,
+      profile: {
+        id: '123',
+        display_name: 'Test Player',
+        avatar_url: '123/profile/old.jpg',
+        created_at: '', is_suspended: false, email_opt_in: false, email_opt_in_at: null, age_verified_at: null, terms_accepted_at: null, terms_version: null,
+      },
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    const mockEq = vi.fn().mockResolvedValue({ error: new Error('Database error') })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    renderWithRouter(<ProfileSettings />)
+    fireEvent.click(screen.getByRole('button', { name: 'Use Google picture' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Failed to restore your Google picture. Please try again.', 'error')
+    })
   })
 
   it('lets the player turn usage analytics on and off from settings', () => {

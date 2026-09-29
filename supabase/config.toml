@@ -33,8 +33,9 @@ verify_jwt = false
 [functions.upload-image]
 enabled = true
 # Browser-invoked with the user's JWT. The function resolves identity from that
-# token and enforces GM-of-channel itself (it stores with the service role), so
-# it never trusts the request body for authorization.
+# token and enforces GM-of-channel for channel uploads or self-ownership for
+# profile uploads itself (it stores with the service role), so it never trusts
+# the request body for authorization.
 verify_jwt = true
 entrypoint = "./functions/upload-image/index.ts"
 

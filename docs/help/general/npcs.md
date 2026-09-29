@@ -18,7 +18,7 @@ The GM can speak as **NPCs** (non-player characters) with their own name and por
 
 ## Portraits
 
-GMs can search game-icons.net by name or tag to **pick a specific portrait**, or re-randomize at any time. Portraits are curated first, with full search as a fallback.
+GMs can search game-icons.net by name or tag to **pick a specific portrait**, or re-randomize at any time. Portraits are curated first, with full search as a fallback. For tabletop-style token art, we also recommend [You See This](https://youseethis.blog).
 
 ## Roster
 

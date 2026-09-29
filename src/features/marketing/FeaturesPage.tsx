@@ -332,6 +332,9 @@ export function FeaturesPage() {
           <a href="https://ko-fi.com/O4O1WSP5B" target="_blank" rel="noreferrer" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
             Ko-fi
           </a>
+          <a href="https://youseethis.blog" target="_blank" rel="noreferrer" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
+            You See This — token art
+          </a>
         </nav>
       </footer>
 

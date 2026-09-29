@@ -42,13 +42,26 @@ export function buildCorsHeaders(
 // Upload paths are `{channelId}/{folder}/{uuid}.jpg` (see useImageUpload), and
 // only the GM of the owning channel may write them. The function stores with
 // the service role, which bypasses RLS, so the path shape and the channel
-// match are checked here first.
+// match are checked here first. `profile` is deliberately absent from the
+// folder set: profile pictures use `{userId}/profile/{uuid}.jpg` and are
+// validated by isValidProfileUploadPath instead.
 const UPLOAD_PATH =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(avatar|message|map|resources|npc|character)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/
 
 export function isValidUploadPath(path: string, channelId: string): boolean {
   const match = UPLOAD_PATH.exec(path)
   return match !== null && match[1] === channelId
+}
+
+const PROFILE_UPLOAD_PATH =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/profile\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/
+
+// Profile pictures are account-global and self-owned: the leading UUID must be
+// the uploader's own user id. Only the edge function may create these objects,
+// and it enforces this check against the verified JWT identity.
+export function isValidProfileUploadPath(path: string, userId: string): boolean {
+  const match = PROFILE_UPLOAD_PATH.exec(path)
+  return match !== null && match[1] === userId
 }
 
 // Default size cap (MB) mirroring enforce_image_upload_rules(): the DB trigger

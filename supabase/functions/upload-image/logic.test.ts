@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isValidUploadPath } from './logic'
+import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isValidProfileUploadPath, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
+const USER = '22222222-3333-4444-5555-666666666666'
+const OTHER_USER = '77777777-3333-4444-5555-666666666666'
 const FILE = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
 describe('isValidUploadPath', () => {
@@ -23,6 +25,27 @@ describe('isValidUploadPath', () => {
   it('rejects non-jpg extensions and malformed uuids', () => {
     expect(isValidUploadPath(`${CHANNEL}/message/${FILE}.png`, CHANNEL)).toBe(false)
     expect(isValidUploadPath(`${CHANNEL}/message/not-a-uuid.jpg`, CHANNEL)).toBe(false)
+  })
+
+  it('rejects the profile folder for channel-scoped uploads', () => {
+    expect(isValidUploadPath(`${CHANNEL}/profile/${FILE}.jpg`, CHANNEL)).toBe(false)
+  })
+})
+
+describe('isValidProfileUploadPath', () => {
+  it('accepts a well-formed self-owned profile path', () => {
+    expect(isValidProfileUploadPath(`${USER}/profile/${FILE}.jpg`, USER)).toBe(true)
+  })
+
+  it('rejects a profile path owned by another user', () => {
+    expect(isValidProfileUploadPath(`${OTHER_USER}/profile/${FILE}.jpg`, USER)).toBe(false)
+  })
+
+  it('rejects traversal, channel folders, and malformed filenames', () => {
+    expect(isValidProfileUploadPath(`${USER}/../profile/${FILE}.jpg`, USER)).toBe(false)
+    expect(isValidProfileUploadPath(`${USER}/message/${FILE}.jpg`, USER)).toBe(false)
+    expect(isValidProfileUploadPath(`${USER}/profile/${FILE}.png`, USER)).toBe(false)
+    expect(isValidProfileUploadPath(`${USER}/profile/not-a-uuid.jpg`, USER)).toBe(false)
   })
 })
 

@@ -10,6 +10,8 @@ You sign in with your Google account. **You must be at least 16** to use Role by
 
 Your account has a **display name** (up to 40 characters) and **avatar**, shown in the app header. Edit them from the **Settings** page, reachable from the menu in the top-right.
 
+Select the pencil badge on the avatar to upload a replacement picture. Uploads are available only when the server admin has enabled image uploads. If your Google account has a picture and your current avatar is different, you can restore it with **Use Google picture**.
+
 ## Dark mode
 
 A **sun/moon toggle** in the app header (and on the login page) switches between light and dark theme. Your choice is remembered; by default the app follows your device's light/dark preference.

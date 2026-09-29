@@ -63,6 +63,15 @@ describe('NpcManagementModal', () => {
     expect(container.querySelector('img[class*="dark:invert"]')).toBeNull()
   })
 
+  it('links a recommended token-art source', () => {
+    render(<ToastProvider><NpcManagementModal channelId="c1" onClose={onClose} onUpdate={onUpdate} /></ToastProvider>)
+
+    const link = screen.getByRole('link', { name: 'You See This' })
+    expect(link).toHaveAttribute('href', 'https://youseethis.blog')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
+  })
+
   it('expands the roster icon controls to 44px touch targets', () => {
     // Literal touch-target requirement (UX audit): the small icon controls
     // are real 44px boxes — asserted literally so a sizing regression fails.

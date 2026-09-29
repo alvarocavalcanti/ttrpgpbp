@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useAuth } from './useAuth'
-import { deleteAccount, updateDisplayName, updateEmailOptIn } from './authApi'
+import { deleteAccount, updateAvatarUrl, updateDisplayName, updateEmailOptIn } from './authApi'
+import { useProfileAvatar } from './useProfileAvatar'
+import { isBucketImagePath } from '../../hooks/useSignedImageUrl'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { buildUserDataExport, downloadJson } from './exportUserData'
@@ -27,6 +29,8 @@ export function ProfileSettings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isResettingAvatar, setIsResettingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     isSupported,
@@ -48,6 +52,21 @@ export function ProfileSettings() {
   }, [profile])
 
   const emailOptIn = profile?.email_opt_in ?? false
+  const { uploadEnabled, settingsLoading, uploading, uploadAvatar } = useProfileAvatar(user?.id, refreshProfile)
+
+  const metadataAvatarUrl = user?.user_metadata?.avatar_url
+  const googleAvatarUrl =
+    typeof metadataAvatarUrl === 'string' && metadataAvatarUrl.trim() ? metadataAvatarUrl : null
+  const canUseGoogleAvatar = !!googleAvatarUrl && googleAvatarUrl !== profile?.avatar_url
+  const usingUploadedAvatar = isBucketImagePath(profile?.avatar_url)
+  const avatarDescription = !profile?.avatar_url
+    ? 'No picture yet — showing your initial.'
+    : usingUploadedAvatar
+      ? 'Using your uploaded picture.'
+      : profile?.avatar_url === googleAvatarUrl
+        ? 'Currently using your Google account picture.'
+        : 'Using your current account picture.'
+  const avatarControlDisabled = uploading || isResettingAvatar || !uploadEnabled || settingsLoading
 
   // Analytics consent can be changed here after the first-run banner; the
   // control only exists when the operator configured a measurement ID.
@@ -80,6 +99,35 @@ export function ProfileSettings() {
       checked ? "You're signed up for email updates." : 'Email updates turned off.',
       'success'
     )
+  }
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    try {
+      const path = await uploadAvatar(file)
+      if (path) addToast('Profile picture updated.', 'success')
+    } catch (error) {
+      console.error('Error updating profile picture:', error)
+      addToast(error instanceof Error ? error.message : 'Failed to update your profile picture. Please try again.', 'error')
+    }
+  }
+
+  const handleGoogleAvatar = async () => {
+    if (!user || !googleAvatarUrl || isResettingAvatar) return
+    setIsResettingAvatar(true)
+    try {
+      const { error } = await updateAvatarUrl(user.id, googleAvatarUrl)
+      if (error) throw error
+      await refreshProfile()
+      addToast('Profile picture updated.', 'success')
+    } catch (error) {
+      console.error('Error restoring Google picture:', error)
+      addToast('Failed to restore your Google picture. Please try again.', 'error')
+    } finally {
+      setIsResettingAvatar(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -161,27 +209,71 @@ export function ProfileSettings() {
         
         <div className="bg-white dark:bg-surface-800 shadow rounded-lg p-6">
           <div className="flex items-center space-x-6 mb-8">
-            <div className="shrink-0">
-              {profile.avatar_url ? (
-                <Avatar
-                  className="h-24 w-24 object-cover rounded-full shadow-sm"
-                  src={profile.avatar_url}
-                  alt="Avatar"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="h-24 w-24 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 shadow-sm">
-                  <span className="text-3xl font-medium">
-                    {displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
-                  </span>
-                </div>
-              )}
+            <div className="relative inline-block shrink-0">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarControlDisabled}
+                aria-label="Change profile picture"
+                aria-busy={uploading}
+                className="group relative block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed"
+              >
+                {profile.avatar_url ? (
+                  <Avatar
+                    className="h-24 w-24 object-cover rounded-full shadow-sm"
+                    src={profile.avatar_url}
+                    alt="Avatar"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="h-24 w-24 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 shadow-sm">
+                    <span className="text-3xl font-medium">
+                      {displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+                    </span>
+                  </div>
+                )}
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white shadow-sm ring-2 ring-white dark:ring-surface-800 group-hover:bg-primary-700"
+                >
+                  {uploading ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  )}
+                </span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                tabIndex={-1}
+                onChange={handleAvatarUpload}
+                className="sr-only"
+              />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <h3 className="text-lg font-medium text-surface-900 dark:text-surface-100">Your Avatar</h3>
               <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                Currently using your Google account picture.
+                {avatarDescription}
               </p>
+              {settingsLoading ? (
+                <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">Checking upload availability.</p>
+              ) : !uploadEnabled ? (
+                <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">Image uploads are turned off by the server admin.</p>
+              ) : null}
+              {canUseGoogleAvatar && (
+                <button
+                  type="button"
+                  onClick={handleGoogleAvatar}
+                  disabled={isResettingAvatar}
+                  className="mt-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResettingAvatar ? 'Restoring...' : 'Use Google picture'}
+                </button>
+              )}
             </div>
           </div>
 

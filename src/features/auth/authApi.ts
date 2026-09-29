@@ -42,6 +42,16 @@ export async function updateDisplayName(userId: string, displayName: string) {
     .eq('id', userId)
 }
 
+// Profile picture: a Google picture URL, a private-bucket object path, or
+// null (initials placeholder). `null` is allowed so a custom picture can be
+// reverted without another valid value.
+export async function updateAvatarUrl(userId: string, avatarUrl: string | null) {
+  return supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', userId)
+}
+
 // Email opt-in consent toggle (default false in the DB). The consent
 // timestamp (email_opt_in_at) is stamped by a database trigger whenever the
 // flag changes — the client sends only the flag itself.
