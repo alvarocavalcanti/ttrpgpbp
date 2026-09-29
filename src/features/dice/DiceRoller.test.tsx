@@ -37,28 +37,47 @@ describe('buildNotation', () => {
     expect(buildNotation('d6', 3, -2, 'none')).toBe('3d6-2')
     expect(buildNotation('d6', 3, 0, 'none')).toBe('3d6')
   })
+
+  it('builds raw pool notations with no total', () => {
+    expect(buildNotation('d6', 5, 0, 'none', 'pool')).toBe('5d6p')
+    // Pools drop keep/drop and modifiers: faces are read, not summed.
+    expect(buildNotation('d20', 1, 3, 'adv', 'pool')).toBe('1d20p')
+  })
+
+  it('builds success-count notations with the target', () => {
+    expect(buildNotation('d6', 5, 0, 'none', 'successes', 4)).toBe('5d6>=4')
+    expect(buildNotation('d10', 3, 0, 'none', 'successes', 8)).toBe('3d10>=8')
+  })
 })
 
 describe('parseRollerNotation', () => {
   it('parses plain notations', () => {
-    expect(parseRollerNotation('1d20')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'none' })
-    expect(parseRollerNotation('3d6+2')).toEqual({ diceType: 'd6', quantity: 3, modifier: 2, advDis: 'none' })
-    expect(parseRollerNotation('2d8-5')).toEqual({ diceType: 'd8', quantity: 2, modifier: -5, advDis: 'none' })
+    expect(parseRollerNotation('1d20')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('3d6+2')).toEqual({ diceType: 'd6', quantity: 3, modifier: 2, advDis: 'none', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('2d8-5')).toEqual({ diceType: 'd8', quantity: 2, modifier: -5, advDis: 'none', poolMode: 'sum', target: 4 })
   })
 
   it('parses advantage and disadvantage', () => {
-    expect(parseRollerNotation('2d20kh1')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv' })
-    expect(parseRollerNotation('2d20kl1+3')).toEqual({ diceType: 'd20', quantity: 1, modifier: 3, advDis: 'dis' })
+    expect(parseRollerNotation('2d20kh1')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('2d20kl1+3')).toEqual({ diceType: 'd20', quantity: 1, modifier: 3, advDis: 'dis', poolMode: 'sum', target: 4 })
     // Keep count defaults to 1 on the server, like 2d20kh defaults to 2d20kh1.
-    expect(parseRollerNotation('2d20kh')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv' })
+    expect(parseRollerNotation('2d20kh')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4 })
+  })
+
+  it('parses raw pool and success-count notations', () => {
+    expect(parseRollerNotation('5d6p')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4 })
+    expect(parseRollerNotation('5d6>=4')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'successes', target: 4 })
+    expect(parseRollerNotation('3d10>=8')).toEqual({ diceType: 'd10', quantity: 3, modifier: 0, advDis: 'none', poolMode: 'successes', target: 8 })
+    // A raw-pool chip loads the default target for review, not a stale one.
+    expect(parseRollerNotation('2d4p')).toEqual({ diceType: 'd4', quantity: 2, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4 })
   })
 
   it('round-trips every canonical roller output', () => {
-    const canonical = ['1d20', '2d20kh1', '2d20kl1', '3d6+2', '2d8-5', '1d100', '100d4+999']
+    const canonical = ['1d20', '2d20kh1', '2d20kl1', '3d6+2', '2d8-5', '1d100', '100d4+999', '5d6p', '5d6>=4', '3d10>=8']
     for (const n of canonical) {
       const parsed = parseRollerNotation(n)
       expect(parsed).not.toBeNull()
-      expect(buildNotation(parsed!.diceType, parsed!.quantity, parsed!.modifier, parsed!.advDis)).toBe(n)
+      expect(buildNotation(parsed!.diceType, parsed!.quantity, parsed!.modifier, parsed!.advDis, parsed!.poolMode, parsed!.target)).toBe(n)
     }
   })
 
@@ -86,9 +105,16 @@ describe('parseRollerNotation', () => {
   })
 
   it('parses values at the edge of the form bounds', () => {
-    expect(parseRollerNotation('100d6')).toEqual({ diceType: 'd6', quantity: 100, modifier: 0, advDis: 'none' })
-    expect(parseRollerNotation('1d20+999')).toEqual({ diceType: 'd20', quantity: 1, modifier: 999, advDis: 'none' })
-    expect(parseRollerNotation('1d20-999')).toEqual({ diceType: 'd20', quantity: 1, modifier: -999, advDis: 'none' })
+    expect(parseRollerNotation('100d6')).toEqual({ diceType: 'd6', quantity: 100, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('1d20+999')).toEqual({ diceType: 'd20', quantity: 1, modifier: 999, advDis: 'none', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('1d20-999')).toEqual({ diceType: 'd20', quantity: 1, modifier: -999, advDis: 'none', poolMode: 'sum', target: 4 })
+  })
+
+  it('returns null for pool notations the form cannot represent', () => {
+    // Unreachable targets and ambiguous combinations keep one-click roll.
+    expect(parseRollerNotation('5d6>=7')).toBeNull()
+    expect(parseRollerNotation('5d6p+2')).toBeNull()
+    expect(parseRollerNotation('5d6kh1p')).toBeNull()
   })
 })
 
@@ -246,6 +272,97 @@ describe('DiceRoller', () => {
     fireEvent.change(select, { target: { value: 'd6' } })
 
     expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
+  })
+
+  it('rolls a raw pool with no total', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+
+    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
+  })
+
+  it('rolls a success-count pool with the target', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
+
+    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4')
+  })
+
+  it('clears advantage when entering a pool mode so quantity stays editable', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+
+    // Quantity unlocks (it is disabled while d20 advantage is active) and
+    // the roll carries no keep/drop.
+    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
+  })
+
+  it('hides the modifier and advantage controls in pool modes', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+    expect(screen.queryByRole('button', { name: 'Increase modifier' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sum' }))
+    expect(screen.getByRole('button', { name: 'Increase modifier' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Adv' })).toBeInTheDocument()
+  })
+
+  it('clamps the target to the die size at the point of input', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+
+    fireEvent.change(screen.getByLabelText('Target'), { target: { value: '9' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('1d6>=6')
+  })
+
+  it('loads a success chip into the pool form instead of rolling at once', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [{ id: '1', notation: '5d6>=4', created_at: '2026-01-01T00:00:03Z' }],
+      error: null
+    } as any)
+
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller channelId="c1" onRoll={mockOnRoll} />)
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    await screen.findByRole('button', { name: 'Use 5d6>=4' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use 5d6>=4' }))
+    expect(mockOnRoll).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Target')).toHaveValue(4)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4')
   })
 
   it('renders as a BottomSheet on mobile', () => {
