@@ -381,7 +381,7 @@ describe('LoginPage', () => {
     )
 
     expect(screen.getByLabelText(/I am at least 16 years old and agree to the/)).toBeInTheDocument()
-    expect(screen.getByText(/\(v2026-09-24\)/)).toBeInTheDocument()
+    expect(screen.getByText(/\(v2026-09-29\)/)).toBeInTheDocument()
   })
 
   it('records the agreed terms version when the checkbox is checked', () => {
@@ -407,7 +407,7 @@ describe('LoginPage', () => {
 
     const checkbox = screen.getByLabelText(/at least 16 years old/)
     fireEvent.click(checkbox)
-    expect(localStorage.getItem('terms-agreed-version')).toBe('2026-09-24')
+    expect(localStorage.getItem('terms-agreed-version')).toBe('2026-09-29')
 
     fireEvent.click(checkbox)
     expect(localStorage.getItem('terms-agreed-version')).toBeNull()
@@ -681,6 +681,30 @@ describe('LoginPage', () => {
 
       render(
         <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent('//evil.example.com')}`]}>
+          <LoginPage />
+        </MemoryRouter>
+      )
+
+      expect(sessionStorage.getItem('auth_redirect')).toBeNull()
+    })
+
+    it('rejects a backslash-smuggled redirect param', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        loading: false,
+        user: null,
+        profile: null,
+        session: null,
+        error: null,
+        signInWithGoogle: vi.fn(),
+        signInWithEmail: vi.fn(),
+        signOut: vi.fn(),
+        refreshProfile: vi.fn(),
+        termsConfirmState: 'idle',
+        retryTermsConfirm: vi.fn(),
+      })
+
+      render(
+        <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent('/\\evil.example.com')}`]}>
           <LoginPage />
         </MemoryRouter>
       )

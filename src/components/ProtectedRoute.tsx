@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
+import { isSafeRedirectPath } from '../features/auth/AuthContext'
 import { confirmAge, confirmTerms } from '../features/auth/authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from '../features/auth/terms'
 import { ReConsentGate } from '../features/auth/ReConsentGate'
@@ -37,7 +38,7 @@ export function ProtectedRoute() {
   }
 
   const redirectTo = sessionStorage.getItem('auth_redirect')
-  if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//')) {
+  if (isSafeRedirectPath(redirectTo)) {
     sessionStorage.removeItem('auth_redirect')
     return <Navigate to={redirectTo} replace />
   }

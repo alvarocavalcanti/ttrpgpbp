@@ -30,9 +30,18 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Same-origin relative-path guard shared with ProtectedRoute's
 // sessionStorage check. A magic-link `redirect` that fails this is dropped
-// (the user lands on /) instead of becoming an open redirect.
+// (the user lands on /) instead of becoming an open redirect. Text prefix
+// checks alone are not enough: `/\evil.example.com` passes a slash check but
+// URL parsing treats the backslash as a slash, resolving to another origin —
+// and React Router's pushState fallback would then navigate there. Reject
+// backslashes and confirm the parsed URL stays on this origin.
 export function isSafeRedirectPath(path: string | null | undefined): path is string {
-  return !!path && path.startsWith('/') && !path.startsWith('//')
+  if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return false
+  try {
+    return new URL(path, window.location.origin).origin === window.location.origin
+  } catch {
+    return false
+  }
 }
 
 // The Supabase emailRedirectTo for magic links (#205). The `redirect` query

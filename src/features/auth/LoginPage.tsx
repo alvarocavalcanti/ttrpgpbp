@@ -104,13 +104,15 @@ export function LoginPage() {
   const [linkError] = useState<string | null>(() => readMagicLinkError())
 
   // The magic link carries the intended destination in `?redirect=`; seed the
-  // existing sessionStorage hand-off before any early return so ProtectedRoute
-  // can honour it once the session lands. sessionStorage alone would not
-  // survive a link opened in a new tab or on another device (fallback: lobby).
+  // existing sessionStorage hand-off so ProtectedRoute can honour it once the
+  // session lands. sessionStorage alone would not survive a link opened in a
+  // new tab or on another device (fallback: lobby).
   const redirectParam = searchParams.get('redirect')
-  if (isSafeRedirectPath(redirectParam)) {
-    sessionStorage.setItem('auth_redirect', redirectParam)
-  }
+  useEffect(() => {
+    if (isSafeRedirectPath(redirectParam)) {
+      sessionStorage.setItem('auth_redirect', redirectParam)
+    }
+  }, [redirectParam])
 
   // Clear the magic-link error fragment so a refresh does not re-show it
   // (supabase-js leaves the hash untouched on the error path).

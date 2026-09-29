@@ -14,10 +14,10 @@ describe('ReConsentGate', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Our Terms and Privacy Policy have changed')).toBeInTheDocument()
     expect(screen.getByText(/You last accepted version 2026-09-21\./)).toBeInTheDocument()
-    expect(screen.getByText(/Please review and accept version 2026-09-24 to keep using Role by Post\./)).toBeInTheDocument()
+    expect(screen.getByText(/Please review and accept version 2026-09-29 to keep using Role by Post\./)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
-    expect(screen.getByRole('button', { name: /I accept the updated Terms \(v2026-09-24\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /I accept the updated Terms \(v2026-09-29\)/ })).toBeInTheDocument()
   })
 
   it('omits the previously accepted version when none was recorded', () => {
@@ -29,7 +29,7 @@ describe('ReConsentGate', () => {
 
     expect(screen.getByText('Our Terms and Privacy Policy have changed')).toBeInTheDocument()
     expect(screen.queryByText(/You last accepted version/)).not.toBeInTheDocument()
-    expect(screen.getByText(/Please review and accept version 2026-09-24 to keep using Role by Post\./)).toBeInTheDocument()
+    expect(screen.getByText(/Please review and accept version 2026-09-29 to keep using Role by Post\./)).toBeInTheDocument()
   })
 
   it('calls onAccept when the user agrees', async () => {
