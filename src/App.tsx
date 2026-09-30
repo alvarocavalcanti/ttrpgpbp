@@ -15,6 +15,7 @@ import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
 import { PermissionBanner } from './features/notifications/PermissionBanner'
+import { CURRENT_TERMS_VERSION } from './features/auth/terms'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
@@ -334,10 +335,15 @@ function InstallBannerGate() {
 
 // The push-notification permission prompt lived in the Lobby's flow, pushing
 // the channel list down. All transient banners now float in one host (#620),
-// so it renders there too — gated to the Lobby to preserve where it appears.
+// so it renders there too — gated to the Lobby to preserve where it appears,
+// and to the same readiness ProtectedRoute enforces before rendering <Outlet/>
+// (#635 review): the prompt (and its hook's subscription reconcile) must not
+// run before the profile loads or while a terms re-acceptance is pending.
 function PermissionBannerGate() {
   const { pathname } = useLocation()
+  const { user, profile, loading } = useAuth()
   if (pathname !== '/') return null
+  if (loading || !user || !profile || profile.terms_version !== CURRENT_TERMS_VERSION) return null
   return <PermissionBanner />
 }
 
