@@ -148,10 +148,14 @@ console.log('npc-composer done')
 await closeSheets()
 
 // ── 8. Dice roller bottom sheet ──────────────────────────────────────────
+// The marketing card sells dice pools, so capture the Successes pool mode
+// (target-number field) rather than the default Sum mode.
 await page.click('[aria-label="Toggle options"]')
 await page.waitForTimeout(400)
 await page.getByRole('button', { name: 'Roll Dice' }).click()
 await page.waitForTimeout(800)
+await page.getByRole('button', { name: 'Successes' }).click()
+await page.waitForTimeout(600)
 await page.screenshot({ path: `${OUT}/dice-panel.png` })
 console.log('dice-panel done')
 await closeSheets()
