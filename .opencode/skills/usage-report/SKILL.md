@@ -35,25 +35,27 @@ Definitions used by the query:
 
 ## Run
 
-From the repo root:
+From the repo root (or any subdirectory):
 
 ```bash
-REF=$(jq -r .ref supabase/.temp/linked-project.json) \
-  || { echo "No linked project. Run: npx supabase link --project-ref <ref>"; exit 1; }
-TOKEN=$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2- | tr -d '"')
-[ -n "$TOKEN" ] || { echo "SUPABASE_ACCESS_TOKEN missing from .env"; exit 1; }
-
-jq -n --rawfile q .opencode/skills/usage-report/usage.sql '{query:$q, read_only:true}' \
-  | curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @- \
-  | jq '.[0].report // .'
+sh scripts/usage-report/run.sh
 ```
 
-The endpoint returns `[{"report": { … }}]`; `jq '.[0].report // .'` unwraps it
-(and surfaces a `{message, code}` error body unchanged). If the response has no
-`report` key, stop and show the user the error — do not fabricate numbers.
+The runner resolves the access token and linked project ref itself, so a **fresh
+git worktree works without re-linking** — `.env` and `supabase/.temp/linked-project.json`
+are gitignored and absent there. Resolution order:
+
+- **ref** — `SUPABASE_PROJECT_REF` → `supabase/.temp/linked-project.json` →
+  the primary worktree's copy (via `git worktree list`).
+- **token** — `SUPABASE_ACCESS_TOKEN` → `.env` → the primary worktree's `.env`
+  → `~/.supabase/access-token` (the Supabase CLI's own file).
+
+If neither can be found it exits non-zero with the exact command to fix it. It
+never prints the token.
+
+The runner prints the unwrapped report JSON (the `.report` object; a
+`{message, code}` error body is surfaced unchanged). If there is no `report`
+key, stop and show the user the error — do not fabricate numbers.
 
 > `read_only: true` enforces the safety rail. Never remove it, and never edit
 > `usage.sql` to select `messages.content`, emails, or names — the report is
