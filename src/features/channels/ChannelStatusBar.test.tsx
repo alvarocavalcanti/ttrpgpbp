@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
+    from: vi.fn(),
+    rpc: vi.fn()
   }
 }))
 
@@ -133,9 +134,7 @@ describe('ChannelStatusBar', () => {
   })
 
   it('allows GM to edit status', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
     const mockOnUpdate = vi.fn()
 
     render(<ChannelStatusBar channelId="c1" statusText="Old status" activePlayers={[]} isGM={true} onUpdate={mockOnUpdate} />)
@@ -149,8 +148,10 @@ describe('ChannelStatusBar', () => {
     fireEvent.click(screen.getByText('Save Status'))
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ status_text: 'New status' })
-      expect(mockEq).toHaveBeenCalledWith('id', 'c1')
+      expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
+        p_channel_id: 'c1',
+        p_status_text: 'New status'
+      })
       expect(mockOnUpdate).toHaveBeenCalled()
     })
   })
@@ -174,9 +175,7 @@ describe('ChannelStatusBar', () => {
   })
 
   it('handles save error gracefully', async () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: new Error('DB Error') })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('DB Error') } as any)
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(<ChannelStatusBar channelId="c1" statusText="Old status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)

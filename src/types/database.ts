@@ -1409,6 +1409,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_channel_status: {
+        Args: { p_channel_id: string; p_status_text: string }
+        Returns: undefined
+      }
       url_scheme_allowed: { Args: { p_url: string }; Returns: boolean }
     }
     Enums: {

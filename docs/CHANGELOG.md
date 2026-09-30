@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-09-30
 
+### Added
+
+- **Status changes are announced** — when the GM edits or clears the channel status, everyone in the channel now sees a short system note in the chat, so players never miss that the table state changed.
+
 ### Fixed
 
 - **The channel window stays put** — dragging on a channel's name no longer shifts the whole chat window; only the messages scroll. Connection, update, and notification notices now float over the page instead of shoving it down.
