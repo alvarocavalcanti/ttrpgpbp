@@ -22,11 +22,18 @@ describe('RealtimeBanner', () => {
     expect(screen.queryByTestId('realtime-banner')).not.toBeInTheDocument()
   })
 
-  it('shows reconnecting state while a channel retries', () => {
+  it('floats as a card in the shared banner host instead of pushing the page (issue #620)', () => {
     render(<RealtimeBanner />)
 
     act(() => reportRealtimeStatus('banner-test', 'CHANNEL_ERROR'))
 
-    expect(screen.getByTestId('realtime-banner')).toHaveTextContent('Reconnecting')
+    const banner = screen.getByTestId('realtime-banner')
+    expect(banner).toHaveTextContent('Reconnecting')
+    // Same card treatment as PwaUpdateBanner; asserted literally so a return
+    // to the in-flow strip fails. The host is pointer-transparent, the card
+    // intercepts its own taps.
+    expect(banner.className).toContain('pointer-events-auto')
+    expect(banner.className).toContain('rounded-lg')
+    expect(banner.className).toContain('shadow-lg')
   })
 })

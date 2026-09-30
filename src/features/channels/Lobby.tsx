@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { CreateChannelModal } from './CreateChannelModal'
 import { usePushNotifications } from '../notifications/usePushNotifications'
-import { PermissionBanner } from '../notifications/PermissionBanner'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
@@ -130,7 +129,6 @@ export function Lobby() {
   return (
     <div className="w-full max-w-7xl mx-auto pt-0 pb-8 md:px-6 lg:px-8 relative flex-1">
       <div className="flex flex-col gap-6">
-        <PermissionBanner />
         <div className="bg-white dark:bg-surface-800 border-y border-surface-200 dark:border-surface-700 md:border-none md:shadow overflow-hidden md:rounded-md">
           {filteredMy.length === 0 ? (
             q ? (

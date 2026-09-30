@@ -212,6 +212,9 @@ describe('MessageList', () => {
     const scrollContainer = container.firstChild as HTMLElement
     expect(scrollContainer.className).toContain('overflow-x-hidden')
     expect(scrollContainer.className).toContain('overflow-y-auto')
+    // Over-dragging at the list ends must not chain to the document scroller
+    // (issue #620): the list keeps its own scroll region.
+    expect(scrollContainer.className).toContain('overscroll-none')
   })
 
   it('renders date dividers correctly', () => {

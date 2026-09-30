@@ -112,7 +112,7 @@ describe('PermissionBanner', () => {
     }
   })
 
-  it('keeps top spacing matching the gap below (issue #463)', () => {
+  it('floats in the shared banner host instead of the page flow (issue #620)', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true,
       permission: 'default',
@@ -121,9 +121,13 @@ describe('PermissionBanner', () => {
     } as any)
 
     render(<PermissionBanner />)
-    // The lobby container has pt-0; without this top margin the banner sits
-    // flush against the header while the list below is separated by gap-6.
-    expect(screen.getByRole('region').className).toContain('mt-6')
+    // The overlay host is pointer-transparent; every banner is a card that
+    // intercepts its own taps. Asserted literally so a flow regression fails.
+    const region = screen.getByRole('region')
+    expect(region.className).toContain('pointer-events-auto')
+    expect(region.className).toContain('rounded-lg')
+    expect(region.className).toContain('shadow-lg')
+    expect(region.className).not.toMatch(/\bmt-6\b/)
   })
 
   it('enables notifications on click', async () => {

@@ -60,6 +60,7 @@ const RAW_TOKEN_ALLOWLIST = [
   'components/ProtectedRoute.tsx',
   'components/PwaInstallBanner.tsx',
   'components/PwaUpdateBanner.tsx',
+  'components/RealtimeBanner.tsx',
   'components/ThemeToggle.tsx',
   'contexts/ToastContext.tsx',
   'features/admin-messages/AdminMessagesView.tsx',

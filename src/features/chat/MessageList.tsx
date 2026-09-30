@@ -436,7 +436,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       role="log"
       aria-live="polite"
       tabIndex={0}
-      className="flex-1 overflow-y-auto overflow-x-hidden px-0 py-1 space-y-2"
+      className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none px-0 py-1 space-y-2"
     >
       <div ref={contentRef}>
       {hasMore && (
