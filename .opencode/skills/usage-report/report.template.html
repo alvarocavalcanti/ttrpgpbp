@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Role by Post — app usage report</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#2a2f3a; --text:#e7e9ee; --muted:#9aa3b2;
+    --accent:#6ea8fe; --accent2:#7ee0a8; --accent3:#f0a35e; --accent4:#c98bf0;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7f9; --panel:#fff; --line:#e3e6ec; --text:#1b1e25; --muted:#5b6472; }
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  header{ padding:28px 20px 12px; max-width:1000px; margin:0 auto; }
+  h1{ font-size:22px; margin:0 0 4px; }
+  h2{ font-size:16px; margin:0 0 12px; }
+  .muted{ color:var(--muted); font-weight:400; }
+  main{ max-width:1000px; margin:0 auto; padding:8px 20px 48px; display:grid; gap:20px; }
+  section{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .card .k{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .card .v{ font-size:26px; font-weight:650; margin-top:4px; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:720px){ .grid2{ grid-template-columns:1fr; } }
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th,td{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th{ color:var(--muted); font-weight:500; }
+  td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; }
+  .svg{ width:100%; height:auto; display:block; }
+  .grid{ stroke:var(--line); stroke-width:1; }
+  .axis{ fill:var(--muted); font-size:11px; }
+  .value{ fill:var(--muted); font-size:11px; }
+  .legend{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px; font-size:13px; color:var(--muted); }
+  .legend .lg{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .empty{ color:var(--muted); }
+  .fnrow{ display:grid; grid-template-columns:180px 1fr auto; gap:10px; align-items:center; margin:8px 0; }
+  .fnbar{ background:var(--line); border-radius:6px; height:18px; overflow:hidden; }
+  .fnbar > div{ background:var(--accent); height:100%; border-radius:6px; }
+  .fnval{ font-variant-numeric:tabular-nums; }
+  @media (max-width:720px){ .fnrow{ grid-template-columns:120px 1fr; } .fnval{ grid-column:2; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Role by Post — app usage</h1>
+  <p class="muted" id="meta"></p>
+</header>
+<main>
+  <section class="cards" id="headline"></section>
+
+  <section>
+    <h2>Growth since launch</h2>
+    <div id="growth-table"></div>
+    <div id="chart-signups" class="chart"></div>
+  </section>
+
+  <section>
+    <h2>Adoption funnel</h2>
+    <div id="funnel"></div>
+  </section>
+
+  <section>
+    <h2>Channel reality</h2>
+    <p class="muted" id="channel-note"></p>
+    <div class="grid2">
+      <div><div id="chart-buckets"></div></div>
+      <div><div id="chart-gm"></div></div>
+    </div>
+    <div id="matrix"></div>
+  </section>
+
+  <section>
+    <h2>Engagement</h2>
+    <div id="chart-dau"></div>
+    <div id="engagement-table"></div>
+  </section>
+
+  <section>
+    <h2>Retention</h2>
+    <div id="retention"></div>
+  </section>
+
+  <section>
+    <h2>Admin mirror</h2>
+    <div id="admin"></div>
+  </section>
+</main>
+
+<script>
+/* The report JSON payload is injected below (single occurrence for the skill). */
+const RAW = __DATA__;
+const DATA = (RAW && RAW.report) ? RAW.report : (RAW || {});
+
+const C = { a:'var(--accent)', b:'var(--accent2)', c:'var(--accent3)', d:'var(--accent4)' };
+const fmt = n => new Intl.NumberFormat('en-US').format(Number(n) || 0);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const el = id => document.getElementById(id);
+const pct = (num, den) => den ? Math.round(100 * num / den) : 0;
+const dd = s => { try { return new Date(s).toISOString().slice(5, 10); } catch { return s; } };
+const bytes = b => { b = Number(b) || 0; const u = ['B','KB','MB','GB']; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return `${b.toFixed(i ? 1 : 0)} ${u[i]}`; };
+
+function lineChart(mount, seriesList) {
+  const points0 = (seriesList[0] && seriesList[0].points) || [];
+  const n = points0.length;
+  if (!n) { mount.innerHTML = '<p class="empty">No data yet.</p>'; return; }
+  const W = 640, H = 220, P = { t: 16, r: 16, b: 30, l: 44 };
+  const iw = W - P.l - P.r, ih = H - P.t - P.b;
+  const max = Math.max(1, ...seriesList.flatMap(s => s.points.map(p => p.value)));
+  const x = i => P.l + (n === 1 ? iw / 2 : iw * i / (n - 1));
+  const y = v => P.t + ih - ih * v / max;
+  let g = '';
+  for (let k = 0; k <= 4; k++) {
+    const v = max * k / 4, yy = y(v);
+    g += `<line class="grid" x1="${P.l}" y1="${yy.toFixed(1)}" x2="${W - P.r}" y2="${yy.toFixed(1)}"/>`;
+    g += `<text class="axis" x="${P.l - 6}" y="${(yy + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(v))}</text>`;
+  }
+  const step = Math.ceil(n / 8);
+  points0.forEach((p, i) => {
+    if (i % step === 0 || i === n - 1)
+      g += `<text class="axis" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(dd(p.label))}</text>`;
+  });
+  seriesList.forEach(s => {
+    const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+    s.points.forEach((p, i) =>
+      g += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="2.5" fill="${s.color}"><title>${esc(s.name)} · ${esc(dd(p.label))}: ${fmt(p.value)}</title></circle>`);
+  });
+  const legend = seriesList.map(s => `<span class="lg"><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('');
+  mount.innerHTML = `<div class="legend">${legend}</div><svg class="svg" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+function barChart(mount, items) {
+  if (!items.length) { mount.innerHTML = '<p class="empty">No data yet.</p>'; return; }
+  const W = 640, H = 220, P = { t: 16, r: 16, b: 32, l: 44 };
+  const iw = W - P.l - P.r, ih = H - P.t - P.b;
+  const max = Math.max(1, ...items.map(i => i.value));
+  const bw = iw / items.length, bar = Math.min(52, bw * 0.68);
+  let g = '';
+  for (let k = 0; k <= 4; k++) {
+    const yy = P.t + ih - ih * k / 4;
+    g += `<line class="grid" x1="${P.l}" y1="${yy.toFixed(1)}" x2="${W - P.r}" y2="${yy.toFixed(1)}"/>`;
+    g += `<text class="axis" x="${P.l - 6}" y="${(yy + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(max * k / 4))}</text>`;
+  }
+  items.forEach((it, i) => {
+    const cx = P.l + bw * i + bw / 2, h = ih * it.value / max, yy = P.t + ih - h;
+    g += `<rect x="${(cx - bar / 2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bar.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--accent)"><title>${esc(it.label)}: ${fmt(it.value)}</title></rect>`;
+    g += `<text class="value" x="${cx.toFixed(1)}" y="${(yy - 6).toFixed(1)}" text-anchor="middle">${fmt(it.value)}</text>`;
+    g += `<text class="axis" x="${cx.toFixed(1)}" y="${H - 12}" text-anchor="middle">${esc(it.label)}</text>`;
+  });
+  mount.innerHTML = `<svg class="svg" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+function funnel(mount, steps) {
+  const max = Math.max(1, ...steps.map(s => s.value));
+  mount.innerHTML = steps.map((s, i) => {
+    const conv = i === 0 ? '' : ` <span class="muted">(${pct(s.value, steps[i - 1].value)}% of prev)</span>`;
+    return `<div class="fnrow"><div>${esc(s.label)}</div>`
+      + `<div class="fnbar"><div style="width:${pct(s.value, max)}%"></div></div>`
+      + `<div class="fnval">${fmt(s.value)}${conv}</div></div>`;
+  }).join('');
+}
+
+function kvTable(mount, rows) {
+  mount.innerHTML = `<table><tbody>${rows.map(([k, v]) =>
+    `<tr><td>${esc(k)}</td><td class="n">${esc(v)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function card(k, v) { return `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`; }
+
+/* ---- render ---- */
+try {
+  el('meta').textContent = `Generated ${DATA.generated_at ? new Date(DATA.generated_at).toLocaleString() : '—'}`
+    + (DATA.launch_at ? ` · launch ${new Date(DATA.launch_at).toLocaleString()}` : '');
+
+  const g = DATA.growth || {}, f = DATA.funnel || {}, ch = DATA.channels || {},
+    en = DATA.engagement || {}, r = DATA.retention || {}, ad = DATA.admin_mirror || {};
+
+  el('headline').innerHTML = [
+    card('Active tables (lifetime)', fmt(ch.active_lifetime)),
+    card('Active tables (14d)', fmt(ch.active_recent)),
+    card('People who sent a message', fmt(f.sent_a_message)),
+    card('Signups since launch', fmt(g.profiles_since_launch)),
+  ].join('');
+
+  kvTable(el('growth-table'), [
+    ['Total profiles', fmt(g.total_profiles)],
+    ['Profiles since launch', fmt(g.profiles_since_launch)],
+    ['Profiles · last 7d', fmt(g.profiles_7d)],
+    ['Profiles · last 24h', fmt(g.profiles_24h)],
+    ['Active channels', fmt(g.active_channels)],
+    ['Channels since launch', fmt(g.channels_since_launch)],
+    ['Channels · last 7d', fmt(g.channels_7d)],
+    ['Archived channels', fmt(g.archived_channels)],
+  ]);
+
+  const sDays = g.signups_per_day || [], cDays = g.channels_per_day || [];
+  const labels = [...new Set([...sDays, ...cDays].map(d => d.day))].sort();
+  const pick = (arr) => labels.map(l => { const m = arr.find(d => d.day === l); return { label: l, value: m ? m.n : 0 }; });
+  lineChart(el('chart-signups'), [
+    { name: 'Signups', color: C.a, points: pick(sDays) },
+    { name: 'Channels', color: C.b, points: pick(cDays) },
+  ]);
+
+  funnel(el('funnel'), [
+    { label: 'Signed up', value: f.signups || 0 },
+    { label: 'Joined a channel', value: f.joined_a_channel || 0 },
+    { label: 'Sent a message', value: f.sent_a_message || 0 },
+    { label: 'In an active table', value: f.in_active_table || 0 },
+  ]);
+
+  el('channel-note').textContent =
+    `${fmt(ch.active_lifetime)} active tables (≥2 senders, ≥15 messages) of ${fmt(g.active_channels)} channels; `
+    + `${fmt(ch.active_recent)} active in the last 14 days.`;
+
+  barChart(el('chart-buckets'), (ch.sender_buckets || []).map(b => ({
+    label: `${b.senders} sender${b.senders === '1' ? '' : 's'}`, value: b.channels,
+  })));
+  barChart(el('chart-gm'), (ch.gm_only_histogram || []).map(b => ({ label: b.bucket, value: b.channels })));
+
+  const matrix = ch.sender_message_matrix || [];
+  if (matrix.length) {
+    el('matrix').innerHTML = '<h3 class="muted" style="font-size:13px;margin:14px 0 6px">Channels by senders × messages</h3>'
+      + `<table><thead><tr><th>Senders</th><th>Messages</th><th class="n">Channels</th></tr></thead><tbody>`
+      + matrix.map(m => `<tr><td>${esc(m.senders)}</td><td>${esc(m.msgs)}</td><td class="n">${fmt(m.channels)}</td></tr>`).join('')
+      + '</tbody></table>';
+  }
+
+  lineChart(el('chart-dau'), [{ name: 'Distinct senders', color: C.a, points: (en.senders_per_day || []).map(d => ({ label: d.day, value: d.senders })) }]);
+
+  const t = en.messages_by_type || {}, np = en.notification_prefs || {};
+  kvTable(el('engagement-table'), [
+    ['Human messages (all time)', fmt(en.messages_per_day ? en.messages_per_day.reduce((a, d) => a + d.messages, 0) : 0)],
+    ['Messages · regular', fmt(t.regular)],
+    ['Messages · scene', fmt(t.scene)],
+    ['Messages · dice_roll', fmt(t.dice_roll)],
+    ['Dice rolls (total)', fmt(en.dice_rolls_total)],
+    ['Reactions (total)', fmt(en.reactions_total)],
+    ['Safety cards (total)', fmt(en.safety_cards_total)],
+    ['Join failures (user×channel)', fmt(en.join_failure_pairs)],
+    ['Notification rows', fmt(np.rows)],
+    ['Push enabled', fmt(np.push_enabled)],
+    ['Email enabled', fmt(np.email_enabled)],
+  ]);
+
+  kvTable(el('retention'), [
+    ['Launch-week signups', fmt(r.launch_week_signups)],
+    ['…posted in week 1', fmt(r.cohort_sent_week1)],
+    ['…posted in week 2', fmt(r.cohort_sent_week2)],
+    ['…posted in week 3', fmt(r.cohort_sent_week3)],
+    ['Joined but never posted', fmt(r.joined_never_posted)],
+  ]);
+
+  kvTable(el('admin'), [
+    ['Image storage', bytes(ad.image_storage_bytes)],
+    ['Abuse reports · pending', fmt(ad.abuse_reports_pending)],
+    ['Abuse reports · resolved', fmt(ad.abuse_reports_resolved)],
+    ['Abuse reports · dismissed', fmt(ad.abuse_reports_dismissed)],
+    ['Suspended users', fmt(ad.suspended_users)],
+  ]);
+} catch (err) {
+  document.querySelector('main').insertAdjacentHTML('afterbegin',
+    `<section><p class="empty">Failed to render report: ${esc(err && err.message || err)}</p></section>`);
+}
+</script>
+</body>
+</html>
