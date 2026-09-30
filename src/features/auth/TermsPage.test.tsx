@@ -145,7 +145,7 @@ describe('TermsPage', () => {
 
   it('names the data controller from env', () => {
     mockEnv.VITE_CONTROLLER_NAME = 'Alvaro Cavalcanti'
-    mockEnv.VITE_CONTROLLER_EMAIL = 'alvarovictor@gmail.com'
+    mockEnv.VITE_CONTROLLER_EMAIL = 'support@rolebypost.com'
     render(
       <MemoryRouter>
         <TermsPage />
@@ -153,7 +153,7 @@ describe('TermsPage', () => {
     )
 
     expect(screen.getByText(/Alvaro Cavalcanti/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'alvarovictor@gmail.com' })).toHaveAttribute('href', 'mailto:alvarovictor@gmail.com')
+    expect(screen.getByRole('link', { name: 'support@rolebypost.com' })).toHaveAttribute('href', 'mailto:support@rolebypost.com')
   })
 
   it('renders a generic controller line without contact when env is unset', () => {

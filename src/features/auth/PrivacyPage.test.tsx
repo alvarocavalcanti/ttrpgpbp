@@ -197,7 +197,7 @@ describe('PrivacyPage', () => {
 
   it('names the data controller from env', () => {
     mockEnv.VITE_CONTROLLER_NAME = 'Alvaro Cavalcanti'
-    mockEnv.VITE_CONTROLLER_EMAIL = 'alvarovictor@gmail.com'
+    mockEnv.VITE_CONTROLLER_EMAIL = 'support@rolebypost.com'
     render(
       <MemoryRouter>
         <PrivacyPage />
@@ -206,9 +206,9 @@ describe('PrivacyPage', () => {
 
     expect(screen.getByText('Data controller')).toBeInTheDocument()
     expect(screen.getAllByText(/Alvaro Cavalcanti/).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('link', { name: 'alvarovictor@gmail.com' })).toHaveLength(2)
-    screen.getAllByRole('link', { name: 'alvarovictor@gmail.com' }).forEach((link) => {
-      expect(link).toHaveAttribute('href', 'mailto:alvarovictor@gmail.com')
+    expect(screen.getAllByRole('link', { name: 'support@rolebypost.com' })).toHaveLength(2)
+    screen.getAllByRole('link', { name: 'support@rolebypost.com' }).forEach((link) => {
+      expect(link).toHaveAttribute('href', 'mailto:support@rolebypost.com')
     })
   })
 
