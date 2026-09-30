@@ -209,7 +209,7 @@ describe('FeaturesPage', () => {
     expect(img).toHaveAttribute('src', '/help/dice-panel.png')
     expect(img).toHaveAttribute(
       'alt',
-      'Dice Roller bottom sheet with Sum, Pool, and Successes modes'
+      'Dice Roller with the Successes pool mode selected, showing the target-number field'
     )
   })
 

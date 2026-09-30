@@ -101,7 +101,7 @@ const PLAYER_CARDS: FeatureCard[] = [
     title: 'Dice pools that read as rolled',
     copy: 'For games where each die is read on its own: roll NdMp to list every face, or NdM>=T to count successes against a target. The roller has matching Pool and Successes modes.',
     shot: '/help/dice-panel.png',
-    alt: 'Dice Roller bottom sheet with Sum, Pool, and Successes modes',
+    alt: 'Dice Roller with the Successes pool mode selected, showing the target-number field',
   },
 ]
 
