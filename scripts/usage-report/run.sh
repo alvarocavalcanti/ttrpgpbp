@@ -52,7 +52,9 @@ resolve_ref() {
 TOKEN=$(resolve_token || true)
 [ -n "$TOKEN" ] || {
   echo "usage-report: no Supabase access token found." >&2
-  echo "  Set SUPABASE_ACCESS_TOKEN, add it to .env, or run: npx supabase login" >&2
+  echo "  Set SUPABASE_ACCESS_TOKEN (or add it to .env)." >&2
+  echo "  Fallback: 'npx supabase login' writes ~/.supabase/access-token when the CLI" >&2
+  echo "  does not use native credential storage (e.g. an OS keychain)." >&2
   exit 1
 }
 
@@ -69,9 +71,19 @@ if [ "${1:-}" = "--resolve-only" ]; then
   exit 0
 fi
 
-jq -n --rawfile q "$SQL" '{query:$q, read_only:true}' \
-  | curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @- \
-  | jq '.[0].report // .'
+BODY=$(jq -n --rawfile q "$SQL" '{query:$q, read_only:true}') || {
+  echo "usage-report: failed to build the query request body." >&2
+  exit 1
+}
+
+RESPONSE=$(printf '%s' "$BODY" | curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    --data-binary @-) || {
+  echo "usage-report: request to the Supabase Management API failed." >&2
+  exit 1
+}
+
+# Success is `[{ "report": { … } }]`; an error body is a `{ message, code }`
+# object. Index only arrays so an error object passes through unchanged.
+printf '%s' "$RESPONSE" | jq 'if type == "array" then (.[0].report // .) else . end'

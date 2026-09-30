@@ -48,7 +48,9 @@ are gitignored and absent there. Resolution order:
 - **ref** — `SUPABASE_PROJECT_REF` → `supabase/.temp/linked-project.json` →
   the primary worktree's copy (via `git worktree list`).
 - **token** — `SUPABASE_ACCESS_TOKEN` → `.env` → the primary worktree's `.env`
-  → `~/.supabase/access-token` (the Supabase CLI's own file).
+  → `~/.supabase/access-token`. That last file is only a fallback: `npx supabase
+  login` writes it only when the CLI is not using native credential storage (an
+  OS keychain). When in doubt, provide `SUPABASE_ACCESS_TOKEN`.
 
 If neither can be found it exits non-zero with the exact command to fix it. It
 never prints the token.

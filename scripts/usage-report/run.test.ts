@@ -43,6 +43,21 @@ describe('scripts/usage-report/run.sh', () => {
       'utf8',
     )
     chmodSync(git, 0o755)
+
+    // Stub `curl` so the run path is exercised without a network call: drain the
+    // request body from stdin, emit the canned response, then honour the exit.
+    const curl = join(bin, 'curl')
+    writeFileSync(
+      curl,
+      [
+        '#!/bin/sh',
+        'cat >/dev/null',
+        'printf \'%s\' "${STUB_CURL_RESPONSE:-}"',
+        'exit "${STUB_CURL_EXIT:-0}"',
+      ].join('\n'),
+      'utf8',
+    )
+    chmodSync(curl, 0o755)
   })
 
   afterEach(() => {
@@ -61,6 +76,14 @@ describe('scripts/usage-report/run.sh', () => {
         ...env,
       },
     })
+  }
+
+  // Minimal setup for a full (non --resolve-only) run: token + ref + the SQL
+  // file the runner reads.
+  function arrangeRun(): void {
+    writeFile(join(worktree, '.env'), 'SUPABASE_ACCESS_TOKEN=sbp_run_token\n')
+    writeFile(join(worktree, 'supabase/.temp/linked-project.json'), '{"ref":"ref-run"}')
+    writeFile(join(worktree, '.opencode/skills/usage-report/usage.sql'), 'select 1\n')
   }
 
   it('resolves the ref and token from the local files, never printing the token', () => {
@@ -142,5 +165,45 @@ describe('scripts/usage-report/run.sh', () => {
 
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('no linked Supabase project found')
+  })
+
+  it('unwraps the report from an array response', () => {
+    arrangeRun()
+
+    const r = run([], { STUB_CURL_RESPONSE: '[{"report":{"active":7}}]' })
+
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain('"active": 7')
+  })
+
+  it('passes an object error response through unchanged', () => {
+    arrangeRun()
+
+    const r = run([], { STUB_CURL_RESPONSE: '{"message":"boom","code":401}' })
+
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain('"message": "boom"')
+    expect(r.stdout).toContain('"code": 401')
+  })
+
+  it('exits nonzero when the request fails', () => {
+    arrangeRun()
+
+    const r = run([], { STUB_CURL_EXIT: '7' })
+
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('request to the Supabase Management API failed')
+  })
+
+  it('exits nonzero when the request body cannot be built', () => {
+    // Token and ref resolve, but the SQL file is missing, so jq cannot build
+    // the body — the run must fail before hitting the network.
+    writeFile(join(worktree, '.env'), 'SUPABASE_ACCESS_TOKEN=sbp_run_token\n')
+    writeFile(join(worktree, 'supabase/.temp/linked-project.json'), '{"ref":"ref-run"}')
+
+    const r = run([], { STUB_CURL_RESPONSE: '[{"report":{}}]' })
+
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('failed to build the query request body')
   })
 })

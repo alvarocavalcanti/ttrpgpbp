@@ -199,12 +199,24 @@ try {
     ['Archived channels', fmt(g.archived_channels)],
   ]);
 
-  const sDays = g.signups_per_day || [], cDays = g.channels_per_day || [];
-  const labels = [...new Set([...sDays, ...cDays].map(d => d.day))].sort();
-  const pick = (arr) => labels.map(l => { const m = arr.find(d => d.day === l); return { label: l, value: m ? m.n : 0 }; });
+  // Build a complete calendar-date axis across every daily series, so inactive
+  // days render as zero points rather than collapsing the line.
+  const daily = [g.signups_per_day || [], g.channels_per_day || [], en.senders_per_day || []];
+  const dates = [...new Set(daily.flat().map(d => d.day))].sort();
+  const axis = [];
+  for (
+    let d = dates.length ? Date.parse(dates[0]) : NaN,
+        end = dates.length ? Date.parse(dates[dates.length - 1]) : NaN;
+    d <= end;
+    d += 86400000
+  ) axis.push(new Date(d).toISOString().slice(0, 10));
+  const zeroFill = (arr, key) => axis.map(day => {
+    const row = arr.find(d => d.day === day);
+    return { label: day, value: row ? row[key] : 0 };
+  });
   lineChart(el('chart-signups'), [
-    { name: 'Signups', color: C.a, points: pick(sDays) },
-    { name: 'Channels', color: C.b, points: pick(cDays) },
+    { name: 'Signups', color: C.a, points: zeroFill(g.signups_per_day || [], 'n') },
+    { name: 'Channels', color: C.b, points: zeroFill(g.channels_per_day || [], 'n') },
   ]);
 
   funnel(el('funnel'), [
@@ -231,11 +243,11 @@ try {
       + '</tbody></table>';
   }
 
-  lineChart(el('chart-dau'), [{ name: 'Distinct senders', color: C.a, points: (en.senders_per_day || []).map(d => ({ label: d.day, value: d.senders })) }]);
+  lineChart(el('chart-dau'), [{ name: 'Distinct senders', color: C.a, points: zeroFill(en.senders_per_day || [], 'senders') }]);
 
   const t = en.messages_by_type || {}, np = en.notification_prefs || {};
   kvTable(el('engagement-table'), [
-    ['Human messages (all time)', fmt(en.messages_per_day ? en.messages_per_day.reduce((a, d) => a + d.messages, 0) : 0)],
+    ['Human messages (since launch)', fmt(en.messages_per_day ? en.messages_per_day.reduce((a, d) => a + d.messages, 0) : 0)],
     ['Messages · regular', fmt(t.regular)],
     ['Messages · scene', fmt(t.scene)],
     ['Messages · dice_roll', fmt(t.dice_roll)],
