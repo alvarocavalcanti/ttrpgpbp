@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
+    rpc: vi.fn()
   }
 }))
 
@@ -13,32 +13,30 @@ describe('useChannelStatus', () => {
     vi.clearAllMocks()
   })
 
-  it('updates status_text on the channel row', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null })
-    const update = vi.fn().mockReturnValue({ eq })
-    vi.mocked(supabase.from).mockReturnValue({ update } as any)
+  it('updates the status through the update_channel_status RPC', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
 
     await expect(useChannelStatus().updateStatus('c1', 'On the road')).resolves.toBeNull()
-    expect(supabase.from).toHaveBeenCalledWith('channels')
-    expect(update).toHaveBeenCalledWith({ status_text: 'On the road' })
-    expect(eq).toHaveBeenCalledWith('id', 'c1')
+    expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
+      p_channel_id: 'c1',
+      p_status_text: 'On the road'
+    })
   })
 
-  it('stores null for a blank status', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null })
-    const update = vi.fn().mockReturnValue({ eq })
-    vi.mocked(supabase.from).mockReturnValue({ update } as any)
+  it('forwards a blank status verbatim; the RPC normalizes it to NULL', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
 
     await useChannelStatus().updateStatus('c1', '')
-    expect(update).toHaveBeenCalledWith({ status_text: null })
+    expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
+      p_channel_id: 'c1',
+      p_status_text: ''
+    })
   })
 
-  it('returns the update error so the caller keeps its throw flow', async () => {
-    const updateError = new Error('update failed')
-    const eq = vi.fn().mockResolvedValue({ error: updateError })
-    const update = vi.fn().mockReturnValue({ eq })
-    vi.mocked(supabase.from).mockReturnValue({ update } as any)
+  it('returns the RPC error so the caller keeps its throw flow', async () => {
+    const rpcError = new Error('update failed')
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: rpcError } as any)
 
-    await expect(useChannelStatus().updateStatus('c1', 'x')).resolves.toBe(updateError)
+    await expect(useChannelStatus().updateStatus('c1', 'x')).resolves.toBe(rpcError)
   })
 })

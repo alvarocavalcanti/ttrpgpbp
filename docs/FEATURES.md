@@ -61,6 +61,7 @@
 - **Free-form text** (markdown, emoji; up to 2,000 characters) — initiative order, timers, NPCs, etc.
 - **Active player(s)** — structured field, one or more players, drives notifications
 - Editable by GM at any time
+- Editing or clearing the status posts a short system notice in the timeline so players know it changed
 - When collapsed, first line remains visible
 - A GM can set one active player from that player's **⋯** menu in the member list; the sidebar's multi-select **Active Player** modal handles several at once or clearing all
 
