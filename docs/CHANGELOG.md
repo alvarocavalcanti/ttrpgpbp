@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-30
+
+### Fixed
+
+- **The NPC picker closes after you choose one** — picking an NPC from the suggestion list now dismisses the list instead of leaving it covering the composer. The list also closes when you click elsewhere or press Escape, and it works with the keyboard: use the arrow keys to move through suggestions and Enter to pick one.
+
 ## 2026-09-29
 
 ### Added

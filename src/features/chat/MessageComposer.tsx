@@ -11,6 +11,7 @@ import { BottomSheet } from '../../components/BottomSheet'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { SignedImg } from '../../components/SignedImg'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { useClickOutside } from '../../hooks/useClickOutside'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 import { chipBase, chipIdle, chipActive } from './composerChip'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../lib/safeStorage'
@@ -99,6 +100,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [isNpc, setIsNpc] = useState(false)
   const [npcName, setNpcName] = useState('')
   const [npcAvatarUrl, setNpcAvatarUrl] = useState<string | null>(null)
+  const [npcSuggestionsDismissed, setNpcSuggestionsDismissed] = useState(false)
+  const [activeNpcIndex, setActiveNpcIndex] = useState(0)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,7 +113,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const listboxId = useId()
+  const npcListId = useId()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // Dismiss the NPC roster dropdown on outside click (#633).
+  const npcPickerRef = useClickOutside<HTMLDivElement>(() => setNpcSuggestionsDismissed(true), isNpc)
   const { uploadEnabled, settingsLoading, uploading, uploadImage } = useImageUpload(channelId)
 
   const matchedNpc = npcName.trim()
@@ -119,6 +125,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const npcNameMatches = npcName.trim()
     ? npcs.filter(n => n.name.toLowerCase().includes(npcName.trim().toLowerCase())).slice(0, 5)
     : []
+  // Explicitly dismissable: an exact-name match still "includes" itself, so
+  // the list can't be purely derived or a selection never closes it (#633).
+  const npcSuggestionsOpen = npcNameMatches.length > 0 && !npcSuggestionsDismissed
   // Existing NPC wins; otherwise the explicitly-picked/shuffled avatar.
   const resolvedNpcAvatar = matchedNpc?.avatar_url || npcAvatarUrl
 
@@ -126,6 +135,13 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     setIsNpc(on)
     setIsScene(false)
     if (on && !npcAvatarUrl) setNpcAvatarUrl(randomNpcIconUrl())
+  }
+
+  // Single NPC-selection path shared by mouse and keyboard (#633).
+  const selectNpc = (npc: Npc) => {
+    setNpcName(npc.name)
+    setNpcAvatarUrl(npc.avatar_url)
+    setNpcSuggestionsDismissed(true)
   }
 
   // Auto-resize textarea
@@ -155,6 +171,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   useEffect(() => {
     setActiveMentionIndex(i => (mentionOpen ? Math.min(i, mentionOptions.length - 1) : 0))
   }, [mentionOptions.length, mentionOpen])
+
+  // Keep the NPC highlight on a valid option when the list shrinks (#633).
+  useEffect(() => {
+    setActiveNpcIndex(i => (npcSuggestionsOpen ? Math.min(i, npcNameMatches.length - 1) : 0))
+  }, [npcNameMatches.length, npcSuggestionsOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -574,23 +595,58 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
           {/* NPC config row */}
           {isNpc && (
             <div className="flex flex-wrap items-center gap-2 px-2 sm:px-0">
-              <div className="relative flex-1 min-w-[160px]">
+              <div className="relative flex-1 min-w-[160px]" ref={npcPickerRef}>
                 <input
                   value={npcName}
-                  onChange={(e) => setNpcName(e.target.value)}
+                  onChange={(e) => { setNpcName(e.target.value); setNpcSuggestionsDismissed(false) }}
+                  onFocus={() => setNpcSuggestionsDismissed(false)}
+                  onKeyDown={(e) => {
+                    if (!npcSuggestionsOpen) return
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      setActiveNpcIndex(i => (i + 1) % npcNameMatches.length)
+                      return
+                    }
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      setActiveNpcIndex(i => (i - 1 + npcNameMatches.length) % npcNameMatches.length)
+                      return
+                    }
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                      e.preventDefault()
+                      selectNpc(npcNameMatches[activeNpcIndex])
+                      return
+                    }
+                    // Escape cancels the NPC list without inserting anything;
+                    // stopPropagation keeps the same keypress from also closing a modal
+                    // below via the useEscapeToClose stack.
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setNpcSuggestionsDismissed(true)
+                    }
+                  }}
                   maxLength={MAX_NPC_NAME_LENGTH}
                   placeholder="NPC name (reuse existing or create new)"
                   aria-label="NPC Name"
+                  role="combobox"
+                  aria-autocomplete={npcSuggestionsOpen ? 'list' : undefined}
+                  aria-expanded={npcSuggestionsOpen}
+                  aria-controls={npcSuggestionsOpen ? npcListId : undefined}
+                  aria-activedescendant={npcSuggestionsOpen ? `${npcListId}-option-${Math.min(activeNpcIndex, npcNameMatches.length - 1)}` : undefined}
                   className="block w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                 />
-                {npcNameMatches.length > 0 && (
-                  <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {npcNameMatches.map(n => (
+                {npcSuggestionsOpen && (
+                  <div id={npcListId} role="listbox" aria-label="NPC suggestions" className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {npcNameMatches.map((n, i) => (
                       <button
                         key={n.id}
                         type="button"
-                        onMouseDown={(e) => { e.preventDefault(); setNpcName(n.name); setNpcAvatarUrl(n.avatar_url) }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950 flex items-center space-x-2"
+                        role="option"
+                        id={`${npcListId}-option-${i}`}
+                        aria-selected={activeNpcIndex === i}
+                        onMouseDown={(e) => { e.preventDefault(); selectNpc(n) }}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeNpcIndex === i ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                       >
                         <Avatar className={`h-5 w-5 rounded-full flex-shrink-0 ${isNpcIconUrl(n.avatar_url) ? 'dark:invert' : ''}`} src={n.avatar_url} alt="" referrerPolicy="no-referrer" />
                         <span className="font-medium text-gray-900 dark:text-gray-100">{n.name}</span>
