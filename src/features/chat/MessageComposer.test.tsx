@@ -691,7 +691,7 @@ describe('MessageComposer', () => {
     fireEvent.change(screen.getByLabelText('NPC Name'), { target: { value: 'Faceless' } })
     // Pick from the roster dropdown: this sets npcAvatarUrl to the roster's
     // null avatar_url, so resolvedNpcAvatar stays null and the payload omits it.
-    fireEvent.mouseDown(screen.getByRole('button', { name: /Faceless/i }))
+    fireEvent.mouseDown(screen.getByRole('option', { name: /Faceless/i }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hello' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
@@ -702,6 +702,147 @@ describe('MessageComposer', () => {
         npc_avatar_url: undefined
       }))
     })
+  })
+
+  it('dismisses the NPC roster dropdown after selecting an NPC (#633)', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+
+    fireEvent.mouseDown(screen.getByRole('option', { name: 'Goblin King' }))
+    expect(input).toHaveValue('Goblin King')
+    expect(screen.queryByRole('option', { name: 'Goblin King' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox', { name: 'NPC suggestions' })).not.toBeInTheDocument()
+  })
+
+  it('reopens the NPC roster dropdown when the name is edited after a selection', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+    fireEvent.mouseDown(screen.getByRole('option', { name: 'Goblin King' }))
+    expect(screen.queryByRole('option', { name: 'Goblin King' })).not.toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: 'Goblin Kin' } })
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+  })
+
+  it('dismisses the NPC roster dropdown on outside click and reopens on refocus', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('option', { name: 'Goblin King' })).not.toBeInTheDocument()
+
+    fireEvent.focus(input)
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+  })
+
+  it('dismisses the NPC roster dropdown on Escape', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('option', { name: 'Goblin King' })).not.toBeInTheDocument()
+    // Nothing was inserted and the draft is untouched.
+    expect(input).toHaveValue('gob')
+  })
+
+  it('exposes the NPC roster as a combobox with a labelled listbox and options', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByRole('combobox', { name: 'NPC Name' })
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.change(input, { target: { value: 'gob' } })
+    expect(input).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('listbox', { name: 'NPC suggestions' })).toBeInTheDocument()
+    const option = screen.getByRole('option', { name: 'Goblin King' })
+    expect(option).toHaveAttribute('aria-selected', 'true')
+    expect(input.getAttribute('aria-activedescendant')).toBe(option.getAttribute('id'))
+
+    fireEvent.mouseDown(option)
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('listbox', { name: 'NPC suggestions' })).not.toBeInTheDocument()
+  })
+
+  it('selects the highlighted NPC roster option with ArrowDown + Enter', () => {
+    const mockOnSend = vi.fn()
+    const npcs = [
+      { id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' },
+      { id: 'n2', channel_id: 'c1', name: 'Goblin Cook', avatar_url: 'https://example.com/cook.png', created_at: '' },
+    ]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    const options = screen.getAllByRole('option')
+    expect(options).toHaveLength(2)
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(input).toHaveValue('Goblin Cook')
+    expect(screen.queryByRole('listbox', { name: 'NPC suggestions' })).not.toBeInTheDocument()
+    // Enter picked the option instead of submitting the form.
+    expect(mockOnSend).not.toHaveBeenCalled()
+  })
+
+  it('leaves Shift+Tab alone so reverse focus navigation keeps working', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true })
+    // Nothing selected, draft untouched, list still open.
+    expect(input).toHaveValue('gob')
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+  })
+
+  it('selects an NPC roster option via click-only activation', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+
+    // No mousedown: keyboard Enter/Space on the focused option and
+    // screen-reader clicks only send click.
+    fireEvent.click(screen.getByRole('option', { name: 'Goblin King' }))
+    expect(input).toHaveValue('Goblin King')
+    expect(screen.queryByRole('option', { name: 'Goblin King' })).not.toBeInTheDocument()
   })
 
   it('blocks NPC send without a name', async () => {
