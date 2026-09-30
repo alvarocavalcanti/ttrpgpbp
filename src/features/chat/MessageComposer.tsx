@@ -612,7 +612,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                       setActiveNpcIndex(i => (i - 1 + npcNameMatches.length) % npcNameMatches.length)
                       return
                     }
-                    if (e.key === 'Enter' || e.key === 'Tab') {
+                    // Plain Tab picks the highlighted option; Shift+Tab must keep
+                    // its native reverse-focus behavior, never select (#636).
+                    if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
                       e.preventDefault()
                       selectNpc(npcNameMatches[activeNpcIndex])
                       return
@@ -646,6 +648,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                         id={`${npcListId}-option-${i}`}
                         aria-selected={activeNpcIndex === i}
                         onMouseDown={(e) => { e.preventDefault(); selectNpc(n) }}
+                        // Click-only activation (keyboard Enter/Space on the
+                        // focused option, screen-reader click) sends no
+                        // mousedown; the mouse path already unmounted the row
+                        // by click time, so this can't double-select (#636).
+                        onClick={() => selectNpc(n)}
                         className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeNpcIndex === i ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                       >
                         <Avatar className={`h-5 w-5 rounded-full flex-shrink-0 ${isNpcIconUrl(n.avatar_url) ? 'dark:invert' : ''}`} src={n.avatar_url} alt="" referrerPolicy="no-referrer" />

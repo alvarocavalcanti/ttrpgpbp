@@ -814,6 +814,37 @@ describe('MessageComposer', () => {
     expect(mockOnSend).not.toHaveBeenCalled()
   })
 
+  it('leaves Shift+Tab alone so reverse focus navigation keeps working', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true })
+    // Nothing selected, draft untouched, list still open.
+    expect(input).toHaveValue('gob')
+    expect(screen.getByRole('option', { name: 'Goblin King' })).toBeInTheDocument()
+  })
+
+  it('selects an NPC roster option via click-only activation', () => {
+    const npcs = [{ id: 'n1', channel_id: 'c1', name: 'Goblin King', avatar_url: 'https://example.com/king.png', created_at: '' }]
+    render(<MessageComposer isGM={true} members={members} npcs={npcs} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    const input = screen.getByLabelText('NPC Name')
+    fireEvent.change(input, { target: { value: 'gob' } })
+
+    // No mousedown: keyboard Enter/Space on the focused option and
+    // screen-reader clicks only send click.
+    fireEvent.click(screen.getByRole('option', { name: 'Goblin King' }))
+    expect(input).toHaveValue('Goblin King')
+    expect(screen.queryByRole('option', { name: 'Goblin King' })).not.toBeInTheDocument()
+  })
+
   it('blocks NPC send without a name', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
