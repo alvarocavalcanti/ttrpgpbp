@@ -83,7 +83,7 @@ Boundaries: code/commits/PRs written normal.
        ```bash
        git fetch origin
        git checkout main && git pull origin main --ff-only
-       npm run supabase:down   # only when no other worktree still needs the shared stack
+       npm run supabase:down   # always stop it; other sessions restart with supabase:up
        git worktree remove <worktree-path> --force
        git branch -D <branch>
        ```
@@ -144,7 +144,7 @@ Every UI change must follow these conventions:
 
 > **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
 
-1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent), applies pending migrations and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept; the stack is shared across worktrees, so only stop it when no other worktree needs it).
+1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent), applies pending migrations and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept). **Always stop the stack when your work is done — never leave it running for someone else.** It is shared, so anyone who needs it starts it again with `supabase:up`.
 2. **Apply Migrations:** done by `npm run supabase:up`; use `npm run supabase:reset` to wipe volumes and re-apply every migration from scratch.
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (<http://localhost:54323>) to create a mock user, or link your `.env.local` to the remote Supabase.

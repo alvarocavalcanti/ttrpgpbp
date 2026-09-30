@@ -45,7 +45,7 @@ Want to run your own instance? See [DEPLOYMENT.md](DEPLOYMENT.md). Interested in
 
 2. **Supabase Configuration**
 
-   **Local stack (default):** `npm run supabase:up` starts the local Supabase stack, applies pending migrations and writes `.env.local` for you. `npm run supabase:down` stops it when you are done (data volumes are kept) — only when no other worktree still needs the shared stack.
+   **Local stack (default):** `npm run supabase:up` starts the local Supabase stack, applies pending migrations and writes `.env.local` for you. `npm run supabase:down` stops it when you are done (data volumes are kept) — always stop it rather than leaving it running; it is shared, and anyone who needs it can start it again.
 
    **Hosted project instead:** set up your `.env.local` file in the project root:
 
