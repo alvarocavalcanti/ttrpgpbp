@@ -95,9 +95,10 @@ Boundaries: code/commits/PRs written normal.
        gh pr merge --auto --squash --delete-branch
        ```
 
-     - Clean up worktree immediately (branch deleted server-side on merge):
+     - Clean up the worktree immediately (branch deleted server-side on merge):
 
        ```bash
+       npm run supabase:down   # always stop it; other sessions restart with supabase:up
        git worktree remove <worktree-path> --force
        ```
 
