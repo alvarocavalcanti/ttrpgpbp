@@ -2113,3 +2113,101 @@ describe('ChannelView report a message (#467)', () => {
     )
   })
 })
+
+describe('ChannelView viewport scroll lock (#620)', () => {
+  beforeEach(() => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      catchUpError: false,
+      retryCatchUp: vi.fn(),
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn()
+    } as any)
+  })
+
+  const renderView = () => render(
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/channel/c1']}>
+        <Routes>
+          <Route path="/channel/:id" element={<ChannelView />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
+  )
+
+  it('anchors the loaded shell to the viewport instead of a computed 100dvh height', () => {
+    // Regression test for #620: the shell sized itself with h-[100dvh] inside
+    // the document-level app shell, so a drag starting on the header (the
+    // channel name) scrolled the whole channel window. It must now be glued
+    // to the viewport (fixed inset-0) with no position: relative override.
+    // Asserted literally so a re-introduced height class fails.
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      toggleReaction: vi.fn().mockResolvedValue(undefined),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+
+    const { container } = renderView()
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveClass('fixed', 'inset-0')
+    expect(root.className).not.toMatch(/h-\[100dvh\]/)
+    expect(root.className).not.toMatch(/\brelative\b/)
+  })
+
+  it('anchors the loading skeleton shell the same way', () => {
+    // The progressive-paint branch returns before the loaded one; it must
+    // carry the same viewport anchor or the first paint scrolls too.
+    vi.mocked(useChannel).mockReturnValue({
+      channel: null,
+      members: [],
+      loading: true,
+      error: null,
+      isGM: false,
+      myMemberInfo: null,
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [],
+      reactions: {},
+      loading: true,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      addReaction: vi.fn().mockResolvedValue(undefined),
+      removeReaction: vi.fn().mockResolvedValue(undefined),
+      toggleReaction: vi.fn().mockResolvedValue(undefined),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+
+    const { container } = renderView()
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveClass('fixed', 'inset-0')
+    expect(root.className).not.toMatch(/h-\[100dvh\]/)
+    expect(root.className).not.toMatch(/\brelative\b/)
+  })
+})

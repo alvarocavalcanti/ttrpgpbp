@@ -250,7 +250,7 @@ export function ChannelView() {
   // spinner that blanks everything including the header.
   if (channelLoading || messagesLoading) {
     return (
-      <div className="flex h-[100dvh] overflow-hidden bg-white dark:bg-surface-800 relative">
+      <div className="fixed inset-0 flex overflow-hidden bg-white dark:bg-surface-800">
         <div className="flex-1 flex flex-col min-w-0 bg-surface-50 dark:bg-surface-900 border-r border-surface-200 dark:border-surface-700">
           <div className="px-4 sm:px-6 py-4 bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 flex items-center justify-between shadow-sm z-10">
             <div className="flex items-center space-x-3 min-w-0">
@@ -334,7 +334,7 @@ export function ChannelView() {
   const currentActiveIds = members.filter(m => m.is_active_player && !m.is_blocked).map(m => m.user_id)
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-white dark:bg-surface-800 relative">
+    <div className="fixed inset-0 flex overflow-hidden bg-white dark:bg-surface-800">
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-surface-50 dark:bg-surface-900 border-r border-surface-200 dark:border-surface-700">
         <div className="px-4 sm:px-6 py-4 bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 flex items-center justify-between shadow-sm z-10">
