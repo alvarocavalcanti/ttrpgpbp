@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import App from './App'
 import { supabase } from './lib/supabase'
 import { trackEvent } from './lib/analytics'
+import { clearRealtimeStatus, reportRealtimeStatus } from './lib/realtime'
 
 vi.mock('./lib/analytics', () => ({
   trackEvent: vi.fn(),
@@ -661,5 +662,48 @@ describe('App messages menu item', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Messages')).toBeInTheDocument()
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
+  })
+})
+
+describe('App floating banner host (#620)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.setItem('changelog:forever', 'true')
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: false, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+  })
+
+  afterEach(() => {
+    act(() => window.dispatchEvent(new Event('online')))
+    clearRealtimeStatus('banner-host-test')
+  })
+
+  it('renders the connection banner inside the floating host on a channel route', async () => {
+    // Regression test for #620: the realtime banner used to sit in flow above
+    // <main>, pushing the whole channel down and making the document
+    // scrollable on the channel route (where AppNav returns null). It must now
+    // live in the floating host so it never changes the document height.
+    // Asserted literally (host test id + fixed) so a return to in-flow fails.
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    window.history.pushState({}, '', '/channel/c1')
+    render(<App />)
+    window.history.replaceState({}, '', '/')
+
+    act(() => reportRealtimeStatus('banner-host-test', 'CHANNEL_ERROR'))
+
+    const banner = await screen.findByTestId('realtime-banner')
+    const host = banner.closest('[data-testid="app-banner-host"]')
+    expect(host).not.toBeNull()
+    expect(host!.className).toContain('fixed')
   })
 })

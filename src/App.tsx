@@ -14,6 +14,8 @@ import { ChangelogProvider, useChangelog } from './features/changelog/useChangel
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RealtimeBanner } from './components/RealtimeBanner'
+import { PermissionBanner } from './features/notifications/PermissionBanner'
+import { CURRENT_TERMS_VERSION } from './features/auth/terms'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
@@ -331,6 +333,20 @@ function InstallBannerGate() {
   return <PwaInstallBanner />
 }
 
+// The push-notification permission prompt lived in the Lobby's flow, pushing
+// the channel list down. All transient banners now float in one host (#620),
+// so it renders there too — gated to the Lobby to preserve where it appears,
+// and to the same readiness ProtectedRoute enforces before rendering <Outlet/>
+// (#635 review): the prompt (and its hook's subscription reconcile) must not
+// run before the profile loads or while a terms re-acceptance is pending.
+function PermissionBannerGate() {
+  const { pathname } = useLocation()
+  const { user, profile, loading } = useAuth()
+  if (pathname !== '/') return null
+  if (loading || !user || !profile || profile.terms_version !== CURRENT_TERMS_VERSION) return null
+  return <PermissionBanner />
+}
+
 export default function App() {
   return (
     <ToastProvider>
@@ -342,14 +358,16 @@ export default function App() {
           <ChangelogProvider>
             <div className="min-h-[100dvh] bg-surface-50 dark:bg-surface-900 flex flex-col">
               <AppNav />
-              <RealtimeBanner />
-              {/* Fixed overlay stack: update/install banners float above the
-                  page instead of pushing the layout down (issue #527). The
-                  container is pointer-transparent so only the cards intercept
-                  taps. z-[60] sits above the z-50 modals, like before. */}
-              <div className="fixed top-3 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none">
+              {/* Single floating banner host (issue #620): every transient
+                  banner lives here so none of them changes the document
+                  height or pushes the layout down. The container is
+                  pointer-transparent so only the cards intercept taps.
+                  z-[60] sits above the z-50 modals, like before. */}
+              <div data-testid="app-banner-host" className="fixed top-3 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none">
+                <RealtimeBanner />
                 <PwaUpdateBanner />
                 <InstallBannerGate />
+                <PermissionBannerGate />
               </div>
               <main className="flex-1 flex flex-col">
                 <Suspense fallback={

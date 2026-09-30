@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-09-30
+
+### Fixed
+
+- **The channel window stays put** — dragging on a channel's name no longer shifts the whole chat window; only the messages scroll. Connection, update, and notification notices now float over the page instead of shoving it down.
+
 ## 2026-09-29
 
 ### Added
