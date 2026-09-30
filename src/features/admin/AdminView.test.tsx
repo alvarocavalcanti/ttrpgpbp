@@ -1271,6 +1271,9 @@ describe('AdminView copy opted-in emails', () => {
     render(<MemoryRouter><AdminView /></MemoryRouter>)
     await switchToReportsTab()
 
+    // switchToReportsTab only switched tabs; wait for the (async) report row
+    // actions before asserting, otherwise CI timing races the data fetch.
+    await screen.findByRole('button', { name: 'View message' })
     for (const name of ['View message', 'Suspend', 'Resolve', 'Dismiss']) {
       expect(screen.getByRole('button', { name }).className).toContain('min-h-11')
     }
