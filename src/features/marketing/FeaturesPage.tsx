@@ -97,6 +97,12 @@ const PLAYER_CARDS: FeatureCard[] = [
     shot: '/help/sidebar.png',
     alt: 'Channel sidebar with media, rolls, NPCs, and safety tools',
   },
+  {
+    title: 'Dice pools that read as rolled',
+    copy: 'For games where each die is read on its own: roll NdMp to list every face, or NdM>=T to count successes against a target. The roller has matching Pool and Successes modes.',
+    shot: '/help/dice-panel.png',
+    alt: 'Dice Roller bottom sheet with Sum, Pool, and Successes modes',
+  },
 ]
 
 const MORE_FEATURES: Array<{ title: string; copy: string }> = [
@@ -112,6 +118,7 @@ const MORE_FEATURES: Array<{ title: string; copy: string }> = [
   { title: 'Plays like an app', copy: 'Installable, works offline, and sends push alerts when it is your turn.' },
   { title: 'Alerts your way', copy: 'Per channel, get everything, GM messages only, or just your turn.' },
   { title: 'Invite-only tables', copy: 'Private channels joined by invite link, with an optional password.' },
+  { title: 'Sign in your way', copy: 'Continue with Google or a one-time email link — nothing to remember.' },
 ]
 
 function StartCta({ location }: { location: string }) {
@@ -303,7 +310,7 @@ export function FeaturesPage() {
               sign-in prompt below is for anonymous visitors only. */}
           {!loading && !user && (
             <p className="mt-3 text-base text-surface-600 dark:text-surface-400">
-              Sign in with Google and start your first campaign in minutes.
+              Sign in with Google or an email link and start your first campaign in minutes.
             </p>
           )}
           <div className="mt-8">

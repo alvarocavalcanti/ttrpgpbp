@@ -83,7 +83,7 @@ describe('FeaturesPage', () => {
 
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
     expect(
-      screen.queryByText('Sign in with Google and start your first campaign in minutes.')
+      screen.queryByText('Sign in with Google or an email link and start your first campaign in minutes.')
     ).not.toBeInTheDocument()
     expect(
       screen.getByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })
@@ -94,7 +94,7 @@ describe('FeaturesPage', () => {
     renderPage()
 
     expect(
-      screen.getByText('Sign in with Google and start your first campaign in minutes.')
+      screen.getByText('Sign in with Google or an email link and start your first campaign in minutes.')
     ).toBeInTheDocument()
   })
 
@@ -104,7 +104,7 @@ describe('FeaturesPage', () => {
 
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
     expect(
-      screen.queryByText('Sign in with Google and start your first campaign in minutes.')
+      screen.queryByText('Sign in with Google or an email link and start your first campaign in minutes.')
     ).not.toBeInTheDocument()
   })
 
@@ -187,8 +187,30 @@ describe('FeaturesPage', () => {
       '/help/thumbs/message-actions.webp',
       '/help/thumbs/ability-check.webp',
       '/help/thumbs/sidebar.webp',
+      '/help/thumbs/dice-panel.webp',
     ])
     assertThumbsOnDisk(sources)
+  })
+
+  it('shows the dice-pool card last on the player track and opens its full-size capture', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Dice pools that read as rolled' })
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'View Dice pools that read as rolled image fullscreen' })
+    )
+
+    const img = within(screen.getByRole('dialog')).getByRole('img')
+    expect(img).toHaveAttribute('src', '/help/dice-panel.png')
+    expect(img).toHaveAttribute(
+      'alt',
+      'Dice Roller bottom sheet with Sum, Pool, and Successes modes'
+    )
   })
 
   it('lists more features and footer links', () => {
@@ -197,6 +219,7 @@ describe('FeaturesPage', () => {
     expect(screen.getByRole('heading', { name: 'And a lot more' })).toBeInTheDocument()
     expect(screen.getByText('Drafts that survive')).toBeInTheDocument()
     expect(screen.getByText('Invite-only tables')).toBeInTheDocument()
+    expect(screen.getByText('Sign in your way')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
       'href',
