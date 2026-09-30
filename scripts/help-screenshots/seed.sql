@@ -73,7 +73,7 @@ begin
   where email like 'shot.%@local.test';
 
   insert into public.profiles (id, display_name) values
-    (gm,'Mira GM'),(p1,'Dorn'),(p2,'Kess'),(p3,'Pip')
+    (gm,'Mira GM'),(p1,'Dorn'),(p2,'Kess'),(p3,'Pip'),(fresh,'Nova')
   on conflict (id) do update set display_name = excluded.display_name;
 
   -- Re-consent gate (#562): shot users must hold the current terms version
@@ -86,7 +86,7 @@ begin
   update public.profiles
   set terms_accepted_at = coalesce(terms_accepted_at, now()),
       terms_version = '2026-09-29'
-  where id in (gm, p1, p2, p3);
+  where id in (gm, p1, p2, p3, fresh);
 
   -- Recreate the screenshot channel so re-runs stay deterministic. Constrain
   -- by the fixture-only invite code too, so a real channel that happens to
@@ -113,10 +113,30 @@ begin
   insert into public.channel_safety_tools (channel_id, lines, veils) values (ch,
     'No harm to children or animals.', 'Torture, betrayal by trusted allies.');
 
+  -- Dice history + favorite for the roller chip row (dice-panel capture):
+  -- three seeded rolls give the roller recent chips, and the pinned
+  -- favorite renders amber first. Rolls go first AND predate the other
+  -- messages: the last_message trigger stamps insert order (not
+  -- created_at), so inserting them last would leave a roll as the lobby
+  -- preview. They sit above all other captures' viewports instead of
+  -- inside them.
+  insert into public.messages (id, channel_id, sender_id, type, content, created_at) values
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', ch, gm, 'dice_roll', 'Rolled 2d6: 3 + 5 = **8**', now() - interval '5 hours'),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', ch, gm, 'dice_roll', 'Rolled 1d20+3: 10 + 3 = **13**', now() - interval '4 hours 30 minutes'),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', ch, gm, 'dice_roll', 'Rolled 5d6>=4: 2, 5, 3, 6, 1 — **2 successes (≥4)**', now() - interval '4 hours');
+
   insert into public.messages (channel_id, sender_id, type, content, created_at) values
     (ch, gm, 'scene', 'The ancient grove opens before you. Twisted roots guard a yawning shaft descending into darkness.', now() - interval '2 hours'),
     (ch, gm, 'npc', 'None shall pass without paying tribute to the Goblin King!', now() - interval '90 minutes'),
     (ch, p1, 'regular', 'We could try to sneak past the guards. Make a [DC 12 DEX Check](check:DEX:12) to move silently.', now() - interval '80 minutes'),
     (ch, p2, 'regular', 'I''ll check the walls for secret doors first. Anybody have a torch?', now() - interval '70 minutes'),
     (ch, p3, 'regular', 'Rolling perception @Mira GM — I want to listen at the door.', now() - interval '60 minutes');
+
+  insert into public.dice_rolls (message_id, channel_id, roller_id, notation, result, breakdown) values
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', ch, gm, '2d6', 8, '{"rolls":[3,5],"dropped":[],"modifier":0,"mode":"sum"}'),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', ch, gm, '1d20+3', 13, '{"rolls":[10],"dropped":[],"modifier":3,"mode":"sum"}'),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', ch, gm, '5d6>=4', 2, '{"rolls":[2,5,3,6,1],"dropped":[],"modifier":0,"mode":"successes","target":4,"successes":2}');
+
+  insert into public.dice_roll_favorites (user_id, channel_id, notation) values
+    (gm, ch, '1d20+3');
 end $$;

@@ -209,7 +209,7 @@ describe('FeaturesPage', () => {
     expect(img).toHaveAttribute('src', '/help/dice-panel.png')
     expect(img).toHaveAttribute(
       'alt',
-      'Dice Roller with the Successes pool mode selected, showing the target-number field'
+      'Dice Roller with quick-roll chips and the Successes pool mode selected, showing the target-number field'
     )
   })
 
