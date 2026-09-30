@@ -113,11 +113,18 @@ test.describe('Channel viewport scroll lock (#620)', () => {
   test('loading skeleton shell is viewport-anchored', async ({ page }) => {
     const { url, name } = await openChannel(page);
 
-    // Hold the skeleton by delaying the data responses on a fresh navigation.
-    // A request cancelled by the navigation itself mid-delay has nothing to
+    // Hold the skeleton deterministically: gate the channel-row request on a
+    // promise the test resolves only after the shell has been asserted. A
+    // fixed delay raced page.goto — on slow CI the data could land before the
+    // assertion began, so the skeleton was never observed and the test timed
+    // out. Only the channel row is held; auth/profile and messages must still
+    // flow or the route never mounts its loading shell at all.
+    // A request cancelled by the navigation itself mid-gate has nothing to
     // continue — swallow only that race, nothing else.
-    await page.route('**/rest/v1/**', async (route) => {
-      await new Promise((r) => setTimeout(r, 2500));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve });
+    await page.route('**/rest/v1/channels**', async (route) => {
+      await gate;
       try {
         await route.continue();
       } catch (err) {
@@ -135,10 +142,13 @@ test.describe('Channel viewport scroll lock (#620)', () => {
       expect(Math.abs(snap.shellHeight! - snap.viewportH)).toBeLessThan(2);
       expect(snap.docScrollH).toBeLessThanOrEqual(snap.docClientH + 1);
     } finally {
+      // Always release, or a failed assertion would leave the held requests
+      // pending and unrouteAll would wait on them forever.
+      release();
       await page.unrouteAll({ behavior: 'wait' });
     }
 
-    // The delayed responses then land and the channel loads normally.
+    // The released responses then land and the channel loads normally.
     await expect(page.getByRole('heading', { name })).toBeVisible();
   });
 });
