@@ -1,6 +1,6 @@
 ---
 title: Channel Status Bar
-screenshot: /help/status-bar.png
+screenshot: /help-images/status-bar.png
 ---
 
 The **Channel Status Bar** sits at the top of the channel and keeps the group's shared state visible — initiative order, timers, NPCs, or anything else.

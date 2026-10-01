@@ -23,7 +23,7 @@ interface GalleryImage {
 // The hero phone mockup shows the campaign lobby — the same capture as the
 // first player card. Clicking it opens the enlarged viewer (issue #615); the
 // gallery dedupes by src so it maps to one shared entry, never a duplicate.
-const HERO_SHOT = '/help/lobby-with-channels.png'
+const HERO_SHOT = '/help-images/lobby-with-channels.png'
 const HERO_ALT = 'Role by Post campaign lobby on a phone'
 
 // Builds the enlarged-viewer sequence for the active track from the
@@ -40,35 +40,35 @@ function buildGallery(cards: FeatureCard[]): { items: GalleryImage[]; heroIndex:
   return { items, heroIndex }
 }
 
-// Screenshots are the committed help captures in public/help/ (360x780 CSS,
+// Screenshots are the committed help captures in public/help-images/ (360x780 CSS,
 // captured at 3x). The cards render at 80-96px CSS, so they serve 320px WebP
-// thumbnails from public/help/thumbs/ (the full PNGs stay for the help docs).
+// thumbnails from public/help-images/thumbs/ (the full PNGs stay for the help docs).
 // Derivation (not a hand-typed thumb field) keeps a card from ever pointing
 // at the wrong file; the test pins the resulting paths.
-const thumbSrc = (shot: string) => shot.replace('/help/', '/help/thumbs/').replace(/\.png$/, '.webp')
+const thumbSrc = (shot: string) => shot.replace('/help-images/', '/help-images/thumbs/').replace(/\.png$/, '.webp')
 const GM_CARDS: FeatureCard[] = [
   {
     title: 'Run the table your way',
     copy: 'Private channels with invite links, an optional password, character profiles, and a persistent status bar for initiative and notes.',
-    shot: '/help/gm-settings.png',
+    shot: '/help-images/gm-settings.png',
     alt: 'Channel settings screen with game system, member, and safety options',
   },
   {
     title: 'Speak as your NPCs',
     copy: 'Give every non-player character a name and portrait. Past messages keep their look even when the roster changes.',
-    shot: '/help/npc-composer.png',
+    shot: '/help-images/npc-composer.png',
     alt: 'Message composer in NPC mode with portrait picker',
   },
   {
     title: 'Keep the story on track',
     copy: 'A persistent status bar holds initiative order, active players, and notes in markdown — always one glance away.',
-    shot: '/help/status-bar.png',
+    shot: '/help-images/status-bar.png',
     alt: 'Channel status bar showing active players and story notes',
   },
   {
     title: 'Safety tools built in',
     copy: 'Lines and veils plus an anonymous X-card keep every table comfortable, with no awkward conversation needed.',
-    shot: '/help/safety-tools.png',
+    shot: '/help-images/safety-tools.png',
     alt: 'Safety tools screen listing lines and veils',
   },
 ]
@@ -77,31 +77,31 @@ const PLAYER_CARDS: FeatureCard[] = [
   {
     title: 'Your campaigns in one place',
     copy: 'Every private campaign you join lives in one lobby, sorted by recent play, with unread counts and search.',
-    shot: '/help/lobby-with-channels.png',
+    shot: '/help-images/lobby-with-channels.png',
     alt: 'Lobby listing joined channels with unread counts',
   },
   {
     title: 'Chat that reads like a story',
     copy: 'Markdown, scene breaks, replies, reactions, and whispers with the GM — a timeline that reads back like fiction.',
-    shot: '/help/message-actions.png',
+    shot: '/help-images/message-actions.png',
     alt: 'Message with reply, edit, reaction, and report actions',
   },
   {
     title: 'Roll straight from the message',
     copy: 'Tap dice notation to roll, or open an ability check with your modifier pre-filled. Results show the full breakdown.',
-    shot: '/help/ability-check.png',
+    shot: '/help-images/ability-check.png',
     alt: 'Ability check sheet with modifier and advantage toggle',
   },
   {
     title: 'Everything one tap away',
     copy: 'Roll history, channel media, the NPC roster, safety tools, and search live in the channel sidebar.',
-    shot: '/help/sidebar.png',
+    shot: '/help-images/sidebar.png',
     alt: 'Channel sidebar with media, rolls, NPCs, and safety tools',
   },
   {
     title: 'Dice pools that read as rolled',
     copy: 'For games where each die is read on its own: roll NdMp to list every face, or NdM>=T to count successes against a target. The roller has matching Pool and Successes modes.',
-    shot: '/help/dice-panel.png',
+    shot: '/help-images/dice-panel.png',
     alt: 'Dice Roller with quick-roll chips and the Successes pool mode selected, showing the target-number field',
   },
 ]
@@ -209,7 +209,7 @@ export function FeaturesPage() {
             className="mx-auto w-52 sm:w-60 overflow-hidden rounded-[2rem] border-8 border-surface-900 dark:border-surface-100 shadow-xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <img
-              src="/help/lobby-with-channels.png"
+              src="/help-images/lobby-with-channels.png"
               alt=""
               width={360}
               height={780}

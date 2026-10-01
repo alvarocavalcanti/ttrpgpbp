@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Screenshots load again** — the images on the home page, the Features page, and the in-app Help screenshots were broken when the new public site went live; they show correctly again.
 - **Roll history shows your character name** — every entry in the channel roll history now shows the character name you play under, matching your posts and dice-roll messages, instead of your account name.
 - **Success-pool rolls work from chat again** — tapping a `5d6>=4` roll in a message now actually rolls instead of silently doing nothing.
 

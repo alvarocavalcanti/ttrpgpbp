@@ -58,7 +58,7 @@ const FEATURES = [
   },
 ]
 
-const HERO_SHOT = '/help/lobby-with-channels.png'
+const HERO_SHOT = '/help-images/lobby-with-channels.png'
 
 // Signed-out marketing landing at `/` (issue #643). The prerender script
 // snapshots this route; `data-seo="landing"` is the wait selector.

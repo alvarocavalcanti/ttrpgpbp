@@ -35,10 +35,10 @@ describe('getChannelHelp', () => {
 
 describe('parseFrontmatter', () => {
   it('parses title and screenshot from frontmatter', () => {
-    const raw = '---\ntitle: Dice Rolling\nscreenshot: /help/dice.png\n---\n\n## Body\n\ncontent here'
+    const raw = '---\ntitle: Dice Rolling\nscreenshot: /help-images/dice.png\n---\n\n## Body\n\ncontent here'
     const { frontmatter, body } = parseFrontmatter(raw)
     expect(frontmatter.title).toBe('Dice Rolling')
-    expect(frontmatter.screenshot).toBe('/help/dice.png')
+    expect(frontmatter.screenshot).toBe('/help-images/dice.png')
     expect(body).toContain('## Body')
     expect(body).toContain('content here')
   })

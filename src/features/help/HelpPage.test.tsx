@@ -9,7 +9,7 @@ vi.mock('./helpContent', () => ({
 }))
 
 const entries = [
-  { slug: 'dice-rolling', title: 'Dice Rolling', content: '## Inline notation\n\nClick dice.', screenshot: '/help/dice-panel.png' },
+  { slug: 'dice-rolling', title: 'Dice Rolling', content: '## Inline notation\n\nClick dice.', screenshot: '/help-images/dice-panel.png' },
   { slug: 'search', title: 'Search', content: '## How to search\n\nType text.' },
 ]
 
@@ -38,7 +38,7 @@ describe('HelpPage', () => {
   it('renders screenshot when entry has one', () => {
     renderPage()
     const img = screen.getByAltText('Dice Rolling screenshot')
-    expect(img).toHaveAttribute('src', '/help/dice-panel.png')
+    expect(img).toHaveAttribute('src', '/help-images/dice-panel.png')
   })
 
   it('shows selected topic content when navigating by slug', () => {
