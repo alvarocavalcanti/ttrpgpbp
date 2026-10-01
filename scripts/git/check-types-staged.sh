@@ -81,20 +81,23 @@ case "$migration_change" in
 esac
 
 # True when every schema-shape statement in the staged migration diff is a
-# CREATE OR REPLACE FUNCTION whose name already exists in the committed
-# types: replacing a body cannot change the generated signatures, so the
-# regen would be byte-identical and unstoppable-by-staging. Anything else —
-# new functions (bare CREATE FUNCTION or an unknown name), ALTER/DROP,
-# tables, views, types, or an unparseable header — stays required. CI
-# remains the authoritative check: a signature change slipping through
-# here fails there, while a false block here has no legitimate remedy.
+# CREATE OR REPLACE FUNCTION whose signature already exists in the committed
+# types: replacing a body cannot change the generated output, so the regen
+# would be byte-identical and unstoppable-by-staging. Anything else — new
+# functions (bare CREATE FUNCTION or an unknown name), ALTER/DROP, tables,
+# views, types, or an unparseable header — stays required. CI remains the
+# authoritative check: a signature change slipping through here fails there,
+# while a false block here has no legitimate remedy.
 only_replaces_typed_functions() {
   # SQL `--` comments carry prose like "keep/drop" that would trip the
-  # keyword scan below; strip them first (a DDL keyword inside a string
-  # literal slipping through here stays CI's catch, per the heuristic).
+  # keyword scan, and string literals can hold words like 'drop'; strip
+  # both first. Residual ceiling: a bare DDL keyword inside a dollar-quoted
+  # body (outside any single-quoted literal) still requires types and stays
+  # CI's catch, per the heuristic.
   added="$(git diff --cached -U0 -M -- supabase/migrations \
     | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
-    | sed -E 's/--.*$//' | tr '[:upper:]' '[:lower:]' || true)"
+    | sed -E 's/--.*$//' | sed -E "s/'(''|[^'])*'//g" \
+    | tr '[:upper:]' '[:lower:]' || true)"
   [ -n "$added" ] || return 1
   # Strip the one acceptable statement, then nothing schema-shaping may
   # remain (covers bare CREATE FUNCTION, ALTER, DROP, tables, views,
@@ -111,9 +114,56 @@ only_replaces_typed_functions() {
   types_file="$(git show HEAD:src/types/database.ts 2>/dev/null || true)"
   [ -n "$types_file" ] || return 1
   for n in $names; do
-    base="${n##*.}"
-    base="$(printf '%s' "$base" | tr -d '"')"
-    if ! printf '%s\n' "$types_file" | grep -Eq "^[[:space:]]*\"?$base\"?[[:space:]]*:"; then
+    # Schema-qualify the lookup (bare names live in public): a column that
+    # merely shares the function name must not satisfy it, so match the key
+    # only inside that schema's Functions block and only when its entry
+    # carries Args (columns never do).
+    plain="$(printf '%s' "$n" | tr -d '"')"
+    case "$plain" in
+      *.*) schema="${plain%%.*}"; base="${plain#*.}" ;;
+      *) schema="public"; base="$plain" ;;
+    esac
+    block="$(printf '%s\n' "$types_file" | awk -v schema="$schema" '
+      !in_schema {
+        if ($0 ~ "^[[:space:]]*\"?" schema "\"?[[:space:]]*:[[:space:]]*\\{[[:space:]]*$") {
+          in_schema = 1; depth = 1
+        }
+        next
+      }
+      in_schema && !in_funcs {
+        if ($0 ~ "Functions:[[:space:]]*\\{") {
+          in_funcs = 1
+          print
+          fdepth = split($0, _o, "\\{") - split($0, _c, "\\}")
+          if (fdepth <= 0) exit
+          next
+        }
+        depth += split($0, _o, "\\{") - split($0, _c, "\\}")
+        if (depth <= 0) exit
+        next
+      }
+      in_funcs {
+        print
+        fdepth += split($0, _o, "\\{") - split($0, _c, "\\}")
+        if (fdepth <= 0) exit
+      }')"
+    [ -n "$block" ] || return 1
+    if ! printf '%s\n' "$block" | tr '[:upper:]' '[:lower:]' | awk -v name="$base" '
+      {
+        if (!found && $0 ~ "^[[:space:]]*\"?" name "\"?[[:space:]]*:[[:space:]]*\\{") {
+          found = 1
+          match($0, /[^[:space:]]/)
+          indent = substr($0, 1, RSTART - 1)
+          if ($0 ~ /args:/) args = 1
+          if ($0 ~ /\}[[:space:]]*$/) exit (args ? 0 : 1)
+          next
+        }
+        if (found) {
+          if ($0 ~ /args:/) args = 1
+          if ($0 ~ "^" indent "\\},?[[:space:]]*$") exit (args ? 0 : 1)
+        }
+      }
+      END { exit (found && args ? 0 : 1) }'; then
       return 1
     fi
   done

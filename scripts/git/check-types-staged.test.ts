@@ -149,7 +149,11 @@ describe('scripts/git/check-types-staged', () => {
   it('does not require types for a migration that only replaces already-typed functions', () => {
     // Replacing a function body cannot change the generated signatures, so
     // the regen would be byte-identical and git could never stage it (#623).
-    write(dir, 'src/types/database.ts', 'parse_dice_notation: { Args: { p_notation: string }; Returns: Json }\n')
+    write(
+      dir,
+      'src/types/database.ts',
+      'public: {\n  Functions: {\n    parse_dice_notation: { Args: { p_notation: string }; Returns: Json }\n  }\n}\n',
+    )
     git(dir, 'add', 'src/types/database.ts')
     git(dir, 'commit', '-q', '-m', 'add types')
     write(
@@ -166,7 +170,11 @@ describe('scripts/git/check-types-staged', () => {
   it('requires types when a replaced function is new to the committed types', () => {
     // A CREATE OR REPLACE for an unknown name adds a function: the regen
     // would differ, so the types must ride along.
-    write(dir, 'src/types/database.ts', 'other_func: { Args: {}; Returns: Json }\n')
+    write(
+      dir,
+      'src/types/database.ts',
+      'public: {\n  Functions: {\n    other_func: { Args: {}; Returns: Json }\n  }\n}\n',
+    )
     git(dir, 'add', 'src/types/database.ts')
     git(dir, 'commit', '-q', '-m', 'add types')
     write(
@@ -202,6 +210,65 @@ describe('scripts/git/check-types-staged', () => {
     )
     git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
     expect(run().status).toBe(1)
+  })
+
+  it('does not require types when the body holds a DDL word inside a string literal', () => {
+    // A keyword inside a quoted literal (SELECT 'drop') is data, not
+    // schema: the regen stays byte-identical, so the guard must pass.
+    write(
+      dir,
+      'src/types/database.ts',
+      'public: {\n  Functions: {\n    my_func: { Args: {}; Returns: Json }\n  }\n}\n',
+    )
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      "CREATE OR REPLACE FUNCTION my_func()\nRETURNS TEXT LANGUAGE sql AS $$ SELECT 'drop' $$;\n",
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    const r = run()
+    const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
+    expect(r.status, diag).toBe(0)
+  })
+
+  it('requires types when the name exists only as a column, not a function', () => {
+    // The lookup is scoped to the schema's Functions block and demands an
+    // Args entry: a same-named column must not satisfy it.
+    write(
+      dir,
+      'src/types/database.ts',
+      'public: {\n  Tables: {\n    t: { Row: { my_col: string } }\n  }\n  Functions: {\n    other_func: { Args: {}; Returns: Json }\n  }\n}\n',
+    )
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'CREATE OR REPLACE FUNCTION my_col()\nRETURNS TEXT LANGUAGE sql AS $$ SELECT 1 $$;\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    expect(run().status).toBe(1)
+  })
+
+  it('passes a schema-qualified replacement of an already-typed function', () => {
+    write(
+      dir,
+      'src/types/database.ts',
+      'public: {\n  Functions: {\n    my_func: {\n      Args: {}\n      Returns: Json\n    }\n  }\n}\n',
+    )
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'CREATE OR REPLACE FUNCTION public.my_func()\nRETURNS JSONB LANGUAGE sql AS $$ SELECT 1 $$;\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    const r = run()
+    const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
+    expect(r.status, diag).toBe(0)
   })
 
   it('does not require types for a pure migration rename', () => {
