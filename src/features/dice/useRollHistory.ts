@@ -22,12 +22,12 @@ const rollHistorySchema = z.object({
   breakdown: rollBreakdownSchema,
   created_at: z.string(),
   roller_id: z.string(),
-  roller_display_name: z.string().nullable()
+  roller_character_name: z.string().nullable()
 })
 
 // Realtime INSERTs carry the raw dice_rolls row, which has no
-// roller_display_name (that's joined in by get_channel_roll_history).
-const rollRealtimeSchema = rollHistorySchema.omit({ roller_display_name: true })
+// roller_character_name (that's joined in by get_channel_roll_history).
+const rollRealtimeSchema = rollHistorySchema.omit({ roller_character_name: true })
 
 export type DiceRoll = {
   id: string
@@ -36,8 +36,8 @@ export type DiceRoll = {
   breakdown: RollBreakdown
   created_at: string
   roller_id: string
-  roller_display_name: string | null
-  roller?: { display_name: string | null } | null
+  roller_character_name: string | null
+  roller?: { character_name: string | null } | null
 }
 
 // Data layer for the roll history (ARCH-1): the history RPC, the realtime
@@ -63,7 +63,7 @@ export function useRollHistory(channelId: string) {
           if (mounted) setError('Failed to load roll history.')
           return
         }
-        const fetched = parsed.data.map(r => ({ ...r, roller: { display_name: r.roller_display_name } }))
+        const fetched = parsed.data.map(r => ({ ...r, roller: { character_name: r.roller_character_name } }))
         if (!mounted) return
         setRolls(prev => {
           const fetchedIds = new Set(fetched.map(roll => roll.id))
@@ -93,17 +93,18 @@ export function useRollHistory(channelId: string) {
       }, async (payload) => {
         const parsed = rollRealtimeSchema.safeParse(payload.new)
         if (!parsed.success) return
-        // Fetch profile
+        // Fetch the roller's channel-scoped character name (issue #640).
         const { data } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('id', parsed.data.roller_id)
+          .from('channel_members')
+          .select('character_name')
+          .eq('channel_id', channelId)
+          .eq('user_id', parsed.data.roller_id)
           .single()
 
         // The await above can outlive this effect (channel switch): a roll
         // from the old channel must not prepend into the new one's state.
         if (!mounted) return
-        const newRoll: DiceRoll = { ...parsed.data, roller_display_name: null, roller: data }
+        const newRoll: DiceRoll = { ...parsed.data, roller_character_name: null, roller: data }
         setRolls(prev => prev.some(roll => roll.id === newRoll.id)
           ? prev
           : [newRoll, ...prev].slice(0, 50))

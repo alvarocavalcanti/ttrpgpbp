@@ -19,7 +19,7 @@ const validRoll = (over: Record<string, unknown> = {}) => ({
   result: 23,
   breakdown: { rolls: [18], dropped: [], modifier: 5 },
   created_at: '2026-01-01T00:00:00.000Z',
-  roller_display_name: 'Hero',
+  roller_character_name: 'Hero',
   ...over
 })
 
@@ -52,7 +52,7 @@ describe('useRollHistory', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(supabase.rpc).toHaveBeenCalledWith('get_channel_roll_history', { p_channel_id: 'c1' })
     expect(result.current.rolls).toHaveLength(1)
-    expect(result.current.rolls[0].roller).toEqual({ display_name: 'Hero' })
+    expect(result.current.rolls[0].roller).toEqual({ character_name: 'Hero' })
     expect(result.current.error).toBeNull()
   })
 
@@ -112,16 +112,18 @@ describe('useRollHistory', () => {
     const insertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')![2] as any
     await insertCb({ new: { id: 'x', notation: 123 } })
 
-    expect(supabase.from).not.toHaveBeenCalledWith('profiles')
+    expect(supabase.from).not.toHaveBeenCalledWith('channel_members')
     expect(result.current.rolls).toEqual([])
   })
 
-  it('appends a valid realtime INSERT row with the roller profile', async () => {
+  it('appends a valid realtime INSERT row with the roller channel character name', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { display_name: 'Foo' }, error: null })
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { character_name: 'Foo' }, error: null })
+          })
         })
       })
     } as any)
@@ -144,8 +146,9 @@ describe('useRollHistory', () => {
     })
 
     await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalledWith('channel_members')
       expect(result.current.rolls).toHaveLength(1)
-      expect(result.current.rolls[0].roller).toEqual({ display_name: 'Foo' })
+      expect(result.current.rolls[0].roller).toEqual({ character_name: 'Foo' })
       expect(result.current.rolls[0].id).toBe('r2')
     })
   })
@@ -155,7 +158,9 @@ describe('useRollHistory', () => {
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { display_name: 'Hero' }, error: null })
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { character_name: 'Hero' }, error: null })
+          })
         })
       })
     } as any)
@@ -166,7 +171,7 @@ describe('useRollHistory', () => {
     await waitFor(() => expect(result.current.rolls).toHaveLength(1))
 
     const insertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')![2] as any
-    await insertCb({ new: validRoll({ roller_display_name: undefined }) })
+    await insertCb({ new: validRoll({ roller_character_name: undefined }) })
 
     expect(result.current.rolls).toHaveLength(1)
   })
@@ -219,7 +224,9 @@ describe('useRollHistory', () => {
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockReturnValue(slowProfile)
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockReturnValue(slowProfile)
+          })
         })
       })
     } as any)
@@ -253,7 +260,7 @@ describe('useRollHistory', () => {
     })
 
     await act(async () => {
-      resolveProfile({ data: { display_name: 'Old Channel Roller' }, error: null })
+      resolveProfile({ data: { character_name: 'Old Channel Roller' }, error: null })
     })
 
     // The stale roll must not prepend into the new channel's history.

@@ -1237,7 +1237,7 @@ export type Database = {
           id: string
           notation: string
           result: number
-          roller_display_name: string
+          roller_character_name: string
           roller_id: string
         }[]
       }
