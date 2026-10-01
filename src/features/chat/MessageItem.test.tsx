@@ -434,6 +434,50 @@ describe('MessageItem', () => {
     expect(mockOnRollDice).not.toHaveBeenCalled()
   })
 
+  it('rolls success-pool notation from a chat chip (decode the markdown href, #623)', async () => {
+    // react-markdown percent-encodes `>` in the link destination
+    // (dice:5d6%3E=4); without decoding the click-site gate rejects it.
+    const mockOnRollDice = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'Roll 5d6>=4 now',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    fireEvent.click(await screen.findByRole('button', { name: '5d6>=4' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('5d6>=4', 'm1')
+  })
+
+  it('rolls a sorted pool from a chat chip (#623)', async () => {
+    const mockOnRollDice = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'Roll 5d6ps now',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    fireEvent.click(await screen.findByRole('button', { name: '5d6ps' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('5d6ps', 'm1')
+  })
+
+  it('never throws on a malformed percent escape in a dice href (#623)', async () => {
+    const mockOnRollDice = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: '[x](dice:%)',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'x' }))
+    expect(mockOnRollDice).not.toHaveBeenCalled()
+  })
+
   it('renders inline dice chips at the message text scale (#541)', async () => {
     const msg: any = {
       id: 'm1',

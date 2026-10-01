@@ -146,6 +146,64 @@ describe('scripts/git/check-types-staged', () => {
     expect(run().status).toBe(0)
   })
 
+  it('does not require types for a migration that only replaces already-typed functions', () => {
+    // Replacing a function body cannot change the generated signatures, so
+    // the regen would be byte-identical and git could never stage it (#623).
+    write(dir, 'src/types/database.ts', 'parse_dice_notation: { Args: { p_notation: string }; Returns: Json }\n')
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'CREATE OR REPLACE FUNCTION parse_dice_notation(p_notation TEXT)\nRETURNS JSONB LANGUAGE sql AS $$ SELECT 1 $$;\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    const r = run()
+    const diag = `status=${r.status} stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)} staged=${JSON.stringify(stagedNow())}`
+    expect(r.status, diag).toBe(0)
+  })
+
+  it('requires types when a replaced function is new to the committed types', () => {
+    // A CREATE OR REPLACE for an unknown name adds a function: the regen
+    // would differ, so the types must ride along.
+    write(dir, 'src/types/database.ts', 'other_func: { Args: {}; Returns: Json }\n')
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'CREATE OR REPLACE FUNCTION brand_new_func()\nRETURNS JSONB LANGUAGE sql AS $$ SELECT 1 $$;\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    expect(run().status).toBe(1)
+  })
+
+  it('requires types when a function replacement rides with a table', () => {
+    write(dir, 'src/types/database.ts', 'my_func: { Args: {}; Returns: Json }\n')
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'CREATE OR REPLACE FUNCTION my_func()\nRETURNS JSONB LANGUAGE sql AS $$ SELECT 1 $$;\nCREATE TABLE t (id uuid);\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    expect(run().status).toBe(1)
+  })
+
+  it('requires types for ALTER FUNCTION', () => {
+    write(dir, 'src/types/database.ts', 'my_func: { Args: {}; Returns: Json }\n')
+    git(dir, 'add', 'src/types/database.ts')
+    git(dir, 'commit', '-q', '-m', 'add types')
+    write(
+      dir,
+      'supabase/migrations/20260000000000_x.sql',
+      'ALTER FUNCTION my_func() OWNER TO postgres;\n',
+    )
+    git(dir, 'add', 'supabase/migrations/20260000000000_x.sql')
+    expect(run().status).toBe(1)
+  })
+
   it('does not require types for a pure migration rename', () => {
     // Renaming an unapplied migration to restore timestamp order (see
     // check-migration-order.sh) changes no schema, so it must not demand a

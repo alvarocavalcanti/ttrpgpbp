@@ -11,6 +11,10 @@
 #     grants/revoke, a policy, or a plain index migration. Generated types come
 #     from tables/views/functions/types, so those migrations leave
 #     src/types/database.ts byte-identical and there is nothing to stage.
+#   - a migration that only replaces the bodies of functions already present
+#     in the committed types (see only_replaces_typed_functions below).
+#     Regenerating then yields a byte-identical file git cannot stage, so
+#     demanding it would block the commit with no legitimate path forward.
 # A migration that is deleted or moved out of supabase/migrations/ still
 # requires the regenerated types (dropping schema can change them).
 # Correctness of the regenerated file itself remains CI's job.
@@ -75,6 +79,52 @@ case "$migration_change" in
     fi
     ;;
 esac
+
+# True when every schema-shape statement in the staged migration diff is a
+# CREATE OR REPLACE FUNCTION whose name already exists in the committed
+# types: replacing a body cannot change the generated signatures, so the
+# regen would be byte-identical and unstoppable-by-staging. Anything else —
+# new functions (bare CREATE FUNCTION or an unknown name), ALTER/DROP,
+# tables, views, types, or an unparseable header — stays required. CI
+# remains the authoritative check: a signature change slipping through
+# here fails there, while a false block here has no legitimate remedy.
+only_replaces_typed_functions() {
+  # SQL `--` comments carry prose like "keep/drop" that would trip the
+  # keyword scan below; strip them first (a DDL keyword inside a string
+  # literal slipping through here stays CI's catch, per the heuristic).
+  added="$(git diff --cached -U0 -M -- supabase/migrations \
+    | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
+    | sed -E 's/--.*$//' | tr '[:upper:]' '[:lower:]' || true)"
+  [ -n "$added" ] || return 1
+  # Strip the one acceptable statement, then nothing schema-shaping may
+  # remain (covers bare CREATE FUNCTION, ALTER, DROP, tables, views,
+  # types, and headers split across lines).
+  stripped="$(printf '%s\n' "$added" \
+    | sed -E 's/create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+[a-z0-9_".]+//g')"
+  if printf '%s\n' "$stripped" | grep -Eq '\b(create|alter|drop)\b'; then
+    return 1
+  fi
+  names="$(printf '%s\n' "$added" \
+    | grep -Eo 'create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+[a-z0-9_".]+' \
+    | sed -E 's/.*function[[:space:]]+//')"
+  [ -n "$names" ] || return 1
+  types_file="$(git show HEAD:src/types/database.ts 2>/dev/null || true)"
+  [ -n "$types_file" ] || return 1
+  for n in $names; do
+    base="${n##*.}"
+    base="$(printf '%s' "$base" | tr -d '"')"
+    if ! printf '%s\n' "$types_file" | grep -Eq "^[[:space:]]*\"?$base\"?[[:space:]]*:"; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+# A body-only function replacement leaves regen byte-identical, which git
+# cannot stage — requiring types here would be unanswerable (see above).
+if [ -n "$types_required" ] && only_replaces_typed_functions; then
+  types_required=""
+fi
 
 if [ -n "$types_required" ]; then
   if ! printf '%s\n' "$staged" | grep -q '^src/types/database.ts$'; then

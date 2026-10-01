@@ -26,12 +26,23 @@ describe('isValidDiceNotation', () => {
     expect(isValidDiceNotation('3d10>=8')).toBe(true)
   })
 
+  it('accepts sorted pool and success-count notations', () => {
+    expect(isValidDiceNotation('5d6ps')).toBe(true)
+    expect(isValidDiceNotation('5d6>=4s')).toBe(true)
+    // The sort flag rides on a pool mode, never on a bare sum.
+    expect(isValidDiceNotation('5d6s')).toBe(false)
+  })
+
   it('rejects ambiguous pool combinations instead of guessing', () => {
     expect(isValidDiceNotation('5d6p+2')).toBe(false)
     expect(isValidDiceNotation('5d6kh1p')).toBe(false)
     expect(isValidDiceNotation('5d6>=4p')).toBe(false)
     expect(isValidDiceNotation('5d6kh1>=4')).toBe(false)
     expect(isValidDiceNotation('5d6>=4+2')).toBe(false)
+    expect(isValidDiceNotation('5d6ps+2')).toBe(false)
+    expect(isValidDiceNotation('5d6ps>=4')).toBe(false)
+    expect(isValidDiceNotation('5d6>=4ps')).toBe(false)
+    expect(isValidDiceNotation('5d6kh1ps')).toBe(false)
   })
 
   it('rejects unreachable success targets', () => {
@@ -44,22 +55,31 @@ describe('isValidDiceNotation', () => {
 describe('parseDiceNotation', () => {
   it('parses sum rolls with keep/drop and modifier', () => {
     expect(parseDiceNotation('3d6kh1+2')).toEqual({
-      count: 3, sides: 6, keepDrop: 'kh1', mode: 'sum', target: null, modifier: 2,
+      count: 3, sides: 6, keepDrop: 'kh1', mode: 'sum', target: null, modifier: 2, sorted: false,
     })
     expect(parseDiceNotation('2d20kh')).toEqual({
-      count: 2, sides: 20, keepDrop: 'kh', mode: 'sum', target: null, modifier: 0,
+      count: 2, sides: 20, keepDrop: 'kh', mode: 'sum', target: null, modifier: 0, sorted: false,
     })
   })
 
   it('parses raw pools with no target or modifier', () => {
     expect(parseDiceNotation('5d6p')).toEqual({
-      count: 5, sides: 6, keepDrop: '', mode: 'pool', target: null, modifier: 0,
+      count: 5, sides: 6, keepDrop: '', mode: 'pool', target: null, modifier: 0, sorted: false,
     })
   })
 
   it('parses success pools with their target', () => {
     expect(parseDiceNotation('5d6>=4')).toEqual({
-      count: 5, sides: 6, keepDrop: '', mode: 'successes', target: 4, modifier: 0,
+      count: 5, sides: 6, keepDrop: '', mode: 'successes', target: 4, modifier: 0, sorted: false,
+    })
+  })
+
+  it('parses sorted pools with the sort flag', () => {
+    expect(parseDiceNotation('5d6ps')).toEqual({
+      count: 5, sides: 6, keepDrop: '', mode: 'pool', target: null, modifier: 0, sorted: true,
+    })
+    expect(parseDiceNotation('5d6>=4s')).toEqual({
+      count: 5, sides: 6, keepDrop: '', mode: 'successes', target: 4, modifier: 0, sorted: true,
     })
   })
 
@@ -103,6 +123,15 @@ describe('linkifyDice', () => {
   it('linkifies raw pool and success-count notations', () => {
     expect(linkifyDice('Roll 5d6p for initiative')).toBe('Roll [5d6p](dice:5d6p) for initiative')
     expect(linkifyDice('Roll 5d6>=4 to hit')).toBe('Roll [5d6>=4](dice:5d6>=4) to hit')
+  })
+
+  it('linkifies sorted pool and success-count notations', () => {
+    expect(linkifyDice('Roll 5d6ps for initiative')).toBe('Roll [5d6ps](dice:5d6ps) for initiative')
+    expect(linkifyDice('Roll 5d6>=4s to hit')).toBe('Roll [5d6>=4s](dice:5d6>=4s) to hit')
+  })
+
+  it('leaves a bare sort flag without a pool mode untouched', () => {
+    expect(linkifyDice('Roll 2d6s')).toBe('Roll 2d6s')
   })
 
   it('turns ability checks into markdown links', () => {

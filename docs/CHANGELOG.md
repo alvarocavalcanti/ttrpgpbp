@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-01
+
+### Added
+
+- **Sort your dice pools highest-first** — add an `s` to a pool roll (`5d6ps`) or a success roll (`5d6>=4s`) and the faces come back sorted with the highest first, so counting how many beat a number is instant. The Dice Roller Panel has a matching **Sort highest first** checkbox in Pool and Successes modes.
+
+### Fixed
+
+- **Success-pool rolls work from chat again** — tapping a `5d6>=4` roll in a message now actually rolls instead of silently doing nothing.
+
 ## 2026-09-30
 
 ### Added

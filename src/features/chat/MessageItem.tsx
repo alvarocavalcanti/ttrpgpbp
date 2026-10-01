@@ -112,6 +112,17 @@ function urlTransform(url: string): string {
   return ''
 }
 
+// react-markdown percent-encodes the `>=` in success-pool destinations
+// (dice:5d6%3E=4), so the click-site notation must be decoded first (#623).
+// A hand-crafted malformed `%` must never throw: fall back to the raw slice.
+function decodeDiceHref(raw: string): string {
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
 type CheckAdvDis = 'adv' | 'dis' | null
 
 interface CheckDraft {
@@ -325,7 +336,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   const renderers = useMemo(() => ({
     a: ({ node: _node, href, children, ...props }: React.ComponentProps<'a'> & { node?: unknown }) => {
       if (href?.startsWith('dice:')) {
-        const notation = href.slice(5)
+        const notation = decodeDiceHref(href.slice(5))
         return (
           <button
             type="button"
