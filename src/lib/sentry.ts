@@ -1,5 +1,6 @@
 import type * as SentryTypes from '@sentry/react'
 import { env } from '../env'
+import { isAutomatedBrowser } from './automation'
 
 // Sentry breadcrumbs and request URLs carry the full page URL, query string
 // included — lobby search terms must never leave the device. beforeSend runs
@@ -31,7 +32,7 @@ export function scrubSentryEvent(event: SentryTypes.ErrorEvent): SentryTypes.Err
 // in the main chunk. Sentry initializes a beat after first render — fine for
 // error/tracing telemetry (self-hosted instances have no DSN and load nothing).
 export async function initSentry(): Promise<void> {
-  if (!env.VITE_SENTRY_DSN) return
+  if (!env.VITE_SENTRY_DSN || isAutomatedBrowser()) return
   try {
     const Sentry = await import('@sentry/react')
     Sentry.init({
@@ -57,7 +58,7 @@ export async function initSentry(): Promise<void> {
 // never surface as unhandled rejections or break the caller — telemetry is
 // best-effort.
 export async function captureException(error: unknown, extra?: Record<string, unknown>): Promise<void> {
-  if (!env.VITE_SENTRY_DSN) return
+  if (!env.VITE_SENTRY_DSN || isAutomatedBrowser()) return
   try {
     const Sentry = await import('@sentry/react')
     Sentry.captureException(error, extra ? { extra } : undefined)

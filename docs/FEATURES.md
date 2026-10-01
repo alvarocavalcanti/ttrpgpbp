@@ -1,5 +1,12 @@
 # Features
 
+## Public site
+
+- **Marketing landing page** at `/` for signed-out visitors — explains what Role by Post is and links to the feature tour; the sign-in form now lives on its own `/login` page
+- **Indexable public pages** — `/`, `/features`, `/privacy`, and `/terms` are prerendered so search engines and link previews (Slack, Discord, social media) see real content, a per-page title and description, a canonical URL, and a social share image
+- **`robots.txt` and `sitemap.xml`** served for crawlers; app and account pages are kept out of the index
+- **Friendly not-found page** — an unknown address shows a "page not found" screen instead of the app, while app deep links (channel, invite, admin) keep working
+
 ## Users & Auth
 
 - **Dark mode** — a sun/moon toggle in the app header (and login page) switches between light and dark themes. On small screens it moves into the app menu drawer. The choice persists per device; the default follows the OS light/dark preference (applied before first paint to avoid a flash)

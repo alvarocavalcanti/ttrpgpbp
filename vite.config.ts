@@ -25,13 +25,13 @@ export default defineConfig(({ command, mode }) => {
   // build (src/lib/pwaUpdate.ts). GITHUB_SHA is deterministic per CI commit;
   // local builds fall back to a timestamp so every local build is distinct.
   const appBuild = process.env.GITHUB_SHA ?? String(Date.now())
+  // Shell env first, then .env files — Vite's own precedence, so both
+  // dashboard-exported and file-based setups are honored.
+  const fileEnv = loadEnv(mode, process.cwd())
   // #562: production bundles must name the data controller (GDPR Art 13).
   // Fail the build loudly rather than shipping a bundle whose policies
   // render a generic line with no contact. Dev/test builds stay optional.
   if (command === 'build') {
-    // Shell env first, then .env files — Vite's own precedence, so both
-    // dashboard-exported and file-based setups are honored.
-    const fileEnv = loadEnv(mode, process.cwd())
     const missing = ['VITE_CONTROLLER_NAME', 'VITE_CONTROLLER_EMAIL'].filter(
       (key) => !(process.env[key] || fileEnv[key]),
     )
@@ -42,10 +42,16 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
+  // Public origin for canonical/OG URLs (issue #643). Self-hosted copies set
+  // VITE_SITE_URL (shell or .env); the reference deployment is the default.
+  const siteUrl =
+    process.env.VITE_SITE_URL || fileEnv.VITE_SITE_URL || 'https://rolebypost.com'
+
   return {
   define: {
     __APP_BUILD__: JSON.stringify(appBuild),
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __SITE_URL__: JSON.stringify(siteUrl),
   },
   plugins: [
     react(),
@@ -58,6 +64,14 @@ export default defineConfig(({ command, mode }) => {
         // No bare `png` here: it would precache every help screenshot
         // (~3.4 MiB). Help images load from the network on first visit.
         globPatterns: ['**/*.{js,css,html,ico,svg}'],
+        // index.html becomes the prerendered landing page after the build, so
+        // it must not be the offline navigation shell. The empty shell is
+        // emitted by scripts/seo/prerender.mjs *after* vite build, so Workbox's
+        // glob cannot see it — add it explicitly.
+        globIgnores: ['index.html'],
+        additionalManifestEntries: [
+          { url: '/app-shell/index.html', revision: appBuild },
+        ],
         buildPlugins: {
           rollup: [swOutputCompat],
         },

@@ -4,21 +4,17 @@ import { isSafeRedirectPath } from '../features/auth/AuthContext'
 import { confirmAge, confirmTerms } from '../features/auth/authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from '../features/auth/terms'
 import { ReConsentGate } from '../features/auth/ReConsentGate'
-import { lazy, Suspense } from 'react'
-const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
+import { Seo } from './Seo'
+import { LandingPage } from '../features/marketing/LandingPage'
 
 export function ProtectedRoute() {
   const { user, profile, loading, error, refreshProfile, termsConfirmState, retryTermsConfirm } = useAuth()
   const location = useLocation()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
-      </div>
-    )
-  }
-
+  // A failed session load must stay visible, even at `/` — otherwise a
+  // returning user is silently shown marketing content as if signed out. The
+  // error only appears after the async load resolves, i.e. after hydration, so
+  // this does not break the prerendered landing match.
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900" role="alert">
@@ -29,10 +25,22 @@ export function ProtectedRoute() {
     )
   }
 
+  // The landing route is public: signed-out visitors (and the initial loading
+  // window, so hydration matches the prerendered snapshot) get the marketing
+  // page instead of being bounced to /login (issue #643).
+  if (location.pathname === '/' && !user) {
+    return <LandingPage />
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
+      </div>
+    )
+  }
+
   if (!user) {
-    if (location.pathname === '/') {
-      return <Suspense fallback={null}><LoginPage /></Suspense>
-    }
     const from = location.pathname + location.search + location.hash
     return <Navigate to="/login" replace state={{ from }} />
   }
@@ -104,5 +112,11 @@ export function ProtectedRoute() {
     )
   }
 
-  return <Outlet />
+  return (
+    <>
+      {/* App/auth routes stay client-rendered; keep them out of the index. */}
+      <Seo path={location.pathname} noindex />
+      <Outlet />
+    </>
+  )
 }

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
-import { isMarketingPath } from '../../lib/marketing'
+import { isMarketingPath } from '../../lib/publicRoutes'
 import { ChangelogModal } from './ChangelogModal'
 import { getChangelogHash, getRecentItems } from './changelog'
 

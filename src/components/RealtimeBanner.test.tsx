@@ -1,10 +1,11 @@
 import { act, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RealtimeBanner } from './RealtimeBanner'
 import { clearRealtimeStatus, reportRealtimeStatus } from '../lib/realtime'
 
 describe('RealtimeBanner', () => {
   afterEach(() => {
+    vi.unstubAllGlobals()
     act(() => window.dispatchEvent(new Event('online')))
     clearRealtimeStatus('banner-test')
   })
@@ -35,5 +36,14 @@ describe('RealtimeBanner', () => {
     expect(banner.className).toContain('pointer-events-auto')
     expect(banner.className).toContain('rounded-lg')
     expect(banner.className).toContain('shadow-lg')
+  })
+
+  it('stays hidden in the automated prerender browser (issue #643)', () => {
+    ;(window as unknown as { __PRERENDER__?: boolean }).__PRERENDER__ = true
+    render(<RealtimeBanner />)
+    act(() => window.dispatchEvent(new Event('offline')))
+
+    expect(screen.queryByTestId('realtime-banner')).not.toBeInTheDocument()
+    delete (window as unknown as { __PRERENDER__?: boolean }).__PRERENDER__
   })
 })

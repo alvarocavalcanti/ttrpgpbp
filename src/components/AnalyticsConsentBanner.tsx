@@ -1,15 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { env } from '../env'
 import { initAnalytics, trackPageView } from '../lib/analytics'
 import { getAnalyticsConsent, setAnalyticsConsent } from '../lib/analyticsConsent'
+import { isPrerender } from '../lib/automation'
 
 // Prior-consent banner for Google Analytics. Rendered only when the operator
 // configured a measurement ID and the visitor has not chosen yet; GA does not
 // load until they allow it. The choice is remembered per device.
 export function AnalyticsConsentBanner() {
-  const [decided, setDecided] = useState(() => getAnalyticsConsent() !== null)
-  if (decided || !env.VITE_GA_MEASUREMENT_ID) return null
+  // Start hidden regardless of stored consent so the client's first hydration
+  // render matches the prerendered snapshot (which omits this banner), then
+  // reveal it after the effect reads the stored choice. Otherwise a returning
+  // visitor who already answered would mismatch (React #418) — issue #643.
+  const [decided, setDecided] = useState(true)
+  useEffect(() => {
+    setDecided(getAnalyticsConsent() !== null)
+  }, [])
+  if (isPrerender() || decided || !env.VITE_GA_MEASUREMENT_ID) return null
 
   const allow = () => {
     setAnalyticsConsent('granted')
@@ -31,8 +39,7 @@ export function AnalyticsConsentBanner() {
       className="fixed bottom-3 inset-x-0 z-[70] mx-auto w-[min(92%,32rem)] rounded-lg border border-surface-200 dark:border-surface-600 bg-white dark:bg-surface-800 shadow-lg p-4"
     >
       <p className="text-sm text-surface-700 dark:text-surface-300">
-        We&apos;d like to collect anonymous usage statistics to see which screens are used.
-        Nothing you write is included. See the{' '}
+        {"We'd like to collect anonymous usage statistics to see which screens are used. Nothing you write is included. See the "}
         <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline">
           Privacy Policy
         </Link>.

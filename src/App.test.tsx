@@ -40,7 +40,7 @@ describe('App', () => {
     }) as any)
   })
 
-  it('renders login page initially when unauthenticated', async () => {
+  it('renders the landing marketing page at / when unauthenticated', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: null },
       error: null,
@@ -51,9 +51,27 @@ describe('App', () => {
     } as any)
 
     render(<App />)
-    
+
+    expect(await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })).toBeInTheDocument()
+    expect(screen.queryByText('Sign in with Google or an email link to securely create and access your roleplaying campaigns.')).not.toBeInTheDocument()
+  })
+
+  it('renders the login page at /login when unauthenticated', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    window.history.pushState({}, '', '/login')
+    render(<App />)
+
     // Wait for the AuthProvider to resolve loading state
     expect(await screen.findByText('Sign in with Google or an email link to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
   })
 
   it('serves the public marketing page to anonymous visitors', async () => {
@@ -150,7 +168,7 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('Role by Post')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Role by Post' })).toBeInTheDocument()
     expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Profile')).toBeInTheDocument()
@@ -195,7 +213,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Server Admin')).toBeInTheDocument()
   })
@@ -234,7 +252,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
   })
@@ -273,7 +291,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     expect(await screen.findByText('Help Topics')).toBeInTheDocument()
@@ -314,7 +332,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByRole('link', { name: 'About' }))
     expect(await screen.findByRole('heading', { name: 'About Role by Post' })).toBeInTheDocument()
@@ -359,7 +377,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByRole('link', { name: 'Server Admin' }))
     expect(await screen.findByText('Users')).toBeInTheDocument()
@@ -400,7 +418,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Change Log'))
     expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
@@ -441,7 +459,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     await screen.findByText('Help Topics')
@@ -499,7 +517,7 @@ describe('App main menu drawer', () => {
     })
 
     render(<App />)
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
   }
 
   beforeEach(() => {
@@ -658,7 +676,7 @@ describe('App messages menu item', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Messages')).toBeInTheDocument()
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()

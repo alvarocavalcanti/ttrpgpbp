@@ -41,7 +41,7 @@ describe('ProtectedRoute', () => {
     })
 
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/protected']}>
         <ProtectedRoute />
       </MemoryRouter>
     )
@@ -79,7 +79,39 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
   })
 
-  it('renders login page inline at / when no user is authenticated', async () => {
+  it('shows the session error at / rather than the landing page', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: new Error('Session error'),
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="lobby" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Failed to load your session/)
+    expect(
+      screen.queryByRole('heading', { name: 'Play your tabletop RPG, one post at a time' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the marketing landing at / when no user is authenticated (#643)', async () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
       user: null,
@@ -107,7 +139,9 @@ describe('ProtectedRoute', () => {
 
     expect(screen.queryByTestId('lobby')).not.toBeInTheDocument()
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
-    expect(await screen.findByText('Sign in with Google')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' }),
+    ).toBeInTheDocument()
   })
 
   it('redirects to login when no user is authenticated', () => {

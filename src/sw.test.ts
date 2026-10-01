@@ -86,7 +86,7 @@ describe('sw navigation fallback', () => {
     expect(registerRoute).toHaveBeenCalledTimes(1)
     expect(route()).toBeInstanceOf(NavigationRoute)
     expect(route().handler).toBeTypeOf('function')
-    expect(createHandlerBoundToURL).toHaveBeenCalledWith('index.html')
+    expect(createHandlerBoundToURL).toHaveBeenCalledWith('app-shell/index.html')
   })
 
   it('serves the network shell whenever online', async () => {
@@ -104,13 +104,15 @@ describe('sw navigation fallback', () => {
     expect(offlineHandler).toHaveBeenCalledWith(options)
   })
 
-  it('falls back to the pre-cached shell on a non-OK response', async () => {
-    // The host serves the shell for app routes; an edge error page must never
-    // replace the app.
-    fetchMock.mockResolvedValue({ ok: false, status: 404 })
-    const options = { request: new Request('https://app.example/channel/c1') }
-    await expect(route().handler(options)).resolves.toBe('index-handler')
-    expect(offlineHandler).toHaveBeenCalledWith(options)
+  it('passes a non-OK response through so unknown URLs return a real 404', async () => {
+    // App/auth routes are rewritten to the shell (200) by public/_redirects;
+    // anything else (a genuine 404) must reach the user, not be swapped for the
+    // cached shell (issue #643).
+    const notFound = { ok: false, status: 404 }
+    fetchMock.mockResolvedValue(notFound)
+    const options = { request: new Request('https://app.example/nope') }
+    await expect(route().handler(options)).resolves.toBe(notFound)
+    expect(offlineHandler).not.toHaveBeenCalled()
   })
 
   it('falls back to the pre-cached shell when the network stalls', async () => {

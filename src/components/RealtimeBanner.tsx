@@ -1,10 +1,15 @@
 import { useRealtimeStatus } from '../lib/realtime'
+import { isPrerender } from '../lib/automation'
 
 // Connection status card for the floating banner host (issue #620): the old
 // full-width in-flow strip pushed every page down and made the channel route
 // scrollable, so it shares the overlay card styling of PwaUpdateBanner.
 export function RealtimeBanner() {
   const status = useRealtimeStatus()
+  // The status starts Connected and only turns Offline once the effect runs, so
+  // a prerender snapshot could capture the banner while hydration's first render
+  // does not. Keep it out of the prerender (issue #643).
+  if (isPrerender()) return null
   if (status === 'Connected') return null
 
   const offline = status === 'Offline'

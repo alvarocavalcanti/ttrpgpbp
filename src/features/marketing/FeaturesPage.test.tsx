@@ -58,7 +58,7 @@ describe('FeaturesPage', () => {
     mockAuth(null)
   })
 
-  it('renders the hero with two Start now CTAs pointing at /', () => {
+  it('renders the hero with two Start now CTAs pointing anonymous visitors at /login', () => {
     renderPage()
 
     expect(
@@ -66,6 +66,16 @@ describe('FeaturesPage', () => {
     ).toBeInTheDocument()
     const ctas = screen.getAllByRole('link', { name: 'Start now!' })
     expect(ctas).toHaveLength(2)
+    for (const cta of ctas) {
+      expect(cta).toHaveAttribute('href', '/login')
+    }
+  })
+
+  it('points Start now CTAs back at the lobby for signed-in visitors', () => {
+    mockAuth({ id: 'user-1' })
+    renderPage()
+
+    const ctas = screen.getAllByRole('link', { name: 'Start now!' })
     for (const cta of ctas) {
       expect(cta).toHaveAttribute('href', '/')
     }
@@ -98,14 +108,11 @@ describe('FeaturesPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('hides the slim header while auth is still loading', () => {
+  it('renders the anonymous header while auth is loading, matching the prerender', () => {
     mockAuth(null, true)
     renderPage()
 
-    expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Sign in with Google or an email link and start your first campaign in minutes.')
-    ).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
   })
 
   it('defaults to the GM track', () => {

@@ -52,12 +52,18 @@ function getSnapshot(): Theme {
   return currentTheme
 }
 
+// Prerendered pages are captured in light mode, so the client's first hydration
+// render must not read the persisted/system theme or returning dark-mode users
+// would mismatch (React #418). React uses this for the hydration render, then
+// switches to getSnapshot and re-renders in the real theme (issue #643).
+const getServerSnapshot = (): Theme => 'light'
+
 // Apply the persisted/initial theme to <html> once at module load (previously
 // done by each useTheme instance's effect).
 applyTheme(currentTheme)
 
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
   const toggleTheme = useCallback(() => setTheme(theme === 'dark' ? 'light' : 'dark'), [theme])
   return { theme, isDark: theme === 'dark', toggleTheme }
 }
