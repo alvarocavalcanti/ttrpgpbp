@@ -16,12 +16,12 @@ function Trigger() {
   return <button type="button" onClick={openChangelog}>open changelog</button>
 }
 
-function renderProvider(initialEntries: string[] = ['/']) {
+function renderProvider(initialEntries: string[] = ['/settings']) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <ChangelogProvider>
         <Trigger />
-        <Link to="/">home</Link>
+        <Link to="/settings">settings</Link>
       </ChangelogProvider>
     </MemoryRouter>
   )
@@ -77,10 +77,15 @@ describe('ChangelogProvider', () => {
     expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
   })
 
+  it('does not auto-show on the landing page even when signed in (#643)', () => {
+    renderProvider(['/'])
+    expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
+  })
+
   it('auto-shows after navigating from the marketing page into the app (#536)', async () => {
     renderProvider(['/features'])
     expect(screen.queryByRole('dialog', { name: "What's new" })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('link', { name: 'home' }))
+    fireEvent.click(screen.getByRole('link', { name: 'settings' }))
     expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
   })
 

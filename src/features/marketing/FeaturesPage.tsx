@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle'
+import { Seo } from '../../components/Seo'
 import { ImageViewerModal } from '../../components/ImageViewerModal'
 import { useAuth } from '../auth/useAuth'
 import { trackEvent } from '../../lib/analytics'
@@ -157,13 +158,14 @@ export function FeaturesPage() {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900">
+      <Seo path="/features" />
       {/* Slim header for anonymous visitors only: signed-in users already get
           the app header, and a second one would stack. Hidden while auth is
           still loading so it never flashes next to the app header. */}
       {!loading && !user && (
         <header className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 max-w-6xl mx-auto w-full">
           <Link to="/features" className="flex items-center gap-2 text-lg font-bold text-surface-900 dark:text-surface-100">
-            <img src="/RoleByPost.png" alt="" className="w-8 h-8 rounded" />
+            <img src="/RoleByPost.png" alt="" width={32} height={32} className="w-8 h-8 rounded" />
             Role by Post
           </Link>
           <div className="flex items-center gap-2">
@@ -207,6 +209,7 @@ export function FeaturesPage() {
               alt=""
               width={360}
               height={780}
+              fetchPriority="high"
               className="w-full h-auto block"
             />
           </button>

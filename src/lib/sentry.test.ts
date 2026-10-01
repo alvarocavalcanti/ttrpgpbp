@@ -102,6 +102,29 @@ describe('sentry', () => {
     })
   })
 
+  describe('automated browser guard (prerender)', () => {
+    function withWebdriver<T>(value: boolean, run: () => T): T {
+      vi.stubGlobal('navigator', { webdriver: value })
+      try {
+        return run()
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    }
+
+    it('initSentry no-ops in an automated browser even with a DSN', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      await withWebdriver(true, () => initSentry())
+      expect(Sentry.init).not.toHaveBeenCalled()
+    })
+
+    it('captureException no-ops in an automated browser', async () => {
+      mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'
+      await withWebdriver(true, () => captureException(new Error('boom')))
+      expect(Sentry.captureException).not.toHaveBeenCalled()
+    })
+  })
+
   describe('chunk-load failure resilience', () => {
     it('initSentry swallows the failed dynamic import instead of rejecting', async () => {
       mockEnv.VITE_SENTRY_DSN = 'https://test@ingest.sentry.io/1'

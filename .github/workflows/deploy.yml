@@ -1,0 +1,67 @@
+name: Deploy to Cloudflare Pages
+
+# The Pages build image is an unprivileged gVisor container with no Chromium, so
+# the SEO prerender cannot run there (issue #643). Build here (GitHub runners
+# have Chromium + sudo) and upload dist/ to Pages via Wrangler.
+#
+# One-time setup (see DEPLOYMENT.md):
+#   - Cloudflare Pages: disable automatic Git builds (Direct Upload takes over).
+#   - Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and the VITE_* build vars.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Fork and Dependabot PRs cannot read repository secrets, so their previews
+    # are skipped (they would fail at the build step anyway).
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    name: Build & deploy
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '26'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build with prerender
+        run: npm run build:seo
+        env:
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_CONTROLLER_NAME: ${{ secrets.VITE_CONTROLLER_NAME }}
+          VITE_CONTROLLER_EMAIL: ${{ secrets.VITE_CONTROLLER_EMAIL }}
+
+      - name: Verify prerendered output
+        run: npm run seo:verify
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy dist --project-name=ttrpgpbp

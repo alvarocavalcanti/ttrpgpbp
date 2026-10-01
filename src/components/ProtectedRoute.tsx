@@ -4,12 +4,19 @@ import { isSafeRedirectPath } from '../features/auth/AuthContext'
 import { confirmAge, confirmTerms } from '../features/auth/authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from '../features/auth/terms'
 import { ReConsentGate } from '../features/auth/ReConsentGate'
-import { lazy, Suspense } from 'react'
-const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
+import { Seo } from './Seo'
+import { LandingPage } from '../features/marketing/LandingPage'
 
 export function ProtectedRoute() {
   const { user, profile, loading, error, refreshProfile, termsConfirmState, retryTermsConfirm } = useAuth()
   const location = useLocation()
+
+  // The landing route is public: signed-out visitors (and the initial loading
+  // window, so hydration matches the prerendered snapshot) get the marketing
+  // page instead of being bounced to /login (issue #643).
+  if (location.pathname === '/' && !user) {
+    return <LandingPage />
+  }
 
   if (loading) {
     return (
@@ -30,9 +37,6 @@ export function ProtectedRoute() {
   }
 
   if (!user) {
-    if (location.pathname === '/') {
-      return <Suspense fallback={null}><LoginPage /></Suspense>
-    }
     const from = location.pathname + location.search + location.hash
     return <Navigate to="/login" replace state={{ from }} />
   }
@@ -104,5 +108,11 @@ export function ProtectedRoute() {
     )
   }
 
-  return <Outlet />
+  return (
+    <>
+      {/* App/auth routes stay client-rendered; keep them out of the index. */}
+      <Seo path={location.pathname} noindex />
+      <Outlet />
+    </>
+  )
 }

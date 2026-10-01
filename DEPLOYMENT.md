@@ -65,6 +65,7 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 | `VITE_GA_MEASUREMENT_ID` | Optional Google Analytics 4 measurement ID (e.g. `G-XXXXXXXXXX`). When set, Google Analytics loads and page views are tracked; omit to disable analytics (local dev, self-hosted instances) | Static host env (build) |
 | `VITE_CONTROLLER_NAME` | **Required for production builds** — data-controller name shown in the Privacy Policy and Terms footer (GDPR Art 13). The build fails without it; omit only for local dev. Anyone deploying their own copy must put their own identity here | Static host env (build) |
 | `VITE_CONTROLLER_EMAIL` | **Required for production builds** — data-controller contact email shown next to the name. The build fails without it or with an invalid address; omit only for local dev | Static host env (build) |
+| `VITE_SITE_URL` | Optional public origin used for canonical / Open Graph URLs and `sitemap.xml` (e.g. `https://rolebypost.com`). Defaults to `https://rolebypost.com`; a self-hosted copy should set its own | Static host env (build) |
 | `VITE_SENTRY_DSN` | Optional client error reporting. Leave unset to disable Sentry entirely. See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) | Static host env (build) |
 | `VAPID_PRIVATE_KEY` | Private half of the VAPID keypair | `supabase secrets set VAPID_PRIVATE_KEY` |
 | `ALLOWED_ORIGINS` | **Required if the app is served from any origin outside the defaults** — comma-separated list of app origins allowed to call `upload-image`, `delete-account`, and `push-notifications` (CORS). Defaults to `http://localhost:5173`, `https://ttrpgpbp.pages.dev`, `https://rolebypost.com`, and any `*.ttrpgpbp.pages.dev` preview. A self-hosted domain that is not in the list has its image uploads and account deletion blocked at the CORS preflight | `supabase secrets set ALLOWED_ORIGINS=...` |
@@ -186,22 +187,37 @@ browser, so no user JWT is involved.
 
 ## 7. Deploy the frontend
 
-- [ ] Build the static bundle:
+The public marketing routes (`/`, `/features`, `/privacy`, `/terms`) are
+**prerendered at build time** with Playwright, so the bundle must be built where
+Chromium can run — the Cloudflare Pages build image is an unprivileged container
+with no Chromium and cannot. The reference setup therefore builds in GitHub
+Actions and uploads `dist/` to Pages.
+
+- [ ] Build the static bundle + prerender locally:
 
   ```bash
   npm install
-  npm run build
+  npx playwright install chromium
+  npm run build:seo
   ```
 
-  Output goes to `dist/`.
+  Output goes to `dist/` (`index.html`, `features.html`, `privacy.html`,
+  `terms.html`, `app-shell/index.html`, `404.html`, `_redirects`, `robots.txt`,
+  `sitemap.xml`). `npm run build` alone skips prerender (used for typecheck/CI).
 - [ ] Cloudflare Pages (reference):
   - Create a new Pages project connected to your repo.
-  - Build command: `npm run build`, output directory: `dist`.
-  - Add the `VITE_*` environment variables (Production and Preview).
+  - **Disable automatic Git builds** (Settings → Builds & deployments): GitHub
+    Actions owns the deployment via Direct Upload, and Pages does not allow
+    native Git builds and Direct Upload on the same branch triggers.
   - Add your custom domain (Workers & Pages → project → **Custom domains**). The reference deployment serves both `https://rolebypost.com` and the default `https://<project>.pages.dev`; keep both live so installed PWAs and old links keep working. Do **not** redirect `pages.dev` to the custom domain — PWA installs, service workers, and push subscriptions are origin-bound, so a redirect would break them.
+- [ ] GitHub Actions deployment ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)):
+  - Repository secret `CLOUDFLARE_API_TOKEN` (My Profile → API Tokens → Custom token with **Account → Cloudflare Pages → Edit**).
+  - Repository secret `CLOUDFLARE_ACCOUNT_ID`.
+  - Repository secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`, `VITE_GA_MEASUREMENT_ID`, `VITE_SENTRY_DSN`, `VITE_CONTROLLER_NAME`, `VITE_CONTROLLER_EMAIL`; repository **variable** `VITE_SITE_URL`. Pushes to `main` deploy production; same-repo PRs get a preview.
 - [ ] Point DNS: for a Cloudflare-managed zone, add an apex CNAME (`rolebypost.com` → `<project>.pages.dev`, proxied) and wait for certificate issuance.
 - [ ] Allow auth redirects for every origin the app is served from: `supabase config push` (or Dashboard → Auth → URL Configuration). `supabase/config.toml` already lists the local (`localhost:5173`), `rolebypost.com`, and `*.ttrpgpbp.pages.dev` entries — with `/**` path wildcards for the magic-link `/login?redirect=…` return. Keep the list complete: `config push` replaces the whole allowlist. See step 2b for email delivery.
 - [ ] Any other static host works — point it at `dist/`, set the `VITE_*` vars, and make sure all routes fall back to `index.html` (SPA routing). Cloudflare Pages does this automatically. Whichever host you use, the app shell on every app route (see public/_headers for the list — keep it in sync with src/App.tsx) and the worker script must be served `Cache-Control: no-cache` (`/` and `/index.html` alone are not enough: a reload at `/channel/c1` requests that path); a long-cached shell traps installed PWAs on the old version after an update, which the update banner cannot fix on its own.
+- [ ] Regenerating the social share card (only when the brand art or tagline changes): `npm run seo:og` rewrites the committed `public/og-image.png`.
 
 ## 8. Promote the first server admin
 

@@ -86,7 +86,7 @@ describe('sw navigation fallback', () => {
     expect(registerRoute).toHaveBeenCalledTimes(1)
     expect(route()).toBeInstanceOf(NavigationRoute)
     expect(route().handler).toBeTypeOf('function')
-    expect(createHandlerBoundToURL).toHaveBeenCalledWith('index.html')
+    expect(createHandlerBoundToURL).toHaveBeenCalledWith('app-shell/index.html')
   })
 
   it('serves the network shell whenever online', async () => {

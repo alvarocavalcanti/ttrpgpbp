@@ -27,11 +27,17 @@ export function scrubSentryEvent(event: SentryTypes.ErrorEvent): SentryTypes.Err
   return event
 }
 
+// The SEO prerender (scripts/seo/prerender.mjs) loads the built app in an
+// automated browser; telemetry from that run would be noise, not real errors.
+function isAutomatedBrowser(): boolean {
+  return typeof navigator !== 'undefined' && navigator.webdriver === true
+}
+
 // @sentry/react is ~100 kB minified; load it behind import() so it never lands
 // in the main chunk. Sentry initializes a beat after first render — fine for
 // error/tracing telemetry (self-hosted instances have no DSN and load nothing).
 export async function initSentry(): Promise<void> {
-  if (!env.VITE_SENTRY_DSN) return
+  if (!env.VITE_SENTRY_DSN || isAutomatedBrowser()) return
   try {
     const Sentry = await import('@sentry/react')
     Sentry.init({
@@ -57,7 +63,7 @@ export async function initSentry(): Promise<void> {
 // never surface as unhandled rejections or break the caller — telemetry is
 // best-effort.
 export async function captureException(error: unknown, extra?: Record<string, unknown>): Promise<void> {
-  if (!env.VITE_SENTRY_DSN) return
+  if (!env.VITE_SENTRY_DSN || isAutomatedBrowser()) return
   try {
     const Sentry = await import('@sentry/react')
     Sentry.captureException(error, extra ? { extra } : undefined)

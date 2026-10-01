@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import '@fontsource/crimson-pro/400.css'
 import '@fontsource/crimson-pro/400-italic.css'
 import '@fontsource/crimson-pro/600.css'
@@ -15,10 +15,20 @@ void initSentry()
 // Analytics loads only after the visitor allows it (see AnalyticsConsentBanner).
 if (hasAnalyticsConsent()) initAnalytics()
 
-createRoot(document.getElementById('root')!).render(
+const container = document.getElementById('root')!
+
+const tree = (
   <StrictMode>
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
-  </StrictMode>,
+  </StrictMode>
 )
+
+// Public routes are prerendered to static HTML (issue #643), so hydrate that
+// markup. The app shell (app/auth routes) has an empty #root and mounts fresh.
+if (container.firstElementChild) {
+  hydrateRoot(container, tree)
+} else {
+  createRoot(container).render(tree)
+}

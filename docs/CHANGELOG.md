@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Role by Post has a proper home page** — visiting the site without signing in now shows a public landing page about Role by Post instead of the sign-in form. The sign-in form has moved to its own page, and links to it are clear from the landing page.
+- **Link previews and search results look right** — shared links (Slack, Discord, social) and search engines now see a title, a description, and a share image, and there is a proper sitemap so the public pages get found.
 - **Sort your dice pools highest-first** — add an `s` to a pool roll (`5d6ps`) or a success roll (`5d6>=4s`) and the faces come back sorted with the highest first, so counting how many beat a number is instant. The Dice Roller Panel has a matching **Sort highest first** checkbox in Pool and Successes modes.
 
 ### Fixed

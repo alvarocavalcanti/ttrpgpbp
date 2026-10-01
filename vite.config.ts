@@ -46,6 +46,9 @@ export default defineConfig(({ command, mode }) => {
   define: {
     __APP_BUILD__: JSON.stringify(appBuild),
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // Public origin for canonical/OG URLs (issue #643). Self-hosted copies set
+    // VITE_SITE_URL; the reference deployment is the default.
+    __SITE_URL__: JSON.stringify(process.env.VITE_SITE_URL || 'https://rolebypost.com'),
   },
   plugins: [
     react(),
@@ -58,6 +61,14 @@ export default defineConfig(({ command, mode }) => {
         // No bare `png` here: it would precache every help screenshot
         // (~3.4 MiB). Help images load from the network on first visit.
         globPatterns: ['**/*.{js,css,html,ico,svg}'],
+        // index.html becomes the prerendered landing page after the build, so
+        // it must not be the offline navigation shell. The empty shell is
+        // emitted by scripts/seo/prerender.mjs *after* vite build, so Workbox's
+        // glob cannot see it — add it explicitly.
+        globIgnores: ['index.html'],
+        additionalManifestEntries: [
+          { url: '/app-shell/index.html', revision: appBuild },
+        ],
         buildPlugins: {
           rollup: [swOutputCompat],
         },

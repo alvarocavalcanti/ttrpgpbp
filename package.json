@@ -7,6 +7,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:seo": "npm run seo:redirects && npm run build && node scripts/seo/prerender.mjs",
+    "seo:redirects": "node scripts/seo/redirects.mjs",
+    "seo:prerender": "node scripts/seo/prerender.mjs",
+    "seo:og": "node scripts/seo/og-image.mjs",
+    "seo:verify": "node scripts/seo/verify-prerender.mjs",
     "lint": "oxlint",
     "lint:md": "markdownlint-cli2 \"*.md\" \"docs/**/*.md\"",
     "spellcheck": "cspell \"src/**/*.{ts,tsx}\" \"*.md\" \"docs/**/*.md\"",

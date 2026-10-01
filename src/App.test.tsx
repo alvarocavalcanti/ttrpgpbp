@@ -40,7 +40,7 @@ describe('App', () => {
     }) as any)
   })
 
-  it('renders login page initially when unauthenticated', async () => {
+  it('renders the landing marketing page at / when unauthenticated', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: null },
       error: null,
@@ -51,9 +51,27 @@ describe('App', () => {
     } as any)
 
     render(<App />)
-    
+
+    expect(await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })).toBeInTheDocument()
+    expect(screen.queryByText('Sign in with Google or an email link to securely create and access your roleplaying campaigns.')).not.toBeInTheDocument()
+  })
+
+  it('renders the login page at /login when unauthenticated', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    window.history.pushState({}, '', '/login')
+    render(<App />)
+
     // Wait for the AuthProvider to resolve loading state
     expect(await screen.findByText('Sign in with Google or an email link to securely create and access your roleplaying campaigns.')).toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
   })
 
   it('serves the public marketing page to anonymous visitors', async () => {

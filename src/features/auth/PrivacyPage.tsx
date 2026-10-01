@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { env } from '../../env'
 import { DataControllerLine } from './DataController'
+import { Seo } from '../../components/Seo'
 
 export function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <Seo path="/privacy" />
       <Link to="/" replace className="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-6">
         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

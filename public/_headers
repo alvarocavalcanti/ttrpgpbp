@@ -15,6 +15,14 @@
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache
+# Prerendered empty SPA shell every app/auth route is rewritten to (issue
+# #643). Never cached, never indexed.
+/app-shell
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex
+/app-shell/*
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex
 /login
   Cache-Control: no-cache
 /archived

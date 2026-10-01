@@ -169,3 +169,41 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  # Prerender needs Chromium, which the Cloudflare Pages build image cannot run;
+  # this job proves the committed build script and route registry stay coherent.
+  seo:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      VITE_CONTROLLER_NAME: Alvaro Cavalcanti
+      VITE_CONTROLLER_EMAIL: support@rolebypost.com
+      # The prerender boots the built app, and src/env.ts requires these at
+      # runtime. Dummy values are fine — public pages never read Supabase data.
+      VITE_SUPABASE_URL: http://localhost:54321
+      VITE_SUPABASE_ANON_KEY: test-anon-key
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '26'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify public/_redirects is in sync
+        run: |
+          npm run seo:redirects
+          git diff --exit-code public/_redirects || (echo "public/_redirects is stale. Run 'npm run seo:redirects' and commit the result." && exit 1)
+
+      - name: Build with prerender
+        run: npm run build:seo
+
+      - name: Verify prerendered output
+        run: npm run seo:verify

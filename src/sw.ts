@@ -50,7 +50,7 @@ self.addEventListener('activate', (event) => {
 //
 // ponytail: plain fetch + a bounded wait, no strategy cache. The network
 // response is never stored — the precache stays the only offline source.
-const offlineShell = createHandlerBoundToURL('index.html')
+const offlineShell = createHandlerBoundToURL('app-shell/index.html')
 // A stalled (not failed) request must not hang the navigation forever when the
 // offline shell is ready: 10s is patient on slow mobile networks, finite
 // everywhere else.

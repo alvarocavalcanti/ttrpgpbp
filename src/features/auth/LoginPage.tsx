@@ -5,62 +5,7 @@ import { useAuth } from './useAuth'
 import { isSafeRedirectPath } from './AuthContext'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import { ThemeToggle } from '../../components/ThemeToggle'
-
-const FEATURES = [
-  {
-    title: 'Real-time Chat',
-    description: 'Markdown messages, scene breaks, whispers, and daily date dividers keep the story flowing.',
-    icon: (
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    ),
-  },
-  {
-    title: 'Dice Rolling',
-    description: 'Clickable dice notation, advantage and disadvantage, and built-in ability checks.',
-    icon: (
-      <>
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
-        <circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
-        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
-        <circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none" />
-        <circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none" />
-      </>
-    ),
-  },
-  {
-    title: 'Campaign Management',
-    description: 'Private channels with invite links, character tracking, and persistent status bars.',
-    icon: (
-      <>
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </>
-    ),
-  },
-  {
-    title: 'Push Notifications',
-    description: 'Stay in the loop with web push alerts when it\'s your turn or new messages arrive.',
-    icon: (
-      <>
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </>
-    ),
-  },
-  {
-    title: 'Mobile First',
-    description: 'Designed to feel like a native chat app, on your phone or on the web.',
-    icon: (
-      <>
-        <rect x="5" y="2" width="14" height="20" rx="2" />
-        <path d="M12 18h.01" />
-      </>
-    ),
-  },
-]
+import { Seo } from '../../components/Seo'
 
 // Permissive shape check only: this is a UX speed bump, the address still has
 // to be deliverable. Kept local (not native type=email validity) so it is
@@ -209,6 +154,12 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center py-10 relative">
+      <Seo
+        path="/login"
+        title="Sign in — Role by Post"
+        description="Sign in to Role by Post with Google or a one-time email link."
+        noindex
+      />
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
@@ -216,7 +167,7 @@ export function LoginPage() {
         <div className="max-w-md w-full mx-auto bg-white dark:bg-surface-800 rounded-xl shadow-md p-8">
           <div>
             <div className="flex items-center justify-center gap-3 mt-6">
-              <img src="/RoleByPost.png" alt="Role by Post" className="w-12 h-12 rounded" />
+              <img src="/RoleByPost.png" alt="Role by Post" width={48} height={48} className="w-12 h-12 rounded" />
               <h2 className="text-3xl font-extrabold text-surface-900 dark:text-surface-100">
                 Role by Post
               </h2>
@@ -365,55 +316,6 @@ export function LoginPage() {
           </div>
         </div>
 
-        <section className="mt-12 max-w-2xl mx-auto text-center">
-          <h3 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-            Text-first, no bloat
-          </h3>
-          <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
-            Role by Post is a chat-first app for asynchronous tabletop RPGs, with a few quality-of-life tools to keep play moving. Bring any tabletop RPG: generic play is built in, with optional Shadowdark character stats when useful.
-          </p>
-
-          <div className="mt-6 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-6 text-left shadow-sm">
-            <h4 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
-              Not a VTT
-            </h4>
-            <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
-              You won&apos;t find battle maps, tactical combat automation, animated dice, or AI-generated content here. Role by Post keeps the conversation flowing while reducing app and tab switching.
-            </p>
-            <p className="mt-2 text-sm sm:text-base text-surface-600 dark:text-surface-400">
-              Instead, each channel links out to its Map and shared Resources (plus a GM-only resources link), and every player can pin a character sheet URL — so your table stays one tap away without leaving the conversation.
-            </p>
-          </div>
-        </section>
-
-        <div className="mt-14">
-          <h3 className="text-center text-2xl font-bold text-surface-900 dark:text-surface-100">
-            Why Role by Post?
-          </h3>
-          <p className="mt-2 text-center text-sm text-surface-600 dark:text-surface-400">
-            The home for asynchronous tabletop roleplaying
-          </p>
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {FEATURES.map((feature) => (
-              <div key={feature.title} className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 dark:text-primary-400">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                    {feature.icon}
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-surface-900 dark:text-surface-100">{feature.title}</h4>
-                  <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{feature.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8 text-center">
-            <Link to="/features" className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
-              See all features →
-            </Link>
-          </div>
-        </div>
       </div>
       <div className="mt-14 text-center text-sm text-surface-600 dark:text-surface-400 space-y-2 flex flex-col items-center">
         <p>

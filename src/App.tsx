@@ -20,10 +20,11 @@ import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { Seo } from './components/Seo'
 import { trackEvent, trackPageView } from './lib/analytics'
 import { hasAnalyticsConsent } from './lib/analyticsConsent'
 import { AnalyticsConsentBanner } from './components/AnalyticsConsentBanner'
-import { isMarketingPath } from './lib/marketing'
+import { isMarketingPath, ROUTES } from './lib/publicRoutes'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -47,6 +48,12 @@ const AdminMessagesView = lazy(() => import('./features/admin-messages/AdminMess
 export function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-surface-50 dark:bg-surface-900 px-4">
+      <Seo
+        path="/404"
+        title="Page not found — Role by Post"
+        description="The page you're looking for does not exist."
+        noindex
+      />
       <h1 className="text-xl font-medium text-surface-900 dark:text-surface-100 mb-2">Page not found</h1>
       <p className="text-surface-500 dark:text-surface-400 mb-6">The page you&apos;re looking for does not exist.</p>
       <Link to="/" replace className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium">Return to Lobby</Link>
@@ -377,26 +384,26 @@ export default function App() {
                 }>
                 <RouteErrorBoundary>
                   <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    
+                    <Route path={ROUTES.login} element={<LoginPage />} />
+
                     <Route element={<ProtectedRoute />}>
-                      <Route path="/" element={<Lobby />} />
-                      <Route path="/archived" element={<ArchivedChannels />} />
-                      <Route path="/messages" element={<AdminMessagesView />} />
-                      <Route path="/admin" element={<AdminView />} />
-                      <Route path="/admin/channels/:id" element={<AdminChannelView />} />
-                      <Route path="/join/:id" element={<JoinChannel />} />
-                      <Route path="/channel/:id" element={<ChannelView />} />
-                      <Route path="/settings" element={<ProfileSettings />} />
-                      <Route path="/help" element={<HelpPage />} />
-                      <Route path="/help/:topic" element={<HelpPage />} />
-                      <Route path="/changelog" element={<ChangelogPage />} />
-                      <Route path="/about" element={<AboutPage />} />
+                      <Route path={ROUTES.home} element={<Lobby />} />
+                      <Route path={ROUTES.archived} element={<ArchivedChannels />} />
+                      <Route path={ROUTES.messages} element={<AdminMessagesView />} />
+                      <Route path={ROUTES.admin} element={<AdminView />} />
+                      <Route path={ROUTES.adminChannel} element={<AdminChannelView />} />
+                      <Route path={ROUTES.join} element={<JoinChannel />} />
+                      <Route path={ROUTES.channel} element={<ChannelView />} />
+                      <Route path={ROUTES.settings} element={<ProfileSettings />} />
+                      <Route path={ROUTES.help} element={<HelpPage />} />
+                      <Route path={ROUTES.helpTopic} element={<HelpPage />} />
+                      <Route path={ROUTES.changelog} element={<ChangelogPage />} />
+                      <Route path={ROUTES.about} element={<AboutPage />} />
                     </Route>
-                    <Route path="/privacy" element={<PrivacyPage />} />
-                    <Route path="/terms" element={<TermsPage />} />
-                    <Route path="/features" element={<FeaturesPage />} />
-                    <Route path="*" element={<NotFound />} />
+                    <Route path={ROUTES.privacy} element={<PrivacyPage />} />
+                    <Route path={ROUTES.terms} element={<TermsPage />} />
+                    <Route path={ROUTES.features} element={<FeaturesPage />} />
+                    <Route path={ROUTES.notFound} element={<NotFound />} />
                   </Routes>
                 </RouteErrorBoundary>
               </Suspense>
