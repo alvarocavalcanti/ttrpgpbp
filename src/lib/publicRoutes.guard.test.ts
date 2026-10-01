@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
   APP_ROUTE_KEYS,
+  PUBLIC_ROUTES,
   ROUTES,
   appRedirectRules,
   buildRedirectsFile,
@@ -33,6 +34,18 @@ describe('App.tsx route wiring', () => {
 })
 
 describe('public/_redirects', () => {
+  it('covers every non-public ROUTES key, not just the listed ones', () => {
+    // The drift that matters: someone adds a ROUTES entry + <Route> but forgets
+    // APP_ROUTE_KEYS, so its production deep link 404s while every other guard
+    // stays green. Derive the expected set from ROUTES itself.
+    const publicPaths = new Set(PUBLIC_ROUTES.map((route) => route.path))
+    const expected = Object.entries(ROUTES)
+      .filter(([, path]) => path !== ROUTES.notFound && !publicPaths.has(path))
+      .map(([key]) => key)
+      .sort()
+    expect([...APP_ROUTE_KEYS].sort()).toEqual(expected)
+  })
+
   it('is exactly what the generator produces (no drift)', () => {
     expect(redirects).toBe(buildRedirectsFile())
   })

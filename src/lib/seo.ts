@@ -26,7 +26,7 @@ export function canonicalUrl(siteUrl: string, path: string): string {
   return path === '/' ? `${base}/` : `${base}${path}`
 }
 
-export function buildSitemap(routes: SitemapRoute[], siteUrl: string, lastmod: string): string {
+export function buildSitemap(routes: SitemapRoute[], siteUrl: string, lastmod?: string): string {
   const urls = routes.map((route) => {
     const lines = [`    <loc>${escapeXml(canonicalUrl(siteUrl, route.path))}</loc>`]
     if (lastmod) lines.push(`    <lastmod>${escapeXml(lastmod)}</lastmod>`)

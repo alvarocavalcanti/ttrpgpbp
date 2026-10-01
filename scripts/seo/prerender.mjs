@@ -15,23 +15,18 @@ import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { loadEnv } from 'vite'
 import { chromium } from '@playwright/test'
 import { PUBLIC_ROUTES, robotsDisallowPaths } from '../../src/lib/publicRoutes.ts'
 import { buildRobots, buildSitemap, siteJsonLd } from '../../src/lib/seo.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dist = join(root, 'dist')
-// Match Vite's env precedence (shell first, then .env files) so the sitemap /
-// robots origin agrees with the __SITE_URL__ baked into the bundle.
-const shellSiteUrl = process.env.VITE_SITE_URL
-for (const file of ['.env', '.env.local']) {
-  try {
-    process.loadEnvFile(join(root, file))
-  } catch {
-    // file absent locally / in CI
-  }
-}
-const siteUrl = shellSiteUrl || process.env.VITE_SITE_URL || 'https://rolebypost.com'
+// Use Vite's own env resolution (shell overrides files, `.env.local` over
+// `.env`, mode-specific files) so the sitemap/robots origin agrees with the
+// __SITE_URL__ baked into the bundle.
+const fileEnv = loadEnv(process.env.NODE_ENV === 'development' ? 'development' : 'production', root)
+const siteUrl = process.env.VITE_SITE_URL || fileEnv.VITE_SITE_URL || 'https://rolebypost.com'
 // Random high port so a stale preview server can never be mistaken for ours.
 const port = Number(process.env.SEO_PORT) || 4300 + Math.floor(Math.random() * 400)
 const base = `http://localhost:${port}`
@@ -51,7 +46,9 @@ const shellDir = join(dist, 'app-shell')
 mkdirSync(shellDir, { recursive: true })
 cpSync(join(dist, 'index.html'), join(shellDir, 'index.html'))
 
-// 2. Crawl files, written from the same route registry the app uses.
+// 2. Crawl files, written from the same route registry the app uses. No
+// `lastmod`: pages do not change on every deploy, and a build-date lastmod is
+// an inaccurate crawl signal search engines learn to ignore (issue #643).
 writeFileSync(
   join(dist, 'sitemap.xml'),
   buildSitemap(
@@ -61,7 +58,6 @@ writeFileSync(
       priority: route.priority,
     })),
     siteUrl,
-    new Date().toISOString().slice(0, 10),
   ),
 )
 writeFileSync(join(dist, 'robots.txt'), buildRobots(siteUrl, robotsDisallowPaths()))

@@ -64,9 +64,10 @@ registerRoute(new NavigationRoute(async (options) => {
         timer = setTimeout(() => reject(new Error('navigation timeout')), NAVIGATION_TIMEOUT)
       }),
     ])
-    // The host serves the shell for app routes; anything else (e.g. an edge
-    // 404 page) must never replace the app — fall back to the precache.
-    if (response.ok) return response
+    // Return whatever the host sent, including the real 404 for unknown paths
+    // (#643) — the app shell is only the offline fallback. App/auth routes are
+    // rewritten to the shell by public/_redirects, so they still return 200.
+    return response
   } catch {
     // Offline, stalled, or non-OK: fall through to the pre-cached shell.
   } finally {

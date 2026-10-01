@@ -11,6 +11,20 @@ export function ProtectedRoute() {
   const { user, profile, loading, error, refreshProfile, termsConfirmState, retryTermsConfirm } = useAuth()
   const location = useLocation()
 
+  // A failed session load must stay visible, even at `/` — otherwise a
+  // returning user is silently shown marketing content as if signed out. The
+  // error only appears after the async load resolves, i.e. after hydration, so
+  // this does not break the prerendered landing match.
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900" role="alert">
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 max-w-md text-center">
+          Failed to load your session. Please refresh the page or try signing in again.
+        </div>
+      </div>
+    )
+  }
+
   // The landing route is public: signed-out visitors (and the initial loading
   // window, so hydration matches the prerendered snapshot) get the marketing
   // page instead of being bounced to /login (issue #643).
@@ -22,16 +36,6 @@ export function ProtectedRoute() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900" role="alert">
-        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 max-w-md text-center">
-          Failed to load your session. Please refresh the page or try signing in again.
-        </div>
       </div>
     )
   }

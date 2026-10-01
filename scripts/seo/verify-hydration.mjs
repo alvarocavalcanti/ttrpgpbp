@@ -1,10 +1,10 @@
 // Post-build hydration guard (issue #643).
 //
-// A browser-prerendered page only hydrates cleanly when the React tree on the
-// client matches the parsed DOM. React 19 throws #418 when it does not — most
-// often because two adjacent text nodes in JSX (e.g. `text{' '}<b>`) merge when
-// the serialized HTML is re-parsed. That is invisible to an HTML diff, so this
-// loads the built pages in Chromium and fails on any hydration error.
+// A browser-prerendered page only hydrates cleanly when the client's first
+// render matches the parsed DOM. React 19 throws #418 otherwise — from adjacent
+// text nodes merging, Suspense boundaries, or first render reading persisted
+// state (theme, analytics consent) that differs from the prerender snapshot.
+// This loads the built pages in Chromium and fails on any hydration error.
 //
 // Run: node scripts/seo/verify-hydration.mjs   (after `npm run build:seo`)
 import { spawn } from 'node:child_process'
@@ -38,32 +38,52 @@ async function waitForServer(timeoutMs = 30_000) {
 }
 
 const problems = []
+
+function watch(page) {
+  page.on('console', (message) => {
+    const text = message.text()
+    if (message.type() === 'error' && /hydrat|did not match|Minified React error #418/i.test(text)) {
+      problems.push(text)
+    }
+  })
+  page.on('pageerror', (error) => {
+    if (/#418|hydrat/i.test(error.message)) problems.push(error.message)
+  })
+}
+
+async function visit(page, route) {
+  await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('h1', { timeout: 20_000 })
+  await sleep(1000)
+}
+
 try {
   await waitForServer()
   const browser = await chromium.launch()
   try {
-    const context = await browser.newContext({ serviceWorkers: 'block', colorScheme: 'light' })
-    // Same flag the prerender used, so the client's first render omits the
-    // transient UI the snapshot omitted.
-    await context.addInitScript(() => {
+    // 1. Fresh visitor (the state the prerender captured). The prerender flag
+    //    keeps transient client-only UI out of both sides.
+    const fresh = await browser.newContext({ serviceWorkers: 'block', colorScheme: 'light' })
+    await fresh.addInitScript(() => {
       window.__PRERENDER__ = true
     })
-    const page = await context.newPage()
-    page.on('console', (message) => {
-      const text = message.text()
-      if (message.type() === 'error' && /hydrat|did not match|Minified React error #418/i.test(text)) {
-        problems.push(text)
-      }
+    const freshPage = await fresh.newPage()
+    watch(freshPage)
+    for (const route of PUBLIC_ROUTES) await visit(freshPage, route.path)
+    await fresh.close()
+
+    // 2. Returning visitor: persisted dark theme + an answered consent banner.
+    //    The snapshot was light/undecided, so a first render that reads storage
+    //    would mismatch. No prerender flag here — this is the real client path.
+    const returning = await browser.newContext({ serviceWorkers: 'block', colorScheme: 'dark' })
+    await returning.addInitScript(() => {
+      window.localStorage.setItem('rolebypost-theme', 'dark')
+      window.localStorage.setItem('analytics-consent', 'granted')
     })
-    page.on('pageerror', (error) => {
-      if (/#418|hydrat/i.test(error.message)) problems.push(error.message)
-    })
-    for (const route of PUBLIC_ROUTES) {
-      await page.goto(`${base}${route.path}`, { waitUntil: 'domcontentloaded' })
-      await page.waitForSelector(route.waitSelector, { timeout: 20_000 })
-      // Give hydration time to run and report.
-      await sleep(1000)
-    }
+    const returningPage = await returning.newPage()
+    watch(returningPage)
+    for (const route of ['/', '/features']) await visit(returningPage, route)
+    await returning.close()
   } finally {
     await browser.close()
   }
@@ -82,4 +102,4 @@ if (problems.length > 0) {
   for (const problem of problems) console.error(`  - ${problem}`)
   process.exit(1)
 }
-console.log(`Hydration verified for ${PUBLIC_ROUTES.length} routes`)
+console.log('Hydration verified for fresh and returning visitors')

@@ -25,14 +25,15 @@ import { trackEvent, trackPageView } from './lib/analytics'
 import { hasAnalyticsConsent } from './lib/analyticsConsent'
 import { AnalyticsConsentBanner } from './components/AnalyticsConsentBanner'
 import { isMarketingPath, ROUTES } from './lib/publicRoutes'
-// Public prerendered routes are eager: React can only hydrate browser-prerendered
+// Prerendered public routes are eager: React can only hydrate browser-prerendered
 // markup when the matched tree has no Suspense boundary (createRoot emits no
-// Suspense markers). App routes stay lazy and carry their own boundary.
-import { LoginPage } from './features/auth/LoginPage'
+// Suspense markers). `/login` is not prerendered (it serves the empty app shell),
+// so it stays lazy with its own boundary.
 import { PrivacyPage } from './features/auth/PrivacyPage'
 import { TermsPage } from './features/auth/TermsPage'
 import { FeaturesPage } from './features/marketing/FeaturesPage'
 
+const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
 const AboutPage = lazy(() => import('./features/auth/AboutPage').then(m => ({ default: m.AboutPage })))
 const Lobby = lazy(() => import('./features/channels/Lobby').then(m => ({ default: m.Lobby })))
@@ -395,7 +396,7 @@ export default function App() {
               <main className="flex-1 flex flex-col">
                 <RouteErrorBoundary>
                   <Routes>
-                    <Route path={ROUTES.login} element={<LoginPage />} />
+                    <Route path={ROUTES.login} element={<Lazy><LoginPage /></Lazy>} />
 
                     <Route element={<ProtectedRoute />}>
                       <Route path={ROUTES.home} element={<Lazy><Lobby /></Lazy>} />
