@@ -24,6 +24,12 @@ vi.mock('./features/notifications/usePushNotifications', () => ({
   usePushNotifications: vi.fn(),
 }))
 
+// The install banner only renders after a real beforeinstallprompt, so stub it
+// with a marker to test the route/auth gate.
+vi.mock('./components/PwaInstallBanner', () => ({
+  PwaInstallBanner: () => <div data-testid="pwa-install" />,
+}))
+
 import { usePushNotifications } from './features/notifications/usePushNotifications'
 
 // Placement + consent-boundary tests for the floating banner host (#620,
@@ -100,5 +106,28 @@ describe('App permission banner gate', () => {
 
     const region = await screen.findByRole('region', { name: 'Notification permission' })
     expect(region.closest('[data-testid="app-banner-host"]')).not.toBeNull()
+  })
+
+  it('hides the install prompt on the signed-out landing page', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+    window.history.pushState({}, '', '/')
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' })
+    expect(screen.queryByTestId('pwa-install')).not.toBeInTheDocument()
+  })
+
+  it('keeps the install prompt in the lobby for signed-in visitors', async () => {
+    mockSignedIn(CURRENT_TERMS_VERSION)
+    window.history.pushState({}, '', '/')
+    render(<App />)
+
+    expect(await screen.findByTestId('pwa-install')).toBeInTheDocument()
   })
 })

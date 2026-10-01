@@ -75,9 +75,12 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
   },
 ]
 
-const MARKETING_KEYS: RouteKey[] = ['home', 'features', 'privacy', 'terms']
+// Routes that are marketing for everyone. `/` is deliberately excluded: it is
+// the signed-out landing but the lobby once signed in, so callers decide with
+// auth state (see InstallBannerGate).
+const MARKETING_KEYS: RouteKey[] = ['features', 'privacy', 'terms']
 
-// True for the signed-out marketing surfaces. Consumed by the gates that keep
+// True for the always-marketing surfaces. Consumed by the gates that keep
 // app-only surfaces (install banner, changelog auto-open) off these pages.
 export function isMarketingPath(pathname: string): boolean {
   const normalized =

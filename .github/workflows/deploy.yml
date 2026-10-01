@@ -25,7 +25,10 @@ jobs:
   deploy:
     # Fork and Dependabot PRs cannot read repository secrets, so their previews
     # are skipped (they would fail at the build step anyway).
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event_name == 'push'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+          && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     name: Build & deploy
     steps:
@@ -58,10 +61,17 @@ jobs:
       - name: Verify prerendered output
         run: npm run seo:verify
 
+      - name: Verify hydration of prerendered pages
+        run: npm run seo:verify-hydration
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy dist --project-name=ttrpgpbp
+          # Explicit alias: production keeps `main`; PR previews get a
+          # `pr-<number>` branch alias instead of the raw head-ref.
+          command: >-
+            pages deploy dist --project-name=ttrpgpbp
+            --branch=${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}

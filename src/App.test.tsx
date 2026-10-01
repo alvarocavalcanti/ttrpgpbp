@@ -168,7 +168,7 @@ describe('App', () => {
 
     render(<App />)
     
-    expect(await screen.findByText('Role by Post')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Role by Post' })).toBeInTheDocument()
     expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Profile')).toBeInTheDocument()
@@ -213,7 +213,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Server Admin')).toBeInTheDocument()
   })
@@ -252,7 +252,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
   })
@@ -291,7 +291,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     expect(await screen.findByText('Help Topics')).toBeInTheDocument()
@@ -332,7 +332,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByRole('link', { name: 'About' }))
     expect(await screen.findByRole('heading', { name: 'About Role by Post' })).toBeInTheDocument()
@@ -377,7 +377,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByRole('link', { name: 'Server Admin' }))
     expect(await screen.findByText('Users')).toBeInTheDocument()
@@ -418,7 +418,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Change Log'))
     expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
@@ -459,7 +459,7 @@ describe('App', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     await screen.findByText('Help Topics')
@@ -517,7 +517,7 @@ describe('App main menu drawer', () => {
     })
 
     render(<App />)
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
   }
 
   beforeEach(() => {
@@ -676,7 +676,7 @@ describe('App messages menu item', () => {
 
     render(<App />)
 
-    await screen.findByText('Role by Post')
+    await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Messages')).toBeInTheDocument()
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()

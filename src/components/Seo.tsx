@@ -5,6 +5,9 @@
 //
 // ponytail: no react-helmet — React 19 hoists these natively. Title and
 // description default to PUBLIC_ROUTES so the strings live in one place.
+// JSON-LD is NOT rendered here: React 19 reconciles a rendered <script> during
+// hydration and throws #418 against browser-prerendered markup. The prerender
+// script injects it into the static <head> instead (see scripts/seo/prerender.mjs).
 import { PUBLIC_ROUTES } from '../lib/publicRoutes'
 import { canonicalUrl } from '../lib/seo'
 
@@ -17,7 +20,6 @@ interface SeoProps {
   image?: string
   type?: 'website' | 'article'
   noindex?: boolean
-  jsonLd?: Record<string, unknown>[]
 }
 
 export function Seo({
@@ -27,7 +29,6 @@ export function Seo({
   image = '/og-image.png',
   type = 'website',
   noindex = false,
-  jsonLd,
 }: SeoProps) {
   const route = PUBLIC_ROUTES.find((entry) => entry.path === path)
   const resolvedTitle = title ?? route?.title ?? 'Role by Post'
@@ -53,14 +54,6 @@ export function Seo({
       <meta name="twitter:title" content={resolvedTitle} />
       <meta name="twitter:description" content={resolvedDescription} />
       <meta name="twitter:image" content={imageUrl} />
-      {jsonLd?.map((node, index) => (
-        <script
-          // eslint-disable-next-line react/no-array-index-key
-          key={index}
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(node) }}
-        />
-      ))}
     </>
   )
 }

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import { Seo } from '../../components/Seo'
-import { siteJsonLd } from '../../lib/seo'
 
 const FEATURES = [
   {
@@ -66,7 +65,7 @@ const HERO_SHOT = '/help/lobby-with-channels.png'
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col">
-      <Seo path="/" jsonLd={siteJsonLd(__SITE_URL__)} />
+      <Seo path="/" />
       <link rel="preload" as="image" href={HERO_SHOT} fetchPriority="high" />
       <header className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 max-w-5xl mx-auto w-full">
         <span className="flex items-center gap-2 text-lg font-bold text-surface-900 dark:text-surface-100">
@@ -179,7 +178,7 @@ export function LandingPage() {
 
       <footer className="text-center text-sm text-surface-600 dark:text-surface-400 space-y-2 flex flex-col items-center pb-10">
         <p>
-          by{' '}
+          {'by '}
           <a
             href="https://memorablenaton.es"
             target="_blank"

@@ -123,9 +123,12 @@ const MORE_FEATURES: Array<{ title: string; copy: string }> = [
 ]
 
 function StartCta({ location }: { location: string }) {
+  const { user } = useAuth()
   return (
     <Link
-      to="/"
+      // Signed-out visitors go straight to sign-in; signed-in visitors return
+      // to the lobby (`/`), not the marketing landing.
+      to={user ? '/' : '/login'}
       onClick={() => trackEvent('marketing_cta_click', { location })}
       className="inline-flex items-center justify-center min-h-11 px-8 py-3 text-base font-semibold rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
     >
@@ -135,7 +138,7 @@ function StartCta({ location }: { location: string }) {
 }
 
 export function FeaturesPage() {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const [track, setTrack] = useState<Track>('gm')
 
   const selectTrack = (next: Track) => {
@@ -160,9 +163,10 @@ export function FeaturesPage() {
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900">
       <Seo path="/features" />
       {/* Slim header for anonymous visitors only: signed-in users already get
-          the app header, and a second one would stack. Hidden while auth is
-          still loading so it never flashes next to the app header. */}
-      {!loading && !user && (
+          the app header, and a second one would stack. Keyed on the user, not
+          the auth loading state, so the prerendered signed-out markup hydrates
+          cleanly (issue #643). */}
+      {!user && (
         <header className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 max-w-6xl mx-auto w-full">
           <Link to="/features" className="flex items-center gap-2 text-lg font-bold text-surface-900 dark:text-surface-100">
             <img src="/RoleByPost.png" alt="" width={32} height={32} className="w-8 h-8 rounded" />
@@ -311,7 +315,7 @@ export function FeaturesPage() {
           </h2>
           {/* Signed-in visitors arrive here from the menu drawer — the
               sign-in prompt below is for anonymous visitors only. */}
-          {!loading && !user && (
+          {!user && (
             <p className="mt-3 text-base text-surface-600 dark:text-surface-400">
               Sign in with Google or an email link and start your first campaign in minutes.
             </p>

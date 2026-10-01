@@ -31,8 +31,7 @@ export function AnalyticsConsentBanner() {
       className="fixed bottom-3 inset-x-0 z-[70] mx-auto w-[min(92%,32rem)] rounded-lg border border-surface-200 dark:border-surface-600 bg-white dark:bg-surface-800 shadow-lg p-4"
     >
       <p className="text-sm text-surface-700 dark:text-surface-300">
-        We&apos;d like to collect anonymous usage statistics to see which screens are used.
-        Nothing you write is included. See the{' '}
+        {"We'd like to collect anonymous usage statistics to see which screens are used. Nothing you write is included. See the "}
         <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline">
           Privacy Policy
         </Link>.

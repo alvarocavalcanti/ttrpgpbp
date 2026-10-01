@@ -10,15 +10,16 @@ import {
 } from './publicRoutes'
 
 describe('isMarketingPath', () => {
-  it('matches the marketing routes with and without a trailing slash', () => {
-    expect(isMarketingPath('/')).toBe(true)
+  it('matches the always-marketing routes with and without a trailing slash', () => {
     expect(isMarketingPath('/features')).toBe(true)
     expect(isMarketingPath('/features/')).toBe(true)
     expect(isMarketingPath('/privacy')).toBe(true)
     expect(isMarketingPath('/terms')).toBe(true)
   })
 
-  it('rejects app, sibling, and lookalike routes', () => {
+  it('rejects the landing, app, sibling, and lookalike routes', () => {
+    // `/` is the lobby once signed in, so callers decide on it with auth state.
+    expect(isMarketingPath('/')).toBe(false)
     expect(isMarketingPath('/login')).toBe(false)
     expect(isMarketingPath('/channel/abc')).toBe(false)
     expect(isMarketingPath('/features-extra')).toBe(false)

@@ -34,7 +34,7 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Data controller</h2>
           <p>
-            <DataControllerLine /> For the fastest response, use the self-serve controls in{' '}
+            <span><DataControllerLine /></span>{' For the fastest response, use the self-serve controls in '}
             <span className="font-medium">Settings → Account &amp; Data</span> to download or delete your data.
           </p>
         </section>
@@ -100,7 +100,7 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Google OAuth scopes</h2>
           <p>
-            Sign-in uses the Google OAuth <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">email</code> and{' '}
+            Sign-in uses the Google OAuth <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">email</code>{' and '}
             <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">profile</code> scopes. We do
             not request access to your contacts, calendar, drive, or other Google data. We use this
             information to authenticate you and display your name and profile picture inside the
@@ -148,7 +148,7 @@ export function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Google API Limited Use Disclosure</h2>
           <p>
-            Role by Post's use and transfer of information received from Google APIs to any other app will adhere to the{' '}
+            {"Role by Post's use and transfer of information received from Google APIs to any other app will adhere to the "}
             <a
               href="https://developers.google.com/terms/api-services-user-data-policy#limited-use-requirements"
               target="_blank"
@@ -165,22 +165,21 @@ export function PrivacyPage() {
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Your rights</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>
-              <span className="font-semibold">Access / portability:</span> use{' '}
-              <span className="font-medium">Settings → Account &amp; Data → Download My Data</span>{' '}
-              to export your profile, memberships, and authored messages as JSON.
+              <span className="font-semibold">Access / portability:</span>{' use '}
+              <span className="font-medium">Settings → Account &amp; Data → Download My Data</span>
+              {' to export your profile, memberships, and authored messages as JSON.'}
             </li>
             <li>
-              <span className="font-semibold">Erasure:</span> use{' '}
-              <span className="font-medium">Settings → Account &amp; Data → Delete Account</span>{' '}
-              to permanently delete your account and personal data. Your past messages are kept
-              anonymously so chat history for other players is preserved.
+              <span className="font-semibold">Erasure:</span>{' use '}
+              <span className="font-medium">Settings → Account &amp; Data → Delete Account</span>
+              {' to permanently delete your account and personal data. Your past messages are kept anonymously so chat history for other players is preserved.'}
             </li>
           </ul>
         </section>
 
         <p className="text-xs text-gray-400 dark:text-gray-400">
           Last updated: September 24, 2026. This policy describes data handling for the Role by Post application. Contact the server
-          admin to exercise any of these rights on behalf of an account you cannot access. <DataControllerLine />
+          admin to exercise any of these rights on behalf of an account you cannot access. <span><DataControllerLine /></span>
         </p>
       </div>
     </div>

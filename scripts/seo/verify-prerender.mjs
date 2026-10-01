@@ -40,6 +40,9 @@ for (const route of PUBLIC_ROUTES) {
   if (!html.includes('property="og:title"')) errors.push(`${relative}: missing og:title`)
   if (!/<h1[\s>]/.test(html)) errors.push(`${relative}: missing an <h1> (no body content)`)
   if (!html.includes('id="root"')) errors.push(`${relative}: missing the React root`)
+  if (route.path === '/' && !html.includes('application/ld+json')) {
+    errors.push(`${relative}: missing JSON-LD`)
+  }
 }
 
 for (const required of ['robots.txt', 'sitemap.xml', '404.html', '_redirects', 'app-shell/index.html']) {

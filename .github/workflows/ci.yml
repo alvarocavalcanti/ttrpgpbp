@@ -1,5 +1,9 @@
 name: CI
 
+# Least-privilege default for the GITHUB_TOKEN (CodeQL: workflow-permissions).
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
@@ -207,3 +211,6 @@ jobs:
 
       - name: Verify prerendered output
         run: npm run seo:verify
+
+      - name: Verify hydration of prerendered pages
+        run: npm run seo:verify-hydration

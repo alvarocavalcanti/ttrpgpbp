@@ -17,11 +17,21 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { PUBLIC_ROUTES, robotsDisallowPaths } from '../../src/lib/publicRoutes.ts'
-import { buildRobots, buildSitemap } from '../../src/lib/seo.ts'
+import { buildRobots, buildSitemap, siteJsonLd } from '../../src/lib/seo.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dist = join(root, 'dist')
-const siteUrl = process.env.VITE_SITE_URL || 'https://rolebypost.com'
+// Match Vite's env precedence (shell first, then .env files) so the sitemap /
+// robots origin agrees with the __SITE_URL__ baked into the bundle.
+const shellSiteUrl = process.env.VITE_SITE_URL
+for (const file of ['.env', '.env.local']) {
+  try {
+    process.loadEnvFile(join(root, file))
+  } catch {
+    // file absent locally / in CI
+  }
+}
+const siteUrl = shellSiteUrl || process.env.VITE_SITE_URL || 'https://rolebypost.com'
 // Random high port so a stale preview server can never be mistaken for ours.
 const port = Number(process.env.SEO_PORT) || 4300 + Math.floor(Math.random() * 400)
 const base = `http://localhost:${port}`
@@ -115,8 +125,20 @@ async function captureRoutes() {
   return captures
 }
 
+// JSON-LD is a build-time head artefact, not a React one: rendering it as a
+// React <script> throws a hydration mismatch (#418) against browser-prerendered
+// markup. Inject it into the landing snapshot's <head> instead.
+function injectJsonLd(html) {
+  if (html.includes('application/ld+json')) return html
+  const scripts = siteJsonLd(siteUrl)
+    .map((node) => `<script type="application/ld+json">${JSON.stringify(node)}</script>`)
+    .join('')
+  return html.replace('</head>', `${scripts}</head>`)
+}
+
 function writeCaptures(captures) {
-  for (const { path, html } of captures) {
+  for (const { path, html: rawHtml } of captures) {
+    const html = path === '/' ? injectJsonLd(rawHtml) : rawHtml
     // Flat files, not `dir/index.html`: Pages canonicalises a directory index
     // to a trailing slash (`/features` -> 308 `/features/`), but serves
     // `features.html` at the clean extension-less URL `/features`.

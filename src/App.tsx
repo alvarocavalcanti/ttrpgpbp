@@ -25,13 +25,16 @@ import { trackEvent, trackPageView } from './lib/analytics'
 import { hasAnalyticsConsent } from './lib/analyticsConsent'
 import { AnalyticsConsentBanner } from './components/AnalyticsConsentBanner'
 import { isMarketingPath, ROUTES } from './lib/publicRoutes'
+// Public prerendered routes are eager: React can only hydrate browser-prerendered
+// markup when the matched tree has no Suspense boundary (createRoot emits no
+// Suspense markers). App routes stay lazy and carry their own boundary.
+import { LoginPage } from './features/auth/LoginPage'
+import { PrivacyPage } from './features/auth/PrivacyPage'
+import { TermsPage } from './features/auth/TermsPage'
+import { FeaturesPage } from './features/marketing/FeaturesPage'
 
-const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
-const PrivacyPage = lazy(() => import('./features/auth/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
-const TermsPage = lazy(() => import('./features/auth/TermsPage').then(m => ({ default: m.TermsPage })))
 const AboutPage = lazy(() => import('./features/auth/AboutPage').then(m => ({ default: m.AboutPage })))
-const FeaturesPage = lazy(() => import('./features/marketing/FeaturesPage').then(m => ({ default: m.FeaturesPage })))
 const Lobby = lazy(() => import('./features/channels/Lobby').then(m => ({ default: m.Lobby })))
 const JoinChannel = lazy(() => import('./features/channels/JoinChannel').then(m => ({ default: m.JoinChannel })))
 const ChannelView = lazy(() => import('./features/channels/ChannelView').then(m => ({ default: m.ChannelView })))
@@ -44,6 +47,17 @@ import { useAdminUnread } from './features/admin-messages/useAdminUnread'
 import { useAppBadgeSync } from './hooks/useAppBadgeSync'
 
 const AdminMessagesView = lazy(() => import('./features/admin-messages/AdminMessagesView').then(m => ({ default: m.AdminMessagesView })))
+
+// Per-lazy-route fallback. The public routes funnel through no Suspense at all.
+const ROUTE_FALLBACK = (
+  <div className="flex-1 flex items-center justify-center">
+    <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+)
+
+function Lazy({ children }: { children: ReactNode }) {
+  return <Suspense fallback={ROUTE_FALLBACK}>{children}</Suspense>
+}
 
 export function NotFound() {
   return (
@@ -331,12 +345,14 @@ function AppNav() {
   )
 }
 
-// The public marketing page is often the first thing a signed-out visitor
-// sees; the install prompt pitching one-tap access before they have an
-// account reads as noise, so it stays hidden there (#526).
+// The public marketing pages are often the first thing a signed-out visitor
+// sees; the install prompt pitching one-tap access before they have an account
+// reads as noise, so it stays hidden there (#526). `/` is only marketing when
+// signed out — for a signed-in user it is the lobby, which keeps the prompt.
 function InstallBannerGate() {
   const { pathname } = useLocation()
-  if (isMarketingPath(pathname)) return null
+  const { user } = useAuth()
+  if (isMarketingPath(pathname) || (pathname === ROUTES.home && !user)) return null
   return <PwaInstallBanner />
 }
 
@@ -377,28 +393,23 @@ export default function App() {
                 <PermissionBannerGate />
               </div>
               <main className="flex-1 flex flex-col">
-                <Suspense fallback={
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                }>
                 <RouteErrorBoundary>
                   <Routes>
                     <Route path={ROUTES.login} element={<LoginPage />} />
 
                     <Route element={<ProtectedRoute />}>
-                      <Route path={ROUTES.home} element={<Lobby />} />
-                      <Route path={ROUTES.archived} element={<ArchivedChannels />} />
-                      <Route path={ROUTES.messages} element={<AdminMessagesView />} />
-                      <Route path={ROUTES.admin} element={<AdminView />} />
-                      <Route path={ROUTES.adminChannel} element={<AdminChannelView />} />
-                      <Route path={ROUTES.join} element={<JoinChannel />} />
-                      <Route path={ROUTES.channel} element={<ChannelView />} />
-                      <Route path={ROUTES.settings} element={<ProfileSettings />} />
-                      <Route path={ROUTES.help} element={<HelpPage />} />
-                      <Route path={ROUTES.helpTopic} element={<HelpPage />} />
-                      <Route path={ROUTES.changelog} element={<ChangelogPage />} />
-                      <Route path={ROUTES.about} element={<AboutPage />} />
+                      <Route path={ROUTES.home} element={<Lazy><Lobby /></Lazy>} />
+                      <Route path={ROUTES.archived} element={<Lazy><ArchivedChannels /></Lazy>} />
+                      <Route path={ROUTES.messages} element={<Lazy><AdminMessagesView /></Lazy>} />
+                      <Route path={ROUTES.admin} element={<Lazy><AdminView /></Lazy>} />
+                      <Route path={ROUTES.adminChannel} element={<Lazy><AdminChannelView /></Lazy>} />
+                      <Route path={ROUTES.join} element={<Lazy><JoinChannel /></Lazy>} />
+                      <Route path={ROUTES.channel} element={<Lazy><ChannelView /></Lazy>} />
+                      <Route path={ROUTES.settings} element={<Lazy><ProfileSettings /></Lazy>} />
+                      <Route path={ROUTES.help} element={<Lazy><HelpPage /></Lazy>} />
+                      <Route path={ROUTES.helpTopic} element={<Lazy><HelpPage /></Lazy>} />
+                      <Route path={ROUTES.changelog} element={<Lazy><ChangelogPage /></Lazy>} />
+                      <Route path={ROUTES.about} element={<Lazy><AboutPage /></Lazy>} />
                     </Route>
                     <Route path={ROUTES.privacy} element={<PrivacyPage />} />
                     <Route path={ROUTES.terms} element={<TermsPage />} />
@@ -406,7 +417,6 @@ export default function App() {
                     <Route path={ROUTES.notFound} element={<NotFound />} />
                   </Routes>
                 </RouteErrorBoundary>
-              </Suspense>
               </main>
             </div>
           </ChangelogProvider>

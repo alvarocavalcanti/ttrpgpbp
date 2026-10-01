@@ -25,13 +25,13 @@ export default defineConfig(({ command, mode }) => {
   // build (src/lib/pwaUpdate.ts). GITHUB_SHA is deterministic per CI commit;
   // local builds fall back to a timestamp so every local build is distinct.
   const appBuild = process.env.GITHUB_SHA ?? String(Date.now())
+  // Shell env first, then .env files — Vite's own precedence, so both
+  // dashboard-exported and file-based setups are honored.
+  const fileEnv = loadEnv(mode, process.cwd())
   // #562: production bundles must name the data controller (GDPR Art 13).
   // Fail the build loudly rather than shipping a bundle whose policies
   // render a generic line with no contact. Dev/test builds stay optional.
   if (command === 'build') {
-    // Shell env first, then .env files — Vite's own precedence, so both
-    // dashboard-exported and file-based setups are honored.
-    const fileEnv = loadEnv(mode, process.cwd())
     const missing = ['VITE_CONTROLLER_NAME', 'VITE_CONTROLLER_EMAIL'].filter(
       (key) => !(process.env[key] || fileEnv[key]),
     )
@@ -42,13 +42,16 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
+  // Public origin for canonical/OG URLs (issue #643). Self-hosted copies set
+  // VITE_SITE_URL (shell or .env); the reference deployment is the default.
+  const siteUrl =
+    process.env.VITE_SITE_URL || fileEnv.VITE_SITE_URL || 'https://rolebypost.com'
+
   return {
   define: {
     __APP_BUILD__: JSON.stringify(appBuild),
     __APP_VERSION__: JSON.stringify(pkg.version),
-    // Public origin for canonical/OG URLs (issue #643). Self-hosted copies set
-    // VITE_SITE_URL; the reference deployment is the default.
-    __SITE_URL__: JSON.stringify(process.env.VITE_SITE_URL || 'https://rolebypost.com'),
+    __SITE_URL__: JSON.stringify(siteUrl),
   },
   plugins: [
     react(),

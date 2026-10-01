@@ -41,12 +41,4 @@ describe('Seo', () => {
     expect(document.head.querySelector('link[rel="canonical"]')).toBeNull()
     expect(document.title).toBe('Sign in — Role by Post')
   })
-
-  it('renders JSON-LD scripts verbatim', () => {
-    const { container } = render(
-      <Seo path="/" jsonLd={[{ '@type': 'Organization', name: 'Role by Post' }]} />,
-    )
-    const script = container.querySelector('script[type="application/ld+json"]')
-    expect(script?.textContent).toContain('"@type":"Organization"')
-  })
 })
