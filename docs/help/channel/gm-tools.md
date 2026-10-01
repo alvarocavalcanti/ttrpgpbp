@@ -1,6 +1,6 @@
 ---
 title: GM Tools
-screenshot: /help/gm-settings.png
+screenshot: /help-images/gm-settings.png
 ---
 
 Everything the **GM** can do to run and manage a channel.

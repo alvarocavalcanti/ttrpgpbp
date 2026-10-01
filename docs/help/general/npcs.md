@@ -1,6 +1,6 @@
 ---
 title: NPCs
-screenshot: /help/npc-composer.png
+screenshot: /help-images/npc-composer.png
 ---
 
 The GM can speak as **NPCs** (non-player characters) with their own name and portrait. NPC features are GM-only.

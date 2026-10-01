@@ -1,13 +1,13 @@
 # Help screenshot tooling
 
-Committed capture scripts for the in-app help images in [`public/help/`](../../public/help/).
+Committed capture scripts for the in-app help images in [`public/help-images/`](../../public/help-images/).
 
 - **`seed.sql`** — idempotent local fixtures: screenshot users (password
   `shots-pass-1`), the "The Sunless Citadel" channel with members, NPC, safety
   tools and messages, plus a channel-less user for the empty lobby shot.
 - **`capture.mjs`** — Playwright capture at 360×780 CSS @3x (1080×2340), light
   mode, mobile touch profile. Logs in by injecting a real Supabase session
-  (no UI login), then writes each `public/help/*.png`.
+  (no UI login), then writes each `public/help-images/*.png`.
 
 ## Run
 
@@ -26,7 +26,7 @@ npm run dev
 Then, **in a second terminal** (the dev server must still be running), capture:
 
 ```bash
-# 4. Capture (overwrites public/help/*.png)
+# 4. Capture (overwrites public/help-images/*.png)
 node scripts/help-screenshots/capture.mjs
 ```
 
@@ -47,7 +47,7 @@ Password for all: `shots-pass-1`.
 
 The `/features` page cards render at 80–96px CSS, far smaller than the 1080px
 captures, so `capture.mjs` also writes a 320px WebP copy of every capture into
-`public/help/thumbs/` (via `thumbs.mjs`). The cards use the thumbnails; the
+`public/help-images/thumbs/` (via `thumbs.mjs`). The cards use the thumbnails; the
 help docs keep the full-size PNGs. Thumbnails are committed alongside the
 captures and regenerate on every capture run.
 

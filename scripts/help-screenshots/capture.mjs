@@ -1,6 +1,6 @@
 // Help-screenshot capture (committed tooling, #465/#497).
 //
-// Captures the help images in public/help/ at the size/format the existing
+// Captures the help images in public/help-images/ at the size/format the existing
 // files use: 360×780 CSS viewport at deviceScaleFactor 3 (→ 1080×2340), light
 // mode, mobile touch profile.
 //
@@ -12,13 +12,13 @@
 //   3. Dev server running (`npm run dev`) with a local `.env.local`.
 //
 // Run:  node scripts/help-screenshots/capture.mjs
-// Output: public/help/*.png + public/help/thumbs/*.webp (overwritten).
+// Output: public/help-images/*.png + public/help-images/thumbs/*.webp (overwritten).
 import { chromium } from '@playwright/test'
 import { readFileSync, rmSync } from 'node:fs'
 import { writeThumbs } from './thumbs.mjs'
 
 const BASE = process.env.SHOT_BASE_URL || 'http://localhost:5173'
-const OUT = process.env.SHOT_OUT || 'public/help'
+const OUT = process.env.SHOT_OUT || 'public/help-images'
 const PROFILE_DIR = process.env.SHOT_PROFILE_DIR || '/tmp/ttrpg-pw-profile'
 const PASS = 'shots-pass-1'
 

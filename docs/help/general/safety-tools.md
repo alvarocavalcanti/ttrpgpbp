@@ -1,6 +1,6 @@
 ---
 title: Safety Tools
-screenshot: /help/safety-tools.png
+screenshot: /help-images/safety-tools.png
 ---
 
 Safety tools help everyone at the table stay comfortable.

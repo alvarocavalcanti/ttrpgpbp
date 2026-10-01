@@ -44,7 +44,7 @@ function renderPage() {
 // or a thumb is accidentally a copy of the full capture.
 function assertThumbsOnDisk(sources: Array<string | null>) {
   for (const source of sources) {
-    expect(source).toMatch(/^\/help\/thumbs\/.+\.webp$/)
+    expect(source).toMatch(/^\/help-images\/thumbs\/.+\.webp$/)
     const thumbPath = resolve(process.cwd(), 'public', (source as string).slice(1))
     const fullPath = thumbPath.replace('/thumbs/', '/').replace(/\.webp$/, '.png')
     expect(existsSync(thumbPath)).toBe(true)
@@ -175,10 +175,10 @@ describe('FeaturesPage', () => {
     // only the four card images match the img role.
     const sources = screen.getAllByRole('img').map((img) => img.getAttribute('src'))
     expect(sources).toEqual([
-      '/help/thumbs/gm-settings.webp',
-      '/help/thumbs/npc-composer.webp',
-      '/help/thumbs/status-bar.webp',
-      '/help/thumbs/safety-tools.webp',
+      '/help-images/thumbs/gm-settings.webp',
+      '/help-images/thumbs/npc-composer.webp',
+      '/help-images/thumbs/status-bar.webp',
+      '/help-images/thumbs/safety-tools.webp',
     ])
     assertThumbsOnDisk(sources)
   })
@@ -190,11 +190,11 @@ describe('FeaturesPage', () => {
 
     const sources = screen.getAllByRole('img').map((img) => img.getAttribute('src'))
     expect(sources).toEqual([
-      '/help/thumbs/lobby-with-channels.webp',
-      '/help/thumbs/message-actions.webp',
-      '/help/thumbs/ability-check.webp',
-      '/help/thumbs/sidebar.webp',
-      '/help/thumbs/dice-panel.webp',
+      '/help-images/thumbs/lobby-with-channels.webp',
+      '/help-images/thumbs/message-actions.webp',
+      '/help-images/thumbs/ability-check.webp',
+      '/help-images/thumbs/sidebar.webp',
+      '/help-images/thumbs/dice-panel.webp',
     ])
     assertThumbsOnDisk(sources)
   })
@@ -213,7 +213,7 @@ describe('FeaturesPage', () => {
     )
 
     const img = within(screen.getByRole('dialog')).getByRole('img')
-    expect(img).toHaveAttribute('src', '/help/dice-panel.png')
+    expect(img).toHaveAttribute('src', '/help-images/dice-panel.png')
     expect(img).toHaveAttribute(
       'alt',
       'Dice Roller with quick-roll chips and the Successes pool mode selected, showing the target-number field'
@@ -259,7 +259,7 @@ describe('FeaturesPage', () => {
       )
 
       const img = dialogImage()
-      expect(img).toHaveAttribute('src', '/help/gm-settings.png')
+      expect(img).toHaveAttribute('src', '/help-images/gm-settings.png')
       expect(img).toHaveAttribute(
         'alt',
         'Channel settings screen with game system, member, and safety options'
@@ -273,7 +273,7 @@ describe('FeaturesPage', () => {
         screen.getByRole('button', { name: 'View campaign lobby image fullscreen' })
       )
 
-      expect(dialogImage()).toHaveAttribute('src', '/help/lobby-with-channels.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/lobby-with-channels.png')
     })
 
     it('clamps at the first image and steps forward with Next', () => {
@@ -286,7 +286,7 @@ describe('FeaturesPage', () => {
       expect(within(screen.getByRole('dialog')).getByLabelText('Previous image')).toBeDisabled()
       expect(within(screen.getByRole('dialog')).getByLabelText('Next image')).toBeEnabled()
       fireEvent.click(within(screen.getByRole('dialog')).getByLabelText('Next image'))
-      expect(dialogImage()).toHaveAttribute('src', '/help/gm-settings.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/gm-settings.png')
       expect(within(screen.getByRole('dialog')).getByLabelText('Previous image')).toBeEnabled()
     })
 
@@ -297,17 +297,17 @@ describe('FeaturesPage', () => {
       fireEvent.click(
         screen.getByRole('button', { name: 'View campaign lobby image fullscreen' })
       )
-      expect(dialogImage()).toHaveAttribute('src', '/help/lobby-with-channels.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/lobby-with-channels.png')
       fireEvent.keyDown(window, { key: 'Escape' })
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
       fireEvent.click(
         screen.getByRole('button', { name: 'View Your campaigns in one place image fullscreen' })
       )
-      expect(dialogImage()).toHaveAttribute('src', '/help/lobby-with-channels.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/lobby-with-channels.png')
       // One shared entry: Next steps to the second card, not a duplicate lobby.
       fireEvent.click(within(screen.getByRole('dialog')).getByLabelText('Next image'))
-      expect(dialogImage()).toHaveAttribute('src', '/help/message-actions.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/message-actions.png')
     })
 
     it('clamps at the last image and navigates with the arrow keys', () => {
@@ -319,9 +319,9 @@ describe('FeaturesPage', () => {
 
       expect(within(screen.getByRole('dialog')).getByLabelText('Next image')).toBeDisabled()
       fireEvent.keyDown(window, { key: 'ArrowLeft' })
-      expect(dialogImage()).toHaveAttribute('src', '/help/status-bar.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/status-bar.png')
       fireEvent.keyDown(window, { key: 'ArrowRight' })
-      expect(dialogImage()).toHaveAttribute('src', '/help/safety-tools.png')
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/safety-tools.png')
     })
 
     it('closes via the X button and via Escape', () => {

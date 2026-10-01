@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
@@ -63,5 +63,26 @@ describe('public/_redirects', () => {
     for (const line of redirects.trim().split('\n')) {
       expect(line).toMatch(/ \/app-shell\/ 200$/)
     }
+  })
+
+  it('does not shadow any public asset with an app-shell rewrite', () => {
+    // Redirects run before static assets on Cloudflare Pages, so a splat such
+    // as `/help/*` would also capture `/help/logo.png` and serve the shell
+    // instead of the image (issue #643 follow-up: broken help screenshots).
+    const assetPaths: string[] = []
+    const walk = (dir: string, prefix: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry)
+        if (statSync(full).isDirectory()) walk(full, `${prefix}/${entry}`)
+        else assetPaths.push(`${prefix}/${entry}`)
+      }
+    }
+    walk(join(root, 'public'), '')
+
+    const shadowing = appRedirectRules()
+      .filter((rule) => rule.source.includes('*'))
+      .map((rule) => rule.source.slice(0, rule.source.indexOf('*')))
+      .flatMap((prefix) => assetPaths.filter((asset) => asset.startsWith(prefix)).map((asset) => `${asset} shadowed by ${prefix}*`))
+    expect(shadowing).toEqual([])
   })
 })

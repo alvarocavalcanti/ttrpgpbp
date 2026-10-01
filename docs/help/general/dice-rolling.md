@@ -1,6 +1,6 @@
 ---
 title: Dice Rolling
-screenshot: /help/dice-panel.png
+screenshot: /help-images/dice-panel.png
 ---
 
 ## Inline dice notation

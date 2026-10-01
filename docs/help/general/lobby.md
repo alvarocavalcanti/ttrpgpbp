@@ -1,11 +1,11 @@
 ---
 title: Lobby & Joining Channels
-screenshot: /help/lobby-empty.png
+screenshot: /help-images/lobby-empty.png
 ---
 
 The **lobby** is the first screen after signing in. It lists the private channels you've joined. Each channel shows a preview of its **most recent message** (or *No messages yet*) with the sender's name, a short timestamp, and a small **GM** chip when you run it — plus a count of unread messages when there's something new to read.
 
-![The lobby with joined channels, each showing its most recent message](/help/lobby-with-channels.png)
+![The lobby with joined channels, each showing its most recent message](/help-images/lobby-with-channels.png)
 
 ## Creating a channel
 

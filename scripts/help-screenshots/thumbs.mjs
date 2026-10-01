@@ -3,7 +3,7 @@
 // The track cards in FeaturesPage render at 80–96px CSS (≤288 device px at 3x),
 // but the help captures they reused are 1080px wide — ~10x more pixels than the
 // cards can display (GM track alone ≈ 756 KB). This module downscales a 320px
-// WebP copy of every capture into public/help/thumbs/; the full-size files stay
+// WebP copy of every capture into public/help-images/thumbs/; the full-size files stay
 // untouched for the help docs (which render them up to max-w-xl).
 //
 // Standalone (no Supabase, no dev server — needs only the committed PNGs):
@@ -21,7 +21,7 @@ const THUMB_EXT = '.webp'
 const THUMB_QUALITY = 0.85
 
 export async function writeThumbs({
-  out = process.env.SHOT_OUT || 'public/help',
+  out = process.env.SHOT_OUT || 'public/help-images',
   width = THUMB_WIDTH,
   context,
 } = {}) {

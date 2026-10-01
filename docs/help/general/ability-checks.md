@@ -1,6 +1,6 @@
 ---
 title: Ability & DC Checks
-screenshot: /help/ability-check.png
+screenshot: /help-images/ability-check.png
 ---
 
 From a message you can trigger an **ability check** (`STR Check`, `DEX Check`, etc.). A small sheet opens with your modifier pre-filled from your character profile — you can edit it, and it stays within the game system's allowed range — plus an Adv / Dis toggle. Tap **Roll** to roll a d20 (or a second d20 kept best / worst with Adv / Dis).
