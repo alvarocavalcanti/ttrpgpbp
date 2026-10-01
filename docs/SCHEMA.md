@@ -179,7 +179,7 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field length limits |
 | `update_channel_status` | Update `channels.status_text` + system message | GM-only, suspended blocked, no-op (unchanged text) skipped, archived allowed (matches settings) |
 | `join_channel` | Join + attributes + join system message | password/invite, archived, channel cap, attribute bounds |
-| `get_channel_roll_history` | Read-only roll history (excluding rolls from soft-deleted messages) | member-only via RLS |
+| `get_channel_roll_history` | Read-only roll history (excluding rolls from soft-deleted messages), attributed to each roller's channel character name (account name as fallback) | member-only via RLS |
 
 ---
 

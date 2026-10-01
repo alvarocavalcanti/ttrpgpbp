@@ -91,8 +91,8 @@ describe('RollHistoryModal', () => {
         result: 23,
         breakdown: { rolls: [18], dropped: [], modifier: 5 },
         created_at: new Date().toISOString(),
-        roller_display_name: 'Hero',
-        roller: { display_name: 'Hero' }
+        roller_character_name: 'Hero',
+        roller: { character_name: 'Hero' }
       }]
     })
 
@@ -105,6 +105,25 @@ describe('RollHistoryModal', () => {
     expect(screen.getByText(/Modifier:/).parentElement).toHaveTextContent('Modifier: +5')
   })
 
+  it('shows the channel character name, not the account display name (issue #640)', () => {
+    mockHook({
+      rolls: [{
+        id: 'r1',
+        roller_id: 'u1',
+        notation: '1d20',
+        result: 15,
+        breakdown: { rolls: [15] },
+        created_at: new Date().toISOString(),
+        roller_character_name: 'Rowan the Bold',
+        roller: { character_name: 'Rowan the Bold' }
+      }]
+    })
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    expect(screen.getByText('Rowan the Bold')).toBeInTheDocument()
+  })
+
   it('shows a Critical Success badge for a natural 20', () => {
     mockHook({
       rolls: [{
@@ -114,8 +133,8 @@ describe('RollHistoryModal', () => {
         result: 20,
         breakdown: { rolls: [20], dropped: [], modifier: 0 },
         created_at: new Date().toISOString(),
-        roller_display_name: 'Hero',
-        roller: { display_name: 'Hero' }
+        roller_character_name: 'Hero',
+        roller: { character_name: 'Hero' }
       }]
     })
 
@@ -133,8 +152,8 @@ describe('RollHistoryModal', () => {
         result: 0,
         breakdown: { rolls: [2, 5, 3, 6, 1], dropped: [], modifier: 0, mode: 'pool' },
         created_at: new Date().toISOString(),
-        roller_display_name: 'Hero',
-        roller: { display_name: 'Hero' }
+        roller_character_name: 'Hero',
+        roller: { character_name: 'Hero' }
       }]
     })
 
@@ -154,8 +173,8 @@ describe('RollHistoryModal', () => {
         result: 2,
         breakdown: { rolls: [2, 5, 3, 6, 1], dropped: [], modifier: 0, mode: 'successes', target: 4, successes: 2 },
         created_at: new Date().toISOString(),
-        roller_display_name: 'Hero',
-        roller: { display_name: 'Hero' }
+        roller_character_name: 'Hero',
+        roller: { character_name: 'Hero' }
       }]
     })
 
@@ -173,8 +192,8 @@ describe('RollHistoryModal', () => {
         result: 1,
         breakdown: { rolls: [1, 20], dropped: [], modifier: 0, mode: 'successes', target: 10, successes: 1 },
         created_at: new Date().toISOString(),
-        roller_display_name: 'Hero',
-        roller: { display_name: 'Hero' }
+        roller_character_name: 'Hero',
+        roller: { character_name: 'Hero' }
       }]
     })
 
