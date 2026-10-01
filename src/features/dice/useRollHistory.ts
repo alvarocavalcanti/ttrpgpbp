@@ -94,17 +94,29 @@ export function useRollHistory(channelId: string) {
         const parsed = rollRealtimeSchema.safeParse(payload.new)
         if (!parsed.success) return
         // Fetch the roller's channel-scoped character name (issue #640).
-        const { data } = await supabase
+        const { data: member } = await supabase
           .from('channel_members')
           .select('character_name')
           .eq('channel_id', channelId)
           .eq('user_id', parsed.data.roller_id)
           .single()
 
-        // The await above can outlive this effect (channel switch): a roll
+        // The roller may have left between the roll and this lookup; fall
+        // back to the account display name, mirroring the RPC's COALESCE.
+        let characterName = member?.character_name ?? null
+        if (characterName === null) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', parsed.data.roller_id)
+            .single()
+          characterName = profile?.display_name ?? null
+        }
+
+        // The awaits above can outlive this effect (channel switch): a roll
         // from the old channel must not prepend into the new one's state.
         if (!mounted) return
-        const newRoll: DiceRoll = { ...parsed.data, roller_character_name: null, roller: data }
+        const newRoll: DiceRoll = { ...parsed.data, roller_character_name: null, roller: { character_name: characterName } }
         setRolls(prev => prev.some(roll => roll.id === newRoll.id)
           ? prev
           : [newRoll, ...prev].slice(0, 50))

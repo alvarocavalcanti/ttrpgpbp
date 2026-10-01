@@ -153,6 +153,53 @@ describe('useRollHistory', () => {
     })
   })
 
+  it('falls back to the account display name when the roller already left', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    vi.mocked(supabase.from).mockImplementation(((table: string) => {
+      if (table === 'channel_members') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: null, error: { message: 'no row' } })
+              })
+            })
+          })
+        } as any
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { display_name: 'Alex Morgan' }, error: null })
+          })
+        })
+      } as any
+    }) as any)
+    const onMock = vi.fn()
+    mockChannel(onMock)
+
+    const { result } = renderHook(() => useRollHistory('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const insertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')![2] as any
+    await insertCb({
+      new: {
+        id: 'r2',
+        roller_id: 'u2',
+        notation: '1d6',
+        result: 4,
+        breakdown: { rolls: [4] },
+        created_at: '2026-01-02T00:00:00.000Z'
+      }
+    })
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalledWith('profiles')
+      expect(result.current.rolls).toHaveLength(1)
+      expect(result.current.rolls[0].roller).toEqual({ character_name: 'Alex Morgan' })
+    })
+  })
+
   it('ignores a duplicate realtime INSERT for a roll already loaded', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [validRoll()], error: null } as any)
     vi.mocked(supabase.from).mockReturnValue({
