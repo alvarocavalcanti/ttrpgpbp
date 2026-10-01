@@ -43,6 +43,11 @@ try {
   const browser = await chromium.launch()
   try {
     const context = await browser.newContext({ serviceWorkers: 'block', colorScheme: 'light' })
+    // Same flag the prerender used, so the client's first render omits the
+    // transient UI the snapshot omitted.
+    await context.addInitScript(() => {
+      window.__PRERENDER__ = true
+    })
     const page = await context.newPage()
     page.on('console', (message) => {
       const text = message.text()

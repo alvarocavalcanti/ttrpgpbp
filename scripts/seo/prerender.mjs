@@ -109,8 +109,12 @@ async function captureRoutes() {
   try {
     for (const route of PUBLIC_ROUTES) {
       // A fresh context per route, with the service worker blocked so it can
-      // never serve a stale shell into the snapshot.
+      // never serve a stale shell into the snapshot. The prerender flag keeps
+      // client-only transient UI (e.g. the realtime banner) out of the snapshot.
       const context = await browser.newContext({ serviceWorkers: 'block', colorScheme: 'light' })
+      await context.addInitScript(() => {
+        window.__PRERENDER__ = true
+      })
       const page = await context.newPage()
       await page.goto(`${base}${route.path}`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector(route.waitSelector, { timeout: 20_000 })

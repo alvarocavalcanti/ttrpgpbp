@@ -1,5 +1,6 @@
 import type * as SentryTypes from '@sentry/react'
 import { env } from '../env'
+import { isAutomatedBrowser } from './automation'
 
 // Sentry breadcrumbs and request URLs carry the full page URL, query string
 // included — lobby search terms must never leave the device. beforeSend runs
@@ -25,12 +26,6 @@ export function scrubSentryEvent(event: SentryTypes.ErrorEvent): SentryTypes.Err
     }
   }
   return event
-}
-
-// The SEO prerender (scripts/seo/prerender.mjs) loads the built app in an
-// automated browser; telemetry from that run would be noise, not real errors.
-function isAutomatedBrowser(): boolean {
-  return typeof navigator !== 'undefined' && navigator.webdriver === true
 }
 
 // @sentry/react is ~100 kB minified; load it behind import() so it never lands
