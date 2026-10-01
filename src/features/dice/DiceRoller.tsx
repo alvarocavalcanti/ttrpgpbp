@@ -23,11 +23,12 @@ export function defaultTarget(sides: number) {
   return Math.min(4, Math.max(1, sides))
 }
 
-export function buildNotation(diceType: string, quantity: number, modifier: number, advDis: 'none' | 'adv' | 'dis', poolMode: PoolMode = 'sum', target = 0) {
+export function buildNotation(diceType: string, quantity: number, modifier: number, advDis: 'none' | 'adv' | 'dis', poolMode: PoolMode = 'sum', target = 0, sorted = false) {
   if (poolMode !== 'sum') {
     // Pools carry no keep/drop and no modifier: faces are read, not summed.
+    // The `s` suffix lists the faces highest-first (applies to both modes).
     const base = `${quantity}${diceType}`
-    return poolMode === 'successes' ? `${base}>=${target}` : `${base}p`
+    return poolMode === 'successes' ? `${base}>=${target}${sorted ? 's' : ''}` : `${base}p${sorted ? 's' : ''}`
   }
   let notation = ''
   if (diceType === 'd20' && advDis !== 'none') {
@@ -55,6 +56,7 @@ export interface RollerValues {
   advDis: 'none' | 'adv' | 'dis'
   poolMode: PoolMode
   target: number
+  sorted: boolean
 }
 
 // Inverse of buildNotation: maps a channel-history notation back onto the
@@ -67,7 +69,7 @@ export function parseRollerNotation(notation: string): RollerValues | null {
   const parsed = parseDiceNotation(notation)
   if (!parsed) return null
 
-  const { count, sides, keepDrop, mode, target, modifier } = parsed
+  const { count, sides, keepDrop, mode, target, modifier, sorted } = parsed
   const diceType = `d${sides}`
   if (!(DICE_TYPES as readonly string[]).includes(diceType)) return null
   // The form bounds (1–100 dice, ±999 modifier) match the inputs' keystroke
@@ -82,16 +84,16 @@ export function parseRollerNotation(notation: string): RollerValues | null {
     const kind = keepDrop.startsWith('kh') ? 'adv' : keepDrop.startsWith('kl') ? 'dis' : null
     const keepDropAmount = keepDrop.slice(2) ? Number(keepDrop.slice(2)) : 1
     if (kind && keepDropAmount === 1 && count === 2 && sides === 20 && mode === 'sum') {
-      return { diceType: 'd20', quantity: 1, modifier, advDis: kind, poolMode: 'sum', target: defaultTarget(20) }
+      return { diceType: 'd20', quantity: 1, modifier, advDis: kind, poolMode: 'sum', target: defaultTarget(20), sorted }
     }
     return null
   }
 
   if (mode !== 'sum') {
-    return { diceType, quantity: count, modifier: 0, advDis: 'none', poolMode: mode, target: target ?? defaultTarget(sides) }
+    return { diceType, quantity: count, modifier: 0, advDis: 'none', poolMode: mode, target: target ?? defaultTarget(sides), sorted }
   }
 
-  return { diceType, quantity: count, modifier, advDis: 'none', poolMode: 'sum', target: defaultTarget(sides) }
+  return { diceType, quantity: count, modifier, advDis: 'none', poolMode: 'sum', target: defaultTarget(sides), sorted }
 }
 
 export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps) {
@@ -104,6 +106,8 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
   // `successes` counts faces at or above the target.
   const [poolMode, setPoolMode] = useState<PoolMode>('sum')
   const [target, setTarget] = useState(4)
+  // Sorted pools list the faces highest-first (`ps` / `>=Ts`).
+  const [sorted, setSorted] = useState(false)
   const { recent, recordRoll } = useRecentRolls(channelId, isOpen)
   const { favorites, isFavorite, canFavorite, toggleFavorite } = useDiceFavorites(channelId, isOpen)
   const chips = mergeChips(favorites, recent)
@@ -115,7 +119,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
   }
 
   const handleRoll = () => {
-    roll(buildNotation(diceType, quantity, modifier, advDis, poolMode, target))
+    roll(buildNotation(diceType, quantity, modifier, advDis, poolMode, target, sorted))
   }
 
   // A chip tap loads the notation's values into the form for review instead
@@ -133,6 +137,7 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
     setAdvDis(parsed.advDis)
     setPoolMode(parsed.poolMode)
     setTarget(parsed.target)
+    setSorted(parsed.sorted)
   }
 
   const sidesOf = (t: string) => Number(t.slice(1))
@@ -207,6 +212,19 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           />
           <span className="text-sm text-gray-500 dark:text-gray-400">or higher counts as a success</span>
         </div>
+      )}
+
+      {poolMode !== 'sum' && (
+        <label htmlFor="dice-sorted" className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input
+            id="dice-sorted"
+            type="checkbox"
+            checked={sorted}
+            onChange={(e) => setSorted(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+          />
+          Sort highest first
+        </label>
       )}
 
       {poolMode === 'sum' && (

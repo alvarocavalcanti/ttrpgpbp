@@ -48,36 +48,46 @@ describe('buildNotation', () => {
     expect(buildNotation('d6', 5, 0, 'none', 'successes', 4)).toBe('5d6>=4')
     expect(buildNotation('d10', 3, 0, 'none', 'successes', 8)).toBe('3d10>=8')
   })
+
+  it('builds sorted pool notations when the sort flag is set', () => {
+    expect(buildNotation('d6', 5, 0, 'none', 'pool', 4, true)).toBe('5d6ps')
+    expect(buildNotation('d6', 5, 0, 'none', 'successes', 4, true)).toBe('5d6>=4s')
+  })
 })
 
 describe('parseRollerNotation', () => {
   it('parses plain notations', () => {
-    expect(parseRollerNotation('1d20')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4 })
-    expect(parseRollerNotation('3d6+2')).toEqual({ diceType: 'd6', quantity: 3, modifier: 2, advDis: 'none', poolMode: 'sum', target: 4 })
-    expect(parseRollerNotation('2d8-5')).toEqual({ diceType: 'd8', quantity: 2, modifier: -5, advDis: 'none', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('1d20')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('3d6+2')).toEqual({ diceType: 'd6', quantity: 3, modifier: 2, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('2d8-5')).toEqual({ diceType: 'd8', quantity: 2, modifier: -5, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
   })
 
   it('parses advantage and disadvantage', () => {
-    expect(parseRollerNotation('2d20kh1')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4 })
-    expect(parseRollerNotation('2d20kl1+3')).toEqual({ diceType: 'd20', quantity: 1, modifier: 3, advDis: 'dis', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('2d20kh1')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('2d20kl1+3')).toEqual({ diceType: 'd20', quantity: 1, modifier: 3, advDis: 'dis', poolMode: 'sum', target: 4, sorted: false })
     // Keep count defaults to 1 on the server, like 2d20kh defaults to 2d20kh1.
-    expect(parseRollerNotation('2d20kh')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('2d20kh')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4, sorted: false })
   })
 
   it('parses raw pool and success-count notations', () => {
-    expect(parseRollerNotation('5d6p')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4 })
-    expect(parseRollerNotation('5d6>=4')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'successes', target: 4 })
-    expect(parseRollerNotation('3d10>=8')).toEqual({ diceType: 'd10', quantity: 3, modifier: 0, advDis: 'none', poolMode: 'successes', target: 8 })
+    expect(parseRollerNotation('5d6p')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: false })
+    expect(parseRollerNotation('5d6>=4')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'successes', target: 4, sorted: false })
+    expect(parseRollerNotation('3d10>=8')).toEqual({ diceType: 'd10', quantity: 3, modifier: 0, advDis: 'none', poolMode: 'successes', target: 8, sorted: false })
     // A raw-pool chip loads the default target for review, not a stale one.
-    expect(parseRollerNotation('2d4p')).toEqual({ diceType: 'd4', quantity: 2, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4 })
+    expect(parseRollerNotation('2d4p')).toEqual({ diceType: 'd4', quantity: 2, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: false })
+  })
+
+  it('parses sorted pool and success-count notations', () => {
+    expect(parseRollerNotation('5d6ps')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: true })
+    expect(parseRollerNotation('5d6>=4s')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'successes', target: 4, sorted: true })
   })
 
   it('round-trips every canonical roller output', () => {
-    const canonical = ['1d20', '2d20kh1', '2d20kl1', '3d6+2', '2d8-5', '1d100', '100d4+999', '5d6p', '5d6>=4', '3d10>=8']
+    const canonical = ['1d20', '2d20kh1', '2d20kl1', '3d6+2', '2d8-5', '1d100', '100d4+999', '5d6p', '5d6>=4', '3d10>=8', '5d6ps', '5d6>=4s']
     for (const n of canonical) {
       const parsed = parseRollerNotation(n)
       expect(parsed).not.toBeNull()
-      expect(buildNotation(parsed!.diceType, parsed!.quantity, parsed!.modifier, parsed!.advDis, parsed!.poolMode, parsed!.target)).toBe(n)
+      expect(buildNotation(parsed!.diceType, parsed!.quantity, parsed!.modifier, parsed!.advDis, parsed!.poolMode, parsed!.target, parsed!.sorted)).toBe(n)
     }
   })
 
@@ -105,9 +115,9 @@ describe('parseRollerNotation', () => {
   })
 
   it('parses values at the edge of the form bounds', () => {
-    expect(parseRollerNotation('100d6')).toEqual({ diceType: 'd6', quantity: 100, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4 })
-    expect(parseRollerNotation('1d20+999')).toEqual({ diceType: 'd20', quantity: 1, modifier: 999, advDis: 'none', poolMode: 'sum', target: 4 })
-    expect(parseRollerNotation('1d20-999')).toEqual({ diceType: 'd20', quantity: 1, modifier: -999, advDis: 'none', poolMode: 'sum', target: 4 })
+    expect(parseRollerNotation('100d6')).toEqual({ diceType: 'd6', quantity: 100, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('1d20+999')).toEqual({ diceType: 'd20', quantity: 1, modifier: 999, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('1d20-999')).toEqual({ diceType: 'd20', quantity: 1, modifier: -999, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
   })
 
   it('returns null for pool notations the form cannot represent', () => {
@@ -300,6 +310,49 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4')
+  })
+
+  it('rolls a sorted raw pool when the sort checkbox is checked', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+
+    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    fireEvent.click(screen.getByLabelText('Sort highest first'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6ps')
+  })
+
+  it('rolls a sorted success-count pool when the sort checkbox is checked', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
+
+    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    fireEvent.click(screen.getByLabelText('Sort highest first'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4s')
+  })
+
+  it('hides the sort checkbox in sum mode', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    expect(screen.queryByLabelText('Sort highest first')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+    expect(screen.getByLabelText('Sort highest first')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sum' }))
+    expect(screen.queryByLabelText('Sort highest first')).not.toBeInTheDocument()
   })
 
   it('clears advantage when entering a pool mode so quantity stays editable', () => {

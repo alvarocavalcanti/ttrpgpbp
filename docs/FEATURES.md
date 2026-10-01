@@ -129,6 +129,7 @@
   - `kh`/`kl`/`dh`/`dl` with or without an explicit count
   - `NdMp` (dice pool — lists every face, no total)
   - `NdM>=T` (success pool — lists every face, counts faces at or above T, no total)
+  - `NdMps` / `NdM>=Ts` (sorted pools — same as above, faces listed highest-first)
 - **Roll result shows full breakdown**: plain rolls break down into dice + modifier = total (`Rolled 1d20+3: 10 + 3 = **13**`, `Rolled 2d6: 3 + 5 = **8**`), and keep/drop rolls keep their ADV/DIS form (`Rolled 2d20 with DIS [2, 15]: **2**`); dropped-die rolls (`4d6dl1`) fall back to the plain total. Pool rolls never add up (`Rolled 5d6p: 2, 5, 3, 6, 1`); success pools show the count (`Rolled 5d6>=4: 2, 5, 3, 6, 1 — **2 successes (≥4)**`).
 - **Critical rolls** — a d20 landing on a natural 20 displays **Critical Success**, and a natural 1 displays **Critical Failure** (based on the unmodified die, so modifiers don't change it). Applies to plain d20 rolls and to Advantage/Disadvantage (the kept die), and the roll history marks the same critical rolls. Pool rolls never show critical labels.
 - **Server-authoritative rolls** — every roll is evaluated and recorded server-side (result, individual dice, dropped dice, modifier) in a single atomic step together with the roll message. Modifiers are clamped to the game system's bounds, DC success/failure is computed server-side (meets beats; DCs are rejected for pool rolls, which carry no totals), and no client can fabricate or edit a result. Pool rolls store their mode (and target/success count) alongside the faces. Rolls from soft-deleted messages are excluded from the roll history.
@@ -140,7 +141,7 @@
   - Pick dice type (d4, d6, d8, d10, d12, d20, d100)
   - Set quantity
   - Add modifier (+N / -N) in Sum mode only
-  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type)
+  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first
   - Advantage/disadvantage toggle (d20 only)
   - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm. Notations the roller can't rebuild (drop-lowest, keep counts other than 1) still re-roll on tap
   - Pin up to 3 favorite notations per channel with the star checkbox — favorites stay pinned to the front of the chip row in amber
