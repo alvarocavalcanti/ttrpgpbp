@@ -246,6 +246,18 @@ describe('FeaturesPage', () => {
     )
   })
 
+  it('renders the frequently asked questions', () => {
+    renderPage()
+
+    expect(screen.getByRole('heading', { name: 'Frequently asked questions' })).toBeInTheDocument()
+    expect(screen.getByText('How do the dice rolls work?')).toBeInTheDocument()
+    expect(screen.getByText('Is Role by Post free?')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Play-by-Post' })).toHaveAttribute(
+      'href',
+      '/play-by-post'
+    )
+  })
+
   describe('enlarged image viewer (issue #615)', () => {
     function dialogImage(): HTMLElement {
       return within(screen.getByRole('dialog')).getByRole('img')

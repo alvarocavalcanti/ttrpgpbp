@@ -25,6 +25,18 @@ function outputFile(path) {
   return path === '/' ? 'index.html' : `${path.replace(/^\//, '')}.html`
 }
 
+// The snapshot serializes `&` as `&amp;` inside `<title>` (e.g. "D&D"), so
+// compare entity-decoded text against the registry's plain string.
+function decodeEntities(value) {
+  return value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 for (const route of PUBLIC_ROUTES) {
   const relative = outputFile(route.path)
   const html = read(relative)
@@ -33,15 +45,21 @@ for (const route of PUBLIC_ROUTES) {
   const titles = html.match(/<title>[^<]*<\/title>/g) ?? []
   if (titles.length !== 1) {
     errors.push(`${relative}: expected exactly one <title>, found ${titles.length}`)
-  } else if (!titles[0].includes(route.title)) {
+  } else if (!decodeEntities(titles[0]).includes(route.title)) {
     errors.push(`${relative}: title does not match the route registry`)
   }
   if (!html.includes('rel="canonical"')) errors.push(`${relative}: missing canonical link`)
   if (!html.includes('property="og:title"')) errors.push(`${relative}: missing og:title`)
-  if (!/<h1[\s>]/.test(html)) errors.push(`${relative}: missing an <h1> (no body content)`)
+  const h1Count = (html.match(/<h1[\s>]/g) ?? []).length
+  if (h1Count !== 1) {
+    errors.push(`${relative}: expected exactly one <h1>, found ${h1Count}`)
+  }
   if (!html.includes('id="root"')) errors.push(`${relative}: missing the React root`)
   if (route.path === '/' && !html.includes('application/ld+json')) {
     errors.push(`${relative}: missing JSON-LD`)
+  }
+  if (route.path === '/features' && !html.includes('FAQPage')) {
+    errors.push(`${relative}: missing FAQPage JSON-LD`)
   }
 }
 

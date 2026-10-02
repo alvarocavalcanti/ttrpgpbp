@@ -2,20 +2,25 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelpPage } from './HelpPage'
-import { getGeneralHelp } from './helpContent'
+import { getChannelHelp, getGeneralHelp } from './helpContent'
 
 vi.mock('./helpContent', () => ({
-  getGeneralHelp: vi.fn()
+  getGeneralHelp: vi.fn(),
+  getChannelHelp: vi.fn(),
 }))
 
-const entries = [
+const general = [
   { slug: 'dice-rolling', title: 'Dice Rolling', content: '## Inline notation\n\nClick dice.', screenshot: '/help-images/dice-panel.png' },
   { slug: 'search', title: 'Search', content: '## How to search\n\nType text.' },
+]
+const channel = [
+  { slug: 'gm-tools', title: 'GM Tools', content: '## GM controls\n\nRun the table.' },
 ]
 
 describe('HelpPage', () => {
   beforeEach(() => {
-    vi.mocked(getGeneralHelp).mockReturnValue(entries as any)
+    vi.mocked(getGeneralHelp).mockReturnValue(general as any)
+    vi.mocked(getChannelHelp).mockReturnValue(channel as any)
   })
 
   const renderPage = (initialEntries = ['/help']) =>
@@ -28,10 +33,13 @@ describe('HelpPage', () => {
       </MemoryRouter>
     )
 
-  it('renders the topic list and first topic content by default', () => {
+  it('renders the grouped topic list and first topic content by default', () => {
     renderPage()
+    expect(screen.getByText('General')).toBeInTheDocument()
+    expect(screen.getByText('Channel')).toBeInTheDocument()
     expect(screen.getAllByText('Dice Rolling').length).toBeGreaterThan(0)
     expect(screen.getByText('Search')).toBeInTheDocument()
+    expect(screen.getByText('GM Tools')).toBeInTheDocument()
     expect(screen.getByText('Inline notation')).toBeInTheDocument()
   })
 
@@ -41,10 +49,13 @@ describe('HelpPage', () => {
     expect(img).toHaveAttribute('src', '/help-images/dice-panel.png')
   })
 
-  it('shows selected topic content when navigating by slug', () => {
+  it('shows selected topic content when navigating by slug, including channel guides', () => {
     renderPage(['/help/search'])
     expect(screen.getByText('How to search')).toBeInTheDocument()
     expect(screen.queryByText('Inline notation')).not.toBeInTheDocument()
+
+    renderPage(['/help/gm-tools'])
+    expect(screen.getByText('GM controls')).toBeInTheDocument()
   })
 
   it('switches content when a topic is clicked', () => {
@@ -61,6 +72,7 @@ describe('HelpPage', () => {
 
   it('shows empty state when no topics exist', () => {
     vi.mocked(getGeneralHelp).mockReturnValue([])
+    vi.mocked(getChannelHelp).mockReturnValue([])
     renderPage()
     expect(screen.getByText(/No help topics available yet/)).toBeInTheDocument()
   })
@@ -71,5 +83,13 @@ describe('HelpPage', () => {
     const inactive = screen.getByText('Search')
     expect(inactive).toHaveClass('dark:text-gray-300')
     expect(inactive).toHaveClass('dark:hover:bg-gray-700')
+  })
+
+  it('sets a canonical URL for the active help topic', () => {
+    renderPage(['/help/dice-rolling'])
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://rolebypost.com/help/dice-rolling'
+    )
   })
 })

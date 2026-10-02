@@ -18,7 +18,8 @@ import { fileURLToPath } from 'node:url'
 import { loadEnv } from 'vite'
 import { chromium } from '@playwright/test'
 import { PUBLIC_ROUTES, robotsDisallowPaths } from '../../src/lib/publicRoutes.ts'
-import { buildRobots, buildSitemap, siteJsonLd } from '../../src/lib/seo.ts'
+import { buildRobots, buildSitemap, faqJsonLd, siteJsonLd } from '../../src/lib/seo.ts'
+import { FAQ_ITEMS } from '../../src/lib/faq.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dist = join(root, 'dist')
@@ -127,10 +128,19 @@ async function captureRoutes() {
 
 // JSON-LD is a build-time head artefact, not a React one: rendering it as a
 // React <script> throws a hydration mismatch (#418) against browser-prerendered
-// markup. Inject it into the landing snapshot's <head> instead.
-function injectJsonLd(html) {
+// markup. Inject it into the matching snapshot's <head> instead. Only the
+// routes below get structured data (issue #644).
+function jsonLdForPath(path) {
+  if (path === '/') return siteJsonLd(siteUrl)
+  if (path === '/features') return [faqJsonLd(FAQ_ITEMS)]
+  return []
+}
+
+function injectJsonLd(html, path) {
   if (html.includes('application/ld+json')) return html
-  const scripts = siteJsonLd(siteUrl)
+  const nodes = jsonLdForPath(path)
+  if (nodes.length === 0) return html
+  const scripts = nodes
     .map((node) => `<script type="application/ld+json">${JSON.stringify(node)}</script>`)
     .join('')
   return html.replace('</head>', `${scripts}</head>`)
@@ -138,7 +148,7 @@ function injectJsonLd(html) {
 
 function writeCaptures(captures) {
   for (const { path, html: rawHtml } of captures) {
-    const html = path === '/' ? injectJsonLd(rawHtml) : rawHtml
+    const html = injectJsonLd(rawHtml, path)
     // Flat files, not `dir/index.html`: Pages canonicalises a directory index
     // to a trailing slash (`/features` -> 308 `/features/`), but serves
     // `features.html` at the clean extension-less URL `/features`.

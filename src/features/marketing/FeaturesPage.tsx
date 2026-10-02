@@ -5,6 +5,8 @@ import { Seo } from '../../components/Seo'
 import { ImageViewerModal } from '../../components/ImageViewerModal'
 import { useAuth } from '../auth/useAuth'
 import { trackEvent } from '../../lib/analytics'
+import { FAQ_ITEMS } from '../../lib/faq'
+import { SiteFooter } from './SiteFooter'
 
 type Track = 'gm' | 'player'
 
@@ -309,6 +311,24 @@ export function FeaturesPage() {
           </ul>
         </section>
 
+        <section className="py-12 border-t border-surface-200 dark:border-surface-700">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-surface-900 dark:text-surface-100">
+            Frequently asked questions
+          </h2>
+          <dl className="mt-8 max-w-3xl mx-auto space-y-6">
+            {FAQ_ITEMS.map((item) => (
+              <div key={item.question}>
+                <dt className="text-base font-semibold text-surface-900 dark:text-surface-100">
+                  {item.question}
+                </dt>
+                <dd className="mt-1 text-sm sm:text-base text-surface-600 dark:text-surface-400">
+                  {item.answer}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
         <section className="py-12 border-t border-surface-200 dark:border-surface-700 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-surface-900 dark:text-surface-100">
             Your table is waiting
@@ -326,31 +346,7 @@ export function FeaturesPage() {
         </section>
       </main>
 
-      <footer className="border-t border-surface-200 dark:border-surface-700 px-4 sm:px-6 py-8">
-        <nav aria-label="Footer" className="max-w-6xl mx-auto flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
-          <Link to="/about" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            About
-          </Link>
-          <Link to="/privacy" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            Privacy Policy
-          </Link>
-          <Link to="/terms" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            Terms of Service
-          </Link>
-          <a href="https://github.com/alvarocavalcanti/ttrpgpbp" target="_blank" rel="noreferrer" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            GitHub
-          </a>
-          <a href="https://www.buymeacoffee.com/alvarocavalcanti" target="_blank" rel="noreferrer" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            Buy Me a Coffee
-          </a>
-          <a href="https://ko-fi.com/O4O1WSP5B" target="_blank" rel="noreferrer" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            Ko-fi
-          </a>
-          <a href="https://youseethis.blog" target="_blank" rel="noreferrer" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            You See This — token art
-          </a>
-        </nav>
-      </footer>
+      <SiteFooter />
 
       {/* Enlarged viewer (issue #615). A neighbor handler is passed only
           when that neighbor exists, so the viewer clamps at both ends. */}
