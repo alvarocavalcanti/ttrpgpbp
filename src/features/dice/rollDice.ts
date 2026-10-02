@@ -49,7 +49,8 @@ function applyKeepDrop(values: number[], keepDrop: string): boolean[] {
   if (!keepDrop) return kept
   const type = keepDrop.slice(0, 2)
   const parsedAmount = keepDrop.length > 2 ? Number(keepDrop.slice(2)) : 1
-  const amount = Math.min(values.length, Math.max(1, parsedAmount))
+  // `kh0`/`dh0` are valid in the shared grammar: zero means keep/drop none.
+  const amount = Math.min(values.length, Math.max(0, parsedAmount))
   const byValue = values
     .map((value, index) => ({ value, index }))
     .sort((a, b) => a.value - b.value || a.index - b.index)
@@ -70,6 +71,9 @@ export function rollDice(
   if (!parsed) return null
 
   const { count, sides, keepDrop, mode, target, modifier, sorted } = parsed
+  // The grammar allows `0d6` / `1d0` / counts past the page limit; enforce the
+  // same numeric bounds the server does before rolling.
+  if (count < 1 || count > 100 || sides < 1) return null
   const values = Array.from({ length: count }, () => faceRoll(sides, rng))
   const keptFlags = applyKeepDrop(values, keepDrop)
 

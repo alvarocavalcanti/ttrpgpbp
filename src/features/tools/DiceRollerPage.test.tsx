@@ -42,6 +42,38 @@ describe('DiceRollerPage', () => {
     expect(screen.getByText(/^\d+ success(es)?$/)).toBeInTheDocument()
   })
 
+  it('rolls a sorted pool with the chosen number of dice', () => {
+    renderPage()
+    fireEvent.change(screen.getByLabelText('Number'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+    fireEvent.click(screen.getByLabelText('Sort highest first'))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(screen.getByText('4d20ps')).toBeInTheDocument()
+    expect(screen.getByText('4 dice')).toBeInTheDocument()
+  })
+
+  it('applies advantage to a d20 sum roll', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Advantage' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(screen.getByText('2d20kh1')).toBeInTheDocument()
+  })
+
+  it('adds the modifier to the notation', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Increase modifier' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(screen.getByText('1d20+1')).toBeInTheDocument()
+  })
+
+  it('marks the active mode for assistive tech', () => {
+    renderPage()
+    const pool = screen.getByRole('button', { name: 'Pool' })
+    expect(pool).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(pool)
+    expect(pool).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('never calls Supabase — the public roller is browser-only', () => {
     const rpc = vi.spyOn(supabase, 'rpc')
     renderPage()

@@ -50,6 +50,7 @@ export function DiceRollerPage() {
   const modeButton = (mode: PoolMode, label: string) => (
     <button
       type="button"
+      aria-pressed={poolMode === mode}
       onClick={() => {
         setPoolMode(mode)
         if (mode !== 'sum') setAdvDis('none')
@@ -89,36 +90,47 @@ export function DiceRollerPage() {
             {modeButton('successes', 'Successes')}
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
-            <label htmlFor="tool-dice-quantity" className="sr-only">
-              Number of dice
-            </label>
-            <input
-              id="tool-dice-quantity"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={100}
-              value={quantity}
-              disabled={diceType === 'd20' && advDis !== 'none'}
-              onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-              className="w-16 min-h-11 rounded border-surface-300 bg-white text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-            />
-            <label htmlFor="tool-dice-type" className="sr-only">
-              Dice type
-            </label>
-            <select
-              id="tool-dice-type"
-              value={diceType}
-              onChange={(e) => changeDiceType(e.target.value)}
-              className="min-h-11 flex-1 rounded border-surface-300 bg-white py-2 pl-2 pr-8 text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-            >
-              {DICE_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+          <div className="mt-4 flex items-end gap-3">
+            <div className="flex flex-col">
+              <label
+                htmlFor="tool-dice-quantity"
+                className="mb-1 text-xs font-medium text-surface-500 dark:text-surface-400"
+              >
+                Number
+              </label>
+              <input
+                id="tool-dice-quantity"
+                type="number"
+                inputMode="numeric"
+                step={1}
+                min={1}
+                max={100}
+                value={quantity}
+                disabled={diceType === 'd20' && advDis !== 'none'}
+                onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                className="w-16 min-h-11 rounded border-surface-300 bg-white text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+              />
+            </div>
+            <div className="flex flex-1 flex-col">
+              <label
+                htmlFor="tool-dice-type"
+                className="mb-1 text-xs font-medium text-surface-500 dark:text-surface-400"
+              >
+                Die
+              </label>
+              <select
+                id="tool-dice-type"
+                value={diceType}
+                onChange={(e) => changeDiceType(e.target.value)}
+                className="min-h-11 w-full rounded border-surface-300 bg-white py-2 pl-2 pr-8 text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+              >
+                {DICE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {poolMode === 'successes' && (
@@ -159,34 +171,40 @@ export function DiceRollerPage() {
           )}
 
           {poolMode === 'sum' && (
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setModifier((m) => Math.max(-999, m - 1))}
-                aria-label="Decrease modifier"
-                className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+            <div className="mt-4">
+              <label
+                htmlFor="tool-dice-modifier"
+                className="mb-1 block text-xs font-medium text-surface-500 dark:text-surface-400"
               >
-                −
-              </button>
-              <label htmlFor="tool-dice-modifier" className="sr-only">
                 Modifier
               </label>
-              <input
-                id="tool-dice-modifier"
-                type="number"
-                inputMode="numeric"
-                value={modifier}
-                onChange={(e) => setModifier(Math.min(999, Math.max(-999, parseInt(e.target.value, 10) || 0)))}
-                className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-              />
-              <button
-                type="button"
-                onClick={() => setModifier((m) => Math.min(999, m + 1))}
-                aria-label="Increase modifier"
-                className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
-              >
-                +
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModifier((m) => Math.max(-999, m - 1))}
+                  aria-label="Decrease modifier"
+                  className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                >
+                  −
+                </button>
+                <input
+                  id="tool-dice-modifier"
+                  type="number"
+                  inputMode="numeric"
+                  step={1}
+                  value={modifier}
+                  onChange={(e) => setModifier(Math.min(999, Math.max(-999, parseInt(e.target.value, 10) || 0)))}
+                  className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setModifier((m) => Math.min(999, m + 1))}
+                  aria-label="Increase modifier"
+                  className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                >
+                  +
+                </button>
+              </div>
             </div>
           )}
 
@@ -196,6 +214,7 @@ export function DiceRollerPage() {
                 <button
                   key={value}
                   type="button"
+                  aria-pressed={advDis === value}
                   onClick={() => setAdvDis(value)}
                   className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
                     advDis === value

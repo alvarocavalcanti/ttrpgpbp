@@ -15,6 +15,24 @@ describe('rollDice', () => {
     expect(rollDice('')).toBeNull()
   })
 
+  it('rejects dice outside the server bounds', () => {
+    // The shared grammar accepts these; the evaluator must not.
+    expect(rollDice('0d6')).toBeNull()
+    expect(rollDice('101d6')).toBeNull()
+    expect(rollDice('1d0')).toBeNull()
+  })
+
+  it('honours explicit zero keep/drop amounts', () => {
+    // 2d6kh0 keeps no dice -> total 0
+    const keepNone = rollDice('2d6kh0', seqRng(0, 3))
+    expect(keepNone!.dice.every((d) => !d.kept)).toBe(true)
+    expect(keepNone!.total).toBe(0)
+    // 2d6dh0 drops none -> 1 + 4
+    const dropNone = rollDice('2d6dh0', seqRng(0, 3))
+    expect(dropNone!.dice.every((d) => d.kept)).toBe(true)
+    expect(dropNone!.total).toBe(5)
+  })
+
   it('sums kept dice and adds the modifier', () => {
     // 2d6 -> 1, 4; +3 -> 8
     const result = rollDice('2d6+3', seqRng(0, 3))
