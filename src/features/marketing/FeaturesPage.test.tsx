@@ -227,7 +227,6 @@ describe('FeaturesPage', () => {
     expect(screen.getByText('Drafts that survive')).toBeInTheDocument()
     expect(screen.getByText('Invite-only tables')).toBeInTheDocument()
     expect(screen.getByText('Sign in your way')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
       'href',
       '/privacy'

@@ -11,13 +11,17 @@ export function parseFrontmatter(raw: string): { frontmatter: RawFrontmatter; bo
     return { frontmatter: {}, body: raw }
   }
 
-  const endIndex = raw.indexOf('\n---', 3)
-  if (endIndex === -1) {
+  // The closing delimiter must be a complete `---` line (optional trailing
+  // whitespace), never a line that merely starts with `---`, so a malformed
+  // marker leaves the original Markdown untouched instead of corrupting it.
+  const afterOpen = raw.slice(3)
+  const close = /\n---[ \t]*(\r?\n|$)/.exec(afterOpen)
+  if (!close) {
     return { frontmatter: {}, body: raw }
   }
 
-  const fmBlock = raw.slice(3, endIndex).trim()
-  const body = raw.slice(endIndex + 4).trim()
+  const fmBlock = afterOpen.slice(0, close.index).trim()
+  const body = afterOpen.slice(close.index + close[0].length).trim()
 
   const frontmatter: RawFrontmatter = {}
   for (const line of fmBlock.split('\n')) {

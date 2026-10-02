@@ -3,11 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelpPage } from './HelpPage'
 import { getChannelHelp, getGeneralHelp } from './helpContent'
+import { useAuth } from '../auth/useAuth'
 
 vi.mock('./helpContent', () => ({
   getGeneralHelp: vi.fn(),
   getChannelHelp: vi.fn(),
 }))
+
+vi.mock('../auth/useAuth', () => ({ useAuth: vi.fn() }))
 
 const general = [
   { slug: 'dice-rolling', title: 'Dice Rolling', content: '## Inline notation\n\nClick dice.', screenshot: '/help-images/dice-panel.png' },
@@ -21,6 +24,7 @@ describe('HelpPage', () => {
   beforeEach(() => {
     vi.mocked(getGeneralHelp).mockReturnValue(general as any)
     vi.mocked(getChannelHelp).mockReturnValue(channel as any)
+    vi.mocked(useAuth).mockReturnValue({ user: null } as never)
   })
 
   const renderPage = (initialEntries = ['/help']) =>
@@ -91,5 +95,30 @@ describe('HelpPage', () => {
       'href',
       'https://rolebypost.com/help/dice-rolling'
     )
+  })
+
+  it('normalizes a trailing slash for the canonical URL', () => {
+    renderPage(['/help/dice-rolling/'])
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://rolebypost.com/help/dice-rolling'
+    )
+  })
+
+  it('gives signed-out visitors a public header and footer to navigate home', () => {
+    renderPage(['/help/dice-rolling'])
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('navigation', { name: 'Footer' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Play-by-Post' })).toHaveAttribute(
+      'href',
+      '/play-by-post'
+    )
+  })
+
+  it('hides the marketing header and footer for signed-in visitors', () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } } as never)
+    renderPage(['/help/dice-rolling'])
+    expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Footer' })).not.toBeInTheDocument()
   })
 })

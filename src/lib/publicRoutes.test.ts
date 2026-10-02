@@ -7,8 +7,18 @@ import {
   appRedirectRules,
   buildRedirectsFile,
   isMarketingPath,
+  normalizePath,
   robotsDisallowPaths,
 } from './publicRoutes'
+
+describe('normalizePath', () => {
+  it('strips a single trailing slash but keeps the root', () => {
+    expect(normalizePath('/play-by-post/')).toBe('/play-by-post')
+    expect(normalizePath('/help/dice-rolling/')).toBe('/help/dice-rolling')
+    expect(normalizePath('/features')).toBe('/features')
+    expect(normalizePath('/')).toBe('/')
+  })
+})
 
 describe('isMarketingPath', () => {
   it('matches the always-marketing routes with and without a trailing slash', () => {

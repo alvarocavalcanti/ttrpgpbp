@@ -49,6 +49,15 @@ describe('ContentPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('resolves a route with a trailing slash instead of rendering blank', () => {
+    mockAuth(null)
+    renderAt('/play-by-post/')
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Play-by-Post Tabletop RPGs' }),
+    ).toBeInTheDocument()
+    expect(document.title).toBe('Play-by-Post Tabletop RPGs — Role by Post')
+  })
+
   it('renders nothing for an unregistered path', () => {
     mockAuth(null)
     const { container } = renderAt('/not-content')

@@ -196,7 +196,7 @@
 ## Help
 
 - **In-app help** — a **Help** menu item in the main app header opens a `/help` page with **General** and **Channel** topics; a **Help** item in the channel sidebar opens a channel-specific help modal. The same `/help` pages are public (reachable signed out) and prerendered for search engines
-- Help content is authored as Markdown files in [docs/help/](docs/help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic means adding/removing a `.md` file **and** a matching entry in `HELP_TOPICS` in [src/lib/publicRoutes.ts](src/lib/publicRoutes.ts) (a guard test keeps the two in sync)
+- Help content is authored as Markdown files in [help/](help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic means adding/removing a `.md` file **and** a matching entry in `HELP_TOPICS` in [src/lib/publicRoutes.ts](../src/lib/publicRoutes.ts) (a guard test keeps the two in sync)
 - **Screenshots** live in `public/help-images/` and are referenced from frontmatter; they load from the network on first view (the PWA precache deliberately excludes PNGs)
 - AGENTS.md requires help content and screenshots to be updated alongside feature/UI changes
 

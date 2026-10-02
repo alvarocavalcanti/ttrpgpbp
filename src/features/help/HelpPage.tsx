@@ -1,11 +1,16 @@
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import MarkdownImpl from '../../components/MarkdownImpl'
 import { Seo } from '../../components/Seo'
+import { normalizePath } from '../../lib/publicRoutes'
+import { useAuth } from '../auth/useAuth'
+import { MarketingHeader } from '../marketing/MarketingHeader'
+import { SiteFooter } from '../marketing/SiteFooter'
 import { getChannelHelp, getGeneralHelp } from './helpContent'
 
 export function HelpPage() {
   const { topic } = useParams<{ topic: string }>()
   const { pathname } = useLocation()
+  const { user } = useAuth()
   const general = getGeneralHelp()
   const channel = getChannelHelp()
   const entries = [...general, ...channel]
@@ -30,56 +35,62 @@ export function HelpPage() {
   ].filter((group) => group.entries.length > 0)
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row bg-gray-50 dark:bg-gray-900">
-      <Seo path={pathname} />
-      {/* Topic list */}
-      <nav className="lg:w-64 lg:shrink-0 bg-white dark:bg-gray-800 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 overflow-x-auto lg:overflow-y-auto">
-        <h2 className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700">
-          Help Topics
-        </h2>
-        <div className="flex lg:flex-col gap-4 p-2">
-          {groups.map((group) => (
-            <div key={group.label} className="shrink-0">
-              <h3 className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                {group.label}
-              </h3>
-              <ul className="flex lg:flex-col gap-1">
-                {group.entries.map((entry) => (
-                  <li key={entry.slug} className="shrink-0">
-                    <Link
-                      to={`/help/${entry.slug}`}
-                      className={`block px-3 py-2 text-sm rounded-md transition-colors ${
-                        entry.slug === active.slug
-                          ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium'
-                          : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {entry.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </nav>
+    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
+      <Seo path={normalizePath(pathname)} />
+      {!user && <MarketingHeader />}
 
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <article className="max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{active.title}</h1>
-          {active.screenshot && (
-            <img
-              src={active.screenshot}
-              alt={`${active.title} screenshot`}
-              className="w-full max-w-xl mb-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
-            />
-          )}
-          <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
-            <MarkdownImpl>{active.content}</MarkdownImpl>
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* Topic list */}
+        <nav className="lg:w-64 lg:shrink-0 bg-white dark:bg-gray-800 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 overflow-x-auto lg:overflow-y-auto">
+          <h2 className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700">
+            Help Topics
+          </h2>
+          <div className="flex lg:flex-col gap-4 p-2">
+            {groups.map((group) => (
+              <div key={group.label} className="shrink-0">
+                <h3 className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  {group.label}
+                </h3>
+                <ul className="flex lg:flex-col gap-1">
+                  {group.entries.map((entry) => (
+                    <li key={entry.slug} className="shrink-0">
+                      <Link
+                        to={`/help/${entry.slug}`}
+                        className={`block px-3 py-2 text-sm rounded-md transition-colors ${
+                          entry.slug === active.slug
+                            ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium'
+                            : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {entry.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
-        </article>
-      </main>
+        </nav>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <article className="max-w-3xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{active.title}</h1>
+            {active.screenshot && (
+              <img
+                src={active.screenshot}
+                alt={`${active.title} screenshot`}
+                className="w-full max-w-xl mb-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
+              />
+            )}
+            <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
+              <MarkdownImpl>{active.content}</MarkdownImpl>
+            </div>
+          </article>
+        </main>
+      </div>
+
+      {!user && <SiteFooter />}
     </div>
   )
 }

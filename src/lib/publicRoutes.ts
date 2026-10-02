@@ -272,11 +272,17 @@ const MARKETING_KEYS: RouteKey[] = [
   'terms',
 ]
 
+// Strips a single trailing slash (except on the root) so route-registry
+// lookups agree with how React Router matches `/path/`. Shared by the SEO
+// metadata lookups and the marketing gates.
+export function normalizePath(pathname: string): string {
+  return pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+}
+
 // True for the always-marketing surfaces. Consumed by the gates that keep
 // app-only surfaces (install banner, changelog auto-open) off these pages.
 export function isMarketingPath(pathname: string): boolean {
-  const normalized =
-    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  const normalized = normalizePath(pathname)
   if (normalized.startsWith(`${ROUTES.help}/`)) return true
   return MARKETING_KEYS.some((key) => ROUTES[key] === normalized)
 }

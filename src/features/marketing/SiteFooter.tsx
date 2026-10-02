@@ -46,9 +46,6 @@ export function SiteFooter() {
         <Link to="/help" className={LINK}>
           Help
         </Link>
-        <Link to="/about" className={LINK}>
-          About
-        </Link>
         <Link to="/privacy" className={LINK}>
           Privacy Policy
         </Link>
