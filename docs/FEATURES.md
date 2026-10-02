@@ -6,6 +6,7 @@
 - **Indexable public pages** — `/`, `/features`, `/privacy`, `/terms`, the `/help` guides, and the long-form content pages below are prerendered so search engines and link previews (Slack, Discord, social media) see real content, a per-page title and description, a canonical URL, and a social share image
 - **Long-form content** — a **play-by-post pillar page** (`/play-by-post`), how-to guides (`/how-to/play-by-post-dnd`, `/how-to/run-play-by-post`), and comparisons (`/vs/discord`, `/alternatives/rpol`, `/alternatives/myth-weavers`) give the public site a crawlable internal-link graph, with breadcrumbs and a shared footer
 - **Help is public** — every help guide (`/help` plus `/help/<topic>`) is reachable without signing in, is prerendered, and appears in the sitemap; the in-app Help page and the channel Help modal are unchanged
+- **Public dice roller** — a free, signed-out `/dice-roller` tool for sum, pool, and success rolls, with modifiers, advantage/disadvantage, and pool sorting; rolls run entirely in the browser and are never saved
 - **FAQ rich result** — `/features` renders a visible FAQ section and carries matching `FAQPage` structured data
 - **Rich results on the guides** — the how-to guides carry `HowTo` structured data, and every guide, comparison, and help topic carries `Article` plus breadcrumb structured data, so search engines can show richer results
 - **Author byline on every guide** — each guide credits its author with a link to the About page

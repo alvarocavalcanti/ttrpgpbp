@@ -8,6 +8,7 @@ import { dismissWhatsNew, seedAndSignIn } from './helpers'
 const PUBLIC_PAGES = [
   { path: '/', title: 'Role by Post — Play-by-Post RPG Chat' },
   { path: '/features', title: 'Features — Role by Post' },
+  { path: '/dice-roller', title: 'Dice Roller — Roll Dice Online — Role by Post' },
   { path: '/play-by-post', title: 'Play-by-Post Tabletop RPGs — Role by Post' },
   { path: '/how-to/play-by-post-dnd', title: 'How to Play D&D by Post — Role by Post' },
   { path: '/how-to/run-play-by-post', title: 'How to Run a Play-by-Post Game — Role by Post' },
@@ -43,6 +44,13 @@ test.describe('public route metadata', () => {
 
     await page.goto('/login')
     await expect(page.getByText('Email me a sign-in link')).toBeVisible()
+  })
+
+  test('public dice roller rolls in the browser without signing in', async ({ page }) => {
+    await page.goto('/dice-roller')
+    await page.getByRole('button', { name: 'Roll' }).click()
+    await expect(page.getByText('1d20')).toBeVisible()
+    await expect(page.getByText(/^Total \d+$/)).toBeVisible()
   })
 
   test('help content is reachable while signed out', async ({ page }) => {

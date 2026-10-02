@@ -119,6 +119,27 @@ export function jsonLdForRoute(path: string, siteUrl: string): JsonLd[] {
   const route = PUBLIC_ROUTES.find((entry) => entry.path === path)
   if (!route) return []
 
+  if (path === ROUTES.diceRoller) {
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        name: 'Dice Roller',
+        description: route.description,
+        url: canonicalUrl(siteUrl, path),
+        applicationCategory: 'GameApplication',
+        operatingSystem: 'Web',
+        isAccessibleForFree: true,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      },
+      breadcrumbJsonLd(
+        [{ label: 'Home', to: ROUTES.home }, { label: 'Dice Roller' }],
+        path,
+        siteUrl,
+      ),
+    ]
+  }
+
   // The help index renders the first topic as its main article/H1, so an
   // Article titled "Help and Guides" would describe content that is not on the
   // page (Copilot #660). Emit just the breadcrumb for the index; topic pages

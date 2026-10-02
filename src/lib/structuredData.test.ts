@@ -92,6 +92,12 @@ describe('jsonLdForRoute', () => {
     expect(jsonLdForRoute('/features', SITE).map((n) => n['@type'])).toEqual(['FAQPage'])
   })
 
+  it('declares the public dice roller as a free WebApplication', () => {
+    const nodes = jsonLdForRoute('/dice-roller', SITE)
+    expect(nodes.map((n) => n['@type'])).toEqual(['WebApplication', 'BreadcrumbList'])
+    expect(nodes[0]).toMatchObject({ isAccessibleForFree: true })
+  })
+
   it('emits HowTo + BreadcrumbList for the how-to guides', () => {
     const types = jsonLdForRoute('/how-to/run-play-by-post', SITE).map((n) => n['@type'])
     expect(types).toEqual(['HowTo', 'BreadcrumbList'])

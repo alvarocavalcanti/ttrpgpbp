@@ -6,6 +6,7 @@ export const ROUTES = {
   home: '/',
   login: '/login',
   features: '/features',
+  diceRoller: '/dice-roller',
   playByPost: '/play-by-post',
   howToDnd: '/how-to/play-by-post-dnd',
   howToRun: '/how-to/run-play-by-post',
@@ -161,6 +162,15 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.8,
+  },
+  {
+    path: ROUTES.diceRoller,
+    title: 'Dice Roller — Roll Dice Online — Role by Post',
+    description:
+      'A free online dice roller for tabletop RPGs: d4 to d100, modifiers, advantage and disadvantage, dice pools, and success checks. Rolls run in your browser with no sign-in.',
+    waitSelector: 'h1',
+    changeFrequency: 'monthly',
+    priority: 0.7,
   },
   {
     path: ROUTES.playByPost,
