@@ -15,8 +15,11 @@ import { GAME_SYSTEM_COPY } from '../../game-systems/marketing'
 export function GameSystemPage() {
   const { slug } = useParams<{ slug: string }>()
   const { user } = useAuth()
-  const copy = slug ? GAME_SYSTEM_COPY[slug] : undefined
-  const system = slug ? GAME_SYSTEMS[slug] : undefined
+  // Own-property checks: a crafted slug like `toString` would otherwise return
+  // an inherited Object.prototype member and crash the render.
+  const copy =
+    slug && Object.hasOwn(GAME_SYSTEM_COPY, slug) ? GAME_SYSTEM_COPY[slug] : undefined
+  const system = slug && Object.hasOwn(GAME_SYSTEMS, slug) ? GAME_SYSTEMS[slug] : undefined
 
   if (!copy || !system) return <Navigate to={ROUTES.features} replace />
 

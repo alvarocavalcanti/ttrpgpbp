@@ -39,4 +39,9 @@ describe('GameSystemPage', () => {
     renderAt('/game-systems/not-a-system')
     expect(screen.getByTestId('features')).toBeInTheDocument()
   })
+
+  it('redirects an inherited prototype key instead of crashing', () => {
+    renderAt('/game-systems/toString')
+    expect(screen.getByTestId('features')).toBeInTheDocument()
+  })
 })
