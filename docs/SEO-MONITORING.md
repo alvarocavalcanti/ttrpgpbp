@@ -25,9 +25,9 @@ deploy.
   the last 28 days. Note queries with impressions but a low click-through rate —
   those are title/description candidates.
 - [ ] **Iterate titles and descriptions from real impressions.** Edit the
-  matching entry in `PUBLIC_ROUTES` (the title must stay free of a raw `&`),
-  then run `npm run build:seo && npm run seo:verify`. Ship through the normal
-  PR flow.
+  matching entry in `PUBLIC_ROUTES`. Keep a raw `&` (as in "D&D") — never store
+  a pre-escaped `&amp;` in the source data; a guard test rejects it. Then run
+  `npm run build:seo && npm run seo:verify`. Ship through the normal PR flow.
 - [ ] **Check rich results.** Run a changed guide through the Google Rich
   Results test and the Schema.org validator; `npm run seo:verify` already
   asserts the expected `@type` per route.
