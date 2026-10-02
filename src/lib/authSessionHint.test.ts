@@ -43,6 +43,9 @@ describe('authSessionHint', () => {
     // attribute; if either changes, the helper must change with it.
     expect(html).toContain('sb-.*-auth-token')
     expect(html).toContain('data-auth-pending')
+    // The hide is scoped to `/`; public pages must keep their prerendered
+    // content (CodeRabbit #659).
+    expect(html).toContain("location.pathname !== '/'")
     expect(AUTH_STORAGE_KEY_PATTERN.source).toContain('sb-.*-auth-token')
   })
 })

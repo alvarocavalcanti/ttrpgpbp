@@ -24,10 +24,13 @@
     <script>
       // Hide the prerendered landing before first paint when a Supabase session
       // is already persisted, so a signed-in visitor reloading `/` never sees
-      // the marketing page flash before the lobby loads (issue #658). Keep this
+      // the marketing page flash before the lobby loads (issue #658). Scoped to
+      // `/`: every other public page's prerendered content is correct for
+      // signed-in visitors too and must not be hidden or discarded. Keep this
       // key pattern in sync with src/lib/authSessionHint.ts.
       (function () {
         try {
+          if (location.pathname !== '/') return
           var hasSession = false
           for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i)

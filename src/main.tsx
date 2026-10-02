@@ -31,10 +31,11 @@ const tree = (
 //
 // A persisted session means the `/` snapshot is the marketing landing but the
 // client will render the lobby: drop the prerendered DOM so React never
-// hydrates (or paints) the wrong page (issue #658). The inline index.html
-// script already hid #root to cover the pre-paint window; App removes that
-// attribute after its first commit.
-if (hasPersistedSession()) container.replaceChildren()
+// hydrates (or paints) the wrong page (issue #658). Scoped to `/` — other
+// public pages' prerendered content is correct for signed-in visitors too. The
+// inline index.html script already hid #root to cover the pre-paint window;
+// App removes that attribute after its first commit.
+if (window.location.pathname === '/' && hasPersistedSession()) container.replaceChildren()
 
 if (container.firstElementChild) {
   hydrateRoot(container, tree)
