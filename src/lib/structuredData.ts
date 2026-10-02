@@ -166,6 +166,11 @@ export function jsonLdForRoute(path: string, siteUrl: string): JsonLd[] {
       { label: 'Help', to: ROUTES.help },
       { label: topic.title },
     ]
+  } else if (path.startsWith('/game-systems/')) {
+    breadcrumbs = [
+      { label: 'Home', to: ROUTES.home },
+      { label: route.title.replace(/\s+—\s+Role by Post$/, '') },
+    ]
   } else {
     return []
   }

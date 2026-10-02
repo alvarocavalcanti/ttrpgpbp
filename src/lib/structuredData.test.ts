@@ -98,6 +98,13 @@ describe('jsonLdForRoute', () => {
     expect(nodes[0]).toMatchObject({ isAccessibleForFree: true })
   })
 
+  it('emits Article + BreadcrumbList for a game-system page', () => {
+    const nodes = jsonLdForRoute('/game-systems/shadowdark', SITE)
+    expect(nodes.map((n) => n['@type'])).toEqual(['Article', 'BreadcrumbList'])
+    const crumbs = nodes[1].itemListElement as Array<Record<string, unknown>>
+    expect(crumbs.map((c) => c.name)).toEqual(['Home', 'Shadowdark Play-by-Post'])
+  })
+
   it('emits HowTo + BreadcrumbList for the how-to guides', () => {
     const types = jsonLdForRoute('/how-to/run-play-by-post', SITE).map((n) => n['@type'])
     expect(types).toEqual(['HowTo', 'BreadcrumbList'])

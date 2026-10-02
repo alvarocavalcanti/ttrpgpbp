@@ -35,8 +35,9 @@ import { FeaturesPage } from './features/marketing/FeaturesPage'
 // Prerendered public content (issue #644) is eager, like the pages above.
 import { ContentPage } from './features/content/ContentPage'
 import { HelpPage } from './features/help/HelpPage'
-// Public tool (issue #645) — also prerendered, so eager.
+// Public tool and game-system pages (issue #645) — also prerendered, so eager.
 import { DiceRollerPage } from './features/tools/DiceRollerPage'
+import { GameSystemPage } from './features/game-systems/GameSystemPage'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -425,6 +426,7 @@ export default function App() {
                     <Route path={ROUTES.terms} element={<TermsPage />} />
                     <Route path={ROUTES.features} element={<FeaturesPage />} />
                     <Route path={ROUTES.diceRoller} element={<DiceRollerPage />} />
+                    <Route path={ROUTES.gameSystem} element={<GameSystemPage />} />
                     <Route path={ROUTES.playByPost} element={<ContentPage />} />
                     <Route path={ROUTES.howToDnd} element={<ContentPage />} />
                     <Route path={ROUTES.howToRun} element={<ContentPage />} />

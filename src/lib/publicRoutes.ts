@@ -7,6 +7,7 @@ export const ROUTES = {
   login: '/login',
   features: '/features',
   diceRoller: '/dice-roller',
+  gameSystem: '/game-systems/:slug',
   playByPost: '/play-by-post',
   howToDnd: '/how-to/play-by-post-dnd',
   howToRun: '/how-to/run-play-by-post',
@@ -172,6 +173,17 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     changeFrequency: 'monthly',
     priority: 0.7,
   },
+  // Concrete instances of ROUTES.gameSystem. Keep one entry per system that
+  // has copy in src/game-systems/marketing.ts (guarded by a test).
+  {
+    path: '/game-systems/shadowdark',
+    title: 'Shadowdark Play-by-Post — Role by Post',
+    description:
+      'Play Shadowdark by post in Role by Post: six-stat modifiers, clickable d20 checks, advantage and disadvantage, and a shared timeline for asynchronous play.',
+    waitSelector: 'h1',
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  },
   {
     path: ROUTES.playByPost,
     title: 'Play-by-Post Tabletop RPGs — Role by Post',
@@ -318,7 +330,7 @@ export const APP_ROUTE_KEYS: RouteKey[] = [
 // concrete path. Excluded from the app-shell rewrite so the splat cannot
 // shadow the prerendered help pages, and from the "every non-public route"
 // guard's expected set.
-export const PUBLIC_DYNAMIC_ROUTE_KEYS: RouteKey[] = ['helpTopic']
+export const PUBLIC_DYNAMIC_ROUTE_KEYS: RouteKey[] = ['helpTopic', 'gameSystem']
 
 // Trailing slash is required: Pages 308-redirects a rewrite target of
 // `/app-shell` to `/app-shell/`, which would change the deep-link URL. The
