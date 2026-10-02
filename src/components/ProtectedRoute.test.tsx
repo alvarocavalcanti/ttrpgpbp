@@ -49,6 +49,70 @@ describe('ProtectedRoute', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
+  it('holds the spinner at / while loading when a session is persisted (#658)', () => {
+    localStorage.setItem('sb-test-auth-token', '{}')
+    vi.mocked(useAuth).mockReturnValue({
+      loading: true,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="lobby" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Play your tabletop RPG, one post at a time' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the landing at / while loading when no session is persisted (#643)', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: true,
+      user: null,
+      profile: null,
+      session: null,
+      error: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="lobby" />} />
+          </Route>
+          <Route path="/login" element={<LoginSpy />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Play your tabletop RPG, one post at a time' }),
+    ).toBeInTheDocument()
+  })
+
   it('renders error state when session load fails', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,

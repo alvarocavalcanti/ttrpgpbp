@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { dismissWhatsNew, seedAndSignIn } from './helpers'
 
 // Public-route metadata is authored in React 19 (hoisted <title>/<meta>) and
 // baked by the prerender; this runs against the dev server to prove the
@@ -52,5 +53,40 @@ test.describe('public route metadata', () => {
   test('app routes are noindex', async ({ page }) => {
     await page.goto('/login')
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
+  })
+
+  test('signed-in reload of / never paints the marketing landing (#658)', async ({ page }) => {
+    await seedAndSignIn(page, `flicker-${Date.now()}@example.com`)
+    await dismissWhatsNew(page)
+
+    // Record any appearance of the landing heading across the reload, so a
+    // transient flash fails the test instead of passing on the settled DOM.
+    await page.addInitScript(() => {
+      type WindowWithFlag = Window & { __sawLanding?: boolean }
+      const w = window as WindowWithFlag
+      w.__sawLanding = false
+      const check = () => {
+        const heading = document.querySelector('h1')
+        if (heading?.textContent?.includes('Play your tabletop RPG')) w.__sawLanding = true
+      }
+      document.addEventListener('DOMContentLoaded', () => {
+        new MutationObserver(check).observe(document.documentElement, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+        })
+        check()
+      })
+    })
+
+    await page.goto('/')
+    await expect(
+      page.getByRole('heading', { name: 'Play your tabletop RPG, one post at a time' }),
+    ).toHaveCount(0)
+    expect(await page.evaluate(() => (window as Window & { __sawLanding?: boolean }).__sawLanding)).toBe(
+      false,
+    )
+    // The lobby renders for the signed-in user.
+    await expect(page.getByTestId('create-channel-fab')).toBeVisible()
   })
 })

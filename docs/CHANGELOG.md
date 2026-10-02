@@ -15,6 +15,10 @@ All notable changes to this project are documented in this file.
 
 - **Better install prompt** — installing Role by Post to your home screen now shows richer app details and screenshots.
 
+### Fixed
+
+- **No more home page flash when you're signed in** — reloading the site now takes you straight to your lobby instead of briefly showing the signed-out home page first.
+
 ## 2026-10-01
 
 ### Added
