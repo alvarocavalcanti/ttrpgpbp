@@ -89,6 +89,12 @@ describe('HelpPage', () => {
     expect(inactive).toHaveClass('dark:hover:bg-gray-700')
   })
 
+  it('credits the author with a link to the About page (#645)', () => {
+    renderPage(['/help/dice-rolling'])
+    const links = screen.getAllByRole('link', { name: 'Alvaro Cavalcanti' })
+    expect(links.some((link) => link.getAttribute('href') === '/about')).toBe(true)
+  })
+
   it('sets a canonical URL for the active help topic', () => {
     renderPage(['/help/dice-rolling'])
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
