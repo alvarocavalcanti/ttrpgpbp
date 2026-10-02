@@ -82,3 +82,19 @@ export function siteJsonLd(siteUrl: string): Record<string, unknown>[] {
     },
   ]
 }
+
+// FAQPage structured data for /features (issue #644). The items must match the
+// visible FAQ section rendered by the page, so both read the same source.
+export function faqJsonLd(
+  items: Array<{ question: string; answer: string }>,
+): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+    })),
+  }
+}

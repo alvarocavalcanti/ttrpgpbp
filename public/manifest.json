@@ -1,10 +1,13 @@
 {
   "name": "RoleByPost",
   "short_name": "RoleByPost",
-  "description": "A modern Play-by-Post App",
+  "description": "A chat-first app for asynchronous tabletop RPGs: play-by-post campaigns with dice rolling, NPCs, safety tools, and push notifications.",
   "id": "/",
   "start_url": "/",
   "display": "standalone",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["games", "entertainment", "social"],
   "background_color": "#111827",
   "theme_color": "#111827",
   "icons": [
@@ -17,6 +20,20 @@
       "src": "/pwa-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/help-images/lobby-with-channels.png",
+      "sizes": "360x780",
+      "type": "image/png",
+      "form_factor": "narrow"
     }
   ]
 }

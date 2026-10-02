@@ -64,4 +64,18 @@ describe('parseFrontmatter', () => {
     expect(frontmatter).toEqual({})
     expect(body).toBe(raw)
   })
+
+  it('treats a line starting with --- plus text as malformed, not a delimiter', () => {
+    const raw = '---\ntitle: Broken\n---not a delimiter\n\nbody stays'
+    const { frontmatter, body } = parseFrontmatter(raw)
+    expect(frontmatter).toEqual({})
+    expect(body).toBe(raw)
+  })
+
+  it('accepts a delimiter line with trailing whitespace', () => {
+    const raw = '---\ntitle: Padded\n---   \n\nbody'
+    const { frontmatter, body } = parseFrontmatter(raw)
+    expect(frontmatter.title).toBe('Padded')
+    expect(body).toBe('body')
+  })
 })

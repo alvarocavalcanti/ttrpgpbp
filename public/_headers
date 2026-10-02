@@ -45,13 +45,21 @@
   Cache-Control: no-cache
 /features
   Cache-Control: no-cache
+/play-by-post
+  Cache-Control: no-cache
+/how-to/*
+  Cache-Control: no-cache
+/vs/*
+  Cache-Control: no-cache
+/alternatives/*
+  Cache-Control: no-cache
 /admin/channels/:id
   Cache-Control: no-cache
 /join/:id
   Cache-Control: no-cache
 /channel/:id
   Cache-Control: no-cache
-/help/:topic
+/help/*
   Cache-Control: no-cache
 /sw.js
   Cache-Control: no-cache

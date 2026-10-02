@@ -3,8 +3,12 @@
 ## Public site
 
 - **Marketing landing page** at `/` for signed-out visitors — explains what Role by Post is and links to the feature tour; the sign-in form now lives on its own `/login` page
-- **Indexable public pages** — `/`, `/features`, `/privacy`, and `/terms` are prerendered so search engines and link previews (Slack, Discord, social media) see real content, a per-page title and description, a canonical URL, and a social share image
+- **Indexable public pages** — `/`, `/features`, `/privacy`, `/terms`, the `/help` guides, and the long-form content pages below are prerendered so search engines and link previews (Slack, Discord, social media) see real content, a per-page title and description, a canonical URL, and a social share image
+- **Long-form content** — a **play-by-post pillar page** (`/play-by-post`), how-to guides (`/how-to/play-by-post-dnd`, `/how-to/run-play-by-post`), and comparisons (`/vs/discord`, `/alternatives/rpol`, `/alternatives/myth-weavers`) give the public site a crawlable internal-link graph, with breadcrumbs and a shared footer
+- **Help is public** — every help guide (`/help` plus `/help/<topic>`) is reachable without signing in, is prerendered, and appears in the sitemap; the in-app Help page and the channel Help modal are unchanged
+- **FAQ rich result** — `/features` renders a visible FAQ section and carries matching `FAQPage` structured data
 - **`robots.txt` and `sitemap.xml`** served for crawlers; app and account pages are kept out of the index
+- **Enriched web app manifest** — `lang`, `dir`, `categories`, install screenshots, and a keyword-rich description for better install prompts
 - **Friendly not-found page** — an unknown address shows a "page not found" screen instead of the app, while app deep links (channel, invite, admin) keep working
 
 ## Users & Auth
@@ -191,8 +195,8 @@
 
 ## Help
 
-- **In-app help** — a **Help** menu item in the main app header opens a `/help` page with general topics; a **Help** item in the channel sidebar opens a channel-specific help modal
-- Help content is authored as Markdown files in [docs/help/](docs/help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic is just adding/removing a `.md` file
+- **In-app help** — a **Help** menu item in the main app header opens a `/help` page with **General** and **Channel** topics; a **Help** item in the channel sidebar opens a channel-specific help modal. The same `/help` pages are public (reachable signed out) and prerendered for search engines
+- Help content is authored as Markdown files in [help/](help/) (frontmatter: `title`, optional `screenshot`), rendered with react-markdown; adding/removing a topic means adding/removing a `.md` file **and** a matching entry in `HELP_TOPICS` in [src/lib/publicRoutes.ts](../src/lib/publicRoutes.ts) (a guard test keeps the two in sync)
 - **Screenshots** live in `public/help-images/` and are referenced from frontmatter; they load from the network on first view (the PWA precache deliberately excludes PNGs)
 - AGENTS.md requires help content and screenshots to be updated alongside feature/UI changes
 

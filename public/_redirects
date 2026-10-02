@@ -3,10 +3,8 @@
 /messages /app-shell/ 200
 /admin /app-shell/ 200
 /settings /app-shell/ 200
-/help /app-shell/ 200
 /changelog /app-shell/ 200
 /about /app-shell/ 200
 /admin/channels/* /app-shell/ 200
 /join/* /app-shell/ 200
 /channel/* /app-shell/ 200
-/help/* /app-shell/ 200

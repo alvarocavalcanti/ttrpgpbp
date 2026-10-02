@@ -227,7 +227,6 @@ describe('FeaturesPage', () => {
     expect(screen.getByText('Drafts that survive')).toBeInTheDocument()
     expect(screen.getByText('Invite-only tables')).toBeInTheDocument()
     expect(screen.getByText('Sign in your way')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
       'href',
       '/privacy'
@@ -243,6 +242,18 @@ describe('FeaturesPage', () => {
     expect(screen.getByRole('link', { name: 'You See This — token art' })).toHaveAttribute(
       'href',
       'https://youseethis.blog'
+    )
+  })
+
+  it('renders the frequently asked questions', () => {
+    renderPage()
+
+    expect(screen.getByRole('heading', { name: 'Frequently asked questions' })).toBeInTheDocument()
+    expect(screen.getByText('How do the dice rolls work?')).toBeInTheDocument()
+    expect(screen.getByText('Is Role by Post free?')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Play-by-Post' })).toHaveAttribute(
+      'href',
+      '/play-by-post'
     )
   })
 

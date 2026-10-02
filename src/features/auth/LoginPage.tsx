@@ -168,9 +168,9 @@ export function LoginPage() {
           <div>
             <div className="flex items-center justify-center gap-3 mt-6">
               <img src="/RoleByPost.png" alt="Role by Post" width={48} height={48} className="w-12 h-12 rounded" />
-              <h2 className="text-3xl font-extrabold text-surface-900 dark:text-surface-100">
+              <h1 className="text-3xl font-extrabold text-surface-900 dark:text-surface-100">
                 Role by Post
-              </h2>
+              </h1>
             </div>
             <p className="mt-4 text-center text-base font-medium text-surface-900 dark:text-surface-100">
               A text-based tabletop RPG platform

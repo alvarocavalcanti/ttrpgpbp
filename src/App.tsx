@@ -32,6 +32,9 @@ import { isMarketingPath, ROUTES } from './lib/publicRoutes'
 import { PrivacyPage } from './features/auth/PrivacyPage'
 import { TermsPage } from './features/auth/TermsPage'
 import { FeaturesPage } from './features/marketing/FeaturesPage'
+// Prerendered public content (issue #644) is eager, like the pages above.
+import { ContentPage } from './features/content/ContentPage'
+import { HelpPage } from './features/help/HelpPage'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -42,7 +45,6 @@ const ChannelView = lazy(() => import('./features/channels/ChannelView').then(m 
 const ArchivedChannels = lazy(() => import('./features/channels/ArchivedChannels').then(m => ({ default: m.ArchivedChannels })))
 const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ default: m.AdminView })))
 const AdminChannelView = lazy(() => import('./features/admin/AdminChannelView').then(m => ({ default: m.AdminChannelView })))
-const HelpPage = lazy(() => import('./features/help/HelpPage').then(m => ({ default: m.HelpPage })))
 const ChangelogPage = lazy(() => import('./features/changelog/ChangelogPage').then(m => ({ default: m.ChangelogPage })))
 import { useAdminUnread } from './features/admin-messages/useAdminUnread'
 import { useAppBadgeSync } from './hooks/useAppBadgeSync'
@@ -407,14 +409,20 @@ export default function App() {
                       <Route path={ROUTES.join} element={<Lazy><JoinChannel /></Lazy>} />
                       <Route path={ROUTES.channel} element={<Lazy><ChannelView /></Lazy>} />
                       <Route path={ROUTES.settings} element={<Lazy><ProfileSettings /></Lazy>} />
-                      <Route path={ROUTES.help} element={<Lazy><HelpPage /></Lazy>} />
-                      <Route path={ROUTES.helpTopic} element={<Lazy><HelpPage /></Lazy>} />
                       <Route path={ROUTES.changelog} element={<Lazy><ChangelogPage /></Lazy>} />
                       <Route path={ROUTES.about} element={<Lazy><AboutPage /></Lazy>} />
                     </Route>
                     <Route path={ROUTES.privacy} element={<PrivacyPage />} />
                     <Route path={ROUTES.terms} element={<TermsPage />} />
                     <Route path={ROUTES.features} element={<FeaturesPage />} />
+                    <Route path={ROUTES.playByPost} element={<ContentPage />} />
+                    <Route path={ROUTES.howToDnd} element={<ContentPage />} />
+                    <Route path={ROUTES.howToRun} element={<ContentPage />} />
+                    <Route path={ROUTES.vsDiscord} element={<ContentPage />} />
+                    <Route path={ROUTES.altRpol} element={<ContentPage />} />
+                    <Route path={ROUTES.altMythWeavers} element={<ContentPage />} />
+                    <Route path={ROUTES.help} element={<HelpPage />} />
+                    <Route path={ROUTES.helpTopic} element={<HelpPage />} />
                     <Route path={ROUTES.notFound} element={<NotFound />} />
                   </Routes>
                 </RouteErrorBoundary>

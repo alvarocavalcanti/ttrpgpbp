@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-02
+
+### Added
+
+- **Help is now public** — every help guide can be read without signing in, so new players can check how dice, NPCs, safety tools, and the rest work before they join. The guides are reachable from the footer of every public page.
+- **New pages about play-by-post** — a plain-language guide to [what play-by-post is](/play-by-post), plus how to [play D&D by post](/how-to/play-by-post-dnd) and how to [run an asynchronous game](/how-to/run-play-by-post).
+- **See how Role by Post compares** — honest comparisons with [Discord](/vs/discord), [RPOL](/alternatives/rpol), and [Myth-Weavers](/alternatives/myth-weavers) to help you choose the right home for your table.
+- **Answers at a glance** — the Features page now answers common questions about dice, playing on a phone, safety tools, and cost.
+
+### Changed
+
+- **Better install prompt** — installing Role by Post to your home screen now shows richer app details and screenshots.
+
 ## 2026-10-01
 
 ### Added

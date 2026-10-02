@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import { Seo } from '../../components/Seo'
+import { SiteFooter } from './SiteFooter'
 
 const FEATURES = [
   {
@@ -176,28 +177,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="text-center text-sm text-surface-600 dark:text-surface-400 space-y-2 flex flex-col items-center pb-10">
-        <p>
-          {'by '}
-          <a
-            href="https://memorablenaton.es"
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            Alvaro Cavalcanti
-          </a>
-        </p>
-        <div className="flex gap-4 text-xs">
-          <Link to="/privacy" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            Privacy Policy
-          </Link>
-          <span className="text-surface-300 dark:text-surface-700">|</span>
-          <Link to="/terms" className="text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
-            Terms of Service
-          </Link>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
