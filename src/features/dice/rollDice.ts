@@ -25,12 +25,20 @@ export interface DiceRollResult {
   modifier: number
 }
 
-// Unbiased face from the platform CSPRNG. Overridable so tests can seed it.
-const cryptoUnit = (): number => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32
+// 32-bit unsigned sample from the platform CSPRNG. Overridable so tests can
+// seed it.
+const cryptoUint32 = (): number => crypto.getRandomValues(new Uint32Array(1))[0]
 
+// Uniform face in [1, sides]. Rejection sampling discards the tail values above
+// the largest multiple of `sides`, so the modulo is applied to a uniform range
+// and every face is equally likely (CWE-327). See CodeQL
+// js/biased-cryptographic-random.
 function faceRoll(sides: number, rng: () => number): number {
-  // Clamp so a misbehaving injected rng can still never leave the face range.
-  return Math.min(sides, Math.max(1, 1 + Math.floor(rng() * sides)))
+  const range = 0x1_0000_0000
+  const limit = Math.floor(range / sides) * sides
+  let value = rng()
+  while (value >= limit) value = rng()
+  return (value % sides) + 1
 }
 
 // Mirrors the server's keep/drop rules: `kh`/`kl` keep the highest/lowest N,
@@ -56,7 +64,7 @@ function applyKeepDrop(values: number[], keepDrop: string): boolean[] {
 
 export function rollDice(
   notation: string,
-  rng: () => number = cryptoUnit,
+  rng: () => number = cryptoUint32,
 ): DiceRollResult | null {
   const parsed = parseDiceNotation(notation)
   if (!parsed) return null
