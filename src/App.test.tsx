@@ -170,6 +170,9 @@ describe('App', () => {
     
     expect(await screen.findByRole('link', { name: 'Role by Post' })).toBeInTheDocument()
     expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
+    // #642: the trailing menu icon cancels its own p-2 so its glyph lines up
+    // with the leading logo instead of sitting 8px further in.
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('-mr-2')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByText('Profile')).toBeInTheDocument()
   })
