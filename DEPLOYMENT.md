@@ -243,3 +243,23 @@ Actions and uploads `dist/` to Pages.
 - [ ] Migrations are applied (create a channel, join with a second account).
 - [ ] Push notifications: install the PWA (iOS requires adding to Home Screen), grant permission, and have someone send a message.
 - [ ] `/admin` loads for the server admin and hides for everyone else.
+
+## 10. Search Console & Bing Webmaster Tools
+
+`npm run build:seo` writes `dist/sitemap.xml` and `dist/robots.txt`; the sitemap
+is served at `https://<domain>/sitemap.xml` and `robots.txt` points at it. Both
+tools are free. See [docs/SEO-MONITORING.md](docs/SEO-MONITORING.md) for the
+monthly review cadence.
+
+- [ ] **Google Search Console** — add a **Domain** property for the apex domain
+  (verified by DNS, provider-agnostic), or a **URL-prefix** property for
+  `https://rolebypost.com`. Under **Sitemaps**, submit
+  `https://rolebypost.com/sitemap.xml`.
+- [ ] **Bing Webmaster Tools** — the simplest path is **Import from Google
+  Search Console** (no meta tag needed). If you verify with a meta tag instead,
+  add `<meta name="msvalidate.01" content="…">` to the `<head>` in
+  `index.html`; it survives into the prerendered `dist/index.html`. The value is
+  account-specific — add it only once Bing issues it, and keep it out of the
+  repository until then.
+- [ ] Confirm both properties report the sitemap as read and have no coverage
+  errors for the public routes.
