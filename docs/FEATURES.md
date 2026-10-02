@@ -7,6 +7,8 @@
 - **Long-form content** — a **play-by-post pillar page** (`/play-by-post`), how-to guides (`/how-to/play-by-post-dnd`, `/how-to/run-play-by-post`), and comparisons (`/vs/discord`, `/alternatives/rpol`, `/alternatives/myth-weavers`) give the public site a crawlable internal-link graph, with breadcrumbs and a shared footer
 - **Help is public** — every help guide (`/help` plus `/help/<topic>`) is reachable without signing in, is prerendered, and appears in the sitemap; the in-app Help page and the channel Help modal are unchanged
 - **FAQ rich result** — `/features` renders a visible FAQ section and carries matching `FAQPage` structured data
+- **Rich results on the guides** — the how-to guides carry `HowTo` structured data, and every guide, comparison, and help topic carries `Article` plus breadcrumb structured data, so search engines can show richer results
+- **Author byline on every guide** — each guide credits its author with a link to the About page
 - **`robots.txt` and `sitemap.xml`** served for crawlers; app and account pages are kept out of the index
 - **Enriched web app manifest** — `lang`, `dir`, `categories`, install screenshots, and a keyword-rich description for better install prompts
 - **Friendly not-found page** — an unknown address shows a "page not found" screen instead of the app, while app deep links (channel, invite, admin) keep working

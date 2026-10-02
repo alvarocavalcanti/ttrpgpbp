@@ -35,6 +35,13 @@ describe('ContentPage', () => {
     expect(screen.getByText(/tabletop roleplaying played in writing/i)).toBeInTheDocument()
   })
 
+  it('credits the author with a link to the About page (#645)', () => {
+    mockAuth(null)
+    renderAt('/play-by-post')
+    const links = screen.getAllByRole('link', { name: 'Alvaro Cavalcanti' })
+    expect(links.some((link) => link.getAttribute('href') === 'https://memorablenaton.es')).toBe(true)
+  })
+
   it('sets the SEO title from the route registry', () => {
     mockAuth(null)
     renderAt('/play-by-post')

@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 - **New pages about play-by-post** — a plain-language guide to [what play-by-post is](/play-by-post), plus how to [play D&D by post](/how-to/play-by-post-dnd) and how to [run an asynchronous game](/how-to/run-play-by-post).
 - **See how Role by Post compares** — honest comparisons with [Discord](/vs/discord), [RPOL](/alternatives/rpol), and [Myth-Weavers](/alternatives/myth-weavers) to help you choose the right home for your table.
 - **Answers at a glance** — the Features page now answers common questions about dice, playing on a phone, safety tools, and cost.
+- **Guides show who wrote them** — every how-to and help guide now credits its author, and the guides carry richer details so search engines can present them better.
 
 ### Changed
 

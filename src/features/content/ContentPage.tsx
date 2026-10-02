@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
 import MarkdownImpl from '../../components/MarkdownImpl'
 import { Seo } from '../../components/Seo'
+import { AuthorByline } from '../../components/AuthorByline'
 import { normalizePath } from '../../lib/publicRoutes'
+import { CONTENT_ROUTES } from '../../lib/contentRoutes'
 import { useAuth } from '../auth/useAuth'
 import { MarketingHeader } from '../marketing/MarketingHeader'
 import { SiteFooter } from '../marketing/SiteFooter'
-import { CONTENT_ROUTES, getContentDoc } from './contentPages'
+import { getContentDoc } from './contentPages'
 
 // Generic prerendered public content page (issue #644): pillar, how-to guides,
 // and comparison pages. Must stay Suspense-free — a lazy boundary inside a
@@ -50,6 +52,8 @@ export function ContentPage() {
           </h1>
           <MarkdownImpl>{doc.body}</MarkdownImpl>
         </article>
+
+        <AuthorByline />
       </main>
 
       <SiteFooter />

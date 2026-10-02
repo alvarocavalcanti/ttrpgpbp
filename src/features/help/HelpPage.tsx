@@ -1,6 +1,7 @@
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import MarkdownImpl from '../../components/MarkdownImpl'
 import { Seo } from '../../components/Seo'
+import { AuthorByline } from '../../components/AuthorByline'
 import { normalizePath } from '../../lib/publicRoutes'
 import { useAuth } from '../auth/useAuth'
 import { MarketingHeader } from '../marketing/MarketingHeader'
@@ -86,6 +87,7 @@ export function HelpPage() {
             <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
               <MarkdownImpl>{active.content}</MarkdownImpl>
             </div>
+            <AuthorByline />
           </article>
         </main>
       </div>

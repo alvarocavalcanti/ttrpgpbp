@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PUBLIC_ROUTES } from '../../src/lib/publicRoutes.ts'
+import { jsonLdForRoute } from '../../src/lib/structuredData.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dist = join(root, 'dist')
@@ -60,6 +61,17 @@ for (const route of PUBLIC_ROUTES) {
   }
   if (route.path === '/features' && !html.includes('FAQPage')) {
     errors.push(`${relative}: missing FAQPage JSON-LD`)
+  }
+  // Structured data on the guide/help routes (#645).
+  const structuredData = jsonLdForRoute(route.path, 'https://rolebypost.com')
+  if (structuredData.length > 0 && !html.includes('application/ld+json')) {
+    errors.push(`${relative}: missing structured data`)
+  }
+  for (const node of structuredData) {
+    const type = node['@type']
+    if (!html.includes(`"@type":"${type}"`)) {
+      errors.push(`${relative}: missing ${type} JSON-LD`)
+    }
   }
 }
 
