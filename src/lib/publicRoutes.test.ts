@@ -57,6 +57,7 @@ describe('PUBLIC_ROUTES', () => {
     expect(PUBLIC_ROUTES.map((route) => route.path)).toEqual([
       '/',
       '/features',
+      '/dice-roller',
       '/play-by-post',
       '/how-to/play-by-post-dnd',
       '/how-to/run-play-by-post',

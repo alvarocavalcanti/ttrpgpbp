@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - **See how Role by Post compares** — honest comparisons with [Discord](/vs/discord), [RPOL](/alternatives/rpol), and [Myth-Weavers](/alternatives/myth-weavers) to help you choose the right home for your table.
 - **Answers at a glance** — the Features page now answers common questions about dice, playing on a phone, safety tools, and cost.
 - **Guides show who wrote them** — every how-to and help guide now credits its author, and the guides carry richer details so search engines can present them better.
+- **Roll dice without signing in** — a free public [dice roller](/dice-roller) on the site: pick a die, add a modifier, use advantage or pools, and see the result instantly. Nothing is saved, and no account is needed.
 
 ### Changed
 
