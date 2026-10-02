@@ -374,6 +374,13 @@ function PermissionBannerGate() {
 }
 
 export default function App() {
+  // The inline script in index.html hides #root for visitors with a persisted
+  // session so the prerendered marketing landing never paints before the lobby
+  // (issue #658). Reveal it once React has committed its first tree.
+  useEffect(() => {
+    document.documentElement.removeAttribute('data-auth-pending')
+  }, [])
+
   return (
     <ToastProvider>
       <AuthProvider>

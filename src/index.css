@@ -9,6 +9,11 @@
      scaling, which this relative base respects. */
   html { font-size: 106.25%; }
 
+  /* Hide the prerendered landing until React has committed its first tree for
+     visitors with a persisted session (issue #658). The attribute is set by the
+     inline script in index.html and removed by App after mount. */
+  html[data-auth-pending] #root { visibility: hidden; }
+
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
   }
