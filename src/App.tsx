@@ -187,7 +187,7 @@ function AppNav() {
         <button
           type="button"
           onClick={() => (menuOpen ? closeMenu('toggle') : openMenu('toggle'))}
-          className="relative p-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="relative p-2 -mr-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           aria-label="Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

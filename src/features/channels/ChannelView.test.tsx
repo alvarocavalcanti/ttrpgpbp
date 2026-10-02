@@ -149,6 +149,9 @@ describe('ChannelView search functionality', () => {
 
     // Header controls remain rendered and accessible.
     expect(screen.getByRole('button', { name: 'Toggle sidebar menu' })).toBeInTheDocument()
+    // #642: the toggle cancels its own p-2 so its glyph lines up with the back
+    // arrow on the left instead of sitting 8px further in.
+    expect(screen.getByRole('button', { name: 'Toggle sidebar menu' })).toHaveClass('-mr-2')
     // Search + roll history moved into the sidebar menu (issue #382).
     expect(screen.queryByRole('button', { name: 'Search messages' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Roll history' })).not.toBeInTheDocument()

@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **No more home page flash when you're signed in** — reloading the site now takes you straight to your lobby instead of briefly showing the signed-out home page first.
+- **The menu button lines up now** — the menu button in the lobby and the channel header no longer sits slightly further in than the icon on the other side.
 
 ## 2026-10-01
 
