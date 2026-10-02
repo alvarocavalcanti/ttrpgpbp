@@ -9,6 +9,7 @@ const PUBLIC_PAGES = [
   { path: '/', title: 'Role by Post — Play-by-Post RPG Chat' },
   { path: '/features', title: 'Features — Role by Post' },
   { path: '/dice-roller', title: 'Dice Roller — Roll Dice Online — Role by Post' },
+  { path: '/game-systems/shadowdark', title: 'Shadowdark Play-by-Post — Role by Post' },
   { path: '/play-by-post', title: 'Play-by-Post Tabletop RPGs — Role by Post' },
   { path: '/how-to/play-by-post-dnd', title: 'How to Play D&D by Post — Role by Post' },
   { path: '/how-to/run-play-by-post', title: 'How to Run a Play-by-Post Game — Role by Post' },

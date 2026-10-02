@@ -28,6 +28,9 @@ export function SiteFooter() {
         <Link to="/dice-roller" className={LINK}>
           Dice Roller
         </Link>
+        <Link to="/game-systems/shadowdark" className={LINK}>
+          Shadowdark
+        </Link>
         <Link to="/play-by-post" className={LINK}>
           Play-by-Post
         </Link>

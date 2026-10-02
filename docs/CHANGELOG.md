@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 - **Answers at a glance** — the Features page now answers common questions about dice, playing on a phone, safety tools, and cost.
 - **Guides show who wrote them** — every how-to and help guide now credits its author, and the guides carry richer details so search engines can present them better.
 - **Roll dice without signing in** — a free public [dice roller](/dice-roller) on the site: pick a die, add a modifier, use advantage or pools, and see the result instantly. Nothing is saved, and no account is needed.
+- **A page for Shadowdark** — the new [Shadowdark play-by-post](/game-systems/shadowdark) page shows the stats, dice, and asynchronous tools Role by Post offers that table.
 
 ### Changed
 
