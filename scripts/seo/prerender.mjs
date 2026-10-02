@@ -19,7 +19,7 @@ import { loadEnv } from 'vite'
 import { chromium } from '@playwright/test'
 import { PUBLIC_ROUTES, robotsDisallowPaths } from '../../src/lib/publicRoutes.ts'
 import { buildRobots, buildSitemap } from '../../src/lib/seo.ts'
-import { jsonLdForRoute } from '../../src/lib/structuredData.ts'
+import { jsonLdForRoute, serializeJsonLd } from '../../src/lib/structuredData.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dist = join(root, 'dist')
@@ -134,11 +134,7 @@ function injectJsonLd(html, path) {
   if (html.includes('application/ld+json')) return html
   const nodes = jsonLdForRoute(path, siteUrl)
   if (nodes.length === 0) return html
-  const scripts = nodes
-    // Escape `<` so a string containing `</script>` cannot terminate the tag.
-    .map((node) => `<script type="application/ld+json">${JSON.stringify(node).replace(/</g, '\\u003c')}</script>`)
-    .join('')
-  return html.replace('</head>', `${scripts}</head>`)
+  return html.replace('</head>', `${serializeJsonLd(nodes)}</head>`)
 }
 
 function writeCaptures(captures) {

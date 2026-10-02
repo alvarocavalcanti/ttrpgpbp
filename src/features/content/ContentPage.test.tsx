@@ -39,7 +39,7 @@ describe('ContentPage', () => {
     mockAuth(null)
     renderAt('/play-by-post')
     const links = screen.getAllByRole('link', { name: 'Alvaro Cavalcanti' })
-    expect(links.some((link) => link.getAttribute('href') === '/about')).toBe(true)
+    expect(links.some((link) => link.getAttribute('href') === 'https://memorablenaton.es')).toBe(true)
   })
 
   it('sets the SEO title from the route registry', () => {

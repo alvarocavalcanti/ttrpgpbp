@@ -4,6 +4,7 @@ import {
   breadcrumbJsonLd,
   howToJsonLd,
   jsonLdForRoute,
+  serializeJsonLd,
 } from './structuredData'
 import { CONTENT_ROUTES } from './contentRoutes'
 import { PUBLIC_ROUTES } from './publicRoutes'
@@ -11,24 +12,36 @@ import { PUBLIC_ROUTES } from './publicRoutes'
 const SITE = 'https://rolebypost.com'
 
 describe('breadcrumbJsonLd', () => {
-  it('numbers items and links the crumbs that have a target', () => {
+  it('drops non-link grouping crumbs and links every remaining item', () => {
     const node = breadcrumbJsonLd(
       [{ label: 'Home', to: '/' }, { label: 'How-to Guides' }, { label: 'A Guide' }],
       '/how-to/a-guide',
       SITE,
     )
     const items = node.itemListElement as Array<Record<string, unknown>>
-    expect(items).toHaveLength(3)
+    // Google requires an item URL on every crumb but the last, so the
+    // unlinked "How-to Guides" group is omitted from the schema.
+    expect(items).toHaveLength(2)
     expect(items[0]).toMatchObject({ position: 1, name: 'Home', item: 'https://rolebypost.com/' })
-    // A group crumb with no page renders without an item URL.
-    expect(items[1]).toMatchObject({ position: 2, name: 'How-to Guides' })
-    expect(items[1].item).toBeUndefined()
-    // The final crumb points at the current page.
-    expect(items[2]).toMatchObject({
-      position: 3,
+    expect(items[1]).toMatchObject({
+      position: 2,
       name: 'A Guide',
       item: 'https://rolebypost.com/how-to/a-guide',
     })
+    for (const item of items) expect(item.item).toBeTruthy()
+  })
+})
+
+describe('serializeJsonLd', () => {
+  it('escapes `<` so a value cannot close the script tag early', () => {
+    const html = serializeJsonLd([
+      { '@context': 'https://schema.org', '@type': 'Thing', name: '</script><script>alert(1)</script>' },
+    ])
+    expect(html).toContain('<script type="application/ld+json">')
+    expect(html).toContain('\\u003c/script>')
+    // Exactly one real closing tag — the wrapper's own.
+    expect(html.match(/<\/script>/g)).toHaveLength(1)
+    expect(html).not.toContain('<script>alert')
   })
 })
 
@@ -91,11 +104,13 @@ describe('jsonLdForRoute', () => {
     }
   })
 
-  it('emits Article + BreadcrumbList for help and its topics', () => {
-    expect(jsonLdForRoute('/help', SITE).map((n) => n['@type'])).toEqual([
-      'Article',
-      'BreadcrumbList',
-    ])
+  it('emits only a BreadcrumbList for the help index', () => {
+    // The index renders the first topic as its H1, so an Article titled
+    // "Help and Guides" would not describe the visible content.
+    expect(jsonLdForRoute('/help', SITE).map((n) => n['@type'])).toEqual(['BreadcrumbList'])
+  })
+
+  it('emits Article + BreadcrumbList for help topics', () => {
     const topic = jsonLdForRoute('/help/dice-rolling', SITE)
     expect(topic.map((n) => n['@type'])).toEqual(['Article', 'BreadcrumbList'])
     const crumbs = topic[1].itemListElement as Array<Record<string, unknown>>

@@ -92,7 +92,7 @@ describe('HelpPage', () => {
   it('credits the author with a link to the About page (#645)', () => {
     renderPage(['/help/dice-rolling'])
     const links = screen.getAllByRole('link', { name: 'Alvaro Cavalcanti' })
-    expect(links.some((link) => link.getAttribute('href') === '/about')).toBe(true)
+    expect(links.some((link) => link.getAttribute('href') === 'https://memorablenaton.es')).toBe(true)
   })
 
   it('sets a canonical URL for the active help topic', () => {

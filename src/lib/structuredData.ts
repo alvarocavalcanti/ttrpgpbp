@@ -23,17 +23,22 @@ export function breadcrumbJsonLd(
   siteUrl: string,
 ): JsonLd {
   const last = items.length - 1
+  // Google requires an `item` URL on every crumb except the last. The visible
+  // nav keeps its non-link group labels (e.g. "How-to Guides"), but the schema
+  // drops them so the BreadcrumbList stays eligible for rich results.
+  const crumbs = items.filter((item, index) => item.to || index === last)
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => {
+    itemListElement: crumbs.map((item, index) => {
       const entry: JsonLd = {
         '@type': 'ListItem',
         position: index + 1,
         name: item.label,
       }
-      if (item.to) entry.item = canonicalUrl(siteUrl, item.to)
-      else if (index === last) entry.item = canonicalUrl(siteUrl, currentPath)
+      entry.item = item.to
+        ? canonicalUrl(siteUrl, item.to)
+        : canonicalUrl(siteUrl, currentPath)
       return entry
     }),
   }
@@ -114,15 +119,32 @@ export function jsonLdForRoute(path: string, siteUrl: string): JsonLd[] {
   const route = PUBLIC_ROUTES.find((entry) => entry.path === path)
   if (!route) return []
 
+  // The help index renders the first topic as its main article/H1, so an
+  // Article titled "Help and Guides" would describe content that is not on the
+  // page (Copilot #660). Emit just the breadcrumb for the index; topic pages
+  // get the full Article.
+  if (path === ROUTES.help) {
+    return [
+      breadcrumbJsonLd(
+        [{ label: 'Home', to: ROUTES.home }, { label: 'Help' }],
+        path,
+        siteUrl,
+      ),
+    ]
+  }
+
   let breadcrumbs: Breadcrumb[]
   const content = CONTENT_ROUTES.find((entry) => entry.path === path)
   if (content) {
     breadcrumbs = content.breadcrumbs
-  } else if (path === ROUTES.help || path.startsWith(`${ROUTES.help}/`)) {
+  } else if (path.startsWith(`${ROUTES.help}/`)) {
     const topic = HELP_TOPICS.find((entry) => `${ROUTES.help}/${entry.slug}` === path)
-    breadcrumbs = topic
-      ? [{ label: 'Home', to: ROUTES.home }, { label: 'Help', to: ROUTES.help }, { label: topic.title }]
-      : [{ label: 'Home', to: ROUTES.home }, { label: 'Help' }]
+    if (!topic) return []
+    breadcrumbs = [
+      { label: 'Home', to: ROUTES.home },
+      { label: 'Help', to: ROUTES.help },
+      { label: topic.title },
+    ]
   } else {
     return []
   }
@@ -133,4 +155,16 @@ export function jsonLdForRoute(path: string, siteUrl: string): JsonLd[] {
     ? howToJsonLd({ name: route.title, description: route.description, url, steps })
     : articleJsonLd({ headline: route.title, description: route.description, url })
   return [primary, breadcrumbJsonLd(breadcrumbs, path, siteUrl)]
+}
+
+// Serializes the JSON-LD nodes into `<script>` tags for the prerender <head>.
+// `<` is escaped so a value containing `</script>` cannot terminate the tag
+// early (tested in structuredData.test.ts).
+export function serializeJsonLd(nodes: JsonLd[]): string {
+  return nodes
+    .map(
+      (node) =>
+        `<script type="application/ld+json">${JSON.stringify(node).replace(/</g, '\\u003c')}</script>`,
+    )
+    .join('')
 }
