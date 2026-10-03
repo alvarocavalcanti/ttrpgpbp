@@ -5,6 +5,7 @@ import { NumericInput } from '../../components/NumericInput'
 import { useRecentRolls, mergeChips } from './useRecentRolls'
 import { useDiceFavorites } from './useDiceFavorites'
 import { parseDiceNotation } from './parser'
+import { DIE_SIDES, DiceIconPicker, DieGlyph } from './DiceIconPicker'
 
 interface DiceRollerProps {
   onRoll: (notation: string) => void
@@ -14,6 +15,11 @@ interface DiceRollerProps {
   // When set, the last notations rolled in this channel become tappable
   // chips, with pinned favorites first.
   channelId?: string
+  // Round floating trigger (#629) used by the bottom-left control in the
+  // channel, instead of the labelled composer chip.
+  fab?: boolean
+  // Opens the channel roll history from inside the panel.
+  onOpenHistory?: () => void
 }
 
 export type PoolMode = 'sum' | 'pool' | 'successes'
@@ -46,9 +52,10 @@ export function buildNotation(diceType: string, quantity: number, modifier: numb
   return notation
 }
 
-// The dice types the roller form can render (the `<select>` options).
-// Anything else the server accepts (d30, d1000, …) can't be shown.
-export const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'] as const
+// The dice types the roller form can render. Derived from the picker's icon
+// set so the two can never drift. Anything else the server accepts (d30,
+// d1000, …) can't be shown.
+export const DICE_TYPES: readonly string[] = DIE_SIDES.map((sides) => `d${sides}`)
 
 export interface RollerValues {
   diceType: string
@@ -72,7 +79,7 @@ export function parseRollerNotation(notation: string): RollerValues | null {
 
   const { count, sides, keepDrop, mode, target, modifier, sorted } = parsed
   const diceType = `d${sides}`
-  if (!(DICE_TYPES as readonly string[]).includes(diceType)) return null
+  if (!DICE_TYPES.includes(diceType)) return null
   // The form bounds (1–100 dice, ±999 modifier) match the inputs' keystroke
   // clamps; out-of-range history notations fall back to one-click roll
   // instead of loading silently different values.
@@ -97,7 +104,7 @@ export function parseRollerNotation(notation: string): RollerValues | null {
   return { diceType, quantity: count, modifier, advDis: 'none', poolMode: 'sum', target: defaultTarget(sides), sorted }
 }
 
-export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps) {
+export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOpenHistory }: DiceRollerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [diceType, setDiceType] = useState('d20')
   const [quantity, setQuantity] = useState(1)
@@ -168,33 +175,21 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           Successes
         </button>
       </div>
-      <div className="flex items-center space-x-2">
-        <label htmlFor="dice-quantity" className="sr-only">Number of dice</label>
-        <NumericInput
-          id="dice-quantity"
-          min={1}
-          max={100}
-          value={quantity}
-          onChange={setQuantity}
-          className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2"
-          disabled={diceType === 'd20' && advDis !== 'none'}
-        />
-        <label htmlFor="dice-type" className="sr-only">Dice type</label>
-        <select
-          id="dice-type"
-          value={diceType}
-          onChange={(e) => {
-            setDiceType(e.target.value)
+      <DiceIconPicker
+        value={{ sides: sidesOf(diceType), count: quantity }}
+        onChange={(next) => {
+          const changedType = next.sides !== sidesOf(diceType)
+          if (changedType) {
+            setDiceType(`d${next.sides}`)
             // Pools count faces at or above the target, so the target can
             // never exceed the new die size.
-            setTarget(t => Math.min(sidesOf(e.target.value), Math.max(1, t)))
-            if (e.target.value !== 'd20') setAdvDis('none')
-          }}
-          className="bg-white dark:bg-gray-800 flex-1 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 pl-2 pr-8"
-        >
-          {DICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-      </div>
+            setTarget(t => Math.min(next.sides, Math.max(1, t)))
+            if (next.sides !== 20) setAdvDis('none')
+          }
+          setQuantity(next.count)
+        }}
+        disabled={diceType === 'd20' && advDis !== 'none'}
+      />
 
       {poolMode === 'successes' && (
         <div className="flex items-center space-x-2">
@@ -285,10 +280,14 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
       <button
         type="button"
         onClick={handleRoll}
-        className="w-full flex justify-center min-h-11 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        disabled={quantity < 1}
+        className="w-full flex justify-center min-h-11 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Roll
       </button>
+      {quantity < 1 && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">Pick at least one die to roll.</p>
+      )}
     </div>
   )
 
@@ -333,38 +332,55 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
     </div>
   )
 
+  const historyButton = onOpenHistory && (
+    <button
+      type="button"
+      onClick={onOpenHistory}
+      className="w-full mb-3 inline-flex justify-center min-h-11 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+    >
+      Roll History
+    </button>
+  )
+
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`${chipBase} ${chipIdle}`}
-      >
-        <svg className="w-5 h-5 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth={2} />
-          <circle cx="8" cy="8" r="2" fill="currentColor" />
-          <circle cx="16" cy="8" r="2" fill="currentColor" />
-          <circle cx="12" cy="12" r="2" fill="currentColor" />
-          <circle cx="8" cy="16" r="2" fill="currentColor" />
-          <circle cx="16" cy="16" r="2" fill="currentColor" />
-        </svg>
-        Roll Dice
-      </button>
+      {fab ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Open dice roller"
+          aria-expanded={isOpen}
+          className="inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+          <DieGlyph className="h-6 w-6" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`${chipBase} ${chipIdle}`}
+        >
+          <DieGlyph className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+          Roll Dice
+        </button>
+      )}
 
       {isOpen && popup && (
         <BottomSheet title="Dice Roller" onClose={() => setIsOpen(false)}>
+          {historyButton}
           {recentChips}
           {panel}
         </BottomSheet>
       )}
       {isOpen && !popup && (
-        <div className="absolute bottom-full mb-2 left-0 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50">
+        <div className="absolute bottom-full mb-2 left-0 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dice Roller</h3>
             <button type="button" onClick={() => setIsOpen(false)} aria-label="Close dice roller" className="text-gray-400 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
+          {historyButton}
           {recentChips}
           {panel}
         </div>

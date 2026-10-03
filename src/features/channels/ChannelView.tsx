@@ -17,6 +17,7 @@ import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { trackEvent } from '../../lib/analytics'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
+import { DiceRoller } from '../dice/DiceRoller'
 import { SearchModal } from '../search/SearchModal'
 import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
 import { useChannelNpcs } from './useChannelNpcs'
@@ -128,6 +129,7 @@ export function ChannelView() {
   // Tab in the sidebar.
   const sidebarRef = useRef<HTMLDivElement>(null)
   const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const isMobile = useMediaQuery('(max-width: 640px)')
   useFocusTrap(sidebarRef, showMobileSidebar && !isDesktop)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
@@ -473,38 +475,55 @@ export function ChannelView() {
           </div>
         )}
 
-        <MessageList 
-          key={channel.id}
-          messages={visibleMessages} 
-          isGM={isGM} 
-          onEdit={editMessage} 
-          onDelete={deleteMessage} 
-          onRollDice={sendDiceRoll}
-          highlightMessageId={highlightMessageId}
-          members={chatMembers}
-          gameSystem={channel.game_system}
-          reactionsByMessage={reactions}
-          onToggleReaction={handleToggleReaction}
-          onReply={handleReply}
-          onJumpToMessage={handleJumpToMessage}
-          lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
-          boundaryRevision={boundaryRevision}
-          onRetry={retryMessage}
-          onRemovePending={removePendingMessage}
-          onReport={handleReportMessage}
-          onRetryLoad={refreshMessages}
-          // Open the mobile sidebar with the editor: the modal renders inside
-          // the sidebar, whose translate-x-full transform would otherwise
-          // become the containing block for its fixed positioning.
-          onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
-          favoriteIds={favoriteIds}
-          onToggleFavorite={toggleFavorite}
-          emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : undefined}
-          error={messagesError}
-          hasMore={hasMore}
-          loadingOlder={loadingOlder}
-          onLoadOlder={loadOlder}
-        />
+        <div className="relative flex flex-col flex-1 min-h-0">
+          <MessageList 
+            key={channel.id}
+            messages={visibleMessages} 
+            isGM={isGM} 
+            onEdit={editMessage} 
+            onDelete={deleteMessage} 
+            onRollDice={sendDiceRoll}
+            highlightMessageId={highlightMessageId}
+            members={chatMembers}
+            gameSystem={channel.game_system}
+            reactionsByMessage={reactions}
+            onToggleReaction={handleToggleReaction}
+            onReply={handleReply}
+            onJumpToMessage={handleJumpToMessage}
+            lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
+            boundaryRevision={boundaryRevision}
+            onRetry={retryMessage}
+            onRemovePending={removePendingMessage}
+            onReport={handleReportMessage}
+            onRetryLoad={refreshMessages}
+            // Open the mobile sidebar with the editor: the modal renders inside
+            // the sidebar, whose translate-x-full transform would otherwise
+            // become the containing block for its fixed positioning.
+            onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+            emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : undefined}
+            error={messagesError}
+            hasMore={hasMore}
+            loadingOlder={loadingOlder}
+            onLoadOlder={loadOlder}
+          />
+
+          {!channel.is_archived && (
+            <div
+              data-testid="dice-roller-fab"
+              className="absolute bottom-3 left-2 z-20"
+            >
+              <DiceRoller
+                fab
+                popup={isMobile}
+                channelId={channel.id}
+                onRoll={(notation) => sendDiceRoll(notation, replyTo?.id)}
+                onOpenHistory={() => setShowRollHistory(true)}
+              />
+            </div>
+          )}
+        </div>
         
         {!channel.is_archived && (
           <MessageComposer 
@@ -514,7 +533,6 @@ export function ChannelView() {
             members={whisperableMembers} 
             npcs={npcs}
             onSendMessage={sendMessage} 
-            onRollDice={sendDiceRoll}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
             onXCard={() => triggerXCard()}

@@ -468,6 +468,64 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByRole('dialog', { name: 'Roll History' })).toBeInTheDocument()
   })
 
+  it('floats the dice roller bottom-left and rolls from it (#629)', () => {
+    const sendDiceRoll = vi.fn()
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user1' }],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll,
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    // The roller now lives outside the composer's options sub-menu.
+    expect(screen.getByTestId('dice-roller-fab')).toBeInTheDocument()
+    expect(screen.queryByText('Roll Dice')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open dice roller' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(sendDiceRoll).toHaveBeenCalledWith('1d20', undefined)
+  })
+
+  it('hides the floating dice roller in archived channels', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Archived', is_archived: true },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.queryByTestId('dice-roller-fab')).not.toBeInTheDocument()
+  })
+
   it('groups sidebar tools into Table and GM Tools sections for players', () => {
     render(
       <ToastProvider>

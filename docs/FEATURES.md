@@ -153,18 +153,19 @@
 - **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats); also supports `with advantage` / `with disadvantage`
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
-  - UI available to both GM and players
-  - Pick dice type (d4, d6, d8, d10, d12, d20, d100)
-  - Set quantity
+  - UI available to both GM and players, opened from a round floating button in the bottom-left of the channel (over the message avatars, above the composer)
+  - Pick dice type from an icon grid (d4, d6, d8, d10, d12, d20, d100); tap a die to add it and tap again (or use +/−) to set the quantity, with a count badge on the icon
+  - Clear the dice selection with one button — Roll stays disabled until at least one die is picked
   - Add modifier (+N / -N) in Sum mode only
   - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first
   - Advantage/disadvantage toggle (d20 only)
   - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm. Notations the roller can't rebuild (drop-lowest, keep counts other than 1) still re-roll on tap
   - Pin up to 3 favorite notations per channel with the star checkbox — favorites stay pinned to the front of the chip row in amber
+  - A **Roll History** button in the panel opens the channel's roll history
   - On phones the roller opens as a bottom sheet (no clipping) with +/− modifier steppers
-  - The options panel closes after rolling, so the result message is immediately visible
+  - Rolling closes the roller so the result message is immediately visible
   - Roll button sends result as dice roll message
-- Roll history available per channel (header dice icon or sidebar item)
+- Roll history available per channel (panel button, header dice icon, or sidebar item)
 
 ## Notifications
 

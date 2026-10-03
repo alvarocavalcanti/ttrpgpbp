@@ -2,7 +2,6 @@ import { Avatar } from '../../components/Avatar';
 import { useState, useRef, useEffect, useId, useCallback, useImperativeHandle, forwardRef } from 'react'
 import type { Database } from '../../types/database'
 import type { MessageSendPayload } from './types'
-import { DiceRoller } from '../dice/DiceRoller'
 import { linkifyMentions } from './mentions'
 import { randomNpcIconUrl, isNpcIconUrl } from './npcIcons'
 import { IconPicker } from './IconPicker'
@@ -34,7 +33,6 @@ interface MessageComposerProps {
   members: ChannelMember[]
   npcs?: Npc[]
   onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => Promise<void>
-  onRollDice?: (notation: string, replyToId?: string) => void
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
   onXCard?: () => void
@@ -47,7 +45,7 @@ export interface MessageComposerHandle {
   insertImages: (paths: string[]) => void
 }
 
-export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, onRollDice, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
 
@@ -412,17 +410,6 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const optionsContent = (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-wrap items-center gap-3">
-        {onRollDice && (
-          <div className="shrink-0">
-            <DiceRoller popup={isMobile} channelId={channelId} onRoll={(notation) => {
-              // Collapse the options panel so the rolled message is visible.
-              setIsExpanded(false)
-              if (replyTo) onRollDice?.(notation, replyTo.id)
-              else onRollDice?.(notation)
-            }} />
-          </div>
-        )}
-
         {onXCard && (
           <button
             type="button"

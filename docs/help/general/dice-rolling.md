@@ -27,18 +27,19 @@ Ability checks and DC checks have their own topic — see [Ability & DC Checks](
 
 ## Dice Roller Panel
 
-Both GMs and players can use the **Dice Roller Panel**:
+Both GMs and players can use the **Dice Roller Panel**, opened from the round dice button that floats in the **bottom-left of the channel**:
 
-- Pick a dice type (d4, d6, d8, d10, d12, d20, d100)
-- Set the quantity
+- Pick a die from the icon grid (d4, d6, d8, d10, d12, d20, d100) — tap it to add one, tap again (or use the − / + steppers) to set how many you're rolling. A small badge shows the count
+- **Clear** the dice selection with one tap — the Roll button stays off until you pick at least one die
 - Add a modifier (+N / -N) in Sum mode only — on phones, use the − / + steppers
 - Switch between **Sum**, **Pool**, and **Successes**: Pool lists every face with no total; Successes adds a target number and counts how many dice hit it; a **Sort highest first** checkbox lists pool faces highest-first
 - Tap a chip to load one of the last three distinct roll notations used in the channel into the roller — check the values, then tap **Roll** to confirm, so an accidental tap no longer rolls. A few exotic rolls the panel can't rebuild (like drop-lowest) still roll the instant you tap.
 - Pin up to three favorite notations per channel with the star checkbox on each chip — favorites stay pinned to the front in amber, and unchecking one frees the slot
 - Toggle advantage / disadvantage (d20 only)
+- Open the channel's **Roll History** straight from the panel
 - Roll — the result is posted as a dice roll message, and the roller closes so you can see it right away
 
-On phones the roller opens as a bottom sheet over the composer, so it's easy to reach and never gets cut off at the bottom of the screen. It also closes once you roll.
+On phones the roller opens as a bottom sheet, so it's easy to reach and never gets cut off at the bottom of the screen.
 
 ## Roll history
 

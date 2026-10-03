@@ -25,6 +25,15 @@ vi.mock('./useDiceFavorites', () => ({
   }))
 }))
 
+// Picks a die of the given size and bumps it to `count` via the icon picker.
+// String literals keep these tests independent of the picker's internals.
+function pickDie(sides: number, count = 1) {
+  fireEvent.click(screen.getByRole('button', { name: `Add d${sides}` }))
+  for (let i = 1; i < count; i++) {
+    fireEvent.click(screen.getByRole('button', { name: `Increase d${sides}` }))
+  }
+}
+
 describe('buildNotation', () => {
   it('builds adv/dis notations', () => {
     expect(buildNotation('d20', 1, 0, 'adv')).toBe('2d20kh1')
@@ -161,12 +170,7 @@ describe('DiceRoller', () => {
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-
-    const quantityInput = screen.getByDisplayValue('1')
-    fireEvent.change(quantityInput, { target: { value: '3' } })
-
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'd8' } })
+    pickDie(8, 3)
 
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -179,9 +183,9 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
 
-    // Change modifier (second number input)
+    // Sum mode has one spinbutton: the modifier (the target is pool-only).
     const inputs = screen.getAllByRole('spinbutton')
-    fireEvent.change(inputs[1], { target: { value: '5' } })
+    fireEvent.change(inputs[0], { target: { value: '5' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -195,7 +199,7 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
 
     const inputs = screen.getAllByRole('spinbutton')
-    fireEvent.change(inputs[1], { target: { value: '-2' } })
+    fireEvent.change(inputs[0], { target: { value: '-2' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -237,17 +241,22 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kl1')
   })
 
-  it('clamps quantity to 1-100 at the point of input', () => {
+  it('clears the dice selection and blocks rolling until a die is picked again', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
 
-    const quantityInput = screen.getByDisplayValue('1')
-    fireEvent.change(quantityInput, { target: { value: '9999' } })
+    // No die is selected and Roll is disabled with a hint.
+    expect(screen.queryByRole('button', { name: 'Increase d20' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+    expect(screen.getByText('Pick at least one die to roll.')).toBeInTheDocument()
+
+    // Picking a die makes the form ready to roll again.
+    pickDie(6, 2)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
-
-    expect(mockOnRoll).toHaveBeenCalledWith('100d20')
+    expect(mockOnRoll).toHaveBeenCalledWith('2d6')
   })
 
   it('clamps modifier to ±999 at the point of input', () => {
@@ -257,25 +266,10 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
 
     const inputs = screen.getAllByRole('spinbutton')
-    fireEvent.change(inputs[1], { target: { value: '9999' } })
+    fireEvent.change(inputs[0], { target: { value: '9999' } })
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+999')
-  })
-
-  it('allows clearing the quantity to type a new single digit (#665)', () => {
-    const mockOnRoll = vi.fn()
-    render(<DiceRoller onRoll={mockOnRoll} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
-
-    const quantityInput = screen.getByLabelText('Number of dice')
-    fireEvent.change(quantityInput, { target: { value: '' } })
-    fireEvent.change(quantityInput, { target: { value: '6' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
-
-    expect(mockOnRoll).toHaveBeenCalledWith('6d20p')
   })
 
   it('allows clearing the target to type a new digit (#665)', () => {
@@ -307,13 +301,11 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+5')
   })
 
-  it('uses a numeric keyboard for the quantity and modifier inputs', () => {
+  it('uses a numeric keyboard for the modifier input', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
 
-    const inputs = screen.getAllByRole('spinbutton')
-    expect(inputs[0]).toHaveAttribute('inputmode', 'numeric')
-    expect(inputs[1]).toHaveAttribute('inputmode', 'numeric')
+    expect(screen.getByLabelText('Modifier')).toHaveAttribute('inputmode', 'numeric')
   })
 
   it('hides advantage controls for non-d20', () => {
@@ -322,8 +314,7 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     expect(screen.getByRole('button', { name: 'Adv' })).toBeInTheDocument()
 
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'd6' } })
+    pickDie(6)
 
     expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
   })
@@ -335,8 +326,7 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
 
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
@@ -349,8 +339,7 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
 
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4')
@@ -363,8 +352,7 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
 
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByLabelText('Sort highest first'))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -378,8 +366,7 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
 
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByLabelText('Sort highest first'))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -409,8 +396,7 @@ describe('DiceRoller', () => {
 
     // Quantity unlocks (it is disabled while d20 advantage is active) and
     // the roll carries no keep/drop.
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
@@ -435,7 +421,7 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6)
 
     fireEvent.change(screen.getByLabelText('Target'), { target: { value: '9' } })
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
@@ -525,9 +511,9 @@ describe('DiceRoller', () => {
     // The tap fills the form but does not roll yet.
     fireEvent.click(screen.getByRole('button', { name: 'Use 2d6+1' }))
     expect(mockOnRoll).not.toHaveBeenCalled()
-    expect(screen.getByDisplayValue('2')).toBeInTheDocument()
-    expect(screen.getByRole('combobox')).toHaveValue('d6')
-    expect(screen.getByDisplayValue('1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('dice-count-d6')).toHaveTextContent('2')
+    expect(screen.getByLabelText('Modifier')).toHaveValue(1)
 
     // Confirming with Roll sends the same notation.
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
@@ -682,5 +668,18 @@ describe('DiceRoller', () => {
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d20' })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d8' })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d4' })).toBeEnabled()
+  })
+
+  it('renders a floating trigger and opens the roll history from the panel', () => {
+    const onOpenHistory = vi.fn()
+    render(<DiceRoller fab onOpenHistory={onOpenHistory} onRoll={vi.fn()} />)
+
+    // The labelled composer chip is replaced by the round floating trigger.
+    expect(screen.queryByRole('button', { name: /Roll Dice/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open dice roller' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll History' }))
+
+    expect(onOpenHistory).toHaveBeenCalledTimes(1)
   })
 })

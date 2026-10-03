@@ -149,10 +149,9 @@ await closeSheets()
 
 // ── 8. Dice roller bottom sheet ──────────────────────────────────────────
 // The marketing card sells dice pools, so capture the Successes pool mode
-// (target-number field) rather than the default Sum mode.
-await page.click('[aria-label="Toggle options"]')
-await page.waitForTimeout(400)
-await page.getByRole('button', { name: 'Roll Dice' }).click()
+// (target-number field) rather than the default Sum mode. The roller now
+// floats in the channel (no composer options step).
+await page.getByRole('button', { name: 'Open dice roller' }).click()
 await page.waitForTimeout(800)
 await page.getByRole('button', { name: 'Successes' }).click()
 await page.waitForTimeout(600)
