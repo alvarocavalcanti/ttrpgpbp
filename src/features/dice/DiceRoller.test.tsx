@@ -305,8 +305,22 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('2d6')
   })
 
-  it('clamps modifier to ±999 at the point of input', () => {
+  it('clears the dice after rolling so the next roll starts fresh', () => {
     const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(6, 2)
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d6')
+
+    // Reopen: the previous bag is gone and Roll is disabled again.
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+  })
+
+  it('clamps modifier to ±999 at the point of input', () => {    const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))

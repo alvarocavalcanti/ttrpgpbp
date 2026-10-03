@@ -160,7 +160,10 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
   const roll = (notation: string) => {
     recordRoll(notation)
     onRoll(notation)
+    // Start the next roll from a clean bag so the previous dice don't linger.
     setIsOpen(false)
+    setSelection([])
+    setAdvDis('none')
   }
 
   const handleRoll = () => {
