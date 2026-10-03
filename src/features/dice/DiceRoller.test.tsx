@@ -241,6 +241,23 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kl1')
   })
 
+  it('keeps die-type selection usable while advantage is active', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
+
+    // The d20 quantity is locked while Adv is on...
+    expect(screen.getByRole('button', { name: 'Increase d20' })).toBeDisabled()
+
+    // ...but another die type can still be picked, which clears Adv.
+    pickDie(6, 2)
+    expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d6')
+  })
+
   it('clears the dice selection and blocks rolling until a die is picked again', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)

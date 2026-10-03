@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { describe, it, expect } from 'vitest'
 import { DiceIconPicker, DIE_SIDES, type DiceSelection } from './DiceIconPicker'
 
-function Harness({ initial, maxCount, disabled }: { initial: DiceSelection; maxCount?: number; disabled?: boolean }) {
+function Harness({ initial, maxCount, disabled, countDisabled }: { initial: DiceSelection; maxCount?: number; disabled?: boolean; countDisabled?: boolean }) {
   const [value, setValue] = useState(initial)
-  return <DiceIconPicker value={value} onChange={setValue} maxCount={maxCount} disabled={disabled} />
+  return <DiceIconPicker value={value} onChange={setValue} maxCount={maxCount} disabled={disabled} countDisabled={countDisabled} />
 }
 
 describe('DiceIconPicker', () => {
@@ -75,5 +75,19 @@ describe('DiceIconPicker', () => {
 
     expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'Add d6' })).toBeDisabled()
+  })
+
+  it('countDisabled locks the count controls but still allows switching die type', () => {
+    render(<Harness initial={{ sides: 20, count: 1 }} countDisabled />)
+
+    // The current die's count controls are locked...
+    expect(screen.getByRole('button', { name: 'Add d20' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Increase d20' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Clear dice' })).toBeDisabled()
+
+    // ...but another die type can still be picked, moving the selection away.
+    fireEvent.click(screen.getByRole('button', { name: 'Add d6' }))
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Add d20' })).toHaveAttribute('aria-pressed', 'false')
   })
 })

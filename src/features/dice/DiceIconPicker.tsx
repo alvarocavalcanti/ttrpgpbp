@@ -16,6 +16,9 @@ interface DiceIconPickerProps {
   onChange: (next: DiceSelection) => void
   maxCount?: number
   disabled?: boolean
+  // Locks only the count controls — e.g. while d20 Adv/Dis is active — so the
+  // player can still switch die type or clear instead of getting stuck.
+  countDisabled?: boolean
 }
 
 // Shared die glyph for the picker buttons and the floating trigger.
@@ -32,18 +35,18 @@ export function DieGlyph({ className }: { className?: string }) {
   )
 }
 
-export function DiceIconPicker({ value, onChange, maxCount = 100, disabled = false }: DiceIconPickerProps) {
+export function DiceIconPicker({ value, onChange, maxCount = 100, disabled = false, countDisabled = false }: DiceIconPickerProps) {
   const clamp = (n: number) => Math.min(maxCount, Math.max(0, n))
   const hasSelection = value.count > 0
 
   const select = (sides: number) => {
-    if (disabled) return
+    if (disabled || (countDisabled && value.sides === sides)) return
     const count = value.sides === sides ? clamp(value.count + 1) : 1
     onChange({ sides, count })
   }
 
   const step = (delta: number) => {
-    if (disabled) return
+    if (disabled || countDisabled) return
     onChange({ sides: value.sides, count: clamp(value.count + delta) })
   }
 
@@ -57,7 +60,7 @@ export function DiceIconPicker({ value, onChange, maxCount = 100, disabled = fal
               key={sides}
               type="button"
               onClick={() => select(sides)}
-              disabled={disabled}
+              disabled={disabled || (countDisabled && value.sides === sides)}
               aria-pressed={isSelected}
               aria-label={`Add d${sides}`}
               className={`relative flex flex-col items-center justify-center gap-0.5 min-h-11 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -87,7 +90,7 @@ export function DiceIconPicker({ value, onChange, maxCount = 100, disabled = fal
             <button
               type="button"
               onClick={() => step(-1)}
-              disabled={disabled}
+              disabled={disabled || countDisabled}
               aria-label={`Decrease d${value.sides}`}
               className="min-h-11 min-w-11 py-2 border border-surface-300 dark:border-surface-600 rounded text-surface-700 dark:text-surface-300 text-sm font-medium hover:bg-surface-50 dark:hover:bg-surface-700 disabled:opacity-50"
             >
@@ -99,7 +102,7 @@ export function DiceIconPicker({ value, onChange, maxCount = 100, disabled = fal
             <button
               type="button"
               onClick={() => step(1)}
-              disabled={disabled || value.count >= maxCount}
+              disabled={disabled || countDisabled || value.count >= maxCount}
               aria-label={`Increase d${value.sides}`}
               className="min-h-11 min-w-11 py-2 border border-surface-300 dark:border-surface-600 rounded text-surface-700 dark:text-surface-300 text-sm font-medium hover:bg-surface-50 dark:hover:bg-surface-700 disabled:opacity-50"
             >
@@ -109,7 +112,7 @@ export function DiceIconPicker({ value, onChange, maxCount = 100, disabled = fal
           <button
             type="button"
             onClick={() => onChange({ sides: value.sides, count: 0 })}
-            disabled={disabled}
+            disabled={disabled || countDisabled}
             aria-label="Clear dice"
             className="min-h-11 py-2 px-3 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 disabled:opacity-50"
           >

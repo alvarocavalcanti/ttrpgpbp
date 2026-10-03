@@ -188,7 +188,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
           }
           setQuantity(next.count)
         }}
-        disabled={diceType === 'd20' && advDis !== 'none'}
+        countDisabled={diceType === 'd20' && advDis !== 'none'}
       />
 
       {poolMode === 'successes' && (
@@ -335,7 +335,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
   const historyButton = onOpenHistory && (
     <button
       type="button"
-      onClick={onOpenHistory}
+      onClick={() => { setIsOpen(false); onOpenHistory() }}
       className="w-full mb-3 inline-flex justify-center min-h-11 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
     >
       Roll History
