@@ -12,14 +12,10 @@ async function createChannel(page: import('@playwright/test').Page) {
   await expect(page).toHaveURL(/\/channel\/.+/);
 }
 
-// Open the composer options panel only when the dice control is still hidden,
-// then open the dice popover. Never toggle the panel shut before the dice.
+// The dice roller floats in the channel (bottom-left), so no composer options
+// step is needed to reach it.
 async function openDiceRoller(page: import('@playwright/test').Page) {
-  const rollDice = page.getByRole('button', { name: /Roll Dice/i });
-  if (!(await rollDice.isVisible().catch(() => false))) {
-    await page.getByRole('button', { name: 'Toggle options' }).click();
-  }
-  await rollDice.click();
+  await page.getByRole('button', { name: 'Open dice roller' }).click();
   const popover = page.getByRole('heading', { name: 'Dice Roller' });
   await expect(popover).toBeVisible();
 }
@@ -84,7 +80,7 @@ test.describe('Failure paths', () => {
     await expect(page.getByRole('heading', { name: 'Channel Not Found' })).toBeVisible();
   });
 
-  test('message composer enforces the length cap and dice quantity clamps to 1', async ({ page }) => {
+  test('message composer enforces the length cap and the dice selection clears', async ({ page }) => {
     await seedAndSignIn(page, `e2e.chan.${Date.now()}@gmail.com`);
     await page.waitForURL('/');
     await createChannel(page);
@@ -97,11 +93,14 @@ test.describe('Failure paths', () => {
     await composer.press('a');
     expect(await composer.inputValue()).toHaveLength(4000);
 
-    // Dice quantity below 1 is clamped up to 1 (no zero-die or negative rolls).
+    // Clearing the dice selection cannot leave a zero-die roll: Roll is
+    // disabled until a die is picked again.
     await openDiceRoller(page);
-    const quantity = page.locator('input[type="number"][min="1"]').first();
-    await quantity.fill('0');
-    expect(await quantity.inputValue()).toBe('1');
+    const roll = page.getByRole('button', { name: 'Roll', exact: true });
+    await page.getByRole('button', { name: 'Clear dice' }).click();
+    await expect(roll).toBeDisabled();
+    await page.getByRole('button', { name: 'Add d6' }).click();
+    await expect(roll).toBeEnabled();
   });
 
   test('composer accepts exactly the 4000-character cap', async ({ page }) => {

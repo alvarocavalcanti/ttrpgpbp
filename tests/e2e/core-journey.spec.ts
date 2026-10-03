@@ -57,13 +57,10 @@ test.describe('Core Journey', () => {
     // Verify message appears in feed
     await expect(page.getByText('Hello from E2E test!')).toBeVisible();
 
-    // 7. Roll dice — open the options panel only if the dice control is hidden.
-    const rollDiceBtn = page.getByRole('button', { name: /Roll Dice/i });
-    if (!(await rollDiceBtn.isVisible().catch(() => false))) {
-      await page.getByRole('button', { name: 'Toggle options' }).click();
-    }
-    await expect(rollDiceBtn).toBeVisible();
-    await rollDiceBtn.click();
+    // 7. Roll dice from the floating bottom-left control.
+    const rollDiceFab = page.getByRole('button', { name: 'Open dice roller' });
+    await expect(rollDiceFab).toBeVisible();
+    await rollDiceFab.click();
 
     // In the DiceRoller popover, click "Roll" to submit the default 1d20 roll
     const submitRollBtn = page.getByRole('button', { name: /^Roll$/ });
