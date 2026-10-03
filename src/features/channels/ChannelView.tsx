@@ -6,6 +6,7 @@ import { ChannelStatusBar } from './ChannelStatusBar'
 import { MemberList } from './MemberList'
 import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
+import { useMessageFavorites } from '../chat/useMessageFavorites'
 import { MessageComposer, type MessageComposerHandle, type ReplyTarget } from '../chat/MessageComposer'
 import { ChannelMediaPanel } from './ChannelMediaPanel'
 import type { ChatMessage, Member } from '../chat/types'
@@ -82,6 +83,7 @@ export function ChannelView() {
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
+  const { favoriteIds, toggleFavorite } = useMessageFavorites(id)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -93,6 +95,9 @@ export function ChannelView() {
   const [showActivePlayer, setShowActivePlayer] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
+  // Keyed by channel so switching channels starts on the full timeline again.
+  const [favoritesOnlyChannel, setFavoritesOnlyChannel] = useState<string | null>(null)
+  const showFavoritesOnly = !!id && favoritesOnlyChannel === id
   // Track how the sidebar is opened/closed (issue #511): usage counts decide
   // later which dismissal methods are worth keeping. Open/close are guarded
   // through a ref mirror (not the state closure) so they keep a stable
@@ -235,6 +240,13 @@ export function ChannelView() {
     attributes: (m.attributes as Record<string, number> | null) ?? undefined
   })), [members])
 
+  // Client-side favorites filter over the loaded page (MVP; a full-history
+  // lookup is a follow-up tied to #632).
+  const visibleMessages = useMemo(
+    () => (showFavoritesOnly ? messages.filter(m => favoriteIds.has(m.id)) : messages),
+    [showFavoritesOnly, messages, favoriteIds]
+  )
+
   // Stable callback identity so MessageItem's React.memo isn't defeated on
   // every ChannelView render (#408). Keyed on myMemberInfo?.id so the identity
   // only changes when the viewer's member row changes; MessageItem invokes it
@@ -362,6 +374,30 @@ export function ChannelView() {
 
           {/* Tools live in the sidebar menu (issue #382): search + roll history */}
           <div className="flex items-center">
+            <button
+              type="button"
+              aria-label={showFavoritesOnly ? 'Show all messages' : 'Show favorites only'}
+              aria-pressed={showFavoritesOnly}
+              title="Favorites"
+              onClick={() => setFavoritesOnlyChannel(showFavoritesOnly ? null : id ?? null)}
+              className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm transition-colors ${
+                showFavoritesOnly
+                  ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                  : 'text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400'
+              }`}
+            >
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill={showFavoritesOnly ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+              </svg>
+              <span className="hidden sm:inline">Favorites</span>
+            </button>
             {/* Mobile Sidebar Toggle */}
             <button
               type="button"
@@ -439,7 +475,7 @@ export function ChannelView() {
 
         <MessageList 
           key={channel.id}
-          messages={messages} 
+          messages={visibleMessages} 
           isGM={isGM} 
           onEdit={editMessage} 
           onDelete={deleteMessage} 
@@ -461,6 +497,9 @@ export function ChannelView() {
           // the sidebar, whose translate-x-full transform would otherwise
           // become the containing block for its fixed positioning.
           onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
+          favoriteIds={favoriteIds}
+          onToggleFavorite={toggleFavorite}
+          emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : undefined}
           error={messagesError}
           hasMore={hasMore}
           loadingOlder={loadingOlder}

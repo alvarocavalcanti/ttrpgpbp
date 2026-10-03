@@ -43,6 +43,10 @@ The message composer **saves your text automatically** as a draft for each chann
 
 If a message or dice roll fails to send because of a network drop, it will appear as **Pending** and then give you **Retry** and **Remove** options. Clicking Retry is safe and guaranteed not to send a duplicate.
 
+## Favorites
+
+Hover a message (or tap **"⋯"** on mobile) and choose **Favorite** to save it for later. Saved messages show a filled star. The **Favorites** toggle in the channel header filters the timeline down to the messages you've saved; tap it again to show everything. Favorites are private to you and stick around between sessions.
+
 ## Reactions
 
 React to a message or dice roll with an **emoji** from the **Reactions** action. The quick-emoji picker covers common reactions, your own reaction appears right away, and counts update live. Existing reactions show under the message. Tap a reaction to see **who reacted**; adding or removing your own reaction is done from the **Reactions** action (pick the same emoji again to take it back).

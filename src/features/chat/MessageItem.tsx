@@ -75,6 +75,8 @@ interface MessageItemProps {
   onRemovePending?: (messageId: string) => void
   onEditCharacter?: () => void
   onReport?: (message: Message, reason: string) => Promise<void>
+  isFavorite?: boolean
+  onToggleFavorite?: (messageId: string) => void
 }
 
 function snippet(text: string): string {
@@ -206,7 +208,7 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
  * and hover/tap actions. Renders regular, scene, NPC, dice-roll, and system
  * variants. Memoized — re-renders only when this message's own props change.
  */
-export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport, isFavorite, onToggleFavorite }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -428,6 +430,16 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   // so touch users get one large target instead of several tiny ones.
   const actions = useMemo(() => {
     const list: MessageAction[] = []
+    // Favorite is per-user and works on any real message, including dice
+    // rolls; system messages carry no content worth finding later.
+    const favoriteAction: MessageAction | null = onToggleFavorite && !message.pending && !message.is_deleted && !isSystem ? {
+      id: 'favorite', label: isFavorite ? 'Unfavorite' : 'Favorite', onClick: () => onToggleFavorite(message.id),
+      icon: (
+        <svg className={MESSAGE_ACTION_SIZING.icon} viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+        </svg>
+      ),
+    } : null
     const reactionsAction: MessageAction | null = onToggleReaction && !message.pending && !message.is_deleted ? {
       id: 'reactions', label: 'Reactions', onClick: () => setReactionsOpen(true),
       icon: (
@@ -436,9 +448,13 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         </svg>
       ),
     } : null
-    // Dice rolls support reactions only (#524) — no reply/edit/delete/report.
+    // Dice rolls support reactions and favorites only (#524) — no
+    // reply/edit/delete/report.
     if (message.type === 'dice_roll') {
-      return reactionsAction ? [reactionsAction] : []
+      return [
+        ...(favoriteAction ? [favoriteAction] : []),
+        ...(reactionsAction ? [reactionsAction] : []),
+      ]
     }
     // Reply targets the live message; a deleted one offers nothing to quote.
     if (onReply && !message.is_deleted) {
@@ -446,6 +462,9 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         id: 'reply', label: 'Reply', onClick: () => onReply(message),
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>,
       })
+    }
+    if (favoriteAction) {
+      list.push(favoriteAction)
     }
     if (canEdit) {
       list.push({
@@ -473,7 +492,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       })
     }
     return list
-  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message, isMe, onReport])
+  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message, isMe, onReport, onToggleFavorite, isFavorite])
 
   const actionIconClass = (danger?: boolean) =>
     `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-surface-400 dark:text-surface-400 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-primary-600 dark:hover:text-primary-400'}`

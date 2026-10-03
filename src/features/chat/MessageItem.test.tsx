@@ -1093,6 +1093,72 @@ describe('MessageItem', () => {
     expect(items).toEqual(['Reply', 'Edit', 'Delete', 'Reactions'])
   })
 
+  it('offers a Favorite action and toggles the message (#634)', () => {
+    const onToggleFavorite = vi.fn()
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleFavorite={onToggleFavorite} />)
+    fireEvent.click(screen.getByLabelText('Favorite'))
+    expect(onToggleFavorite).toHaveBeenCalledWith('m1')
+  })
+
+  it('labels the action Unfavorite when the message is already a favorite (#634)', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleFavorite={vi.fn()} isFavorite />)
+    expect(screen.getByLabelText('Unfavorite')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Favorite')).not.toBeInTheDocument()
+  })
+
+  it('does not offer Favorite on a system message (#634)', () => {
+    const msg: any = {
+      id: 's1',
+      type: 'system',
+      content: 'Channel created',
+      created_at: new Date().toISOString(),
+      sender_id: null
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleFavorite={vi.fn()} />)
+    expect(screen.queryByLabelText('Favorite')).not.toBeInTheDocument()
+  })
+
+  it('offers Favorite alongside Reactions on a dice roll (#634)', () => {
+    const msg: any = {
+      id: 'r1',
+      type: 'dice_roll',
+      content: 'Rolled 1d20: **15**',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleReaction={vi.fn()} onToggleFavorite={vi.fn()} />)
+    expect(screen.getByLabelText('Favorite')).toBeInTheDocument()
+    expect(screen.getByLabelText('Reactions')).toBeInTheDocument()
+  })
+
+  it('mobile action sheet lists Favorite in order for the author (#634)', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onReply={vi.fn()} onToggleReaction={vi.fn()} onToggleFavorite={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Message actions'))
+    const dialog = screen.getByRole('dialog', { name: 'Message actions' })
+    const items = within(dialog).getAllByRole('button').map(b => b.textContent).filter(t => t)
+    expect(items).toEqual(['Reply', 'Favorite', 'Edit', 'Delete', 'Reactions'])
+  })
+
   it('mobile action sheet lists only Reply for a non-author player', () => {
     const msg: any = {
       id: 'm1',

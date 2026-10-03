@@ -36,6 +36,7 @@ const mockMessages = [
 const mockDice = [{ id: 'd1', channel_id: 'c1', notation: 'd20', result: 17, breakdown: {}, created_at: '2026-01-03T00:00:00Z' }]
 const mockReactions = [{ id: 'r1', channel_id: 'c1', emoji: '🎲', created_at: '2026-01-03T00:00:00Z' }]
 const mockFavorites = [{ channel_id: 'c1', notation: '2d20kh1', created_at: '2026-01-07T00:00:00Z' }]
+const mockMessageFavorites = [{ channel_id: 'c1', message_id: 'm1', created_at: '2026-01-08T00:00:00Z' }]
 const mockPrefs = { push_enabled: true, badge_enabled: false, email_enabled: false }
 const mockAbuseReports = [
   { id: 'ar1', reported_user_id: 'u2', reason: 'spam in chat', status: 'pending', created_at: '2026-01-05T00:00:00Z' },
@@ -66,6 +67,7 @@ function setupQueries() {
     if (table === 'dice_rolls') return mockChain(mockDice)
     if (table === 'message_reactions') return mockChain(mockReactions)
     if (table === 'dice_roll_favorites') return mockChain(mockFavorites)
+    if (table === 'message_favorites') return mockChain(mockMessageFavorites)
     if (table === 'notification_preferences') return mockChain(mockPrefs)
     if (table === 'abuse_reports') return mockChain(mockAbuseReports)
     if (table === 'admin_messages') return mockChain(mockAdminMessages)
@@ -98,6 +100,7 @@ describe('buildUserDataExport', () => {
     expect(result.dice_rolls).toEqual(mockDice)
     expect(result.reactions).toEqual(mockReactions)
     expect(result.dice_roll_favorites).toEqual(mockFavorites)
+    expect(result.message_favorites).toEqual(mockMessageFavorites)
     expect(result.profile?.terms_version).toBe('2026-09-29')
     expect(result.profile?.age_verified_at).toBe('2026-01-01T00:00:00Z')
     expect(result.notification_preferences).toEqual(mockPrefs)
@@ -112,7 +115,7 @@ describe('buildUserDataExport', () => {
     const fromCalls = vi.mocked(supabase.from).mock.calls.map(c => c[0])
     expect(fromCalls).toEqual([
       'profiles', 'channel_members', 'messages', 'dice_rolls', 'message_reactions',
-      'dice_roll_favorites', 'notification_preferences', 'abuse_reports', 'admin_messages',
+      'dice_roll_favorites', 'message_favorites', 'notification_preferences', 'abuse_reports', 'admin_messages',
     ])
   })
 

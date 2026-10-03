@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-03
+
+### Added
+
+- **Favorite messages** — star any message or dice roll to save it for later, then use the **Favorites** toggle in the channel header to see just your saved messages. Favorites are private to you and stay put between visits.
+
 ## 2026-10-02
 
 ### Added

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
+import { useMessageFavorites } from '../chat/useMessageFavorites'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
@@ -18,6 +19,10 @@ vi.mock('./useChannel', () => ({
 
 vi.mock('../chat/useMessages', () => ({
   useMessages: vi.fn()
+}))
+
+vi.mock('../chat/useMessageFavorites', () => ({
+  useMessageFavorites: vi.fn()
 }))
 
 vi.mock('../auth/useAuth', () => ({
@@ -88,6 +93,12 @@ describe('ChannelView search functionality', () => {
       toggleReaction: vi.fn().mockResolvedValue(undefined),
       jumpToMessage: vi.fn().mockResolvedValue('found')
     } as any)
+
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(),
+      isFavorite: () => false,
+      toggleFavorite: vi.fn()
+    } as any)
   })
 
   it('toggles search modal', () => {
@@ -111,6 +122,82 @@ describe('ChannelView search functionality', () => {
     // Click close in the mock modal
     fireEvent.click(screen.getByText('Close Search'))
     expect(screen.queryByTestId('search-modal')).not.toBeInTheDocument()
+  })
+
+  it('filters to favorite messages when the header toggle is pressed (#634)', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1' },
+        { id: 'msg2', content: 'second', type: 'regular', sender_id: 'user1' }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set(['msg2']),
+      isFavorite: (id: string) => id === 'msg2',
+      toggleFavorite: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByText('first')).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Show favorites only' })
+    fireEvent.click(toggle)
+    expect(screen.queryByText('first')).not.toBeInTheDocument()
+    expect(screen.getByText('second')).toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('shows the favorites empty state when no loaded message is a favorite (#634)', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    expect(screen.getByText('No favorite messages yet. Star a message to find it here.')).toBeInTheDocument()
+  })
+
+  it('toggles a message favorite from its action (#634)', () => {
+    const toggleFavorite = vi.fn()
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(),
+      isFavorite: () => false,
+      toggleFavorite
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByLabelText('Favorite'))
+    expect(toggleFavorite).toHaveBeenCalledWith('msg1')
   })
 
   it('truncates a long channel name without pushing header controls off-screen', () => {

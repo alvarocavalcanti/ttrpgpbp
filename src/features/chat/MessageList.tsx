@@ -44,6 +44,9 @@ interface MessageListProps {
   onRetryLoad?: () => void
   onEditCharacter?: () => void
   onReport?: (message: Message, reason: string) => Promise<void>
+  favoriteIds?: Set<string>
+  onToggleFavorite?: (messageId: string) => void
+  emptyMessage?: string
   error?: Error | null
   hasMore?: boolean
   loadingOlder?: boolean
@@ -55,7 +58,7 @@ interface MessageListProps {
  * MessageItem per message. Pins to the bottom on new arrivals and preserves
  * scroll position when older history prepends.
  */
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, favoriteIds, onToggleFavorite, emptyMessage, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   // The list (and its refs) only exist once there is at least one message, so
@@ -424,7 +427,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
             )}
           </>
         ) : (
-          <p className="text-surface-400 dark:text-surface-400 text-sm">No messages yet. Say hello!</p>
+          <p className="text-surface-400 dark:text-surface-400 text-sm">{emptyMessage ?? 'No messages yet. Say hello!'}</p>
         )}
       </div>
     )
@@ -500,6 +503,8 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onEditCharacter={onEditCharacter}
               onRemovePending={onRemovePending}
               onReport={onReport}
+              isFavorite={favoriteIds?.has(message.id) ?? false}
+              onToggleFavorite={onToggleFavorite}
               />
             </Fragment>
         )
