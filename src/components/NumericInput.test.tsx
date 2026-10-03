@@ -35,13 +35,19 @@ describe('NumericInput', () => {
   it('clamps typed values to the bounds as they are entered', () => {
     const onChange = vi.fn()
     render(<NumericInput id="field" value={1} onChange={onChange} min={1} max={100} aria-label="Number" />)
-    const input = screen.getByLabelText('Number')
+    const input = screen.getByLabelText('Number') as HTMLInputElement
 
     fireEvent.change(input, { target: { value: '9999' } })
     expect(onChange).toHaveBeenLastCalledWith(100)
+    expect(input).toHaveValue(100)
+
+    fireEvent.change(input, { target: { value: '0' } })
+    expect(onChange).toHaveBeenLastCalledWith(1)
+    expect(input).toHaveValue(1)
 
     fireEvent.change(input, { target: { value: '-5' } })
     expect(onChange).toHaveBeenLastCalledWith(1)
+    expect(input).toHaveValue(1)
   })
 
   it('does not commit partial input such as a lone minus', () => {

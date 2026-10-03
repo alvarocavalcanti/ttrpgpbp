@@ -41,9 +41,15 @@ export function NumericInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
-    setText(raw)
-    if (!INTEGER.test(raw)) return
-    onChange(Math.min(max, Math.max(min, parseInt(raw, 10))))
+    if (!INTEGER.test(raw)) {
+      setText(raw)
+      return
+    }
+    // Normalize the text to the clamped value so an out-of-range entry (0,
+    // 9999) can't display a number that differs from the one that rolls.
+    const clamped = Math.min(max, Math.max(min, parseInt(raw, 10)))
+    setText(String(clamped))
+    onChange(clamped)
   }
 
   return (
