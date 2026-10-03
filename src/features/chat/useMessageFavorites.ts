@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { fetchAllRows } from '../../lib/supabasePagination'
 import { useAuth } from '../auth/useAuth'
 import { z } from 'zod'
 
@@ -40,35 +41,42 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
     if (!enabled || !channelId || !user) return
     const requestScope = scope
     let cancelled = false
-    void supabase
-      .from('message_favorites')
-      .select('message_id, created_at')
-      .eq('channel_id', channelId)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (cancelled || !data || scopeRef.current !== requestScope) return
-        const fetched: string[] = []
-        for (const row of data) {
-          const parsed = favoriteRowSchema.safeParse(row)
-          if (parsed.success && !fetched.includes(parsed.data.message_id)) {
-            fetched.push(parsed.data.message_id)
-          }
+    void (async () => {
+      // There is no favorite cap, so page under PostgREST's 1,000-row limit.
+      const query = supabase
+        .from('message_favorites')
+        .select('message_id, created_at')
+        .eq('channel_id', channelId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      let data: unknown[]
+      try {
+        data = await fetchAllRows<{ message_id: string; created_at: string }>(query)
+      } catch {
+        return
+      }
+      if (cancelled || scopeRef.current !== requestScope) return
+      const fetched: string[] = []
+      for (const row of data) {
+        const parsed = favoriteRowSchema.safeParse(row)
+        if (parsed.success && !fetched.includes(parsed.data.message_id)) {
+          fetched.push(parsed.data.message_id)
         }
-        // Reconcile with toggles made while the request was in flight: keep
-        // later additions, honor later removals.
-        const { added, removed } = deltas.current
-        const merged = [
-          ...fetched.filter(id => !removed.includes(id)),
-          ...added.filter(id => !fetched.includes(id))
-        ]
-        setFavoriteIds(new Set(merged))
-        // Keep only deltas the snapshot doesn't reflect yet (still in flight).
-        deltas.current = {
-          added: added.filter(id => !fetched.includes(id)),
-          removed: removed.filter(id => fetched.includes(id))
-        }
-      })
+      }
+      // Reconcile with toggles made while the request was in flight: keep
+      // later additions, honor later removals.
+      const { added, removed } = deltas.current
+      const merged = [
+        ...fetched.filter(id => !removed.includes(id)),
+        ...added.filter(id => !fetched.includes(id))
+      ]
+      setFavoriteIds(new Set(merged))
+      // Keep only deltas the snapshot doesn't reflect yet (still in flight).
+      deltas.current = {
+        added: added.filter(id => !fetched.includes(id)),
+        removed: removed.filter(id => fetched.includes(id))
+      }
+    })()
     return () => { cancelled = true }
   }, [enabled, channelId, user?.id, scope])
 

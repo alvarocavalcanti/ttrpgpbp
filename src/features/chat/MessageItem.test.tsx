@@ -1132,6 +1132,19 @@ describe('MessageItem', () => {
     expect(screen.queryByLabelText('Favorite')).not.toBeInTheDocument()
   })
 
+  it('still offers Unfavorite on a deleted favorite so it can be removed (#634)', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1',
+      is_deleted: true
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleFavorite={vi.fn()} isFavorite />)
+    expect(screen.getByLabelText('Unfavorite')).toBeInTheDocument()
+  })
+
   it('offers Favorite alongside Reactions on a dice roll (#634)', () => {
     const msg: any = {
       id: 'r1',

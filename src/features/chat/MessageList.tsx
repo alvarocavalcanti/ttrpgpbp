@@ -429,6 +429,18 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
         ) : (
           <p className="text-surface-400 dark:text-surface-400 text-sm">{emptyMessage ?? 'No messages yet. Say hello!'}</p>
         )}
+        {!error && hasMore && onLoadOlder && (
+          // A filtered (e.g. Favorites) page can be empty while older pages
+          // still hold matches, so the only way forward must stay reachable.
+          <button
+            type="button"
+            onClick={onLoadOlder}
+            disabled={loadingOlder}
+            className="inline-flex items-center justify-center min-h-11 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 disabled:opacity-50"
+          >
+            {loadingOlder ? 'Loading older messages...' : 'Load older messages'}
+          </button>
+        )}
       </div>
     )
   }

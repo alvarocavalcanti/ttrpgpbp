@@ -431,8 +431,10 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   const actions = useMemo(() => {
     const list: MessageAction[] = []
     // Favorite is per-user and works on any real message, including dice
-    // rolls; system messages carry no content worth finding later.
-    const favoriteAction: MessageAction | null = onToggleFavorite && !message.pending && !message.is_deleted && !isSystem ? {
+    // rolls; system messages carry no content worth finding later. A deleted
+    // message can no longer be favorited, but an existing favorite must still
+    // be removable or it would be stuck in the Favorites filter.
+    const favoriteAction: MessageAction | null = onToggleFavorite && !message.pending && (!message.is_deleted || isFavorite) && !isSystem ? {
       id: 'favorite', label: isFavorite ? 'Unfavorite' : 'Favorite', onClick: () => onToggleFavorite(message.id),
       icon: (
         <svg className={MESSAGE_ACTION_SIZING.icon} viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} xmlns="http://www.w3.org/2000/svg">

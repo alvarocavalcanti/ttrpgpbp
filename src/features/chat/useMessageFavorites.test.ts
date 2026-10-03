@@ -22,13 +22,14 @@ function terminal(result: unknown) {
 }
 
 function mockFrom(selectResult: unknown = { data: [], error: null }) {
-  const order = vi.fn().mockResolvedValue(selectResult)
+  const range = vi.fn().mockResolvedValue(selectResult)
+  const order = vi.fn(() => ({ range }))
   const eq = vi.fn(() => ({ eq, order }))
   const select = vi.fn(() => ({ eq }))
   const del = vi.fn(() => terminal({ error: null }))
   const insert = vi.fn().mockResolvedValue({ error: null })
   vi.mocked(supabase.from).mockReturnValue({ select, delete: del, insert } as any)
-  return { select, eq, order, del, insert }
+  return { select, eq, order, range, del, insert }
 }
 
 describe('useMessageFavorites', () => {
@@ -94,9 +95,30 @@ describe('useMessageFavorites', () => {
     })
   })
 
+  it('pages past the 1,000-row PostgREST cap', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) => ({
+      message_id: `m${i}`,
+      created_at: '2026-01-01T00:00:00Z'
+    }))
+    const range = vi.fn()
+      .mockResolvedValueOnce({ data: firstPage, error: null })
+      .mockResolvedValueOnce({ data: [{ message_id: 'last', created_at: '2026-01-02T00:00:00Z' }], error: null })
+    const order = vi.fn(() => ({ range }))
+    const eq = vi.fn(() => ({ eq, order }))
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn(() => ({ eq })) } as any)
+
+    const { result } = renderHook(() => useMessageFavorites('c1', true))
+    await waitFor(() => {
+      expect(result.current.favoriteIds.size).toBe(1001)
+    })
+    expect(result.current.isFavorite('last')).toBe(true)
+    expect(range).toHaveBeenCalledTimes(2)
+  })
+
   it('ignores the response when disabled mid-flight', async () => {
     let resolveFetch: (value: unknown) => void = () => {}
-    const order = vi.fn().mockImplementation(() => new Promise(resolve => { resolveFetch = resolve }))
+    const range = vi.fn().mockImplementation(() => new Promise(resolve => { resolveFetch = resolve }))
+    const order = vi.fn(() => ({ range }))
     const eq = vi.fn(() => ({ eq, order }))
     vi.mocked(supabase.from).mockReturnValue({ select: vi.fn(() => ({ eq })) } as any)
 
@@ -143,7 +165,7 @@ describe('useMessageFavorites', () => {
 
   it('reverts the optimistic add when the insert fails', async () => {
     const failing = terminal({ error: new Error('DB error') })
-    const order = vi.fn().mockResolvedValue({ data: [], error: null })
+    const order = vi.fn(() => ({ range: vi.fn().mockResolvedValue({ data: [], error: null }) }))
     const eq = vi.fn(() => ({ eq, order }))
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn(() => ({ eq })),
@@ -161,10 +183,10 @@ describe('useMessageFavorites', () => {
   })
 
   it('reverts the optimistic remove when the delete fails', async () => {
-    const order = vi.fn().mockResolvedValue({
+    const order = vi.fn(() => ({ range: vi.fn().mockResolvedValue({
       data: [{ message_id: 'm1', created_at: '2026-01-01T00:00:01Z' }],
       error: null
-    })
+    }) }))
     const eq = vi.fn(() => ({ eq, order }))
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn(() => ({ eq })),
@@ -185,7 +207,7 @@ describe('useMessageFavorites', () => {
 
   it('ignores a second toggle while one is in flight', async () => {
     let resolveInsert: (value: unknown) => void = () => {}
-    const order = vi.fn().mockResolvedValue({ data: [], error: null })
+    const order = vi.fn(() => ({ range: vi.fn().mockResolvedValue({ data: [], error: null }) }))
     const eq = vi.fn(() => ({ eq, order }))
     const insert = vi.fn().mockImplementation(() => new Promise(resolve => { resolveInsert = resolve }))
     vi.mocked(supabase.from).mockReturnValue({

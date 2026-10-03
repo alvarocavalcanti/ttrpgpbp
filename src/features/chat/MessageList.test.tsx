@@ -22,6 +22,24 @@ describe('MessageList', () => {
     expect(screen.getByText('No messages yet. Say hello!')).toBeInTheDocument()
   })
 
+  it('keeps Load older reachable when a filtered page is empty (#634)', () => {
+    const onLoadOlder = vi.fn()
+    render(
+      <MessageList
+        messages={[]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        emptyMessage="No favorite messages yet."
+        hasMore
+        onLoadOlder={onLoadOlder}
+      />
+    )
+    expect(screen.getByText('No favorite messages yet.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Load older messages' }))
+    expect(onLoadOlder).toHaveBeenCalled()
+  })
+
   it('shows an error state instead of the empty state when loading failed', () => {
     render(
       <MessageList
