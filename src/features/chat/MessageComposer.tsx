@@ -9,6 +9,7 @@ import { IconPicker } from './IconPicker'
 import { Menu } from '../../components/Menu'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { useToast } from '../../contexts/ToastContext'
 import { SignedImg } from '../../components/SignedImg'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useClickOutside } from '../../hooks/useClickOutside'
@@ -118,6 +119,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   // Dismiss the NPC roster dropdown on outside click (#633).
   const npcPickerRef = useClickOutside<HTMLDivElement>(() => setNpcSuggestionsDismissed(true), isNpc)
   const { uploadEnabled, settingsLoading, uploading, uploadImage } = useImageUpload(channelId)
+  const { addToast } = useToast()
 
   const matchedNpc = npcName.trim()
     ? npcs.find(n => n.name.toLowerCase() === npcName.trim().toLowerCase())
@@ -252,7 +254,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       // ~1200px keeps maps/handouts legible; storage cost stays tiny after the
       // JPEG re-encode.
       const publicUrl = await uploadImage(file, 'message', 1200)
-      if (publicUrl) insertImagePaths([publicUrl])
+      if (publicUrl) {
+        insertImagePaths([publicUrl])
+        addToast('Image uploaded', 'success')
+      }
     } catch (err) {
       setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
     }
@@ -447,10 +452,17 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
               onChange={handleImageUpload}
               className="sr-only"
             />
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            {uploading ? 'Uploading...' : 'Upload'}
+            {uploading ? (
+              <span
+                className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+                aria-hidden="true"
+              />
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            )}
+            <span role="status">{uploading ? 'Uploading...' : 'Upload'}</span>
           </label>
         )}
       </div>
