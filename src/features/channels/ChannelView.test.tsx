@@ -497,6 +497,7 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByText('Roll Dice')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open dice roller' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add d20' }))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(sendDiceRoll).toHaveBeenCalledWith('1d20', undefined)
   })

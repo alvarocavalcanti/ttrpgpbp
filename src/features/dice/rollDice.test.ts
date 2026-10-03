@@ -44,6 +44,14 @@ describe('rollDice', () => {
     expect(result!.successes).toBeNull()
   })
 
+  it('sums chained groups and adds the modifier', () => {
+    // 2d6 -> 1, 4 ; 1d8 -> 3 ; +2 -> 10
+    const result = rollDice('2d6+1d8+2', seqRng(0, 3, 2))
+    expect(result!.mode).toBe('sum')
+    expect(result!.dice.map((d) => [d.sides, d.value])).toEqual([[6, 1], [6, 4], [8, 3]])
+    expect(result!.total).toBe(10)
+  })
+
   it('keeps the highest die for advantage (kh1)', () => {
     // 2d20 -> 19, 3; keep high
     const result = rollDice('2d20kh1', seqRng(18, 2))

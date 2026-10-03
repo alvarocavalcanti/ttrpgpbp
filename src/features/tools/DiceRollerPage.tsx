@@ -30,7 +30,7 @@ export function DiceRollerPage() {
   const sides = sidesOf(diceType)
 
   const handleRoll = () => {
-    const notation = buildNotation(diceType, quantity, modifier, advDis, poolMode, target, sorted)
+    const notation = buildNotation([{ sides: sidesOf(diceType), count: quantity }], modifier, advDis, poolMode, target, sorted)
     const rolled = rollDice(notation)
     if (!rolled) {
       setError(`Could not roll “${notation}”. Check the dice and try again.`)

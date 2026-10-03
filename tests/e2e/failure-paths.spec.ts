@@ -94,13 +94,14 @@ test.describe('Failure paths', () => {
     expect(await composer.inputValue()).toHaveLength(4000);
 
     // Clearing the dice selection cannot leave a zero-die roll: Roll is
-    // disabled until a die is picked again.
+    // disabled until a die is picked, and again once the bag is cleared.
     await openDiceRoller(page);
     const roll = page.getByRole('button', { name: 'Roll', exact: true });
-    await page.getByRole('button', { name: 'Clear dice' }).click();
     await expect(roll).toBeDisabled();
     await page.getByRole('button', { name: 'Add d6' }).click();
     await expect(roll).toBeEnabled();
+    await page.getByRole('button', { name: 'Clear dice' }).click();
+    await expect(roll).toBeDisabled();
   });
 
   test('composer accepts exactly the 4000-character cap', async ({ page }) => {

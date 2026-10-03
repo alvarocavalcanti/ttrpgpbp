@@ -61,6 +61,7 @@ test.describe('Core Journey', () => {
     const rollDiceFab = page.getByRole('button', { name: 'Open dice roller' });
     await expect(rollDiceFab).toBeVisible();
     await rollDiceFab.click();
+    await page.getByRole('button', { name: 'Add d20' }).click();
 
     // In the DiceRoller popover, click "Roll" to submit the default 1d20 roll
     const submitRollBtn = page.getByRole('button', { name: /^Roll$/ });

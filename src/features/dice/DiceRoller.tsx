@@ -6,6 +6,7 @@ import { useRecentRolls, mergeChips } from './useRecentRolls'
 import { useDiceFavorites } from './useDiceFavorites'
 import { parseDiceNotation } from './parser'
 import { DIE_SIDES, DiceIconPicker, DieGlyph } from './DiceIconPicker'
+import type { DiceSelection } from './DiceIconPicker'
 
 interface DiceRollerProps {
   onRoll: (notation: string) => void
@@ -30,20 +31,48 @@ export function defaultTarget(sides: number) {
   return Math.min(4, Math.max(1, sides))
 }
 
-export function buildNotation(diceType: string, quantity: number, modifier: number, advDis: 'none' | 'adv' | 'dis', poolMode: PoolMode = 'sum', target = 0, sorted = false) {
+// The dice types the roller form can render. Derived from the picker's icon
+// set so the two can never drift. Anything else the server accepts (d30,
+// d1000, …) can't be shown.
+export const DICE_TYPES: readonly string[] = DIE_SIDES.map((sides) => `d${sides}`)
+
+export interface RollerValues {
+  selection: DiceSelection[]
+  modifier: number
+  advDis: 'none' | 'adv' | 'dis'
+  poolMode: PoolMode
+  target: number
+  sorted: boolean
+}
+
+// Builds the notation for a bag of dice. Sums chain every selected die type
+// (`2d6+1d8+3`); pools and success pools use the single selected group.
+export function buildNotation(
+  selection: DiceSelection[],
+  modifier: number,
+  advDis: 'none' | 'adv' | 'dis',
+  poolMode: PoolMode = 'sum',
+  target = 0,
+  sorted = false,
+) {
+  if (selection.length === 0) return ''
   if (poolMode !== 'sum') {
     // Pools carry no keep/drop and no modifier: faces are read, not summed.
     // The `s` suffix lists the faces highest-first (applies to both modes).
-    const base = `${quantity}${diceType}`
-    return poolMode === 'successes' ? `${base}>=${target}${sorted ? 's' : ''}` : `${base}p${sorted ? 's' : ''}`
+    const { count, sides } = selection[0]
+    const base = `${count}d${sides}`
+    return poolMode === 'successes'
+      ? `${base}>=${target}${sorted ? 's' : ''}`
+      : `${base}p${sorted ? 's' : ''}`
   }
-  let notation = ''
-  if (diceType === 'd20' && advDis !== 'none') {
-    // Advantage / Disadvantage uses 2d20kh1 / 2d20kl1
-    const suffix = advDis === 'adv' ? 'kh1' : 'kl1'
-    notation = `2d20${suffix}`
+
+  const singleD20 = selection.length === 1 && selection[0].sides === 20 && selection[0].count === 1
+  let notation: string
+  if (advDis !== 'none' && singleD20) {
+    // Advantage / Disadvantage rolls 2d20 keeping high/low.
+    notation = advDis === 'adv' ? '2d20kh1' : '2d20kl1'
   } else {
-    notation = `${quantity}${diceType}`
+    notation = selection.map((die) => `${die.count}d${die.sides}`).join('+')
   }
 
   if (modifier !== 0) {
@@ -52,62 +81,60 @@ export function buildNotation(diceType: string, quantity: number, modifier: numb
   return notation
 }
 
-// The dice types the roller form can render. Derived from the picker's icon
-// set so the two can never drift. Anything else the server accepts (d30,
-// d1000, …) can't be shown.
-export const DICE_TYPES: readonly string[] = DIE_SIDES.map((sides) => `d${sides}`)
-
-export interface RollerValues {
-  diceType: string
-  quantity: number
-  modifier: number
-  advDis: 'none' | 'adv' | 'dis'
-  poolMode: PoolMode
-  target: number
-  sorted: boolean
-}
-
 // Inverse of buildNotation: maps a channel-history notation back onto the
 // roller form so a chip tap loads the values instead of rolling. Returns
-// null for notations the form can't represent (drop-highest/lowest,
-// keep/drop counts other than 1, die sizes outside DICE_TYPES, or counts /
-// modifiers outside the form bounds) — those chips keep the old one-click
-// roll so the user never confirms a roll different from the one shown.
+// null for notations the form can't represent (drop-highest/lowest, keep/drop
+// counts other than 1, die sizes outside DICE_TYPES, or counts / modifiers
+// outside the form bounds) — those chips keep the old one-click roll so the
+// user never confirms a roll different from the one shown.
 export function parseRollerNotation(notation: string): RollerValues | null {
   const parsed = parseDiceNotation(notation)
   if (!parsed) return null
 
-  const { count, sides, keepDrop, mode, target, modifier, sorted } = parsed
-  const diceType = `d${sides}`
-  if (!DICE_TYPES.includes(diceType)) return null
-  // The form bounds (1–100 dice, ±999 modifier) match the inputs' keystroke
-  // clamps; out-of-range history notations fall back to one-click roll
-  // instead of loading silently different values.
-  if (count < 1 || count > 100 || modifier < -999 || modifier > 999) return null
+  const { groups, keepDrop, mode, target, modifier, sorted } = parsed
+  for (const group of groups) {
+    if (!DICE_TYPES.includes(`d${group.sides}`)) return null
+    if (group.count < 1 || group.count > 100) return null
+  }
+  // The form bounds (±999 modifier) match the modifier input's keystroke clamp;
+  // out-of-range history notations fall back to one-click roll.
+  if (modifier < -999 || modifier > 999) return null
 
   if (keepDrop) {
     // The form only does d20 advantage/disadvantage (2d20 keep-high/low 1).
-    // Keep/drop never combines with a pool mode (the parser already rejects
-    // it), so reaching here with one means a sum roll.
     const kind = keepDrop.startsWith('kh') ? 'adv' : keepDrop.startsWith('kl') ? 'dis' : null
     const keepDropAmount = keepDrop.slice(2) ? Number(keepDrop.slice(2)) : 1
-    if (kind && keepDropAmount === 1 && count === 2 && sides === 20 && mode === 'sum') {
-      return { diceType: 'd20', quantity: 1, modifier, advDis: kind, poolMode: 'sum', target: defaultTarget(20), sorted }
+    if (kind && keepDropAmount === 1 && groups.length === 1 && groups[0].count === 2 && groups[0].sides === 20 && mode === 'sum') {
+      return { selection: [{ sides: 20, count: 1 }], modifier, advDis: kind, poolMode: 'sum', target: defaultTarget(20), sorted }
     }
     return null
   }
 
   if (mode !== 'sum') {
-    return { diceType, quantity: count, modifier: 0, advDis: 'none', poolMode: mode, target: target ?? defaultTarget(sides), sorted }
+    const group = groups[0]
+    return {
+      selection: [{ sides: group.sides, count: group.count }],
+      modifier: 0,
+      advDis: 'none',
+      poolMode: mode,
+      target: target ?? defaultTarget(group.sides),
+      sorted,
+    }
   }
 
-  return { diceType, quantity: count, modifier, advDis: 'none', poolMode: 'sum', target: defaultTarget(sides), sorted }
+  return {
+    selection: groups.map((group) => ({ sides: group.sides, count: group.count })),
+    modifier,
+    advDis: 'none',
+    poolMode: 'sum',
+    target: defaultTarget(groups[0].sides),
+    sorted,
+  }
 }
 
 export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOpenHistory }: DiceRollerProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [diceType, setDiceType] = useState('d20')
-  const [quantity, setQuantity] = useState(1)
+  const [selection, setSelection] = useState<DiceSelection[]>([])
   const [modifier, setModifier] = useState(0)
   const [advDis, setAdvDis] = useState<'none' | 'adv' | 'dis'>('none')
   // Pool modes read faces instead of summing: `pool` lists every face,
@@ -120,6 +147,11 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
   const { favorites, isFavorite, canFavorite, toggleFavorite } = useDiceFavorites(channelId, isOpen)
   const chips = mergeChips(favorites, recent)
 
+  const multiType = selection.length > 1
+  const singleD20 = selection.length === 1 && selection[0].sides === 20 && selection[0].count === 1
+  const dieSides = selection[0]?.sides ?? 20
+  const canRoll = selection.length > 0
+
   const roll = (notation: string) => {
     recordRoll(notation)
     onRoll(notation)
@@ -127,7 +159,25 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
   }
 
   const handleRoll = () => {
-    roll(buildNotation(diceType, quantity, modifier, advDis, poolMode, target, sorted))
+    roll(buildNotation(selection, modifier, advDis, poolMode, target, sorted))
+  }
+
+  // Editing the dice bag keeps the rest of the form coherent: a multi-type bag
+  // can only sum, and the target/adv-dis controls track the selected die.
+  const handleSelectionChange = (next: DiceSelection[]) => {
+    setSelection(next)
+    const distinct = new Set(next.map((die) => die.sides)).size
+    if (distinct > 1) {
+      setPoolMode('sum')
+      setAdvDis('none')
+      return
+    }
+    if (next.length === 1) {
+      setTarget((t) => Math.min(next[0].sides, Math.max(1, t)))
+      if (next[0].sides !== 20 || next[0].count > 1) setAdvDis('none')
+      return
+    }
+    setAdvDis('none')
   }
 
   // A chip tap loads the notation's values into the form for review instead
@@ -139,16 +189,13 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
       roll(notation)
       return
     }
-    setDiceType(parsed.diceType)
-    setQuantity(parsed.quantity)
+    setSelection(parsed.selection)
     setModifier(parsed.modifier)
     setAdvDis(parsed.advDis)
     setPoolMode(parsed.poolMode)
     setTarget(parsed.target)
     setSorted(parsed.sorted)
   }
-
-  const sidesOf = (t: string) => Number(t.slice(1))
 
   const panel = (
     <div className="space-y-3">
@@ -163,33 +210,24 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
         <button
           type="button"
           onClick={() => { setPoolMode('pool'); setAdvDis('none') }}
-          className={`flex-1 text-sm py-2 rounded transition-colors ${poolMode === 'pool' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+          disabled={multiType}
+          title={multiType ? 'Pools use a single die type' : undefined}
+          className={`flex-1 text-sm py-2 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${poolMode === 'pool' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
         >
           Pool
         </button>
         <button
           type="button"
           onClick={() => { setPoolMode('successes'); setAdvDis('none') }}
-          className={`flex-1 text-sm py-2 rounded transition-colors ${poolMode === 'successes' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+          disabled={multiType}
+          title={multiType ? 'Pools use a single die type' : undefined}
+          className={`flex-1 text-sm py-2 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${poolMode === 'successes' ? 'bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
         >
           Successes
         </button>
       </div>
-      <DiceIconPicker
-        value={{ sides: sidesOf(diceType), count: quantity }}
-        onChange={(next) => {
-          const changedType = next.sides !== sidesOf(diceType)
-          if (changedType) {
-            setDiceType(`d${next.sides}`)
-            // Pools count faces at or above the target, so the target can
-            // never exceed the new die size.
-            setTarget(t => Math.min(next.sides, Math.max(1, t)))
-            if (next.sides !== 20) setAdvDis('none')
-          }
-          setQuantity(next.count)
-        }}
-        countDisabled={diceType === 'd20' && advDis !== 'none'}
-      />
+
+      <DiceIconPicker selection={selection} onChange={handleSelectionChange} />
 
       {poolMode === 'successes' && (
         <div className="flex items-center space-x-2">
@@ -197,7 +235,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
           <NumericInput
             id="dice-target"
             min={1}
-            max={sidesOf(diceType)}
+            max={dieSides}
             value={target}
             onChange={setTarget}
             className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
@@ -251,7 +289,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
       </div>
       )}
 
-      {diceType === 'd20' && poolMode === 'sum' && (
+      {poolMode === 'sum' && singleD20 && (
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-md">
           <button
             type="button"
@@ -280,12 +318,12 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
       <button
         type="button"
         onClick={handleRoll}
-        disabled={quantity < 1}
+        disabled={!canRoll}
         className="w-full flex justify-center min-h-11 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Roll
       </button>
-      {quantity < 1 && (
+      {!canRoll && (
         <p className="text-xs text-gray-500 dark:text-gray-400">Pick at least one die to roll.</p>
       )}
     </div>

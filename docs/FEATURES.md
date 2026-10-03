@@ -146,6 +146,7 @@
   - `NdMp` (dice pool — lists every face, no total)
   - `NdM>=T` (success pool — lists every face, counts faces at or above T, no total)
   - `NdMps` / `NdM>=Ts` (sorted pools — same as above, faces listed highest-first)
+  - Combined dice: `2d8+1d6+2` — several groups roll together, each keeping/dropping on its own, and every kept face is summed with the trailing modifier
 - **Roll result shows full breakdown**: plain rolls break down into dice + modifier = total (`Rolled 1d20+3: 10 + 3 = **13**`, `Rolled 2d6: 3 + 5 = **8**`), and keep/drop rolls keep their ADV/DIS form (`Rolled 2d20 with DIS [2, 15]: **2**`); dropped-die rolls (`4d6dl1`) fall back to the plain total. Pool rolls never add up (`Rolled 5d6p: 2, 5, 3, 6, 1`); success pools show the count (`Rolled 5d6>=4: 2, 5, 3, 6, 1 — **2 successes (≥4)**`).
 - **Critical rolls** — a d20 landing on a natural 20 displays **Critical Success**, and a natural 1 displays **Critical Failure** (based on the unmodified die, so modifiers don't change it). Applies to plain d20 rolls and to Advantage/Disadvantage (the kept die), and the roll history marks the same critical rolls. Pool rolls never show critical labels.
 - **Server-authoritative rolls** — every roll is evaluated and recorded server-side (result, individual dice, dropped dice, modifier) in a single atomic step together with the roll message. Modifiers are clamped to the game system's bounds, DC success/failure is computed server-side (meets beats; DCs are rejected for pool rolls, which carry no totals), and no client can fabricate or edit a result. Pool rolls store their mode (and target/success count) alongside the faces. Rolls from soft-deleted messages are excluded from the roll history.
@@ -154,11 +155,12 @@
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
   - UI available to both GM and players, opened from a round floating button in the bottom-left of the channel (over the message avatars, above the composer)
-  - Pick dice type from an icon grid (d4, d6, d8, d10, d12, d20, d100); tap a die to add it and tap again (or use +/−) to set the quantity, with a count badge on the icon
-  - Clear the dice selection with one button — Roll stays disabled until at least one die is picked
+  - Pick dice from an icon grid (d4, d6, d8, d10, d12, d20, d100), each with its own die-shaped icon; tap a die to add it and tap again to add more, with a count badge on the icon
+  - Combine different dice in one roll (e.g. 2d6 + 1d8 + 3) — every selected die type is rolled and summed together
+  - Clear the whole dice selection with one button — Roll stays disabled until at least one die is picked
   - Add modifier (+N / -N) in Sum mode only
-  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first
-  - Advantage/disadvantage toggle (d20 only)
+  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first. Pools use a single die type, so those modes are disabled while several types are selected
+  - Advantage/disadvantage toggle (a single d20, Sum mode only)
   - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm. Notations the roller can't rebuild (drop-lowest, keep counts other than 1) still re-roll on tap
   - Pin up to 3 favorite notations per channel with the star checkbox — favorites stay pinned to the front of the chip row in amber
   - A **Roll History** button in the panel opens the channel's roll history

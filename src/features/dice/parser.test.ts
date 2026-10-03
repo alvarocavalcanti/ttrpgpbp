@@ -33,6 +33,13 @@ describe('isValidDiceNotation', () => {
     expect(isValidDiceNotation('5d6s')).toBe(false)
   })
 
+  it('accepts chained sum notations', () => {
+    expect(isValidDiceNotation('2d8+1d6+2')).toBe(true)
+    expect(isValidDiceNotation('1d20+2d6-3')).toBe(true)
+    // Dice are only ever added.
+    expect(isValidDiceNotation('2d6-1d8')).toBe(false)
+  })
+
   it('rejects ambiguous pool combinations instead of guessing', () => {
     expect(isValidDiceNotation('5d6p+2')).toBe(false)
     expect(isValidDiceNotation('5d6kh1p')).toBe(false)
@@ -55,32 +62,50 @@ describe('isValidDiceNotation', () => {
 describe('parseDiceNotation', () => {
   it('parses sum rolls with keep/drop and modifier', () => {
     expect(parseDiceNotation('3d6kh1+2')).toEqual({
-      count: 3, sides: 6, keepDrop: 'kh1', mode: 'sum', target: null, modifier: 2, sorted: false,
+      count: 3, sides: 6, keepDrop: 'kh1', groups: [{ count: 3, sides: 6, keepDrop: 'kh1' }], mode: 'sum', target: null, modifier: 2, sorted: false,
     })
     expect(parseDiceNotation('2d20kh')).toEqual({
-      count: 2, sides: 20, keepDrop: 'kh', mode: 'sum', target: null, modifier: 0, sorted: false,
+      count: 2, sides: 20, keepDrop: 'kh', groups: [{ count: 2, sides: 20, keepDrop: 'kh' }], mode: 'sum', target: null, modifier: 0, sorted: false,
     })
   })
 
   it('parses raw pools with no target or modifier', () => {
     expect(parseDiceNotation('5d6p')).toEqual({
-      count: 5, sides: 6, keepDrop: '', mode: 'pool', target: null, modifier: 0, sorted: false,
+      count: 5, sides: 6, keepDrop: '', groups: [{ count: 5, sides: 6, keepDrop: '' }], mode: 'pool', target: null, modifier: 0, sorted: false,
     })
   })
 
   it('parses success pools with their target', () => {
     expect(parseDiceNotation('5d6>=4')).toEqual({
-      count: 5, sides: 6, keepDrop: '', mode: 'successes', target: 4, modifier: 0, sorted: false,
+      count: 5, sides: 6, keepDrop: '', groups: [{ count: 5, sides: 6, keepDrop: '' }], mode: 'successes', target: 4, modifier: 0, sorted: false,
     })
   })
 
   it('parses sorted pools with the sort flag', () => {
     expect(parseDiceNotation('5d6ps')).toEqual({
-      count: 5, sides: 6, keepDrop: '', mode: 'pool', target: null, modifier: 0, sorted: true,
+      count: 5, sides: 6, keepDrop: '', groups: [{ count: 5, sides: 6, keepDrop: '' }], mode: 'pool', target: null, modifier: 0, sorted: true,
     })
     expect(parseDiceNotation('5d6>=4s')).toEqual({
-      count: 5, sides: 6, keepDrop: '', mode: 'successes', target: 4, modifier: 0, sorted: true,
+      count: 5, sides: 6, keepDrop: '', groups: [{ count: 5, sides: 6, keepDrop: '' }], mode: 'successes', target: 4, modifier: 0, sorted: true,
     })
+  })
+
+  it('parses chained sum groups into one roll', () => {
+    expect(parseDiceNotation('2d8+1d6+2')).toEqual({
+      count: 2, sides: 8, keepDrop: '', groups: [{ count: 2, sides: 8, keepDrop: '' }, { count: 1, sides: 6, keepDrop: '' }], mode: 'sum', target: null, modifier: 2, sorted: false,
+    })
+    // A trailing negative modifier applies to the whole chain.
+    expect(parseDiceNotation('1d20+2d6-3')?.modifier).toBe(-3)
+    // Keep/drop is per group.
+    expect(parseDiceNotation('2d20kh1+1d8')?.groups).toEqual([
+      { count: 2, sides: 20, keepDrop: 'kh1' },
+      { count: 1, sides: 8, keepDrop: '' },
+    ])
+  })
+
+  it('rejects chains that subtract dice or mix pool modes', () => {
+    expect(parseDiceNotation('2d6-1d8')).toBeNull()
+    expect(parseDiceNotation('2d6p+1d8')).toBeNull()
   })
 
   it('parses case- and space-insensitively', () => {
@@ -113,6 +138,11 @@ describe('linkifyDice', () => {
   it('handles multiple dice notations', () => {
     const text = '1d20+5 and 2d6-1'
     expect(linkifyDice(text)).toBe('[1d20+5](dice:1d20+5) and [2d6-1](dice:2d6-1)')
+  })
+
+  it('linkifies a chained notation as one link', () => {
+    expect(linkifyDice('Roll 2d8+1d6+2')).toBe('Roll [2d8+1d6+2](dice:2d8+1d6+2)')
+    expect(linkifyDice('Roll 1d20+2d6-3')).toBe('Roll [1d20+2d6-3](dice:1d20+2d6-3)')
   })
 
   it('linkifies keep/drop shorthands without a count', () => {
