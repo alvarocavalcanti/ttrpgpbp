@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-10-03
 
+### Fixed
+
+- **Retype a dice amount** — clearing the Number field in the dice roller no longer snaps back to 1, so you can set any single-digit amount (and edit the target or modifier the same way).
+
 ### Changed
 
 - **Clearer image uploads** — when a GM uploads an image from the message options, the Upload button now shows a spinner while it works and a confirmation toast when it finishes, so it's obvious the upload is happening.
