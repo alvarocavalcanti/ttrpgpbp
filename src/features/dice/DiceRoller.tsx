@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { chipBase, chipIdle } from '../chat/composerChip'
 import { BottomSheet } from '../../components/BottomSheet'
+import { NumericInput } from '../../components/NumericInput'
 import { useRecentRolls, mergeChips } from './useRecentRolls'
 import { useDiceFavorites } from './useDiceFavorites'
 import { parseDiceNotation } from './parser'
@@ -169,14 +170,12 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
       </div>
       <div className="flex items-center space-x-2">
         <label htmlFor="dice-quantity" className="sr-only">Number of dice</label>
-        <input
+        <NumericInput
           id="dice-quantity"
-          type="number"
-          inputMode="numeric"
-          min="1"
-          max="100"
+          min={1}
+          max={100}
           value={quantity}
-          onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+          onChange={setQuantity}
           className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2"
           disabled={diceType === 'd20' && advDis !== 'none'}
         />
@@ -200,14 +199,12 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
       {poolMode === 'successes' && (
         <div className="flex items-center space-x-2">
           <label htmlFor="dice-target" className="text-sm text-gray-700 dark:text-gray-300">Target</label>
-          <input
+          <NumericInput
             id="dice-target"
-            type="number"
-            inputMode="numeric"
-            min="1"
+            min={1}
             max={sidesOf(diceType)}
             value={target}
-            onChange={(e) => setTarget(Math.min(sidesOf(diceType), Math.max(1, parseInt(e.target.value) || 1)))}
+            onChange={setTarget}
             className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
           />
           <span className="text-sm text-gray-500 dark:text-gray-400">or higher counts as a success</span>
@@ -240,12 +237,12 @@ export function DiceRoller({ onRoll, popup = false, channelId }: DiceRollerProps
           −
         </button>
         <label htmlFor="dice-modifier" className="sr-only">Modifier</label>
-        <input
+        <NumericInput
           id="dice-modifier"
-          type="number"
-          inputMode="numeric"
+          min={-999}
+          max={999}
           value={modifier}
-          onChange={(e) => setModifier(Math.min(999, Math.max(-999, parseInt(e.target.value) || 0)))}
+          onChange={setModifier}
           className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
         />
         <button
