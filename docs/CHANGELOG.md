@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-03
+
+### Changed
+
+- **Clearer image uploads** — when a GM uploads an image from the message options, the Upload button now shows a spinner while it works and a confirmation toast when it finishes, so it's obvious the upload is happening.
+
 ## 2026-10-02
 
 ### Added

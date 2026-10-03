@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 import { useImageUpload } from '../../hooks/useImageUpload'
 
-const { mockUploadImage } = vi.hoisted(() => ({ mockUploadImage: vi.fn() }))
+const { mockUploadImage, mockAddToast } = vi.hoisted(() => ({
+  mockUploadImage: vi.fn(),
+  mockAddToast: vi.fn(),
+}))
 
 vi.mock('../../hooks/useImageUpload', () => ({
   useImageUpload: vi.fn(() => ({
@@ -12,6 +15,12 @@ vi.mock('../../hooks/useImageUpload', () => ({
     uploading: false,
     uploadImage: mockUploadImage,
   })),
+}))
+
+// The composer confirms uploads with a toast; stub the context so the suite
+// can assert on it without wrapping every render in ToastProvider.
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
 }))
 
 // The dice roller pins favorites per user (useDiceFavorites); the composer
@@ -29,6 +38,7 @@ describe('MessageComposer', () => {
   beforeEach(() => {
     mockUploadImage.mockReset()
     mockUploadImage.mockResolvedValue('https://supabase/images/c1/message/u.jpg')
+    mockAddToast.mockReset()
     localStorage.clear()
     vi.mocked(useImageUpload).mockReturnValue({
       uploadEnabled: true,
@@ -925,6 +935,47 @@ describe('MessageComposer', () => {
       expect(mockUploadImage).toHaveBeenCalledWith(expect.any(File), 'message', 1200)
       expect(textarea).toHaveValue('Hi ![](https://supabase/images/c1/message/u.jpg)\n')
     })
+  })
+
+  it('shows a spinner and an Uploading label while the upload is in flight (#639)', () => {
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: true,
+      uploadImage: mockUploadImage,
+    })
+    const { container } = render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+
+    expect(screen.getByText('Uploading...')).toBeInTheDocument()
+    expect(container.querySelector('.animate-spin')).not.toBeNull()
+  })
+
+  it('shows a confirmation toast after a message image upload (#639)', async () => {
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn().mockResolvedValue(undefined)} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.change(screen.getByLabelText('Upload Image'), {
+      target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith('Image uploaded', 'success')
+    })
+  })
+
+  it('does not toast when the image upload fails (#639)', async () => {
+    mockUploadImage.mockRejectedValue(new Error('Image uploads are disabled by the server admin'))
+    render(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.change(screen.getByLabelText('Upload Image'), {
+      target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    expect(await screen.findByText('Image uploads are disabled by the server admin')).toBeInTheDocument()
+    expect(mockAddToast).not.toHaveBeenCalled()
   })
 
   it('shows the upload error when the image upload fails', async () => {
