@@ -245,11 +245,7 @@ export function DiceRollerPage() {
         </section>
 
         <p className="mt-10 text-xs text-surface-400 dark:text-surface-500">
-          Dice icons by{' '}
-          <a href="https://game-icons.net/tags/dice.html" target="_blank" rel="noreferrer" className="underline">
-            skoll &amp; Delapouite
-          </a>{' '}
-          (game-icons.net), licensed CC BY 3.0.
+          Dice icons by <a href="https://game-icons.net/tags/dice.html" target="_blank" rel="noreferrer" className="underline">skoll &amp; Delapouite</a> (game-icons.net), licensed CC BY 3.0.
         </p>
       </main>
 
