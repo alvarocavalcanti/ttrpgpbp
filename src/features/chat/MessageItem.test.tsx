@@ -1120,6 +1120,21 @@ describe('MessageItem', () => {
     expect(screen.queryByLabelText('Favorite')).not.toBeInTheDocument()
   })
 
+  it('shows an amber star next to the timestamp when favorited (#629)', () => {
+    const msg: any = {
+      id: 'm1',
+      type: 'regular',
+      content: 'hi',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1'
+    }
+    const { rerender } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleFavorite={vi.fn()} isFavorite />)
+    expect(screen.getByTestId('favorite-star')).toBeInTheDocument()
+
+    rerender(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onToggleFavorite={vi.fn()} />)
+    expect(screen.queryByTestId('favorite-star')).not.toBeInTheDocument()
+  })
+
   it('does not offer Favorite on a system message (#634)', () => {
     const msg: any = {
       id: 's1',

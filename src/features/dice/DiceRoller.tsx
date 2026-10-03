@@ -19,6 +19,9 @@ interface DiceRollerProps {
   // Round floating trigger (#629) used by the bottom-left control in the
   // channel, instead of the labelled composer chip.
   fab?: boolean
+  // Which edge the anchored panel grows from, so a dragged FAB near the right
+  // edge doesn't push its panel off-screen.
+  align?: 'left' | 'right'
   // Opens the channel roll history from inside the panel.
   onOpenHistory?: () => void
 }
@@ -137,7 +140,7 @@ export function parseRollerNotation(notation: string): RollerValues | null {
   }
 }
 
-export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOpenHistory }: DiceRollerProps) {
+export function DiceRoller({ onRoll, popup = false, channelId, fab = false, align = 'left', onOpenHistory }: DiceRollerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selection, setSelection] = useState<DiceSelection[]>([])
   const [modifier, setModifier] = useState(0)
@@ -393,6 +396,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
       {fab ? (
         <button
           type="button"
+          data-dice-fab
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Open dice roller"
           aria-expanded={isOpen}
@@ -419,7 +423,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, onOp
         </BottomSheet>
       )}
       {isOpen && !popup && (
-        <div className="absolute bottom-full mb-2 left-0 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50">
+        <div className={`absolute bottom-full mb-2 ${align === 'right' ? 'right-0' : 'left-0'} w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50`}>
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dice Roller</h3>
             <button type="button" onClick={() => setIsOpen(false)} aria-label="Close dice roller" className="text-gray-400 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-400">

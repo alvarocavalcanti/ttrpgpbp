@@ -17,7 +17,7 @@ import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { trackEvent } from '../../lib/analytics'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
-import { DiceRoller } from '../dice/DiceRoller'
+import { DiceRollerFab } from '../dice/DiceRollerFab'
 import { SearchModal } from '../search/SearchModal'
 import { ChannelNotificationSettingsModal } from '../notifications/ChannelNotificationSettingsModal'
 import { useChannelNpcs } from './useChannelNpcs'
@@ -510,18 +510,12 @@ export function ChannelView() {
           />
 
           {!channel.is_archived && (
-            <div
-              data-testid="dice-roller-fab"
-              className="absolute bottom-3 left-2 z-20"
-            >
-              <DiceRoller
-                fab
-                popup={isMobile}
-                channelId={channel.id}
-                onRoll={(notation) => sendDiceRoll(notation, replyTo?.id)}
-                onOpenHistory={() => setShowRollHistory(true)}
-              />
-            </div>
+            <DiceRollerFab
+              channelId={channel.id}
+              popup={isMobile}
+              onRoll={(notation) => sendDiceRoll(notation, replyTo?.id)}
+              onOpenHistory={() => setShowRollHistory(true)}
+            />
           )}
         </div>
         
