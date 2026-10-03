@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Seo } from '../../components/Seo'
+import { NumericInput } from '../../components/NumericInput'
 import { ROUTES } from '../../lib/publicRoutes'
 import { useAuth } from '../auth/useAuth'
 import { MarketingHeader } from '../marketing/MarketingHeader'
@@ -98,16 +99,13 @@ export function DiceRollerPage() {
               >
                 Number
               </label>
-              <input
+              <NumericInput
                 id="tool-dice-quantity"
-                type="number"
-                inputMode="numeric"
-                step={1}
                 min={1}
                 max={100}
                 value={quantity}
                 disabled={diceType === 'd20' && advDis !== 'none'}
-                onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                onChange={setQuantity}
                 className="w-16 min-h-11 rounded border-surface-300 bg-white text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
               />
             </div>
@@ -138,14 +136,12 @@ export function DiceRollerPage() {
               <label htmlFor="tool-dice-target" className="text-sm text-surface-700 dark:text-surface-300">
                 Target
               </label>
-              <input
+              <NumericInput
                 id="tool-dice-target"
-                type="number"
-                inputMode="numeric"
                 min={1}
                 max={sides}
                 value={target}
-                onChange={(e) => setTarget(Math.min(sides, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                onChange={setTarget}
                 className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
               />
               <span className="text-sm text-surface-500 dark:text-surface-400">
@@ -187,13 +183,12 @@ export function DiceRollerPage() {
                 >
                   −
                 </button>
-                <input
+                <NumericInput
                   id="tool-dice-modifier"
-                  type="number"
-                  inputMode="numeric"
-                  step={1}
+                  min={-999}
+                  max={999}
                   value={modifier}
-                  onChange={(e) => setModifier(Math.min(999, Math.max(-999, parseInt(e.target.value, 10) || 0)))}
+                  onChange={setModifier}
                   className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
                 />
                 <button

@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-03
+
+### Fixed
+
+- **Retype a dice amount** — clearing the Number field in the dice roller no longer snaps back to 1, so you can set any single-digit amount (and edit the target or modifier the same way).
+
 ## 2026-10-02
 
 ### Added
