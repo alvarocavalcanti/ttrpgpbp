@@ -412,7 +412,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-2">
+      <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
         {error ? (
           <>
             <p className="text-red-500 dark:text-red-400 text-sm">Could not load messages.</p>
