@@ -949,6 +949,8 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
 
     expect(screen.getByText('Uploading...')).toBeInTheDocument()
+    // The status text is a live region so screen readers announce the change.
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading...')
     expect(container.querySelector('.animate-spin')).not.toBeNull()
   })
 
