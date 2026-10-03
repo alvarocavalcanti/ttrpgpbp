@@ -263,6 +263,50 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+999')
   })
 
+  it('allows clearing the quantity to type a new single digit (#665)', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+
+    const quantityInput = screen.getByLabelText('Number of dice')
+    fireEvent.change(quantityInput, { target: { value: '' } })
+    fireEvent.change(quantityInput, { target: { value: '6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('6d20p')
+  })
+
+  it('allows clearing the target to type a new digit (#665)', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
+
+    const targetInput = screen.getByLabelText('Target')
+    fireEvent.change(targetInput, { target: { value: '' } })
+    fireEvent.change(targetInput, { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20>=8')
+  })
+
+  it('allows clearing the modifier to type a new digit (#665)', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    const modifierInput = screen.getByLabelText('Modifier')
+    fireEvent.change(modifierInput, { target: { value: '' } })
+    fireEvent.change(modifierInput, { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+5')
+  })
+
   it('uses a numeric keyboard for the quantity and modifier inputs', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))

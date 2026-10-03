@@ -52,6 +52,16 @@ describe('DiceRollerPage', () => {
     expect(screen.getByText('4 dice')).toBeInTheDocument()
   })
 
+  it('allows clearing the number field to type a new single digit (#665)', () => {
+    renderPage()
+    const quantity = screen.getByLabelText('Number')
+    fireEvent.change(quantity, { target: { value: '' } })
+    fireEvent.change(quantity, { target: { value: '6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(screen.getByText('6d20p')).toBeInTheDocument()
+  })
+
   it('applies advantage to a d20 sum roll', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Advantage' }))
