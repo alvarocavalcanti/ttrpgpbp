@@ -62,6 +62,20 @@ describe('NumericInput', () => {
     expect(onChange).toHaveBeenLastCalledWith(-2)
   })
 
+  it('rejects decimal and exponent input instead of showing it', () => {
+    const onChange = vi.fn()
+    render(<NumericInput id="field" value={4} onChange={onChange} min={1} max={100} aria-label="Number" />)
+    const input = screen.getByLabelText('Number') as HTMLInputElement
+
+    fireEvent.change(input, { target: { value: '9.5' } })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(input).toHaveValue(4)
+
+    fireEvent.change(input, { target: { value: '1e3' } })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(input).toHaveValue(4)
+  })
+
   it('syncs the displayed text when the value changes externally', () => {
     const { rerender } = render(
       <NumericInput id="field" value={1} onChange={vi.fn()} min={1} max={100} aria-label="Number" />,

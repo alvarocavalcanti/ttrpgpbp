@@ -41,10 +41,15 @@ export function NumericInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
-    if (!INTEGER.test(raw)) {
+    // Only the empty field (so it can be retyped) and a lone minus (the
+    // modifier's transient sign) are kept as-is. Decimals and exponent
+    // notation are rejected at the keystroke instead of showing text that
+    // silently disagrees with the committed value.
+    if (raw === '' || raw === '-') {
       setText(raw)
       return
     }
+    if (!INTEGER.test(raw)) return
     // Normalize the text to the clamped value so an out-of-range entry (0,
     // 9999) can't display a number that differs from the one that rolls.
     const clamped = Math.min(max, Math.max(min, parseInt(raw, 10)))
