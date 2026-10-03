@@ -5,20 +5,19 @@ import { ROUTES } from '../../lib/publicRoutes'
 import { useAuth } from '../auth/useAuth'
 import { MarketingHeader } from '../marketing/MarketingHeader'
 import { SiteFooter } from '../marketing/SiteFooter'
-import { buildNotation, DICE_TYPES } from '../dice/DiceRoller'
+import { buildNotation } from '../dice/DiceRoller'
 import type { PoolMode } from '../dice/DiceRoller'
 import { rollDice } from '../dice/rollDice'
 import type { DiceRollResult } from '../dice/rollDice'
-
-const sidesOf = (diceType: string) => Number(diceType.slice(1))
+import { DiceIconPicker } from '../dice/DiceIconPicker'
+import type { DiceSelection } from '../dice/DiceIconPicker'
 
 // Public, signed-out dice roller (issue #645). Client-side only: results are
 // computed in the browser and never sent anywhere or saved. The in-app roller
 // is unaffected and stays server-authoritative.
 export function DiceRollerPage() {
   const { user } = useAuth()
-  const [diceType, setDiceType] = useState('d20')
-  const [quantity, setQuantity] = useState(1)
+  const [selection, setSelection] = useState<DiceSelection[]>([])
   const [modifier, setModifier] = useState(0)
   const [advDis, setAdvDis] = useState<'none' | 'adv' | 'dis'>('none')
   const [poolMode, setPoolMode] = useState<PoolMode>('sum')
@@ -27,13 +26,16 @@ export function DiceRollerPage() {
   const [result, setResult] = useState<DiceRollResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const sides = sidesOf(diceType)
+  const multiType = selection.length > 1
+  const singleD20 = selection.length === 1 && selection[0].sides === 20 && selection[0].count === 1
+  const dieSides = selection[0]?.sides ?? 20
+  const canRoll = selection.length > 0
 
   const handleRoll = () => {
-    const notation = buildNotation([{ sides: sidesOf(diceType), count: quantity }], modifier, advDis, poolMode, target, sorted)
-    const rolled = rollDice(notation)
+    const notation = buildNotation(selection, modifier, advDis, poolMode, target, sorted)
+    const rolled = notation ? rollDice(notation) : null
     if (!rolled) {
-      setError(`Could not roll “${notation}”. Check the dice and try again.`)
+      setError(notation ? `Could not roll “${notation}”. Check the dice and try again.` : 'Pick at least one die to roll.')
       setResult(null)
       return
     }
@@ -41,11 +43,20 @@ export function DiceRollerPage() {
     setResult(rolled)
   }
 
-  const changeDiceType = (value: string) => {
-    setDiceType(value)
-    const nextSides = sidesOf(value)
-    setTarget((current) => Math.min(nextSides, Math.max(1, current)))
-    if (value !== 'd20') setAdvDis('none')
+  const handleSelectionChange = (next: DiceSelection[]) => {
+    setSelection(next)
+    const distinct = new Set(next.map((die) => die.sides)).size
+    if (distinct > 1) {
+      setPoolMode('sum')
+      setAdvDis('none')
+      return
+    }
+    if (next.length === 1) {
+      setTarget((current) => Math.min(next[0].sides, Math.max(1, current)))
+      if (next[0].sides !== 20 || next[0].count > 1) setAdvDis('none')
+      return
+    }
+    setAdvDis('none')
   }
 
   const modeButton = (mode: PoolMode, label: string) => (
@@ -56,7 +67,9 @@ export function DiceRollerPage() {
         setPoolMode(mode)
         if (mode !== 'sum') setAdvDis('none')
       }}
-      className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
+      disabled={multiType && mode !== 'sum'}
+      title={multiType && mode !== 'sum' ? 'Pools use a single die type' : undefined}
+      className={`flex-1 rounded px-3 py-2 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         poolMode === mode
           ? 'bg-white font-medium text-surface-900 shadow-sm dark:bg-surface-700 dark:text-surface-100'
           : 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
@@ -77,8 +90,8 @@ export function DiceRollerPage() {
         </h1>
         <p className="mt-3 text-surface-600 dark:text-surface-400">
           Roll dice for any tabletop RPG — d4 to d100, modifiers, advantage and disadvantage, dice
-          pools, and success checks. Rolls happen in your browser; nothing is saved and no account
-          is needed.
+          pools, and success checks. Tap dice to add them and mix different types in one roll. Rolls
+          happen in your browser; nothing is saved and no account is needed.
         </p>
 
         <section
@@ -91,44 +104,8 @@ export function DiceRollerPage() {
             {modeButton('successes', 'Successes')}
           </div>
 
-          <div className="mt-4 flex items-end gap-3">
-            <div className="flex flex-col">
-              <label
-                htmlFor="tool-dice-quantity"
-                className="mb-1 text-xs font-medium text-surface-500 dark:text-surface-400"
-              >
-                Number
-              </label>
-              <NumericInput
-                id="tool-dice-quantity"
-                min={1}
-                max={100}
-                value={quantity}
-                disabled={diceType === 'd20' && advDis !== 'none'}
-                onChange={setQuantity}
-                className="w-16 min-h-11 rounded border-surface-300 bg-white text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-              />
-            </div>
-            <div className="flex flex-1 flex-col">
-              <label
-                htmlFor="tool-dice-type"
-                className="mb-1 text-xs font-medium text-surface-500 dark:text-surface-400"
-              >
-                Die
-              </label>
-              <select
-                id="tool-dice-type"
-                value={diceType}
-                onChange={(e) => changeDiceType(e.target.value)}
-                className="min-h-11 w-full rounded border-surface-300 bg-white py-2 pl-2 pr-8 text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-              >
-                {DICE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="mt-4">
+            <DiceIconPicker selection={selection} onChange={handleSelectionChange} />
           </div>
 
           {poolMode === 'successes' && (
@@ -139,7 +116,7 @@ export function DiceRollerPage() {
               <NumericInput
                 id="tool-dice-target"
                 min={1}
-                max={sides}
+                max={dieSides}
                 value={target}
                 onChange={setTarget}
                 className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
@@ -203,7 +180,7 @@ export function DiceRollerPage() {
             </div>
           )}
 
-          {diceType === 'd20' && poolMode === 'sum' && (
+          {poolMode === 'sum' && singleD20 && (
             <div className="mt-4 flex items-center rounded-md bg-surface-100 p-1 dark:bg-surface-900">
               {(['none', 'adv', 'dis'] as const).map((value) => (
                 <button
@@ -226,10 +203,15 @@ export function DiceRollerPage() {
           <button
             type="button"
             onClick={handleRoll}
-            className="mt-4 min-h-11 w-full rounded-md bg-primary-600 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            disabled={!canRoll}
+            className="mt-4 min-h-11 w-full rounded-md bg-primary-600 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Roll
           </button>
+
+          {!canRoll && (
+            <p className="mt-2 text-xs text-surface-500 dark:text-surface-400">Pick at least one die to roll.</p>
+          )}
 
           {error && (
             <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
@@ -243,9 +225,10 @@ export function DiceRollerPage() {
         <section className="prose prose-sm sm:prose-base mt-10 max-w-none dark:prose-invert">
           <h2>How to use the dice roller</h2>
           <p>
-            Choose a die and how many to roll, add a modifier if your game uses one, then press
-            Roll. For a d20 you can roll with advantage or disadvantage; for games that read every
-            die on its own, switch to Pool or Successes.
+            Tap the dice you want to roll, then press Roll. You can mix die types in a single roll
+            (like 2d6 + 1d8 + 3), add a modifier if your game uses one, and switch to Pool or
+            Successes for games that read every die on its own. For a single d20 you can roll with
+            advantage or disadvantage.
           </p>
           <h2>Dice the roller supports</h2>
           <p>
@@ -260,6 +243,14 @@ export function DiceRollerPage() {
             whole table can see them.
           </p>
         </section>
+
+        <p className="mt-10 text-xs text-surface-400 dark:text-surface-500">
+          Dice icons by{' '}
+          <a href="https://game-icons.net/tags/dice.html" target="_blank" rel="noreferrer" className="underline">
+            skoll &amp; Delapouite
+          </a>{' '}
+          (game-icons.net), licensed CC BY 3.0.
+        </p>
       </main>
 
       <SiteFooter />

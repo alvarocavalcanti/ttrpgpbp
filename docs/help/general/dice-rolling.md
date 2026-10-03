@@ -50,3 +50,5 @@ Every channel keeps a **roll history**, accessible from the Rolls item in the ch
 ## Fair, verifiable rolls
 
 Every roll is generated and recorded **on the server** — the result, the individual dice, dropped dice, and any modifier are stored together with the roll message in a single step. That means everyone at the table sees the same trusted outcome, nothing can be edited after the fact, and when a message is deleted its roll is removed from the history.
+
+_Dice icons by skoll & Delapouite (game-icons.net), licensed CC BY 3.0._

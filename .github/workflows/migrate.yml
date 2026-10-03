@@ -3,6 +3,10 @@ name: Apply Migrations
 on:
   push:
     branches: [ main ]
+  # Manual trigger so a branch's pending migrations can be applied to the
+  # remote project before merge (e.g. to test a schema change on a PR preview,
+  # which points at the shared remote database).
+  workflow_dispatch:
 
 concurrency:
   group: migrate-${{ github.ref }}
