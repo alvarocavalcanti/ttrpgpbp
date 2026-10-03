@@ -92,6 +92,11 @@ export function parseRollerNotation(notation: string): RollerValues | null {
   if (!parsed) return null
 
   const { groups, keepDrop, mode, target, modifier, sorted } = parsed
+  // The form shows one badge per die size and keep/drop only as single-d20
+  // adv/dis, so it can't rebuild a chain with a repeated die size or with any
+  // per-group keep/drop — those chips keep the one-click roll.
+  if (new Set(groups.map((group) => group.sides)).size !== groups.length) return null
+  if (groups.length > 1 && groups.some((group) => group.keepDrop)) return null
   for (const group of groups) {
     if (!DICE_TYPES.includes(`d${group.sides}`)) return null
     if (group.count < 1 || group.count > 100) return null

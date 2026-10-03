@@ -132,6 +132,10 @@ describe('parseRollerNotation', () => {
     expect(parseRollerNotation('hello')).toBeNull()
     // Subtracting dice is never a valid chain.
     expect(parseRollerNotation('2d6-1d8')).toBeNull()
+    // The form has one badge per die size, so a repeated size can't round-trip.
+    expect(parseRollerNotation('1d6+1d6')).toBeNull()
+    // Keep/drop on a non-first group has no form control.
+    expect(parseRollerNotation('2d6+2d20kh1')).toBeNull()
   })
 
   it('parses values at the edge of the form bounds', () => {
