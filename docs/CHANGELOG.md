@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-10-03
 
+### Added
+
+- **Favorite messages** — star any message or dice roll to save it for later, then use the **Favorites** toggle in the channel header to see just your saved messages. Favorites are private to you and stay put between visits.
+
 ### Fixed
 
 - **Retype a dice amount** — clearing the Number field in the dice roller no longer snaps back to 1, so you can set any single-digit amount (and edit the target or modifier the same way).

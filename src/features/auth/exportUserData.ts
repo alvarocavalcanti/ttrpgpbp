@@ -54,6 +54,11 @@ export interface UserDataExport {
     notation: string
     created_at: string
   }[]
+  message_favorites: {
+    channel_id: string
+    message_id: string
+    created_at: string
+  }[]
   notification_preferences: {
     push_enabled: boolean
     badge_enabled: boolean
@@ -111,6 +116,11 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .select('channel_id, notation, created_at')
     .eq('user_id', userId)
     .order('id', { ascending: true })
+  const messageFavoritesQuery = supabase
+    .from('message_favorites')
+    .select('channel_id, message_id, created_at')
+    .eq('user_id', userId)
+    .order('id', { ascending: true })
   const prefs = supabase
     .from('notification_preferences')
     .select('push_enabled, badge_enabled, email_enabled')
@@ -127,13 +137,14 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .eq('sender_id', userId)
     .order('id', { ascending: true })
 
-  const [profileResult, memberships, messages, diceRolls, reactions, diceFavorites, prefsResult, abuseReports, adminMessages] = await Promise.all([
+  const [profileResult, memberships, messages, diceRolls, reactions, diceFavorites, messageFavorites, prefsResult, abuseReports, adminMessages] = await Promise.all([
     profile,
     fetchAllRows(membershipsQuery),
     fetchAllRows(messagesQuery),
     fetchAllRows(diceRollsQuery),
     fetchAllRows(reactionsQuery),
     fetchAllRows(diceFavoritesQuery),
+    fetchAllRows(messageFavoritesQuery),
     prefs,
     fetchAllRows(abuseReportsQuery),
     fetchAllRows(adminMessagesQuery),
@@ -161,6 +172,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     dice_rolls: diceRolls,
     reactions,
     dice_roll_favorites: diceFavorites,
+    message_favorites: messageFavorites,
     notification_preferences: prefsResult.data ?? null,
     abuse_reports: abuseReports.map(r => ({
       id: r.id,
