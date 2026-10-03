@@ -698,6 +698,15 @@ describe('DiceRoller', () => {
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d4' })).toBeEnabled()
   })
 
+  it('opens the panel below the trigger when there is no room above', () => {
+    render(<DiceRoller fab panelBelow onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open dice roller' }))
+
+    const panel = screen.getByText('Dice Roller').closest('.absolute')
+    expect(panel?.className).toContain('top-full')
+    expect(panel?.className).not.toContain('bottom-full')
+  })
+
   it('renders a floating trigger and opens the roll history from the panel', () => {
     const onOpenHistory = vi.fn()
     render(<DiceRoller fab onOpenHistory={onOpenHistory} onRoll={vi.fn()} />)

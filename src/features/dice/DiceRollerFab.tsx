@@ -43,6 +43,7 @@ interface Layout {
   x: number
   y: number
   areaW: number
+  areaH: number
 }
 
 interface DiceRollerFabProps {
@@ -67,7 +68,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
 
   const place = useCallback((point: FabPoint, dims: { fabW: number; fabH: number; areaW: number; areaH: number }) => {
     const clamped = clampFabPosition(point.x, point.y, dims.areaW, dims.areaH, dims.fabW, dims.fabH)
-    setLayout({ ...clamped, areaW: dims.areaW })
+    setLayout({ ...clamped, areaW: dims.areaW, areaH: dims.areaH })
   }, [])
 
   useLayoutEffect(() => {
@@ -76,17 +77,28 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
       const stored = loadStoredPosition()
       place(stored ?? defaultFabPosition(dims.areaW, dims.areaH, dims.fabW, dims.fabH), dims)
     }
-    const onResize = () => {
+    // The message area shrinks/grows (e.g. a reply bar or a wrapped composer),
+    // so reclamp on its resize too, not just the window's.
+    const reclamp = () => {
       const next = measure()
       if (!next) return
       setLayout((current) => {
         if (!current) return current
         const clamped = clampFabPosition(current.x, current.y, next.areaW, next.areaH, next.fabW, next.fabH)
-        return { ...clamped, areaW: next.areaW }
+        return { ...clamped, areaW: next.areaW, areaH: next.areaH }
       })
     }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    window.addEventListener('resize', reclamp)
+    const parent = wrapperRef.current?.offsetParent as HTMLElement | null
+    let observer: ResizeObserver | undefined
+    if (parent && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(reclamp)
+      observer.observe(parent)
+    }
+    return () => {
+      window.removeEventListener('resize', reclamp)
+      observer?.disconnect()
+    }
   }, [measure, place])
 
   const onPointerDown = (e: ReactPointerEvent) => {
@@ -124,6 +136,9 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
   }
 
   const align = layout ? (layout.x > layout.areaW / 2 ? 'right' : 'left') : 'right'
+  // Open toward whichever side has more room, so a FAB dragged near the top
+  // doesn't clip its panel against the channel's top edge.
+  const panelBelow = layout ? layout.y < layout.areaH - layout.y : false
 
   return (
     <div
@@ -143,7 +158,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
         }
       }}
     >
-      <DiceRoller fab align={align} popup={popup} channelId={channelId} onRoll={onRoll} onOpenHistory={onOpenHistory} />
+      <DiceRoller fab align={align} panelBelow={panelBelow} popup={popup} channelId={channelId} onRoll={onRoll} onOpenHistory={onOpenHistory} />
     </div>
   )
 }
