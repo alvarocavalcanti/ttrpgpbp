@@ -6,7 +6,7 @@
 - **Indexable public pages** — `/`, `/features`, `/privacy`, `/terms`, the `/help` guides, and the long-form content pages below are prerendered so search engines and link previews (Slack, Discord, social media) see real content, a per-page title and description, a canonical URL, and a social share image
 - **Long-form content** — a **play-by-post pillar page** (`/play-by-post`), how-to guides (`/how-to/play-by-post-dnd`, `/how-to/run-play-by-post`), and comparisons (`/vs/discord`, `/alternatives/rpol`, `/alternatives/myth-weavers`) give the public site a crawlable internal-link graph, with breadcrumbs and a shared footer
 - **Help is public** — every help guide (`/help` plus `/help/<topic>`) is reachable without signing in, is prerendered, and appears in the sitemap; the in-app Help page and the channel Help modal are unchanged
-- **Public dice roller** — a free, signed-out `/dice-roller` tool for sum, pool, and success rolls, with modifiers, advantage/disadvantage, and pool sorting; rolls run entirely in the browser and are never saved
+- **Public dice roller** — a free, signed-out `/dice-roller` tool for sum, pool, and success rolls, with mixed dice (`2d6 + 1d8 + 3`), modifiers, advantage/disadvantage, and pool sorting; rolls run entirely in the browser and are never saved
 - **Game-system page** — a public `/game-systems/shadowdark` landing page listing the system's attributes and modifier range plus example rolls; only systems with real content get a page
 - **FAQ rich result** — `/features` renders a visible FAQ section and carries matching `FAQPage` structured data
 - **Rich results on the guides** — the how-to guides carry `HowTo` structured data, and every guide, comparison, and help topic carries `Article` plus breadcrumb structured data, so search engines can show richer results
@@ -146,6 +146,7 @@
   - `NdMp` (dice pool — lists every face, no total)
   - `NdM>=T` (success pool — lists every face, counts faces at or above T, no total)
   - `NdMps` / `NdM>=Ts` (sorted pools — same as above, faces listed highest-first)
+  - Combined dice: `2d8+1d6+2` — several groups roll together, each keeping/dropping on its own, and every kept face is summed with the trailing modifier
 - **Roll result shows full breakdown**: plain rolls break down into dice + modifier = total (`Rolled 1d20+3: 10 + 3 = **13**`, `Rolled 2d6: 3 + 5 = **8**`), and keep/drop rolls keep their ADV/DIS form (`Rolled 2d20 with DIS [2, 15]: **2**`); dropped-die rolls (`4d6dl1`) fall back to the plain total. Pool rolls never add up (`Rolled 5d6p: 2, 5, 3, 6, 1`); success pools show the count (`Rolled 5d6>=4: 2, 5, 3, 6, 1 — **2 successes (≥4)**`).
 - **Critical rolls** — a d20 landing on a natural 20 displays **Critical Success**, and a natural 1 displays **Critical Failure** (based on the unmodified die, so modifiers don't change it). Applies to plain d20 rolls and to Advantage/Disadvantage (the kept die), and the roll history marks the same critical rolls. Pool rolls never show critical labels.
 - **Server-authoritative rolls** — every roll is evaluated and recorded server-side (result, individual dice, dropped dice, modifier) in a single atomic step together with the roll message. Modifiers are clamped to the game system's bounds, DC success/failure is computed server-side (meets beats; DCs are rejected for pool rolls, which carry no totals), and no client can fabricate or edit a result. Pool rolls store their mode (and target/success count) alongside the faces. Rolls from soft-deleted messages are excluded from the roll history.
@@ -153,18 +154,20 @@
 - **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats); also supports `with advantage` / `with disadvantage`
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
-  - UI available to both GM and players
-  - Pick dice type (d4, d6, d8, d10, d12, d20, d100)
-  - Set quantity
+  - UI available to both GM and players, opened from a round floating button in the bottom-left of the channel (over the message avatars, above the composer)
+  - Pick dice from an icon grid (d4, d6, d8, d10, d12, d20, d100), each with its own die-shaped icon; tap a die to add it and tap again to add more, with a count badge on the icon
+  - Combine different dice in one roll (e.g. 2d6 + 1d8 + 3) — every selected die type is rolled and summed together
+  - Clear the whole dice selection with one button — Roll stays disabled until at least one die is picked
   - Add modifier (+N / -N) in Sum mode only
-  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first
-  - Advantage/disadvantage toggle (d20 only)
+  - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first. Pools use a single die type, so those modes are disabled while several types are selected
+  - Advantage/disadvantage toggle (a single d20, Sum mode only)
   - Quick-roll chips for the last 3 notations used in the channel — tap to load the values into the roller for review, then Roll to confirm. Notations the roller can't rebuild (drop-lowest, keep counts other than 1) still re-roll on tap
   - Pin up to 3 favorite notations per channel with the star checkbox — favorites stay pinned to the front of the chip row in amber
+  - A **Roll History** button in the panel opens the channel's roll history
   - On phones the roller opens as a bottom sheet (no clipping) with +/− modifier steppers
-  - The options panel closes after rolling, so the result message is immediately visible
+  - Rolling closes the roller so the result message is immediately visible
   - Roll button sends result as dice roll message
-- Roll history available per channel (header dice icon or sidebar item)
+- Roll history available per channel (panel button, header dice icon, or sidebar item)
 
 ## Notifications
 

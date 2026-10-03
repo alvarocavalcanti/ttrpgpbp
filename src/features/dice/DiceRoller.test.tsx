@@ -25,69 +25,87 @@ vi.mock('./useDiceFavorites', () => ({
   }))
 }))
 
+// Taps the die `count` times in the icon picker.
+function pickDie(sides: number, count = 1) {
+  for (let i = 0; i < count; i++) {
+    fireEvent.click(screen.getByRole('button', { name: `Add d${sides}` }))
+  }
+}
+
 describe('buildNotation', () => {
-  it('builds adv/dis notations', () => {
-    expect(buildNotation('d20', 1, 0, 'adv')).toBe('2d20kh1')
-    expect(buildNotation('d20', 1, 0, 'dis')).toBe('2d20kl1')
-    expect(buildNotation('d20', 1, 0, 'none')).toBe('1d20')
+  it('builds adv/dis notations for a single d20', () => {
+    expect(buildNotation([{ sides: 20, count: 1 }], 0, 'adv')).toBe('2d20kh1')
+    expect(buildNotation([{ sides: 20, count: 1 }], 0, 'dis')).toBe('2d20kl1')
+    expect(buildNotation([{ sides: 20, count: 1 }], 0, 'none')).toBe('1d20')
+  })
+
+  it('chains different dice into one sum', () => {
+    expect(buildNotation([{ sides: 6, count: 2 }, { sides: 8, count: 1 }], 3, 'none')).toBe('2d6+1d8+3')
   })
 
   it('appends modifiers with explicit sign', () => {
-    expect(buildNotation('d6', 3, 2, 'none')).toBe('3d6+2')
-    expect(buildNotation('d6', 3, -2, 'none')).toBe('3d6-2')
-    expect(buildNotation('d6', 3, 0, 'none')).toBe('3d6')
+    expect(buildNotation([{ sides: 6, count: 3 }], 2, 'none')).toBe('3d6+2')
+    expect(buildNotation([{ sides: 6, count: 3 }], -2, 'none')).toBe('3d6-2')
+    expect(buildNotation([{ sides: 6, count: 3 }], 0, 'none')).toBe('3d6')
   })
 
   it('builds raw pool notations with no total', () => {
-    expect(buildNotation('d6', 5, 0, 'none', 'pool')).toBe('5d6p')
+    expect(buildNotation([{ sides: 6, count: 5 }], 0, 'none', 'pool')).toBe('5d6p')
     // Pools drop keep/drop and modifiers: faces are read, not summed.
-    expect(buildNotation('d20', 1, 3, 'adv', 'pool')).toBe('1d20p')
+    expect(buildNotation([{ sides: 20, count: 1 }], 3, 'adv', 'pool')).toBe('1d20p')
   })
 
   it('builds success-count notations with the target', () => {
-    expect(buildNotation('d6', 5, 0, 'none', 'successes', 4)).toBe('5d6>=4')
-    expect(buildNotation('d10', 3, 0, 'none', 'successes', 8)).toBe('3d10>=8')
+    expect(buildNotation([{ sides: 6, count: 5 }], 0, 'none', 'successes', 4)).toBe('5d6>=4')
+    expect(buildNotation([{ sides: 10, count: 3 }], 0, 'none', 'successes', 8)).toBe('3d10>=8')
   })
 
   it('builds sorted pool notations when the sort flag is set', () => {
-    expect(buildNotation('d6', 5, 0, 'none', 'pool', 4, true)).toBe('5d6ps')
-    expect(buildNotation('d6', 5, 0, 'none', 'successes', 4, true)).toBe('5d6>=4s')
+    expect(buildNotation([{ sides: 6, count: 5 }], 0, 'none', 'pool', 4, true)).toBe('5d6ps')
+    expect(buildNotation([{ sides: 6, count: 5 }], 0, 'none', 'successes', 4, true)).toBe('5d6>=4s')
   })
 })
 
 describe('parseRollerNotation', () => {
   it('parses plain notations', () => {
-    expect(parseRollerNotation('1d20')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
-    expect(parseRollerNotation('3d6+2')).toEqual({ diceType: 'd6', quantity: 3, modifier: 2, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
-    expect(parseRollerNotation('2d8-5')).toEqual({ diceType: 'd8', quantity: 2, modifier: -5, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('1d20')).toEqual({ selection: [{ sides: 20, count: 1 }], modifier: 0, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('3d6+2')).toEqual({ selection: [{ sides: 6, count: 3 }], modifier: 2, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('2d8-5')).toEqual({ selection: [{ sides: 8, count: 2 }], modifier: -5, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+  })
+
+  it('parses chained sums into a selection', () => {
+    expect(parseRollerNotation('2d6+1d8+3')).toEqual({
+      selection: [{ sides: 6, count: 2 }, { sides: 8, count: 1 }], modifier: 3, advDis: 'none', poolMode: 'sum', target: 4, sorted: false,
+    })
+    expect(parseRollerNotation('2d20kh1+1d8')).toBeNull()
   })
 
   it('parses advantage and disadvantage', () => {
-    expect(parseRollerNotation('2d20kh1')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4, sorted: false })
-    expect(parseRollerNotation('2d20kl1+3')).toEqual({ diceType: 'd20', quantity: 1, modifier: 3, advDis: 'dis', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('2d20kh1')).toEqual({ selection: [{ sides: 20, count: 1 }], modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('2d20kl1+3')).toEqual({ selection: [{ sides: 20, count: 1 }], modifier: 3, advDis: 'dis', poolMode: 'sum', target: 4, sorted: false })
     // Keep count defaults to 1 on the server, like 2d20kh defaults to 2d20kh1.
-    expect(parseRollerNotation('2d20kh')).toEqual({ diceType: 'd20', quantity: 1, modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('2d20kh')).toEqual({ selection: [{ sides: 20, count: 1 }], modifier: 0, advDis: 'adv', poolMode: 'sum', target: 4, sorted: false })
   })
 
   it('parses raw pool and success-count notations', () => {
-    expect(parseRollerNotation('5d6p')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: false })
-    expect(parseRollerNotation('5d6>=4')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'successes', target: 4, sorted: false })
-    expect(parseRollerNotation('3d10>=8')).toEqual({ diceType: 'd10', quantity: 3, modifier: 0, advDis: 'none', poolMode: 'successes', target: 8, sorted: false })
+    expect(parseRollerNotation('5d6p')).toEqual({ selection: [{ sides: 6, count: 5 }], modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: false })
+    expect(parseRollerNotation('5d6>=4')).toEqual({ selection: [{ sides: 6, count: 5 }], modifier: 0, advDis: 'none', poolMode: 'successes', target: 4, sorted: false })
+    expect(parseRollerNotation('3d10>=8')).toEqual({ selection: [{ sides: 10, count: 3 }], modifier: 0, advDis: 'none', poolMode: 'successes', target: 8, sorted: false })
     // A raw-pool chip loads the default target for review, not a stale one.
-    expect(parseRollerNotation('2d4p')).toEqual({ diceType: 'd4', quantity: 2, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: false })
+    expect(parseRollerNotation('2d4p')).toEqual({ selection: [{ sides: 4, count: 2 }], modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: false })
   })
 
   it('parses sorted pool and success-count notations', () => {
-    expect(parseRollerNotation('5d6ps')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: true })
-    expect(parseRollerNotation('5d6>=4s')).toEqual({ diceType: 'd6', quantity: 5, modifier: 0, advDis: 'none', poolMode: 'successes', target: 4, sorted: true })
+    expect(parseRollerNotation('5d6ps')).toEqual({ selection: [{ sides: 6, count: 5 }], modifier: 0, advDis: 'none', poolMode: 'pool', target: 4, sorted: true })
+    expect(parseRollerNotation('5d6>=4s')).toEqual({ selection: [{ sides: 6, count: 5 }], modifier: 0, advDis: 'none', poolMode: 'successes', target: 4, sorted: true })
   })
 
   it('round-trips every canonical roller output', () => {
-    const canonical = ['1d20', '2d20kh1', '2d20kl1', '3d6+2', '2d8-5', '1d100', '100d4+999', '5d6p', '5d6>=4', '3d10>=8', '5d6ps', '5d6>=4s']
+    const canonical = ['1d20', '2d20kh1', '2d20kl1', '3d6+2', '2d8-5', '1d100', '100d4+999', '2d6+1d8+3', '5d6p', '5d6>=4', '3d10>=8', '5d6ps', '5d6>=4s']
     for (const n of canonical) {
       const parsed = parseRollerNotation(n)
       expect(parsed).not.toBeNull()
-      expect(buildNotation(parsed!.diceType, parsed!.quantity, parsed!.modifier, parsed!.advDis, parsed!.poolMode, parsed!.target, parsed!.sorted)).toBe(n)
+      expect(buildNotation(parsed!.selection, parsed!.modifier, parsed!.advDis, parsed!.poolMode, parsed!.target, parsed!.sorted)).toBe(n)
     }
   })
 
@@ -99,7 +117,7 @@ describe('parseRollerNotation', () => {
     expect(parseRollerNotation('3d6kh2')).toBeNull()
     expect(parseRollerNotation('3d6kh1')).toBeNull()
     expect(parseRollerNotation('2d6kl1')).toBeNull()
-    // Die sizes outside the select options.
+    // Die sizes outside the picker options.
     expect(parseRollerNotation('1d30')).toBeNull()
     expect(parseRollerNotation('5d1000')).toBeNull()
     // Counts / modifiers outside the form bounds load nothing — the chip
@@ -112,12 +130,18 @@ describe('parseRollerNotation', () => {
     // Not notations at all.
     expect(parseRollerNotation('')).toBeNull()
     expect(parseRollerNotation('hello')).toBeNull()
+    // Subtracting dice is never a valid chain.
+    expect(parseRollerNotation('2d6-1d8')).toBeNull()
+    // The form has one badge per die size, so a repeated size can't round-trip.
+    expect(parseRollerNotation('1d6+1d6')).toBeNull()
+    // Keep/drop on a non-first group has no form control.
+    expect(parseRollerNotation('2d6+2d20kh1')).toBeNull()
   })
 
   it('parses values at the edge of the form bounds', () => {
-    expect(parseRollerNotation('100d6')).toEqual({ diceType: 'd6', quantity: 100, modifier: 0, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
-    expect(parseRollerNotation('1d20+999')).toEqual({ diceType: 'd20', quantity: 1, modifier: 999, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
-    expect(parseRollerNotation('1d20-999')).toEqual({ diceType: 'd20', quantity: 1, modifier: -999, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('100d6')).toEqual({ selection: [{ sides: 6, count: 100 }], modifier: 0, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('1d20+999')).toEqual({ selection: [{ sides: 20, count: 1 }], modifier: 999, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
+    expect(parseRollerNotation('1d20-999')).toEqual({ selection: [{ sides: 20, count: 1 }], modifier: -999, advDis: 'none', poolMode: 'sum', target: 4, sorted: false })
   })
 
   it('returns null for pool notations the form cannot represent', () => {
@@ -151,26 +175,35 @@ describe('DiceRoller', () => {
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('1d20')
   })
 
-  it('changes quantity and dice type', () => {
+  it('rolls different dice together in one roll', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-
-    const quantityInput = screen.getByDisplayValue('1')
-    fireEvent.change(quantityInput, { target: { value: '3' } })
-
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'd8' } })
-
+    pickDie(20, 2)
+    pickDie(6, 1)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
-    expect(mockOnRoll).toHaveBeenCalledWith('3d8')
+    expect(mockOnRoll).toHaveBeenCalledWith('2d20+1d6')
+  })
+
+  it('keeps every selected die in the bag', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    pickDie(6, 2)
+    pickDie(8, 1)
+
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Add d8' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('dice-count-d6')).toHaveTextContent('2')
+    expect(screen.getByTestId('dice-count-d8')).toHaveTextContent('1')
   })
 
   it('adds modifiers', () => {
@@ -178,10 +211,11 @@ describe('DiceRoller', () => {
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
 
-    // Change modifier (second number input)
+    // Sum mode has one spinbutton: the modifier (the target is pool-only).
     const inputs = screen.getAllByRole('spinbutton')
-    fireEvent.change(inputs[1], { target: { value: '5' } })
+    fireEvent.change(inputs[0], { target: { value: '5' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -193,9 +227,10 @@ describe('DiceRoller', () => {
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
 
     const inputs = screen.getAllByRole('spinbutton')
-    fireEvent.change(inputs[1], { target: { value: '-2' } })
+    fireEvent.change(inputs[0], { target: { value: '-2' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -207,6 +242,7 @@ describe('DiceRoller', () => {
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Increase modifier' }))
     fireEvent.click(screen.getByRole('button', { name: 'Increase modifier' }))
     fireEvent.click(screen.getByRole('button', { name: 'Decrease modifier' }))
@@ -215,115 +251,103 @@ describe('DiceRoller', () => {
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+1')
   })
 
-  it('applies advantage to d20', () => {
+  it('applies advantage to a single d20', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kh1')
   })
 
-  it('applies disadvantage to d20', () => {
+  it('applies disadvantage to a single d20', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Dis' }))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('2d20kl1')
   })
 
-  it('clamps quantity to 1-100 at the point of input', () => {
-    const mockOnRoll = vi.fn()
-    render(<DiceRoller onRoll={mockOnRoll} />)
-
+  it('hides advantage once a second die or die type is added', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
+    expect(screen.getByRole('button', { name: 'Adv' })).toBeInTheDocument()
 
-    const quantityInput = screen.getByDisplayValue('1')
-    fireEvent.change(quantityInput, { target: { value: '9999' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    pickDie(6)
 
-    expect(mockOnRoll).toHaveBeenCalledWith('100d20')
+    expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
   })
 
-  it('clamps modifier to ±999 at the point of input', () => {
+  it('clears the whole dice selection and blocks rolling until a die is picked again', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
+
+    // No die is selected and Roll is disabled with a hint.
+    expect(screen.getByRole('button', { name: 'Add d20' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+    expect(screen.getByText('Pick at least one die to roll.')).toBeInTheDocument()
+
+    // Picking dice makes the form ready to roll again.
+    pickDie(6, 2)
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d6')
+  })
+
+  it('clears the dice after rolling so the next roll starts fresh', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(6, 2)
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('2d6')
+
+    // Reopen: the previous bag is gone and Roll is disabled again.
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+  })
+
+  it('clamps modifier to ±999 at the point of input', () => {    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
 
     const inputs = screen.getAllByRole('spinbutton')
-    fireEvent.change(inputs[1], { target: { value: '9999' } })
+    fireEvent.change(inputs[0], { target: { value: '9999' } })
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('1d20+999')
   })
 
-  it('allows clearing the quantity to type a new single digit (#665)', () => {
-    const mockOnRoll = vi.fn()
-    render(<DiceRoller onRoll={mockOnRoll} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
-
-    const quantityInput = screen.getByLabelText('Number of dice')
-    fireEvent.change(quantityInput, { target: { value: '' } })
-    fireEvent.change(quantityInput, { target: { value: '6' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
-
-    expect(mockOnRoll).toHaveBeenCalledWith('6d20p')
-  })
-
-  it('allows clearing the target to type a new digit (#665)', () => {
-    const mockOnRoll = vi.fn()
-    render(<DiceRoller onRoll={mockOnRoll} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
-
-    const targetInput = screen.getByLabelText('Target')
-    fireEvent.change(targetInput, { target: { value: '' } })
-    fireEvent.change(targetInput, { target: { value: '8' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
-
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20>=8')
-  })
-
-  it('allows clearing the modifier to type a new digit (#665)', () => {
-    const mockOnRoll = vi.fn()
-    render(<DiceRoller onRoll={mockOnRoll} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-
-    const modifierInput = screen.getByLabelText('Modifier')
-    fireEvent.change(modifierInput, { target: { value: '' } })
-    fireEvent.change(modifierInput, { target: { value: '5' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
-
-    expect(mockOnRoll).toHaveBeenCalledWith('1d20+5')
-  })
-
-  it('uses a numeric keyboard for the quantity and modifier inputs', () => {
+  it('uses a numeric keyboard for the modifier input', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
 
-    const inputs = screen.getAllByRole('spinbutton')
-    expect(inputs[0]).toHaveAttribute('inputmode', 'numeric')
-    expect(inputs[1]).toHaveAttribute('inputmode', 'numeric')
+    expect(screen.getByLabelText('Modifier')).toHaveAttribute('inputmode', 'numeric')
   })
 
   it('hides advantage controls for non-d20', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     expect(screen.getByRole('button', { name: 'Adv' })).toBeInTheDocument()
 
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'd6' } })
+    pickDie(6)
 
     expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
   })
@@ -334,9 +358,7 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
-
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
@@ -348,9 +370,7 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
-
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4')
@@ -362,9 +382,7 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
-
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByLabelText('Sort highest first'))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
@@ -377,13 +395,22 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
-
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6, 5)
     fireEvent.click(screen.getByLabelText('Sort highest first'))
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(mockOnRoll).toHaveBeenCalledWith('5d6>=4s')
+  })
+
+  it('disables pool modes when more than one die type is selected', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    pickDie(6)
+    pickDie(8)
+
+    expect(screen.getByRole('button', { name: 'Pool' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Successes' })).toBeDisabled()
   })
 
   it('hides the sort checkbox in sum mode', () => {
@@ -399,26 +426,10 @@ describe('DiceRoller', () => {
     expect(screen.queryByLabelText('Sort highest first')).not.toBeInTheDocument()
   })
 
-  it('clears advantage when entering a pool mode so quantity stays editable', () => {
-    const mockOnRoll = vi.fn()
-    render(<DiceRoller onRoll={mockOnRoll} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
-
-    // Quantity unlocks (it is disabled while d20 advantage is active) and
-    // the roll carries no keep/drop.
-    fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '5' } })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
-
-    expect(mockOnRoll).toHaveBeenCalledWith('5d6p')
-  })
-
   it('hides the modifier and advantage controls in pool modes', () => {
     render(<DiceRoller onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
 
     fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
     expect(screen.queryByRole('button', { name: 'Increase modifier' })).not.toBeInTheDocument()
@@ -435,7 +446,7 @@ describe('DiceRoller', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Successes' }))
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd6' } })
+    pickDie(6)
 
     fireEvent.change(screen.getByLabelText('Target'), { target: { value: '9' } })
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
@@ -525,9 +536,9 @@ describe('DiceRoller', () => {
     // The tap fills the form but does not roll yet.
     fireEvent.click(screen.getByRole('button', { name: 'Use 2d6+1' }))
     expect(mockOnRoll).not.toHaveBeenCalled()
-    expect(screen.getByDisplayValue('2')).toBeInTheDocument()
-    expect(screen.getByRole('combobox')).toHaveValue('d6')
-    expect(screen.getByDisplayValue('1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('dice-count-d6')).toHaveTextContent('2')
+    expect(screen.getByLabelText('Modifier')).toHaveValue(1)
 
     // Confirming with Roll sends the same notation.
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
@@ -571,6 +582,7 @@ describe('DiceRoller', () => {
     render(<DiceRoller channelId="c1" onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20')
 
@@ -585,6 +597,7 @@ describe('DiceRoller', () => {
   it('closes on Roll when rendered as a BottomSheet', () => {
     render(<DiceRoller popup channelId="c1" onRoll={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
 
     expect(screen.queryByRole('dialog', { name: 'Dice Roller' })).not.toBeInTheDocument()
@@ -601,6 +614,7 @@ describe('DiceRoller', () => {
 
     // Roll while the history response is still pending.
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('1d20')
 
@@ -682,5 +696,31 @@ describe('DiceRoller', () => {
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d20' })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d8' })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: 'Unfavorite 1d4' })).toBeEnabled()
+  })
+
+  it('opens the panel below the trigger when there is no room above', () => {
+    render(<DiceRoller fab panelBelow onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open dice roller' }))
+
+    const panel = screen.getByText('Dice Roller').closest('.absolute')
+    expect(panel?.className).toContain('top-full')
+    expect(panel?.className).not.toContain('bottom-full')
+  })
+
+  it('renders a floating trigger and opens the roll history from the panel', () => {
+    const onOpenHistory = vi.fn()
+    render(<DiceRoller fab onOpenHistory={onOpenHistory} onRoll={vi.fn()} />)
+
+    // The labelled composer chip is replaced by the round floating trigger.
+    expect(screen.queryByRole('button', { name: /Roll Dice/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open dice roller' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll History' }))
+
+    expect(onOpenHistory).toHaveBeenCalledTimes(1)
+    // The roller closes itself before history opens, so dismissing history
+    // returns to the channel rather than the still-open roller.
+    expect(screen.queryByRole('button', { name: 'Open dice roller' })).toBeInTheDocument()
+    expect(screen.queryByText('Dice Roller')).not.toBeInTheDocument()
   })
 })

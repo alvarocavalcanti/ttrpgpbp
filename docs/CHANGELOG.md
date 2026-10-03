@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **The dice roller has a new home** — it now floats in the bottom-left of the channel as a round dice button, instead of hiding in the message options menu. Each die has its own icon: tap one to add it, tap again to roll more, and mix different dice in a single roll (like 2d6 + 1d8 + 3). Clear the whole set in one tap, and open your roll history right from the panel.
 - **Clearer image uploads** — when a GM uploads an image from the message options, the Upload button now shows a spinner while it works and a confirmation toast when it finishes, so it's obvious the upload is happening.
 
 ## 2026-10-02

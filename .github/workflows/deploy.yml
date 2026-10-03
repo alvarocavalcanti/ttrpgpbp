@@ -16,6 +16,7 @@ on:
 permissions:
   contents: read
   deployments: write
+  pull-requests: write
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -65,6 +66,7 @@ jobs:
         run: npm run seo:verify-hydration
 
       - name: Deploy to Cloudflare Pages
+        id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -75,3 +77,18 @@ jobs:
           command: >-
             pages deploy dist --project-name=ttrpgpbp
             --branch=${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
+
+      # Surface the preview URL where reviewers can find it: the Direct Upload
+      # flow disables Cloudflare's native PR comment, so post it ourselves.
+      - name: Post preview URL
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+        run: |
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "No preview URL reported by the deploy step." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "Preview deployment: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "${{ github.event.pull_request.number }}" --body "Preview deployment ready: $PREVIEW_URL"

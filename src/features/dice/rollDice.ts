@@ -70,26 +70,33 @@ export function rollDice(
   const parsed = parseDiceNotation(notation)
   if (!parsed) return null
 
-  const { count, sides, keepDrop, mode, target, modifier, sorted } = parsed
+  const { groups, mode, target, modifier, sorted } = parsed
   // The grammar allows `0d6` / `1d0` / counts past the page limit; enforce the
   // same numeric bounds the server does before rolling.
-  if (count < 1 || count > 100 || sides < 1) return null
-  const values = Array.from({ length: count }, () => faceRoll(sides, rng))
-  const keptFlags = applyKeepDrop(values, keepDrop)
+  const totalDice = groups.reduce((sum, group) => sum + group.count, 0)
+  if (totalDice < 1 || totalDice > 100) return null
+  if (groups.some((group) => group.count < 1 || group.sides < 1)) return null
 
-  let dice: RolledDie[] = values.map((value, index) => ({
-    sides,
-    value,
-    kept: keptFlags[index],
-  }))
-  if (sorted) dice = [...dice].sort((a, b) => b.value - a.value)
+  // Pools are a single group; sums may chain several dice types.
+  const dice: RolledDie[] = []
+  for (const group of groups) {
+    const values = Array.from({ length: group.count }, () => faceRoll(group.sides, rng))
+    const keptFlags = applyKeepDrop(values, group.keepDrop)
+    values.forEach((value, index) => dice.push({ sides: group.sides, value, kept: keptFlags[index] }))
+  }
 
-  const keptValues = dice.filter((die) => die.kept).map((die) => die.value)
-  const total = mode === 'sum' ? keptValues.reduce((sum, value) => sum + value, 0) + modifier : null
+  if (mode === 'sum') {
+    const keptValues = dice.filter((die) => die.kept).map((die) => die.value)
+    const total = keptValues.reduce((sum, value) => sum + value, 0) + modifier
+    return { notation, mode, dice, total, successes: null, target: null, modifier }
+  }
+
+  const ordered = sorted ? [...dice].sort((a, b) => b.value - a.value) : dice
+  const keptValues = ordered.filter((die) => die.kept).map((die) => die.value)
   const successes =
     mode === 'successes' && target !== null
       ? keptValues.filter((value) => value >= target).length
       : null
 
-  return { notation, mode, dice, total, successes, target, modifier }
+  return { notation, mode, dice: ordered, total: null, successes, target, modifier }
 }

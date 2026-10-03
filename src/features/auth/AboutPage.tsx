@@ -56,7 +56,10 @@ export function AboutPage() {
         >
           Role by Post on GitHub
         </a>
-        <p className="mt-6 text-xs text-gray-400 dark:text-gray-500">Role by Post v{__APP_VERSION__}</p>
+        <p className="mt-6 text-xs text-gray-400 dark:text-gray-500">
+          Dice icons by <a href="https://game-icons.net/tags/dice.html" target="_blank" rel="noreferrer" className="underline hover:text-gray-500 dark:hover:text-gray-400">skoll &amp; Delapouite</a> (game-icons.net), licensed CC BY 3.0.
+        </p>
+        <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">Role by Post v{__APP_VERSION__}</p>
       </div>
     </div>
   )

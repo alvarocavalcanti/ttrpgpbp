@@ -49,6 +49,7 @@ test.describe('public route metadata', () => {
 
   test('public dice roller rolls in the browser without signing in', async ({ page }) => {
     await page.goto('/dice-roller')
+    await page.getByRole('button', { name: 'Add d20' }).click()
     await page.getByRole('button', { name: 'Roll' }).click()
     await expect(page.getByText('1d20')).toBeVisible()
     await expect(page.getByText(/^Total \d+$/)).toBeVisible()

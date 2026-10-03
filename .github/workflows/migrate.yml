@@ -3,6 +3,10 @@ name: Apply Migrations
 on:
   push:
     branches: [ main ]
+  # Manual trigger so a branch's pending migrations can be applied to the
+  # remote project before merge (e.g. to test a schema change on a PR preview,
+  # which points at the shared remote database).
+  workflow_dispatch:
 
 concurrency:
   group: migrate-${{ github.ref }}
@@ -34,6 +38,9 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
       - name: Deploy edge functions
+        # Edge functions ship from main only: a manual dispatch is for applying
+        # a branch's migrations, and repo-wide functions are immutable.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_ID"
           supabase functions deploy delete-account --project-ref "$SUPABASE_PROJECT_ID"

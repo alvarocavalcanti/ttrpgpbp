@@ -36,6 +36,8 @@ describe('MessageList', () => {
       />
     )
     expect(screen.getByText('No favorite messages yet.')).toBeInTheDocument()
+    // Small-screen empty states keep a side gutter instead of touching the edge.
+    expect(screen.getByText('No favorite messages yet.').parentElement?.className).toContain('px-4')
     fireEvent.click(screen.getByRole('button', { name: 'Load older messages' }))
     expect(onLoadOlder).toHaveBeenCalled()
   })
