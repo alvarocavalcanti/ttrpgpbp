@@ -65,7 +65,12 @@ describe('handlePushEvent', () => {
     await handlePushEvent(scope, {})
     expect(registration.showNotification).toHaveBeenCalledWith(
       'Role by Post',
-      expect.objectContaining({ body: '', icon: '/pwa-192x192.png', data: { url: '/' } })
+      expect.objectContaining({
+        body: '',
+        icon: '/pwa-192x192.png',
+        badge: '/notification-badge.png',
+        data: { url: '/' },
+      })
     )
   })
 
