@@ -46,7 +46,12 @@ export interface PushHandlerScope {
 
 const DEFAULT_TITLE = 'Role by Post'
 const DEFAULT_ICON = '/pwa-192x192.png'
-const DEFAULT_BADGE_ICON = '/favicon.svg'
+// Android's status-bar icon is the `badge`, and Android alpha-flattens it to a
+// monochrome silhouette (it uses only the alpha channel, tinting every
+// non-transparent pixel). The old multi-color SVG had an opaque full-bleed
+// background, so it rendered as a solid square. This is a dedicated 96x96
+// white-on-transparent PNG — SVG is not reliably rasterized for badges.
+const DEFAULT_BADGE_ICON = '/notification-badge.png'
 
 // Shows the notification and updates the app badge, each guarded so one
 // failing async step never rejects the whole push event. Resolves always.

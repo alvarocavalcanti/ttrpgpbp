@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-04
+
+### Fixed
+
+- **Android notifications show the app icon** — push notifications on Android now display the app's icon in the status bar instead of a blank white square.
+
 ## 2026-10-03
 
 ### Added

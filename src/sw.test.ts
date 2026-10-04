@@ -159,7 +159,7 @@ describe('sw push handler badge', () => {
     dispatchPush({ title: 'Hi', body: 'there', url: '/channel/c1' })
     expect(showNotification).toHaveBeenCalledWith(
       'Hi',
-      expect.objectContaining({ body: 'there', badge: '/favicon.svg' })
+      expect.objectContaining({ body: 'there', badge: '/notification-badge.png' })
     )
   })
 
