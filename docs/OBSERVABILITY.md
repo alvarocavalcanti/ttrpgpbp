@@ -21,10 +21,12 @@ To enable:
 
 Analytics is optional and build-time gated on `VITE_GA_MEASUREMENT_ID`; when it
 is unset (local dev, self-hosted) every call below is a no-op. GA loads only
-after the visitor accepts the consent banner, and the app sends **only the page
-path plus origin** for `page_view` — query strings and fragments are stripped
-so search terms (e.g. lobby search) never leave the device. Automatic
-`page_view` on the config call is disabled (`send_page_view: false`), and
+after the visitor accepts the consent banner. The app's manual `page_view`
+sends **only the page path plus origin** — query strings and fragments are
+stripped from that event, so search terms (e.g. lobby search) never leave the
+device through it. That guarantee covers the manual event only; GA4's own
+automatic page views are not controlled by the app. Automatic `page_view` on
+the config call is disabled (`send_page_view: false`), and
 `RouteTracker` sends the manual SPA page view instead. That flag does **not**
 disable Enhanced Measurement's *Page changes based on browser history events*:
 if that stream setting is on, GA4 can emit its own `page_view` on top of
@@ -42,8 +44,8 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 | Event | Origin | UX path it represents | Emitted from |
 | --- | --- | --- | --- |
 | `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). Fires on each route: sign-in, lobby, archived, admin, join, channel, settings, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query) | `App.tsx:97`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
-| `menu_open` | App | A nav drawer opened. Param `menu` = `main` (top hamburger) or `sidebar` (in-channel); `method` = `toggle` or `swipe` | `App.tsx:131`, `ChannelView.tsx:110` |
-| `menu_close` | App | Same drawer closed. `method` = `button`, `backdrop`, `swipe`, `escape`, or `modal` (sidebar auto-closed when an overlay opens) | `App.tsx:136`, `ChannelView.tsx:115,157` |
+| `menu_open` | App | A nav drawer opened. Param `menu` = `main` (top hamburger) or `sidebar` (in-channel); `method` = `toggle`, `swipe`, or `action` | `App.tsx:131`, `ChannelView.tsx:110` |
+| `menu_close` | App | Same drawer closed. `method` = `button`, `backdrop`, `swipe`, `escape`, `modal`, `toggle`, or `action` (sidebar auto-closed when an overlay opens) | `App.tsx:136`, `ChannelView.tsx:115,157` |
 | `marketing_track_toggle` | App | On `/features`: visitor switched the GM vs Player feature track. Param `track` | `FeaturesPage.tsx:149` |
 | `marketing_cta_click` | App | On `/features`: the "Start now!" CTA was clicked. Param `location` = `hero` or `bottom`. Falls below the Dashboard's top-10 cut-off at low volume | `FeaturesPage.tsx:134` |
 | `scroll` | GA4 automatic (Enhanced Measurement) | Visitor scrolled 90% of a page. Not tied to a specific screen | — |
