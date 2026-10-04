@@ -24,8 +24,12 @@ is unset (local dev, self-hosted) every call below is a no-op. GA loads only
 after the visitor accepts the consent banner, and the app sends **only the page
 path plus origin** for `page_view` — query strings and fragments are stripped
 so search terms (e.g. lobby search) never leave the device. Automatic
-`page_view` collection is disabled (`send_page_view: false`) so exactly one
-`page_view` fires per navigation, from `RouteTracker`.
+`page_view` on the config call is disabled (`send_page_view: false`), and
+`RouteTracker` sends the manual SPA page view instead. That flag does **not**
+disable Enhanced Measurement's *Page changes based on browser history events*:
+if that stream setting is on, GA4 can emit its own `page_view` on top of
+`RouteTracker`'s, so a navigation may be counted twice. Turn it off in the
+stream's Enhanced Measurement settings to rely on `RouteTracker` alone.
 
 ### Event reference
 
@@ -37,7 +41,7 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 
 | Event | Origin | UX path it represents | Emitted from |
 | --- | --- | --- | --- |
-| `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). One per route: sign-in, lobby, archived, admin, join, channel, settings, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query) | `App.tsx:97`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
+| `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). Fires on each route: sign-in, lobby, archived, admin, join, channel, settings, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query) | `App.tsx:97`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
 | `menu_open` | App | A nav drawer opened. Param `menu` = `main` (top hamburger) or `sidebar` (in-channel); `method` = `toggle` or `swipe` | `App.tsx:131`, `ChannelView.tsx:110` |
 | `menu_close` | App | Same drawer closed. `method` = `button`, `backdrop`, `swipe`, `escape`, or `modal` (sidebar auto-closed when an overlay opens) | `App.tsx:136`, `ChannelView.tsx:115,157` |
 | `marketing_track_toggle` | App | On `/features`: visitor switched the GM vs Player feature track. Param `track` | `FeaturesPage.tsx:149` |
@@ -46,7 +50,7 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 | `session_start` | GA4 automatic | A new session began | — |
 | `first_visit` | GA4 automatic | First-ever visit from that browser/device | — |
 | `user_engagement` | GA4 automatic | Page stayed foregrounded / engaged-session heartbeat | — |
-| `form_start` | GA4 automatic (Enhanced Measurement) | Visitor touched the first field of a form. Generic — which form (sign-in email, join password, etc.) is not distinguishable without a custom param | — |
+| `form_start` | GA4 automatic (Enhanced Measurement) | Visitor touched the first field of a form. Carries `form_id`, `form_name`, and `form_destination` — register them as event-scoped custom dimensions to report them. The app's forms set none of those attributes, so the values are blank | — |
 | `click` | GA4 automatic (Enhanced Measurement) | Outbound link click (leaving for another domain) | — |
 
 ### Seeing `page_view` with more detail
@@ -58,7 +62,9 @@ down by screen:
    `page_path` (e.g. `/`, `/settings`, `/channel/<id>`) with its **Views** —
    "Views" is the count of `page_view` events for that path. Sort, search, or
    click a row to filter the whole report to that screen.
-2. **Reports → Realtime** for the last 30 minutes, grouped by page path.
+2. **Reports → Realtime** for the last 30 minutes — its views card groups by
+   **page title / screen name**, not path; use Pages and screens or Explore
+   for a path breakdown.
 3. **Explore** for a custom breakdown (the most flexible view):
    1. Open **Explore**, choose the **Free form** template.
    2. Under **Dimensions**, pick **Page path and screen class** (this is
@@ -76,8 +82,9 @@ Two quirks worth knowing:
 
 - Each channel has its own id, so `/channel/<id>` shows as many separate rows.
   Group or filter rather than expecting one "channel" line.
-- The app sends no `page_title`, so title-based dimensions stay empty; use the
-  path dimensions instead.
+- The app sends no `page_title`, so GA4 falls back to `document.title`; title
+  dimensions are usually populated. On a lazy route (e.g. `/login`) the event
+  can fire before the page sets its title, so it may carry the previous title.
 
 ### Breaking custom events down by parameter
 
@@ -87,8 +94,10 @@ until registered as dimensions:
 1. **Admin → Data display → Custom definitions → Create custom dimension.**
 2. Scope: **Event**. Event parameter name: `menu` (repeat for `method`,
    `track`, `location`). Give each a readable name, e.g. "Menu".
-3. Allow up to 24–48 hours for backfill, then open **Explore**, filter to the
-   event (e.g. `menu_open`), and add the new dimension as a breakdown.
+3. Allow up to 24–48 hours for the registered dimension to appear in reports
+   (registering does not make events collected before registration
+   reportable), then open **Explore**, filter to the event (e.g. `menu_open`),
+   and add the new dimension as a breakdown.
 
 ## Realtime & Push Notifications Metrics
 
