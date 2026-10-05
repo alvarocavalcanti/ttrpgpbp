@@ -84,7 +84,7 @@ export function ChannelView() {
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
-  const { favoriteIds, toggleFavorite } = useMessageFavorites(id)
+  const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id)
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -231,6 +231,43 @@ export function ChannelView() {
     }
   }, [toggleReaction, addToast])
 
+  // Optimistic favorite toggle (#672): the star flips in the hook before the
+  // write lands; a failed write rolls back there and is rethrown here, so the
+  // only feedback left is the toast. The direction is read from a ref mirror
+  // (not the favoriteIds closure) so this callback stays stable for
+  // React.memo on MessageItem (#408).
+  const favoriteIdsRef = useRef(favoriteIds)
+  favoriteIdsRef.current = favoriteIds
+  const handleToggleFavorite = useCallback(async (messageId: string) => {
+    const wasFavorite = favoriteIdsRef.current.has(messageId)
+    try {
+      await toggleFavorite(messageId)
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err)
+      addToast(
+        wasFavorite
+          ? 'Could not remove favorite. Please try again.'
+          : 'Could not save favorite. Please try again.',
+        'error'
+      )
+    }
+  }, [toggleFavorite, addToast])
+
+  // Snapshot parity (#672): the favorites snapshot holds rows the timeline
+  // may not, so a local edit/delete patches it too — otherwise an old
+  // favorite edited from the Favorites view would stay stale until the next
+  // channel load. Only applied after the write succeeds; MessageItem already
+  // shows an inline error on failure.
+  const handleEditMessage = useCallback(async (id: string, content: string) => {
+    await editMessage(id, content)
+    patchFavoriteMessage(id, { content, is_edited: true })
+  }, [editMessage, patchFavoriteMessage])
+
+  const handleDeleteMessage = useCallback(async (id: string) => {
+    await deleteMessage(id)
+    patchFavoriteMessage(id, { is_deleted: true })
+  }, [deleteMessage, patchFavoriteMessage])
+
   // Dice-roll mentions only need user_id/character_name plus per-ability
   // modifiers; channel_members.attributes is a JSON object, so adapt the
   // narrow Member shape for MessageList. Declared above the early returns so
@@ -242,12 +279,28 @@ export function ChannelView() {
     attributes: (m.attributes as Record<string, number> | null) ?? undefined
   })), [members])
 
-  // Client-side favorites filter over the loaded page (MVP; a full-history
-  // lookup is a follow-up tied to #632).
-  const visibleMessages = useMemo(
-    () => (showFavoritesOnly ? messages.filter(m => favoriteIds.has(m.id)) : messages),
-    [showFavoritesOnly, messages, favoriteIds]
-  )
+  // Favorites view (#672): favorites outside the loaded timeline window come
+  // from the favorites snapshot (useMessageFavorites fetches the rows), so
+  // the user never has to page history to see them. Membership always comes
+  // from favoriteIds; a row held in the live window wins over its snapshot
+  // copy, which keeps edits/deletes/reactions consistent for in-window
+  // favorites.
+  const visibleMessages = useMemo(() => {
+    if (!showFavoritesOnly) return messages
+    const liveById = new Map(messages.map(m => [m.id, m]))
+    const snapshotById = new Map(favoriteMessages.map(m => [m.id, m]))
+    const out: ChatMessage[] = []
+    for (const m of messages) {
+      if (favoriteIds.has(m.id)) out.push(m)
+    }
+    for (const id of favoriteIds) {
+      if (liveById.has(id)) continue
+      const snapshot = snapshotById.get(id)
+      if (snapshot) out.push(snapshot)
+    }
+    out.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+    return out
+  }, [showFavoritesOnly, messages, favoriteIds, favoriteMessages])
 
   // Stable callback identity so MessageItem's React.memo isn't defeated on
   // every ChannelView render (#408). Keyed on myMemberInfo?.id so the identity
@@ -476,12 +529,31 @@ export function ChannelView() {
         )}
 
         <div className="relative flex flex-col flex-1 min-h-0">
-          <MessageList 
-            key={channel.id}
-            messages={visibleMessages} 
-            isGM={isGM} 
-            onEdit={editMessage} 
-            onDelete={deleteMessage} 
+          {/* Favorites view (#672): the favorites fetch runs alongside the
+              timeline fetch, and the user can toggle before it lands — show
+              skeletons instead of a lying empty state. In Favorites mode the
+              list is a complete store, so there is no history paging, no
+              unread divider, and errors/retry belong to the favorites
+              fetch. */}
+          {showFavoritesOnly && favoritesLoading ? (
+            <div data-testid="favorites-loading" aria-label="Loading favorites" aria-busy="true" className="flex-1 overflow-y-auto p-4 space-y-4">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="flex space-x-3">
+                  <div className="h-8 w-8 rounded-full bg-surface-200 dark:bg-surface-700 animate-pulse flex-shrink-0" />
+                  <div className="flex-1 space-y-2 pt-1">
+                    <div className="h-3 w-24 rounded bg-surface-200 dark:bg-surface-700 animate-pulse" />
+                    <div className="h-3 w-2/3 rounded bg-surface-200 dark:bg-surface-700 animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+          <MessageList
+            key={showFavoritesOnly ? `${channel.id}:favorites` : channel.id}
+            messages={visibleMessages}
+            isGM={isGM}
+            onEdit={handleEditMessage}
+            onDelete={handleDeleteMessage}
             onRollDice={sendDiceRoll}
             highlightMessageId={highlightMessageId}
             members={chatMembers}
@@ -490,24 +562,25 @@ export function ChannelView() {
             onToggleReaction={handleToggleReaction}
             onReply={handleReply}
             onJumpToMessage={handleJumpToMessage}
-            lastReadAt={lastReadAt ?? myMemberInfo?.last_read_at}
-            boundaryRevision={boundaryRevision}
+            lastReadAt={showFavoritesOnly ? null : (lastReadAt ?? myMemberInfo?.last_read_at)}
+            boundaryRevision={showFavoritesOnly ? undefined : boundaryRevision}
             onRetry={retryMessage}
             onRemovePending={removePendingMessage}
             onReport={handleReportMessage}
-            onRetryLoad={refreshMessages}
+            onRetryLoad={showFavoritesOnly ? refetchFavorites : refreshMessages}
             // Open the mobile sidebar with the editor: the modal renders inside
             // the sidebar, whose translate-x-full transform would otherwise
             // become the containing block for its fixed positioning.
             onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
             favoriteIds={favoriteIds}
-            onToggleFavorite={toggleFavorite}
+            onToggleFavorite={handleToggleFavorite}
             emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : undefined}
-            error={messagesError}
-            hasMore={hasMore}
+            error={showFavoritesOnly ? favoritesError : messagesError}
+            hasMore={showFavoritesOnly ? false : hasMore}
             loadingOlder={loadingOlder}
-            onLoadOlder={loadOlder}
+            onLoadOlder={showFavoritesOnly ? undefined : loadOlder}
           />
+          )}
 
           {!channel.is_archived && (
             <DiceRollerFab

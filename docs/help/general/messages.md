@@ -45,7 +45,7 @@ If a message or dice roll fails to send because of a network drop, it will appea
 
 ## Favorites
 
-Hover a message (or tap **"⋯"** on mobile) and choose **Favorite** to save it for later. Saved messages show a filled star. The **Favorites** toggle in the channel header filters the timeline down to the messages you've saved; tap it again to show everything. Favorites are private to you and stick around between sessions.
+Hover a message (or tap **"⋯"** on mobile) and choose **Favorite** to save it for later. Saved messages show a filled star. The **Favorites** toggle in the channel header shows every message you've saved — even old ones, which load for you automatically with a brief loading state; tap it again to show everything. If saving ever fails, the star flips back and you'll see a message saying it couldn't be saved. Favorites are private to you and stick around between sessions.
 
 ## Reactions
 

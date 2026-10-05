@@ -176,9 +176,9 @@ describe('useMessageFavorites', () => {
     const { result } = renderHook(() => useMessageFavorites('c1', true))
     await act(async () => {})
 
-    await act(async () => {
+    await expect(act(async () => {
       await result.current.toggleFavorite('m1')
-    })
+    })).rejects.toThrow('DB error')
     expect(result.current.isFavorite('m1')).toBe(false)
   })
 
@@ -199,9 +199,9 @@ describe('useMessageFavorites', () => {
       expect(result.current.isFavorite('m1')).toBe(true)
     })
 
-    await act(async () => {
+    await expect(act(async () => {
       await result.current.toggleFavorite('m1')
-    })
+    })).rejects.toThrow('DB error')
     expect(result.current.isFavorite('m1')).toBe(true)
   })
 
@@ -258,5 +258,157 @@ describe('useMessageFavorites', () => {
       await result.current.toggleFavorite('m1')
     })
     expect(insert).not.toHaveBeenCalled()
+  })
+
+  // A full favorite row as served by the embedded select (#672).
+  const embeddedMessage = (id: string) => ({
+    id,
+    channel_id: 'c1',
+    sender_id: 'u1',
+    content: `content of ${id}`,
+    type: 'regular',
+    whisper_to: null,
+    reply_to: null,
+    npc_name: null,
+    npc_avatar_url: null,
+    is_deleted: false,
+    is_edited: false,
+    created_at: '2026-01-01T00:00:01Z',
+    updated_at: '2026-01-01T00:00:01Z',
+    roll_dc: null,
+    roll_success: null,
+    sender: { display_name: 'Hero', avatar_url: null }
+  })
+
+  it('exposes the favorited messages with joins normalized (#672)', async () => {
+    mockFrom({
+      data: [
+        {
+          message_id: 'm1',
+          created_at: '2026-01-01T00:00:01Z',
+          message: {
+            ...embeddedMessage('m1'),
+            reply_to: 'm0',
+            sender: [{ display_name: 'Hero', avatar_url: null }],
+            reply: [{ id: 'm0', content: 'quoted', sender_id: 'u2', is_deleted: false, type: 'regular' }]
+          }
+        }
+      ],
+      error: null
+    })
+
+    const { result } = renderHook(() => useMessageFavorites('c1', true))
+    await waitFor(() => {
+      expect(result.current.favoriteMessages).toHaveLength(1)
+    })
+    const [row] = result.current.favoriteMessages
+    expect(row.content).toBe('content of m1')
+    expect(row.sender).toEqual({ display_name: 'Hero', avatar_url: null })
+    expect(row.reply).toMatchObject({ id: 'm0', content: 'quoted' })
+  })
+
+  it('drops malformed or hidden embedded messages but keeps the id (#672)', async () => {
+    mockFrom({
+      data: [
+        { message_id: 'm1', created_at: '2026-01-01T00:00:01Z', message: { bogus: true } },
+        { message_id: 'm2', created_at: '2026-01-01T00:00:02Z', message: null }
+      ],
+      error: null
+    })
+
+    const { result } = renderHook(() => useMessageFavorites('c1', true))
+    await waitFor(() => {
+      expect(result.current.isFavorite('m1')).toBe(true)
+      expect(result.current.isFavorite('m2')).toBe(true)
+    })
+    expect(result.current.favoriteMessages).toHaveLength(0)
+  })
+
+  it('reports loading while the favorites fetch is in flight (#672)', async () => {
+    let resolveFetch: (value: unknown) => void = () => {}
+    const range = vi.fn().mockImplementation(() => new Promise(resolve => { resolveFetch = resolve }))
+    const order = vi.fn(() => ({ range }))
+    const eq = vi.fn(() => ({ eq, order }))
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn(() => ({ eq })) } as any)
+
+    const { result } = renderHook(() => useMessageFavorites('c1', true))
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true)
+    })
+    await act(async () => {
+      resolveFetch({ data: [], error: null })
+    })
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+  })
+
+  it('surfaces fetch failures and clears them on refetch (#672)', async () => {
+    const range = vi.fn().mockRejectedValueOnce(new Error('db down'))
+    const order = vi.fn(() => ({ range }))
+    const eq = vi.fn(() => ({ eq, order }))
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn(() => ({ eq })) } as any)
+
+    const { result } = renderHook(() => useMessageFavorites('c1', true))
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe('db down')
+    })
+    expect(result.current.loading).toBe(false)
+
+    range.mockResolvedValueOnce({ data: [], error: null })
+    await act(async () => {
+      result.current.refetch()
+    })
+    await waitFor(() => {
+      expect(result.current.error).toBeNull()
+    })
+    expect(range).toHaveBeenCalledTimes(2)
+  })
+
+  it('clears the snapshot and error when the channel scope changes (#672)', async () => {
+    const range = vi.fn().mockRejectedValueOnce(new Error('db down'))
+    const order = vi.fn(() => ({ range }))
+    const eq = vi.fn(() => ({ eq, order }))
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn(() => ({ eq })) } as any)
+    const { result, rerender } = renderHook(
+      ({ channelId }) => useMessageFavorites(channelId, true),
+      { initialProps: { channelId: 'c1' } }
+    )
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe('db down')
+    })
+
+    mockFrom({
+      data: [{ message_id: 'm9', created_at: '2026-01-01T00:00:01Z', message: embeddedMessage('m9') }],
+      error: null
+    })
+    rerender({ channelId: 'c2' })
+    await waitFor(() => {
+      expect(result.current.error).toBeNull()
+      expect(result.current.favoriteMessages).toHaveLength(1)
+    })
+    expect(result.current.favoriteMessages[0].id).toBe('m9')
+  })
+
+  it('patchFavoriteMessage updates the snapshot row in place (#672)', async () => {
+    mockFrom({
+      data: [{ message_id: 'm1', created_at: '2026-01-01T00:00:01Z', message: embeddedMessage('m1') }],
+      error: null
+    })
+    const { result } = renderHook(() => useMessageFavorites('c1', true))
+    await waitFor(() => {
+      expect(result.current.favoriteMessages).toHaveLength(1)
+    })
+
+    act(() => {
+      result.current.patchFavoriteMessage('m1', { content: 'edited', is_edited: true })
+    })
+    expect(result.current.favoriteMessages[0].content).toBe('edited')
+    expect(result.current.favoriteMessages[0].is_edited).toBe(true)
+
+    act(() => {
+      result.current.patchFavoriteMessage('missing', { content: 'x' })
+    })
+    expect(result.current.favoriteMessages).toHaveLength(1)
   })
 })
