@@ -113,7 +113,7 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
                 ref={statusRef}
                 className={`${proseAmber} ${isExpanded ? '' : 'line-clamp-1'}`}>
                 {statusText ? (
-                  <Markdown>{statusText}</Markdown>
+                  <Markdown breaks>{statusText}</Markdown>
                 ) : (
                   <span className="italic opacity-50">No status set.</span>
                 )}

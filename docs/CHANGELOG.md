@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **Favorites open right away** — opening your saved messages no longer needs repeated "Load older messages" taps: all your favorites load in one step, with a brief loading state. If saving a favorite ever fails, the star flips back and tells you it couldn't be saved.
+- **Line breaks show up where you typed them** — pressing Enter in a post, announcement, or channel status now starts a new line, instead of running the text together. Paragraphs in admin messages also have proper spacing again, and lists stay readable on your own messages.
 
 ## 2026-10-04
 

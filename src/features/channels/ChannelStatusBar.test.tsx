@@ -133,6 +133,11 @@ describe('ChannelStatusBar', () => {
     expect(prose).not.toHaveClass('prose-amber')
   })
 
+  it('renders single newlines as line breaks in the status', () => {
+    const { container } = render(<ChannelStatusBar channelId="c1" statusText={'Watch order\nThor, then Lyra'} activePlayers={[]} isGM={false} onUpdate={vi.fn()} />)
+    expect(container.querySelector('br')).not.toBeNull()
+  })
+
   it('allows GM to edit status', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
     const mockOnUpdate = vi.fn()

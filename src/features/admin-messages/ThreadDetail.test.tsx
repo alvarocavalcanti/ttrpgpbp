@@ -373,4 +373,26 @@ describe('ThreadDetail', () => {
     render(<ThreadDetail thread={mockSystemThread} onBack={vi.fn()} />)
     expect(await screen.findByRole('link', { name: 'Evil' })).toHaveAttribute('href', '/admin?user=u9')
   })
+
+  it('renders single newlines as line breaks in admin messages', () => {
+    const msg: Message = { ...mockMessage, id: 'msg-br', content: 'Kind Regards,\nAlvaro' }
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [msg], loading: false } as any)
+    const { container } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(container.querySelector('br')).not.toBeNull()
+  })
+
+  it('uses white list markers on own bubbles so lists stay legible on the indigo background', () => {
+    const msg: Message = { ...mockMessage, id: 'msg-list', content: '- one\n- two' }
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [msg], loading: false } as any)
+    const { container } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    const prose = container.querySelector('.prose')!
+    expect(prose).toHaveClass('prose-li:marker:text-white')
+    expect(prose).toHaveClass('prose-ol:marker:text-white')
+  })
+
+  it('uses the default paragraph spacing instead of the tight my-1 clamp', () => {
+    vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
+    const { container } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    expect(container.querySelector('.prose')!.className).not.toContain('prose-p:my-1')
+  })
 })
