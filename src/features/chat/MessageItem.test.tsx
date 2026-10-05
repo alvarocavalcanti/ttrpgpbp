@@ -293,6 +293,19 @@ describe('MessageItem', () => {
     expect(screen.getByText('Hero')).toBeInTheDocument()
   })
 
+  it('renders single newlines as line breaks in regular messages', () => {
+    const msg: any = {
+      id: 'm-br',
+      type: 'regular',
+      content: 'Kind Regards,\nAlvaro',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(container.querySelector('br')).not.toBeNull()
+  })
+
   it('wraps long words in regular message content to avoid horizontal scroll', () => {
     const msg: any = {
       id: 'm1',

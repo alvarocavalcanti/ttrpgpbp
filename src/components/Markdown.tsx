@@ -7,6 +7,9 @@ export interface MarkdownProps {
   children: string
   components?: Components
   urlTransform?: (url: string) => string
+  // Chat-style line breaks: a single newline renders as <br>. Only enabled on
+  // user-authored surfaces (chat, admin messages, channel status).
+  breaks?: boolean
 }
 
 // Memoized: MessageItem hands `components`/`urlTransform` down on its own

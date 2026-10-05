@@ -699,7 +699,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </div>
             </div>
           ) : (
-            <Markdown components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
+            <Markdown breaks components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}
@@ -777,7 +777,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             {isFavorite && <FavoriteStar />}
           </div>
           <div className={`prose prose-sm prose-chat dark:prose-invert max-w-none text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT}`}>
-            <Markdown>{message.content}</Markdown>
+            <Markdown breaks>{message.content}</Markdown>
           </div>
           {errorOverlay}
           {!message.is_deleted && !message.pending && (
@@ -891,7 +891,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </div>
             </div>
           ) : (
-            <Markdown components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
+            <Markdown breaks components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}

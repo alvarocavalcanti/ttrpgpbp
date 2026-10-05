@@ -13,7 +13,7 @@ Scene and NPC text is set in an easy-reading serif typeface, sized to read comfo
 
 ## Markdown and emoji
 
-Messages support **Markdown** and emoji. Bold, italics, lists, headings and code all work. URLs you post become clickable links.
+Messages support **Markdown** and emoji. Bold, italics, lists, headings and code all work. URLs you post become clickable links. Pressing Enter starts a new line, and a blank line starts a new paragraph.
 
 Messages can contain up to **4,000 characters**, including Markdown. The same limit applies when editing.
 

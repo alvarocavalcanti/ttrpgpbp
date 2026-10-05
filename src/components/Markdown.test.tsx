@@ -31,3 +31,17 @@ describe('Markdown', () => {
     expect(implCalls).toEqual(['# Hello', '# Goodbye'])
   })
 })
+
+describe('Markdown line breaks', () => {
+  it('renders a single newline as <br> when breaks is set', async () => {
+    const { default: MarkdownImpl } = await vi.importActual<typeof import('./MarkdownImpl')>('./MarkdownImpl')
+    const { container } = render(<MarkdownImpl breaks>{'Kind Regards,\nAlvaro'}</MarkdownImpl>)
+    expect(container.querySelector('br')).not.toBeNull()
+  })
+
+  it('collapses a single newline without breaks (standard markdown)', async () => {
+    const { default: MarkdownImpl } = await vi.importActual<typeof import('./MarkdownImpl')>('./MarkdownImpl')
+    const { container } = render(<MarkdownImpl>{'Kind Regards,\nAlvaro'}</MarkdownImpl>)
+    expect(container.querySelector('br')).toBeNull()
+  })
+})
