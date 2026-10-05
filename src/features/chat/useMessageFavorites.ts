@@ -1,26 +1,50 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fetchAllRows } from '../../lib/supabasePagination'
 import { useAuth } from '../auth/useAuth'
+import { toError } from '../../lib/errors'
+import type { ChatMessage } from './types'
+import { MESSAGE_SELECT } from './useMessages'
+import { parseServerMessage } from './validation'
 import { z } from 'zod'
 
 // Only the fields the UI uses are trusted from the payload: anything else is
-// stripped and malformed rows are dropped instead of poisoning the set.
+// stripped and malformed rows are dropped instead of poisoning the set. The
+// embedded favorite message is parsed separately by parseServerMessage.
 const favoriteRowSchema = z.object({
   message_id: z.string(),
-  created_at: z.string()
+  created_at: z.string(),
+  message: z.unknown().optional()
 })
 
 // Data layer for message favorites (#634): a per-user, per-channel set of
 // message ids with an optimistic toggle. Mirrors useDiceFavorites; there is no
 // cap and no realtime subscription (favorites are own-row and single-client).
+//
+// #672 also stores the favorited messages themselves (favoriteMessages), so
+// the Favorites view can render favorites that sit outside the loaded window
+// without manual history paging. Membership always comes from favoriteIds,
+// which already reconciles in-flight toggles; the snapshot is only a row
+// cache, so edit/delete parity is a one-way patch into it and never needs the
+// reconciliation machinery.
 export function useMessageFavorites(channelId: string | undefined, enabled = true) {
   const { user } = useAuth()
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  const [favoriteMessages, setFavoriteMessages] = useState<ChatMessage[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  // Bumped by refetch() to re-run the fetch (favorites error-state Retry).
+  const [reloadKey, setReloadKey] = useState(0)
+  const refetch = useCallback(() => setReloadKey(k => k + 1), [])
   const pending = useRef(new Set<string>())
   // Ids toggled after the in-flight fetch began. The fetch snapshot predates
   // them, so completion reconciles instead of replacing state.
   const deltas = useRef<{ added: string[]; removed: string[] }>({ added: [], removed: [] })
+  // Live view of the set so the stable toggleFavorite callback decides
+  // add-vs-remove without a stale closure (same pattern as messagesRef in
+  // useMessages).
+  const favoriteIdsRef = useRef(favoriteIds)
+  favoriteIdsRef.current = favoriteIds
   // Owner scope (channel + user). Rollbacks and late fetches from a previous
   // scope must never touch the new scope's state.
   const scope = `${channelId ?? ''}::${user?.id ?? ''}`
@@ -37,31 +61,51 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
       prevScopeRef.current = scope
       deltas.current = { added: [], removed: [] }
       setFavoriteIds(new Set())
+      setFavoriteMessages([])
+      setError(null)
     }
     if (!enabled || !channelId || !user) return
     const requestScope = scope
     let cancelled = false
+    setLoading(true)
     void (async () => {
-      // There is no favorite cap, so page under PostgREST's 1,000-row limit.
+      // The favorited message rows arrive embedded through the
+      // message_favorites.message_id FK, with the same joins the timeline
+      // uses (MESSAGE_SELECT), so out-of-window favorites render identically
+      // to loaded ones. There is no favorite cap, so page under PostgREST's
+      // 1,000-row limit.
       const query = supabase
         .from('message_favorites')
-        .select('message_id, created_at')
+        .select(`message_id, created_at, message:messages!message_favorites_message_id_fkey(${MESSAGE_SELECT})`)
         .eq('channel_id', channelId)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-      let data: unknown[]
+      let data: { message_id: string; created_at: string; message?: unknown }[]
       try {
-        data = await fetchAllRows<{ message_id: string; created_at: string }>(query)
-      } catch {
+        data = await fetchAllRows<{ message_id: string; created_at: string; message?: unknown }>(query)
+      } catch (err) {
+        // The error surfaces in the Favorites view (with Retry); the timeline
+        // itself is unaffected.
+        if (!cancelled && scopeRef.current === requestScope) {
+          console.error('Failed to load message favorites', err)
+          setError(toError(err))
+        }
         return
+      } finally {
+        if (!cancelled && scopeRef.current === requestScope) setLoading(false)
       }
       if (cancelled || scopeRef.current !== requestScope) return
+      // Success clears a stale error banner (e.g. after a refetch Retry).
+      setError(null)
       const fetched: string[] = []
+      const snapshot = new Map<string, ChatMessage>()
       for (const row of data) {
         const parsed = favoriteRowSchema.safeParse(row)
-        if (parsed.success && !fetched.includes(parsed.data.message_id)) {
-          fetched.push(parsed.data.message_id)
-        }
+        if (!parsed.success) continue
+        if (!fetched.includes(parsed.data.message_id)) fetched.push(parsed.data.message_id)
+        const embedded = parsed.data.message
+        const message = parseServerMessage(Array.isArray(embedded) ? embedded[0] : embedded) as ChatMessage | null
+        if (message && !snapshot.has(message.id)) snapshot.set(message.id, message)
       }
       // Reconcile with toggles made while the request was in flight: keep
       // later additions, honor later removals.
@@ -71,6 +115,10 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
         ...added.filter(id => !fetched.includes(id))
       ]
       setFavoriteIds(new Set(merged))
+      // The snapshot is deliberately not delta-filtered: it is a row cache
+      // and membership is gated by favoriteIds, so a stale row is harmless
+      // and unfavorite→re-favorite in the Favorites view keeps working.
+      setFavoriteMessages([...snapshot.values()])
       // Keep only deltas the snapshot doesn't reflect yet (still in flight).
       deltas.current = {
         added: added.filter(id => !fetched.includes(id)),
@@ -78,17 +126,30 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
       }
     })()
     return () => { cancelled = true }
-  }, [enabled, channelId, user?.id, scope])
+  }, [enabled, channelId, user?.id, scope, reloadKey])
 
   const isFavorite = (messageId: string) => favoriteIds.has(messageId)
 
-  const toggleFavorite = async (messageId: string) => {
+  // Applies a mutation result to the snapshot so an edited or soft-deleted
+  // favorite renders its newest state even when the row sits outside the
+  // loaded timeline window (#672). Spreading over the held row preserves the
+  // sender/reply joins a mutation payload does not carry.
+  const patchFavoriteMessage = useCallback((id: string, patch: Partial<ChatMessage>) => {
+    setFavoriteMessages(prev => prev.map(m => (m.id === id ? { ...m, ...patch } : m)))
+  }, [])
+
+  // Optimistic toggle: flip the local set first (the star reacts instantly),
+  // then write. A failed write rolls back so the UI reconciles with the
+  // server instead of lying about it; the error is rethrown so the caller can
+  // surface it. Guard no-ops (no channel/user, in-flight) stay silent — a
+  // double tap is not an error.
+  const toggleFavorite = useCallback(async (messageId: string) => {
     if (!channelId || !user || pending.current.has(messageId)) return
     const requestScope = scopeRef.current
     const rollbackStale = () => scopeRef.current !== requestScope
     pending.current.add(messageId)
     try {
-      if (favoriteIds.has(messageId)) {
+      if (favoriteIdsRef.current.has(messageId)) {
         deltas.current = {
           added: deltas.current.added.filter(id => id !== messageId),
           removed: [...deltas.current.removed, messageId]
@@ -110,6 +171,7 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
             removed: deltas.current.removed.filter(id => id !== messageId)
           }
           setFavoriteIds(prev => new Set(prev).add(messageId))
+          throw error
         }
       } else {
         deltas.current = {
@@ -131,12 +193,13 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
             next.delete(messageId)
             return next
           })
+          throw error
         }
       }
     } finally {
       pending.current.delete(messageId)
     }
-  }
+  }, [channelId, user?.id])
 
-  return { favoriteIds, isFavorite, toggleFavorite }
+  return { favoriteIds, favoriteMessages, isFavorite, toggleFavorite, patchFavoriteMessage, loading, error, refetch }
 }

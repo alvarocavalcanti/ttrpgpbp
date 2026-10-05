@@ -32,7 +32,7 @@ const PAGE_SIZE = 50
 // PostgREST can't embed self-referencing FKs via hint or bare embed, so we use
 // the `reply_message` computed relationship function (see migration
 // 20260807161732_add_reply_message_function.sql).
-const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:reply_message(id, content, sender_id, is_deleted, type)'
+export const MESSAGE_SELECT = '*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), whisper_target:profiles!messages_whisper_to_fkey(display_name, avatar_url), reply:reply_message(id, content, sender_id, is_deleted, type)'
 
 // Validates a raw server message (Realtime or PostgREST row) and normalizes
 // joined embeds. Returns null for malformed rows so callers can drop them

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { ChannelView } from './ChannelView'
@@ -96,8 +96,13 @@ describe('ChannelView search functionality', () => {
 
     vi.mocked(useMessageFavorites).mockReturnValue({
       favoriteIds: new Set<string>(),
+      favoriteMessages: [],
       isFavorite: () => false,
-      toggleFavorite: vi.fn()
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
     } as any)
   })
 
@@ -127,8 +132,8 @@ describe('ChannelView search functionality', () => {
   it('filters to favorite messages when the header toggle is pressed (#634)', () => {
     vi.mocked(useMessages).mockReturnValue({
       messages: [
-        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1' },
-        { id: 'msg2', content: 'second', type: 'regular', sender_id: 'user1' }
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() },
+        { id: 'msg2', content: 'second', type: 'regular', sender_id: 'user1', created_at: '2026-10-05T10:01:00Z' }
       ],
       reactions: {},
       loading: false,
@@ -141,8 +146,13 @@ describe('ChannelView search functionality', () => {
     } as any)
     vi.mocked(useMessageFavorites).mockReturnValue({
       favoriteIds: new Set(['msg2']),
+      favoriteMessages: [],
       isFavorite: (id: string) => id === 'msg2',
-      toggleFavorite: vi.fn()
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
     } as any)
 
     render(
@@ -182,8 +192,13 @@ describe('ChannelView search functionality', () => {
     const toggleFavorite = vi.fn()
     vi.mocked(useMessageFavorites).mockReturnValue({
       favoriteIds: new Set<string>(),
+      favoriteMessages: [],
       isFavorite: () => false,
-      toggleFavorite
+      toggleFavorite,
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
     } as any)
 
     render(
@@ -198,6 +213,272 @@ describe('ChannelView search functionality', () => {
 
     fireEvent.click(screen.getByLabelText('Favorite'))
     expect(toggleFavorite).toHaveBeenCalledWith('msg1')
+  })
+
+  it('shows favorites outside the loaded window without paging (#672)', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found'),
+      hasMore: true,
+      loadingOlder: false,
+      loadOlder: vi.fn()
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set(['old1']),
+      favoriteMessages: [
+        { id: 'old1', content: 'ancient', type: 'regular', sender_id: 'user1', created_at: '2026-01-01T00:00:00Z' }
+      ],
+      isFavorite: (id: string) => id === 'old1',
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    expect(screen.getByText('ancient')).toBeInTheDocument()
+    expect(screen.queryByText('first')).not.toBeInTheDocument()
+    expect(screen.queryByText('Load older messages')).not.toBeInTheDocument()
+  })
+
+  it('shows a loading state while favorites load (#672)', () => {
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(),
+      favoriteMessages: [],
+      isFavorite: () => false,
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage: vi.fn(),
+      loading: true,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    expect(screen.getByTestId('favorites-loading')).toBeInTheDocument()
+    expect(screen.queryByText('No favorite messages yet. Star a message to find it here.')).not.toBeInTheDocument()
+  })
+
+  it('retries the favorites fetch from the empty error state (#672)', () => {
+    const refetch = vi.fn()
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(),
+      favoriteMessages: [],
+      isFavorite: () => false,
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: new Error('down'),
+      refetch
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    expect(screen.getByText('Could not load messages.')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Retry'))
+    expect(refetch).toHaveBeenCalled()
+  })
+
+  it('patches the favorites snapshot when a favorite is edited (#672)', async () => {
+    const editMessage = vi.fn().mockResolvedValue(undefined)
+    const patchFavoriteMessage = vi.fn()
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage,
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set(['msg1']),
+      favoriteMessages: [
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() }
+      ],
+      isFavorite: () => true,
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage,
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    fireEvent.click(screen.getByLabelText('Edit'))
+    fireEvent.change(screen.getByDisplayValue('first'), { target: { value: 'first edited' } })
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => {
+      expect(editMessage).toHaveBeenCalledWith('msg1', 'first edited')
+      expect(patchFavoriteMessage).toHaveBeenCalledWith('msg1', { content: 'first edited', is_edited: true })
+    })
+  })
+
+  it('patches the favorites snapshot when a favorite is deleted (#672)', async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined)
+    const patchFavoriteMessage = vi.fn()
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage,
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set(['msg1']),
+      favoriteMessages: [
+        { id: 'msg1', content: 'first', type: 'regular', sender_id: 'user1', created_at: new Date().toISOString() }
+      ],
+      isFavorite: () => true,
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage,
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    fireEvent.click(screen.getByLabelText('Delete'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete message?' })).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => {
+      expect(deleteMessage).toHaveBeenCalledWith('msg1')
+      expect(patchFavoriteMessage).toHaveBeenCalledWith('msg1', { is_deleted: true })
+    })
+  })
+
+  it('shows an error toast when saving a favorite fails (#672)', async () => {
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(),
+      favoriteMessages: [],
+      isFavorite: () => false,
+      toggleFavorite: vi.fn().mockRejectedValue(new Error('db down')),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByLabelText('Favorite'))
+    await waitFor(() => {
+      expect(screen.getByText('Could not save favorite. Please try again.')).toBeInTheDocument()
+    })
+  })
+
+  it('shows an error toast when removing a favorite fails (#672)', async () => {
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set(['msg1']),
+      favoriteMessages: [],
+      isFavorite: () => true,
+      toggleFavorite: vi.fn().mockRejectedValue(new Error('db down')),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByLabelText('Unfavorite'))
+    await waitFor(() => {
+      expect(screen.getByText('Could not remove favorite. Please try again.')).toBeInTheDocument()
+    })
   })
 
   it('truncates a long channel name without pushing header controls off-screen', () => {
