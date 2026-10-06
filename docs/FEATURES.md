@@ -154,7 +154,7 @@
 - **DC checks** (`DC 12 DEX Check`) — same as ability checks, but the result message states **Success**/**Failure** and is styled green/red based on whether the roll (with modifier) meets the DC (meets beats); also supports `with advantage` / `with disadvantage`
 - Rolls triggered from inline notation or check buttons in a message quote the source message (same "Replying to" block), so it's clear which request each roll answers
 - **Dice Roller Panel**:
-  - UI available to both GM and players, opened from a round floating button in the bottom-left of the channel (over the message avatars, above the composer)
+  - UI available to both GM and players, opened from a round floating button in the bottom-right of the channel (over the message avatars, above the composer)
   - Pick dice from an icon grid (d4, d6, d8, d10, d12, d20, d100), each with its own die-shaped icon; tap a die to add it and tap again to add more, with a count badge on the icon
   - Combine different dice in one roll (e.g. 2d6 + 1d8 + 3) — every selected die type is rolled and summed together
   - Clear the whole dice selection with one button — Roll stays disabled until at least one die is picked

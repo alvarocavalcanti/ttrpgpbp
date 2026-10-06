@@ -28,7 +28,7 @@ Ability checks and DC checks have their own topic — see [Ability & DC Checks](
 
 ## Dice Roller Panel
 
-Both GMs and players can use the **Dice Roller Panel**, opened from the round dice button that floats in the **bottom-left of the channel**:
+Both GMs and players can use the **Dice Roller Panel**, opened from the round dice button that floats in the **bottom-right of the channel**:
 
 - Pick a die from the icon grid (d4, d6, d8, d10, d12, d20, d100) — tap it to add one and keep tapping to add more. A small badge shows how many of each you've picked
 - Combine different dice in one roll: pick 2d6 and 1d8 and they roll and add up together
