@@ -65,6 +65,11 @@ describe('DiceRollerFab resize anchoring (#677)', () => {
   beforeEach(() => {
     areaH = 300
     localStorage.clear()
+    // jsdom lacks PointerEvent; alias it to MouseEvent so pointer events carry
+    // clientX/clientY for the drag flow.
+    if (!(window as unknown as { PointerEvent?: unknown }).PointerEvent) {
+      ;(window as unknown as { PointerEvent: unknown }).PointerEvent = window.MouseEvent
+    }
     Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => FAB_SIZE })
     Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => FAB_SIZE })
     Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
@@ -105,6 +110,47 @@ describe('DiceRollerFab resize anchoring (#677)', () => {
       ;(globalThis as any).__resizeObservers.at(-1).trigger()
     })
     expect(fab.style.top).toBe('232px')
+  })
+
+  it('reads a saved corner anchor on mount', () => {
+    localStorage.setItem('dice-roller-fab-position', JSON.stringify({ right: 100, bottom: 100 }))
+    render(<DiceRollerFab channelId="c1" onRoll={vi.fn()} onOpenHistory={vi.fn()} />)
+    const fab = screen.getByTestId('dice-roller-fab')
+    expect(fab.style.left).toBe('244px')
+    expect(fab.style.top).toBe('144px')
+  })
+
+  it('still reads a legacy absolute position on mount', () => {
+    localStorage.setItem('dice-roller-fab-position', JSON.stringify({ x: 100, y: 100 }))
+    render(<DiceRollerFab channelId="c1" onRoll={vi.fn()} onOpenHistory={vi.fn()} />)
+    const fab = screen.getByTestId('dice-roller-fab')
+    expect(fab.style.left).toBe('100px')
+    expect(fab.style.top).toBe('100px')
+  })
+
+  it('re-anchors on release after a resize mid-drag and persists the anchor', () => {
+    render(<DiceRollerFab channelId="c1" onRoll={vi.fn()} onOpenHistory={vi.fn()} />)
+    const fab = screen.getByTestId('dice-roller-fab')
+    const trigger = screen.getByRole('button', { name: 'Open dice roller' })
+
+    // Drag up 40px: y 232 -> 192.
+    fireEvent.pointerDown(trigger, { pointerId: 1, clientX: 100, clientY: 300 })
+    fireEvent.pointerMove(trigger, { pointerId: 1, clientX: 100, clientY: 260 })
+    expect(fab.style.top).toBe('192px')
+
+    // The composer grows mid-drag; the resize handler bails while dragging.
+    areaH = 200
+    act(() => {
+      ;(globalThis as any).__resizeObservers.at(-1).trigger()
+    })
+    expect(fab.style.top).toBe('192px')
+
+    // Release re-measures and pulls the fab back inside the shrunken area.
+    fireEvent.pointerUp(trigger, { pointerId: 1, clientX: 100, clientY: 260 })
+    expect(fab.style.top).toBe('92px')
+
+    // The corner anchor, not the stale absolute pixel, was saved.
+    expect(JSON.parse(localStorage.getItem('dice-roller-fab-position')!)).toEqual({ right: 12, bottom: 52 })
   })
 })
 

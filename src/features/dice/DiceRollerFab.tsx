@@ -57,6 +57,21 @@ function loadStoredPosition(): FabPoint | null {
   }
 }
 
+// Positions saved since #677 store the corner-relative anchor, so they survive
+// a reload at a different container size. Older saves hold absolute x/y and are
+// read by loadStoredPosition as legacy.
+function loadStoredAnchor(): FabAnchor | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<FabAnchor>
+    if (typeof parsed.right !== 'number' || typeof parsed.bottom !== 'number') return null
+    return { right: parsed.right, bottom: parsed.bottom }
+  } catch {
+    return null
+  }
+}
+
 interface Layout {
   x: number
   y: number
@@ -95,27 +110,36 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
 
   // Re-derive the FAB position from its bottom-right anchor. A transient
   // shrink clamps the *rendering* but must not rewrite the anchor, or the FAB
-  // stays stranded once the composer closes again (#677). Runs only from the
-  // resize handler, so it lives inside the effect.
+  // stays stranded once the composer closes again (#677). Shared by the resize
+  // handler and the end of a drag (a resize during the drag is skipped).
+  const reanchor = useCallback((dims: { fabW: number; fabH: number; areaW: number; areaH: number }) => {
+    const anchor = anchorRef.current
+    if (!anchor) {
+      place(defaultFabPosition(dims.areaW, dims.areaH, dims.fabW, dims.fabH), dims)
+      return
+    }
+    const point = pointFromAnchor(anchor, dims.areaW, dims.areaH, dims.fabW, dims.fabH)
+    setLayout({ ...point, areaW: dims.areaW, areaH: dims.areaH })
+  }, [place])
+
   useLayoutEffect(() => {
     const dims = measure()
     if (dims) {
-      const stored = loadStoredPosition()
-      place(stored ?? defaultFabPosition(dims.areaW, dims.areaH, dims.fabW, dims.fabH), dims)
+      const storedAnchor = loadStoredAnchor()
+      if (storedAnchor) {
+        anchorRef.current = storedAnchor
+        reanchor(dims)
+      } else {
+        // Legacy absolute position, or the bottom-right default on first run.
+        place(loadStoredPosition() ?? defaultFabPosition(dims.areaW, dims.areaH, dims.fabW, dims.fabH), dims)
+      }
     }
     // The message area shrinks/grows (e.g. a reply bar or a wrapped composer),
     // so re-anchor on its resize too, not just the window's.
     const reclamp = () => {
       if (drag.current) return
       const next = measure()
-      if (!next) return
-      const anchor = anchorRef.current
-      if (!anchor) {
-        place(defaultFabPosition(next.areaW, next.areaH, next.fabW, next.fabH), next)
-        return
-      }
-      const point = pointFromAnchor(anchor, next.areaW, next.areaH, next.fabW, next.fabH)
-      setLayout({ ...point, areaW: next.areaW, areaH: next.areaH })
+      if (next) reanchor(next)
     }
     window.addEventListener('resize', reclamp)
     const parent = wrapperRef.current?.offsetParent as HTMLElement | null
@@ -128,7 +152,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
       window.removeEventListener('resize', reclamp)
       observer?.disconnect()
     }
-  }, [measure, place])
+  }, [measure, place, reanchor])
 
   const onPointerDown = (e: ReactPointerEvent) => {
     // Only the round trigger drags; the open panel's controls must not.
@@ -159,8 +183,14 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
     movedRef.current = state.moved
     drag.current = null
     try { state.el.releasePointerCapture(e.pointerId) } catch { /* pointer capture unsupported */ }
-    if (state.moved && layout) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: layout.x, y: layout.y })) } catch { /* storage unavailable */ }
+    if (state.moved && anchorRef.current) {
+      // A resize during the drag was skipped (reclamp bails while dragging);
+      // re-derive from the anchor now so the FAB isn't left outside a shrunken
+      // container, then persist the corner-relative anchor for the next visit.
+      const dims = measure()
+      if (dims) reanchor(dims)
+      const anchor = anchorRef.current
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(anchor)) } catch { /* storage unavailable */ }
     }
   }
 
