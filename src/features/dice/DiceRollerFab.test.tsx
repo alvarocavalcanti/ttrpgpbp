@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-import { DiceRollerFab, clampFabPosition, defaultFabPosition } from './DiceRollerFab'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { DiceRollerFab, clampFabPosition, defaultFabPosition, anchorFromPoint, pointFromAnchor } from './DiceRollerFab'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: { rpc: vi.fn().mockResolvedValue({ data: [], error: null }) }
@@ -24,6 +24,87 @@ describe('dice roller fab position', () => {
 
   it('keeps the margin when the area is smaller than the fab', () => {
     expect(clampFabPosition(50, 50, 40, 40, 56, 56, 12)).toEqual({ x: 12, y: 12 })
+  })
+
+  it('describes the bottom-right spot as a corner anchor', () => {
+    expect(anchorFromPoint({ x: 332, y: 232 }, 400, 300, 56, 56, 12)).toEqual({ right: 12, bottom: 12 })
+  })
+
+  it('turns a corner anchor back into a position', () => {
+    expect(pointFromAnchor({ right: 12, bottom: 12 }, 400, 300, 56, 56, 12)).toEqual({ x: 332, y: 232 })
+  })
+
+  it('re-derives the same spot after the area shrinks and grows back (no drift)', () => {
+    const anchor = anchorFromPoint({ x: 332, y: 232 }, 400, 300, 56, 56)
+    expect(anchor).toEqual({ right: 12, bottom: 12 })
+    // Composer grows: the area loses 100px and the fab rides up with the edge.
+    expect(pointFromAnchor(anchor, 400, 200, 56, 56)).toEqual({ x: 332, y: 132 })
+    // Composer closes: the same anchor puts it right back.
+    expect(pointFromAnchor(anchor, 400, 300, 56, 56)).toEqual({ x: 332, y: 232 })
+  })
+
+  it('keeps a dragged spot relative to the bottom-right corner', () => {
+    const anchor = anchorFromPoint({ x: 100, y: 180 }, 400, 300, 56, 56)
+    expect(anchor).toEqual({ right: 244, bottom: 64 })
+    expect(pointFromAnchor(anchor, 400, 200, 56, 56)).toEqual({ x: 100, y: 80 })
+    expect(pointFromAnchor(anchor, 400, 300, 56, 56)).toEqual({ x: 100, y: 180 })
+  })
+
+  it('clamps a corner anchor when the area is smaller than the fab', () => {
+    expect(pointFromAnchor({ right: 12, bottom: 12 }, 40, 40, 56, 56, 12)).toEqual({ x: 12, y: 12 })
+  })
+})
+
+describe('DiceRollerFab resize anchoring (#677)', () => {
+  const FAB_SIZE = 56
+  const AREA_W = 400
+  let areaH = 300
+
+  // jsdom reports zero/null for layout metrics; stub the properties the FAB
+  // measures so a real ResizeObserver cycle can be driven.
+  beforeEach(() => {
+    areaH = 300
+    localStorage.clear()
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => FAB_SIZE })
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => FAB_SIZE })
+    Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.getAttribute('data-testid') === 'dice-roller-fab' ? document.body : null
+      },
+    })
+    Object.defineProperty(document.body, 'clientWidth', { configurable: true, get: () => AREA_W })
+    Object.defineProperty(document.body, 'clientHeight', { configurable: true, get: () => areaH })
+  })
+
+  afterEach(() => {
+    // Restore jsdom's defaults so the stubs don't leak into the other suites.
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 0 })
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 0 })
+    Object.defineProperty(HTMLElement.prototype, 'offsetParent', { configurable: true, get: () => null })
+    delete (document.body as unknown as Record<string, unknown>).clientWidth
+    delete (document.body as unknown as Record<string, unknown>).clientHeight
+  })
+
+  it('returns the fab to its bottom-right spot after the area shrinks and grows', () => {
+    render(<DiceRollerFab channelId="c1" onRoll={vi.fn()} onOpenHistory={vi.fn()} />)
+    const fab = screen.getByTestId('dice-roller-fab')
+    expect(fab.style.top).toBe('232px')
+    expect(fab.style.left).toBe('332px')
+
+    // The composer grows, shrinking the message area under the fab.
+    areaH = 200
+    act(() => {
+      ;(globalThis as any).__resizeObservers.at(-1).trigger()
+    })
+    expect(fab.style.top).toBe('132px')
+
+    // The message posts and the composer collapses: the fab must come back.
+    areaH = 300
+    act(() => {
+      ;(globalThis as any).__resizeObservers.at(-1).trigger()
+    })
+    expect(fab.style.top).toBe('232px')
   })
 })
 

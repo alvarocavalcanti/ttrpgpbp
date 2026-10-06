@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-06
+
+### Fixed
+
+- **The dice button stays put** — when the message box grows while you type and then shrinks after you post, the round dice button now returns to its usual spot instead of staying stranded higher up the channel.
+
 ## 2026-10-05
 
 ### Fixed
