@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **A press kit for creators** — writers, newsletter curators, and YouTubers now have one page to pull from: what Role by Post is (and what it isn't), the story, screenshots, the logo, a fact sheet, and a contact. Find it from the footer of any public page at [rolebypost.com/press](/press).
+- **See a whole session before you sign up** — the [Features page](/features) now walks you through a campaign from the first invite to the last roll, with pictures and no account needed. Tap any step to see it full size.
 
 ## 2026-10-06
 
