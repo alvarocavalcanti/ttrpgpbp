@@ -268,6 +268,50 @@ export function FeaturesPage() {
 
         <section className="py-12 border-t border-surface-200 dark:border-surface-700">
           <h2 className="text-2xl sm:text-3xl font-bold text-center text-surface-900 dark:text-surface-100">
+            A session, start to finish
+          </h2>
+          <p className="mt-3 text-center text-base text-surface-600 dark:text-surface-400 max-w-2xl mx-auto">
+            From the first invite to the last roll — here is how a campaign plays out, without an account.
+          </p>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {TOUR_STEPS.map((step, index) => (
+              <li
+                key={step.title}
+                className="flex gap-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-4 shadow-sm"
+              >
+                {/* Thumbnail trigger for the tour viewer; index is the step's
+                    position in TOUR_STEPS. */}
+                <button
+                  type="button"
+                  onClick={() => setTourViewing(index)}
+                  aria-label={`View ${step.title} image fullscreen`}
+                  className="shrink-0 self-start rounded-xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {/* Empty alt like the hero trigger: the button's label is the
+                      single accessible name; the viewer uses the step alt. */}
+                  <img
+                    src={thumbSrc(step.shot)}
+                    alt=""
+                    width={360}
+                    height={780}
+                    loading="lazy"
+                    className="w-20 sm:w-24 block rounded-xl border-2 border-surface-200 dark:border-surface-700 shadow"
+                  />
+                </button>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                    {`Step ${index + 1}`}
+                  </p>
+                  <h3 className="mt-0.5 text-base font-semibold text-surface-900 dark:text-surface-100">{step.title}</h3>
+                  <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{step.copy}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="py-12 border-t border-surface-200 dark:border-surface-700">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-surface-900 dark:text-surface-100">
             Made for your side of the table
           </h2>
           <div className="mt-6 flex justify-center">
@@ -335,50 +379,6 @@ export function FeaturesPage() {
               </article>
             ))}
           </div>
-        </section>
-
-        <section className="py-12 border-t border-surface-200 dark:border-surface-700">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center text-surface-900 dark:text-surface-100">
-            A session, start to finish
-          </h2>
-          <p className="mt-3 text-center text-base text-surface-600 dark:text-surface-400 max-w-2xl mx-auto">
-            From the first invite to the last roll — here is how a campaign plays out, without an account.
-          </p>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {TOUR_STEPS.map((step, index) => (
-              <li
-                key={step.title}
-                className="flex gap-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-4 shadow-sm"
-              >
-                {/* Thumbnail trigger for the tour viewer; index is the step's
-                    position in TOUR_STEPS. */}
-                <button
-                  type="button"
-                  onClick={() => setTourViewing(index)}
-                  aria-label={`View ${step.title} image fullscreen`}
-                  className="shrink-0 self-start rounded-xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {/* Empty alt like the hero trigger: the button's label is the
-                      single accessible name; the viewer uses the step alt. */}
-                  <img
-                    src={thumbSrc(step.shot)}
-                    alt=""
-                    width={360}
-                    height={780}
-                    loading="lazy"
-                    className="w-20 sm:w-24 block rounded-xl border-2 border-surface-200 dark:border-surface-700 shadow"
-                  />
-                </button>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary-600 dark:text-primary-400">
-                    {`Step ${index + 1}`}
-                  </p>
-                  <h3 className="mt-0.5 text-base font-semibold text-surface-900 dark:text-surface-100">{step.title}</h3>
-                  <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{step.copy}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
         </section>
 
         <section className="py-12 border-t border-surface-200 dark:border-surface-700">
