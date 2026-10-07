@@ -255,11 +255,18 @@ monthly review cadence.
   (verified by DNS, provider-agnostic), or a **URL-prefix** property for
   `https://rolebypost.com`. Under **Sitemaps**, submit
   `https://rolebypost.com/sitemap.xml`.
-- [ ] **Bing Webmaster Tools** — the simplest path is **Import from Google
-  Search Console** (no meta tag needed). If you verify with a meta tag instead,
-  add `<meta name="msvalidate.01" content="…">` to the `<head>` in
-  `index.html`; it survives into the prerendered `dist/index.html`. The value is
-  account-specific — add it only once Bing issues it, and keep it out of the
-  repository until then.
+- [ ] **Bing Webmaster Tools** — sign in with a Google account and pick
+  **Import from Google Search Console** (no meta tag needed). This copies site
+  ownership and the sitemap *reference* only — no historical GSC data carries
+  over. Bing says reports can take **up to 48 hours** after it verifies the site;
+  that reporting delay is separate from crawling and indexing, and Bing gives no
+  fixed indexing schedule (a new site can take a couple of weeks to appear in
+  search). If reports are still empty after 48 hours, check the import and
+  verification status. Under **Sitemaps**, submit
+  `https://rolebypost.com/sitemap.xml` manually — Bing's import batches sitemap
+  processing, so the imported entry may sit pending. The meta tag is a fallback
+  only: verify with `<meta name="msvalidate.01" content="…">` in the `<head>` of
+  `index.html` (it survives into `dist/index.html`); the value is
+  account-specific, so add it only once Bing issues it.
 - [ ] Confirm both properties report the sitemap as read and have no coverage
   errors for the public routes.
