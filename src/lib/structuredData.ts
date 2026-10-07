@@ -154,6 +154,18 @@ export function jsonLdForRoute(path: string, siteUrl: string): JsonLd[] {
     ]
   }
 
+  // The press kit is a flat marketing page: no Article/HowTo body, but a real
+  // Home > Press Kit hierarchy, so a BreadcrumbList is the accurate schema.
+  if (path === ROUTES.press) {
+    return [
+      breadcrumbJsonLd(
+        [{ label: 'Home', to: ROUTES.home }, { label: 'Press Kit' }],
+        path,
+        siteUrl,
+      ),
+    ]
+  }
+
   let breadcrumbs: Breadcrumb[]
   const content = CONTENT_ROUTES.find((entry) => entry.path === path)
   if (content) {

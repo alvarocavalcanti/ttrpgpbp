@@ -32,6 +32,7 @@ import { isMarketingPath, ROUTES } from './lib/publicRoutes'
 import { PrivacyPage } from './features/auth/PrivacyPage'
 import { TermsPage } from './features/auth/TermsPage'
 import { FeaturesPage } from './features/marketing/FeaturesPage'
+import { PressPage } from './features/marketing/PressPage'
 // Prerendered public content (issue #644) is eager, like the pages above.
 import { ContentPage } from './features/content/ContentPage'
 import { HelpPage } from './features/help/HelpPage'
@@ -425,6 +426,7 @@ export default function App() {
                     <Route path={ROUTES.privacy} element={<PrivacyPage />} />
                     <Route path={ROUTES.terms} element={<TermsPage />} />
                     <Route path={ROUTES.features} element={<FeaturesPage />} />
+                    <Route path={ROUTES.press} element={<PressPage />} />
                     <Route path={ROUTES.diceRoller} element={<DiceRollerPage />} />
                     <Route path={ROUTES.gameSystem} element={<GameSystemPage />} />
                     <Route path={ROUTES.playByPost} element={<ContentPage />} />

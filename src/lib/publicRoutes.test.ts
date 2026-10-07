@@ -24,6 +24,8 @@ describe('isMarketingPath', () => {
   it('matches the always-marketing routes with and without a trailing slash', () => {
     expect(isMarketingPath('/features')).toBe(true)
     expect(isMarketingPath('/features/')).toBe(true)
+    expect(isMarketingPath('/press')).toBe(true)
+    expect(isMarketingPath('/press/')).toBe(true)
     expect(isMarketingPath('/privacy')).toBe(true)
     expect(isMarketingPath('/terms')).toBe(true)
   })
@@ -47,6 +49,7 @@ describe('isMarketingPath', () => {
     expect(isMarketingPath('/channel/abc')).toBe(false)
     expect(isMarketingPath('/features-extra')).toBe(false)
     expect(isMarketingPath('/features/x')).toBe(false)
+    expect(isMarketingPath('/press-kit')).toBe(false)
     expect(isMarketingPath('/changelog')).toBe(false)
     expect(isMarketingPath('/helpful')).toBe(false)
   })
@@ -57,6 +60,7 @@ describe('PUBLIC_ROUTES', () => {
     expect(PUBLIC_ROUTES.map((route) => route.path)).toEqual([
       '/',
       '/features',
+      '/press',
       '/dice-roller',
       '/game-systems/shadowdark',
       '/play-by-post',

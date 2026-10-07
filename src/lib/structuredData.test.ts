@@ -123,6 +123,14 @@ describe('jsonLdForRoute', () => {
     expect(jsonLdForRoute('/help', SITE).map((n) => n['@type'])).toEqual(['BreadcrumbList'])
   })
 
+  it('emits only a BreadcrumbList for the press kit', () => {
+    const nodes = jsonLdForRoute('/press', SITE)
+    expect(nodes.map((n) => n['@type'])).toEqual(['BreadcrumbList'])
+    const crumbs = nodes[0].itemListElement as Array<Record<string, unknown>>
+    expect(crumbs.map((c) => c.name)).toEqual(['Home', 'Press Kit'])
+    expect(crumbs[1].item).toBe('https://rolebypost.com/press')
+  })
+
   it('emits Article + BreadcrumbList for help topics', () => {
     const topic = jsonLdForRoute('/help/dice-rolling', SITE)
     expect(topic.map((n) => n['@type'])).toEqual(['Article', 'BreadcrumbList'])

@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-07
+
+### Added
+
+- **A press kit for creators** — writers, newsletter curators, and YouTubers now have one page to pull from: what Role by Post is (and what it isn't), the story, screenshots, the logo, a fact sheet, and a contact. Find it from the footer of any public page at [rolebypost.com/press](/press).
+
 ## 2026-10-06
 
 ### Fixed
