@@ -124,6 +124,48 @@ const MORE_FEATURES: Array<{ title: string; copy: string }> = [
   { title: 'Sign in your way', copy: 'Continue with Google or a one-time email link — nothing to remember.' },
 ]
 
+// The guided tour (issue #647): a linear walkthrough of one session, distinct
+// from the GM/player feature cards. Reuses the committed help captures (thumbs
+// via `thumbSrc`), so no new screenshots and nothing is fetched at runtime.
+const TOUR_STEPS: FeatureCard[] = [
+  {
+    title: 'Create your campaign',
+    copy: 'Open a channel, name your table, and set the game system. Players join by invite link, with an optional password.',
+    shot: '/help-images/gm-settings.png',
+    alt: 'Channel settings screen with game system, member, and safety options',
+  },
+  {
+    title: 'Gather the table',
+    copy: 'Every campaign you play lives in one lobby, sorted by recent play, with unread counts so nobody loses the thread.',
+    shot: '/help-images/lobby-with-channels.png',
+    alt: 'Lobby listing joined channels with unread counts',
+  },
+  {
+    title: 'Play out a scene',
+    copy: 'Posts read back like a story: markdown, scene breaks, replies, reactions, and whispers with the GM in the same timeline.',
+    shot: '/help-images/message-actions.png',
+    alt: 'Message with reply, edit, reaction, and report actions',
+  },
+  {
+    title: 'Roll the dice',
+    copy: 'Tap dice notation to roll, or open an ability check with the modifier pre-filled. Every result shows its full breakdown.',
+    shot: '/help-images/dice-panel.png',
+    alt: 'Dice Roller with quick-roll chips and the Successes pool mode selected',
+  },
+  {
+    title: 'Keep everyone safe',
+    copy: 'Lines and veils plus an anonymous X-card keep the table comfortable, without an awkward conversation.',
+    shot: '/help-images/safety-tools.png',
+    alt: 'Safety tools screen listing lines and veils',
+  },
+  {
+    title: 'Keep momentum',
+    copy: 'A persistent status bar holds initiative order, active players, and story notes — always one glance away.',
+    shot: '/help-images/status-bar.png',
+    alt: 'Channel status bar showing active players and story notes',
+  },
+]
+
 function StartCta({ location }: { location: string }) {
   const { user } = useAuth()
   return (
@@ -153,6 +195,9 @@ export function FeaturesPage() {
   // Gallery index into the active track's enlarged-viewer sequence
   // (issue #615). Null means the viewer is closed.
   const [viewing, setViewing] = useState<number | null>(null)
+  // The guided tour's own viewer index (issue #647). Kept separate from
+  // `viewing` so it never opens the wrong image when the track toggles.
+  const [tourViewing, setTourViewing] = useState<number | null>(null)
   const gallery = buildGallery(cards)
   // A track switch must not leave a stale gallery index behind.
   useEffect(() => {
@@ -219,6 +264,50 @@ export function FeaturesPage() {
               className="w-full h-auto block"
             />
           </button>
+        </section>
+
+        <section className="py-12 border-t border-surface-200 dark:border-surface-700">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-surface-900 dark:text-surface-100">
+            A session, start to finish
+          </h2>
+          <p className="mt-3 text-center text-base text-surface-600 dark:text-surface-400 max-w-2xl mx-auto">
+            From the first invite to the last roll — here is how a campaign plays out, without an account.
+          </p>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {TOUR_STEPS.map((step, index) => (
+              <li
+                key={step.title}
+                className="flex gap-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-4 shadow-sm"
+              >
+                {/* Thumbnail trigger for the tour viewer; index is the step's
+                    position in TOUR_STEPS. */}
+                <button
+                  type="button"
+                  onClick={() => setTourViewing(index)}
+                  aria-label={`View ${step.title} image fullscreen`}
+                  className="shrink-0 self-start rounded-xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {/* Empty alt like the hero trigger: the button's label is the
+                      single accessible name; the viewer uses the step alt. */}
+                  <img
+                    src={thumbSrc(step.shot)}
+                    alt=""
+                    width={360}
+                    height={780}
+                    loading="lazy"
+                    className="w-20 sm:w-24 block rounded-xl border-2 border-surface-200 dark:border-surface-700 shadow"
+                  />
+                </button>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                    {`Step ${index + 1}`}
+                  </p>
+                  <h3 className="mt-0.5 text-base font-semibold text-surface-900 dark:text-surface-100">{step.title}</h3>
+                  <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{step.copy}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className="py-12 border-t border-surface-200 dark:border-surface-700">
@@ -359,6 +448,22 @@ export function FeaturesPage() {
           onNext={
             viewing !== null && viewing < gallery.items.length - 1
               ? () => setViewing(viewing + 1)
+              : undefined
+          }
+        />
+      )}
+
+      {/* Guided-tour viewer (issue #647): its own gallery, so the active
+          GM/player track never changes which step it opens. */}
+      {tourViewing !== null && (
+        <ImageViewerModal
+          src={TOUR_STEPS[tourViewing].shot}
+          alt={TOUR_STEPS[tourViewing].alt}
+          onClose={() => setTourViewing(null)}
+          onPrev={tourViewing > 0 ? () => setTourViewing(tourViewing - 1) : undefined}
+          onNext={
+            tourViewing < TOUR_STEPS.length - 1
+              ? () => setTourViewing(tourViewing + 1)
               : undefined
           }
         />

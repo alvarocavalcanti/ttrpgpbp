@@ -351,4 +351,87 @@ describe('FeaturesPage', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
   })
+
+  describe('guided tour (issue #647)', () => {
+    function dialogImage(): HTMLElement {
+      return within(screen.getByRole('dialog')).getByRole('img')
+    }
+
+    it('renders the walkthrough heading and every step thumbnail', () => {
+      const { container } = renderPage()
+
+      expect(screen.getByRole('heading', { name: 'A session, start to finish' })).toBeInTheDocument()
+
+      // The tour is the only <ol> on the page (the "and a lot more" list is a
+      // <ul>), so this scopes the assertion to the step thumbnails.
+      const thumbs = Array.from(container.querySelectorAll('ol img')).map((img) =>
+        img.getAttribute('src')
+      )
+      expect(thumbs).toEqual([
+        '/help-images/thumbs/gm-settings.webp',
+        '/help-images/thumbs/lobby-with-channels.webp',
+        '/help-images/thumbs/message-actions.webp',
+        '/help-images/thumbs/dice-panel.webp',
+        '/help-images/thumbs/safety-tools.webp',
+        '/help-images/thumbs/status-bar.webp',
+      ])
+      assertThumbsOnDisk(thumbs)
+    })
+
+    it('states each step title and copy', () => {
+      renderPage()
+
+      expect(screen.getByText('Create your campaign')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'Open a channel, name your table, and set the game system. Players join by invite link, with an optional password.'
+        )
+      ).toBeInTheDocument()
+      expect(screen.getByText('Gather the table')).toBeInTheDocument()
+      expect(screen.getByText('Play out a scene')).toBeInTheDocument()
+      expect(screen.getByText('Roll the dice')).toBeInTheDocument()
+      expect(screen.getByText('Keep everyone safe')).toBeInTheDocument()
+      expect(screen.getByText('Keep momentum')).toBeInTheDocument()
+    })
+
+    it('opens the full-size capture for a step and clamps at both ends', () => {
+      renderPage()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Create your campaign image fullscreen' })
+      )
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/gm-settings.png')
+      expect(dialogImage()).toHaveAttribute(
+        'alt',
+        'Channel settings screen with game system, member, and safety options'
+      )
+      expect(within(screen.getByRole('dialog')).getByLabelText('Previous image')).toBeDisabled()
+
+      // Advance to the final step; Next is disabled there.
+      for (let i = 0; i < 5; i++) {
+        fireEvent.click(within(screen.getByRole('dialog')).getByLabelText('Next image'))
+      }
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/status-bar.png')
+      expect(within(screen.getByRole('dialog')).getByLabelText('Next image')).toBeDisabled()
+    })
+
+    it('closes the step viewer with Escape', () => {
+      renderPage()
+
+      fireEvent.click(screen.getByRole('button', { name: 'View Roll the dice image fullscreen' }))
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/dice-panel.png')
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('keeps the tour viewer independent of the GM/player track toggle', () => {
+      renderPage()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'View Keep everyone safe image fullscreen' })
+      )
+      expect(dialogImage()).toHaveAttribute('src', '/help-images/safety-tools.png')
+    })
+  })
 })

@@ -10,6 +10,7 @@
 - **Public dice roller** — a free, signed-out `/dice-roller` tool for sum, pool, and success rolls, with mixed dice (`2d6 + 1d8 + 3`), modifiers, advantage/disadvantage, and pool sorting; rolls run entirely in the browser and are never saved
 - **Game-system page** — a public `/game-systems/shadowdark` landing page listing the system's attributes and modifier range plus example rolls; only systems with real content get a page
 - **FAQ rich result** — `/features` renders a visible FAQ section and carries matching `FAQPage` structured data
+- **Guided walkthrough on `/features`** — an "A session, start to finish" tour walks a signed-out visitor through creating a campaign, playing a scene, rolling dice, safety tools, and keeping momentum, reusing the committed help screenshots with tap-to-enlarge; no account required
 - **Rich results on the guides** — the how-to guides carry `HowTo` structured data, and every guide, comparison, and help topic carries `Article` plus breadcrumb structured data, so search engines can show richer results
 - **Author byline on every guide** — each guide credits its author with a link to the About page
 - **`robots.txt` and `sitemap.xml`** served for crawlers; app and account pages are kept out of the index
