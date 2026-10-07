@@ -6,6 +6,7 @@ export const ROUTES = {
   home: '/',
   login: '/login',
   features: '/features',
+  press: '/press',
   diceRoller: '/dice-roller',
   gameSystem: '/game-systems/:slug',
   playByPost: '/play-by-post',
@@ -165,6 +166,15 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.8,
   },
   {
+    path: ROUTES.press,
+    title: 'Press Kit — Role by Post',
+    description:
+      'Press and creator resources for Role by Post: the product story, brand assets, screenshots, a fact sheet, and a contact for media enquiries.',
+    waitSelector: 'h1',
+    changeFrequency: 'monthly',
+    priority: 0.5,
+  },
+  {
     path: ROUTES.diceRoller,
     title: 'Dice Roller — Roll Dice Online — Role by Post',
     description:
@@ -283,6 +293,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
 // prefix check below.
 const MARKETING_KEYS: RouteKey[] = [
   'features',
+  'press',
   'playByPost',
   'howToDnd',
   'howToRun',

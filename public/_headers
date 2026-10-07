@@ -45,6 +45,8 @@
   Cache-Control: no-cache
 /features
   Cache-Control: no-cache
+/press
+  Cache-Control: no-cache
 /play-by-post
   Cache-Control: no-cache
 /how-to/*

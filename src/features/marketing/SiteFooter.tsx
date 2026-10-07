@@ -25,6 +25,9 @@ export function SiteFooter() {
         <Link to="/features" className={LINK}>
           Features
         </Link>
+        <Link to="/press" className={LINK}>
+          Press Kit
+        </Link>
         <Link to="/dice-roller" className={LINK}>
           Dice Roller
         </Link>
