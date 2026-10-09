@@ -1,10 +1,10 @@
--- #689: app_error_log + report_app_error(). Covers clamping, the
--- pathname-only route, admin-only reads, and the write path (no direct
--- INSERT/UPDATE/DELETE grant).
+-- #689: app_error_log + report_app_error(). Covers priming/route stripping,
+-- clamping, message redaction, the detail allowlist, admin-only reads, and the
+-- write path (no direct INSERT/UPDATE/DELETE grant).
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(9);
+SELECT plan(11);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -20,7 +20,7 @@ RETURNS void LANGUAGE sql AS $$
     json_build_object('sub', p_uid::text, 'role', 'authenticated')::text, true);
 $$;
 
--- ===== 1. A player can report; the route keeps only the pathname =====
+-- ===== 1. A player can report; route keeps only the pathname =====
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000702');
 SET LOCAL ROLE authenticated;
 SELECT lives_ok(
@@ -31,6 +31,11 @@ RESET ROLE;
 
 SELECT is((SELECT count(*) FROM app_error_log), 1::bigint, 'one row was written');
 SELECT is((SELECT route FROM app_error_log), '/join/1', 'query string stripped from route');
+SELECT is(
+  (SELECT detail FROM app_error_log WHERE message = 'boom'),
+  NULL,
+  'non-allowlisted detail keys are dropped'
+);
 
 -- ===== 2. Message is clamped to 500 chars =====
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000702');
@@ -43,18 +48,31 @@ SELECT is(
   'message clamped to 500 chars'
 );
 
--- ===== 3. Oversized detail is replaced with a truncation marker =====
+-- ===== 3. Stack is kept but truncated to 800 chars =====
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000702');
 SET LOCAL ROLE authenticated;
-SELECT report_app_error('big', NULL, jsonb_build_object('pad', repeat('x', 2500)));
+SELECT report_app_error('stacked', NULL, jsonb_build_object('stack', repeat('x', 2000)));
 RESET ROLE;
 SELECT is(
-  (SELECT detail FROM app_error_log WHERE message = 'big'),
-  '{"truncated": true}'::jsonb,
-  'oversized detail truncated'
+  length((SELECT detail->>'stack' FROM app_error_log WHERE message = 'stacked')),
+  800,
+  'stack truncated to 800 chars'
 );
 
--- ===== 4. RLS: non-admin sees nothing; server admin sees rows =====
+-- ===== 4. Value dumps in the message are redacted =====
+SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000702');
+SET LOCAL ROLE authenticated;
+SELECT report_app_error('duplicate key value violates unique constraint "profiles_email_key"' ||
+  ' Key (email)=(secret@example.com) already exists.');
+RESET ROLE;
+SELECT is(
+  (SELECT message NOT LIKE '%secret@example.com%' AND message LIKE '%Key [redacted]%'
+   FROM app_error_log WHERE message LIKE 'duplicate key%'),
+  true,
+  'key values redacted from stored message'
+);
+
+-- ===== 5. RLS: non-admin sees nothing; server admin sees rows =====
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000702');
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*) FROM app_error_log), 0::bigint, 'non-admin cannot read the error log');
@@ -65,7 +83,7 @@ SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*) > 0 FROM app_error_log), true, 'server admin can read the error log');
 RESET ROLE;
 
--- ===== 5. No direct write grant =====
+-- ===== 6. No direct write grant =====
 SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000702');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
@@ -76,7 +94,7 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
--- ===== 6. Unauthenticated caller is rejected =====
+-- ===== 7. Unauthenticated caller is rejected =====
 SELECT set_config('request.jwt.claim.sub', '', false);
 SELECT set_config('request.jwt.claims', '{}', false);
 SELECT throws_ok(

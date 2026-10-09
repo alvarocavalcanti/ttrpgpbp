@@ -37,7 +37,7 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
     expect(spy).toHaveBeenCalledWith('Uncaught render error:', expect.any(Error), expect.anything())
-    expect(reportAppError).toHaveBeenCalledWith(expect.any(Error), { detail: { componentStack: expect.anything() } })
+    expect(reportAppError).toHaveBeenCalledWith(expect.any(Error), { componentStack: expect.anything() })
   })
 
   it('reloads the page from the fallback', () => {

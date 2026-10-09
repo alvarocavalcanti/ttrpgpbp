@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Uncaught render error:', error, info)
-    reportAppError(error, { detail: { componentStack: info.componentStack } })
+    reportAppError(error, { componentStack: info.componentStack ?? undefined })
   }
 
   handleReload = () => {

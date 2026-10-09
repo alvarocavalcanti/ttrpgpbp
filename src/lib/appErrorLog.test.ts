@@ -37,21 +37,21 @@ describe('reportAppError', () => {
     expect(lastRpcArg().p_route).toBe('/join/123')
   })
 
-  it('merges the caller detail with the stack', () => {
-    reportAppError(new Error('boom'), { detail: { where: 'join' } })
+  it('merges the caller component stack with the error stack, truncating each', () => {
+    reportAppError(new Error('boom'), { componentStack: 'at <Bomb>' })
 
     const arg = lastRpcArg()
     expect(arg.p_route).toBe('/join/123')
     const detail = arg.p_detail as Record<string, unknown>
-    expect(detail.where).toBe('join')
+    expect(detail.componentStack).toBe('at <Bomb>')
     expect(String(detail.stack)).toContain('boom')
-    expect(String(detail.stack).length).toBeLessThanOrEqual(1500)
+    expect(Object.keys(detail).sort()).toEqual(['componentStack', 'stack'])
   })
 
-  it('mirrors the error to Sentry', () => {
-    reportAppError(new Error('boom'), { detail: { where: 'join' } })
+  it('mirrors the error to Sentry with the component stack', () => {
+    reportAppError(new Error('boom'), { componentStack: 'at <Bomb>' })
 
-    expect(capture).toHaveBeenCalledWith(expect.any(Error), { where: 'join' })
+    expect(capture).toHaveBeenCalledWith(expect.any(Error), { componentStack: 'at <Bomb>' })
   })
 
   it('never throws when the report fails', async () => {

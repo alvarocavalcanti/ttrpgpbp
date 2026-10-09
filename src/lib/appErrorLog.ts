@@ -2,14 +2,17 @@ import { supabase } from './supabase'
 import { captureException } from './sentry'
 import { isAutomatedBrowser } from './automation'
 
+// Only these diagnostic fields are ever sent; the RPC allowlists them again.
+// Callers cannot attach arbitrary data (message content, secrets).
 export interface AppErrorContext {
-  detail?: Record<string, unknown>
+  componentStack?: string
 }
 
 // Best-effort durable error report. Never throws: telemetry must not break the
 // caller. Writes to public.app_error_log through report_app_error(), which
-// clamps every field server-side; also mirrors to Sentry when a DSN is set
-// (captureException is itself DSN-gated and no-ops in automated browsers).
+// clamps and redacts every field server-side; also mirrors to Sentry when a
+// DSN is set (captureException is itself DSN-gated and no-ops in automated
+// browsers).
 export function reportAppError(error: unknown, context: AppErrorContext = {}): void {
   if (isAutomatedBrowser()) return
 
@@ -17,11 +20,11 @@ export function reportAppError(error: unknown, context: AppErrorContext = {}): v
   // Pathname only — never a query string (lobby search terms must not leak).
   const route = typeof window !== 'undefined' ? window.location.pathname : undefined
   const detail = {
-    ...context.detail,
-    ...(err.stack ? { stack: err.stack.slice(0, 1500) } : {}),
+    ...(err.stack ? { stack: err.stack.slice(0, 800) } : {}),
+    ...(context.componentStack ? { componentStack: context.componentStack.slice(0, 800) } : {}),
   }
 
-  void captureException(err, context.detail)
+  void captureException(err, context.componentStack ? { componentStack: context.componentStack } : undefined)
 
   supabase
     .rpc('report_app_error', {

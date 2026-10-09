@@ -61,11 +61,32 @@ begin
     -- Pathname only: drop any query string defensively, even though the client
     -- already sends one, so search terms can never reach the table.
     left(split_part(p_route, '?', 1), 200),
-    left(coalesce(p_message, ''), 500),
+    -- Redact the value dumps Postgres embeds in error text (e.g. duplicate-key
+    -- "Key (email)=(a@b.com) already exists", NOT NULL "Failing row contains
+    -- (...)") so a log row never retains row data. The message text around the
+    -- dump is kept so the error is still diagnosable.
+    left(
+      regexp_replace(
+        regexp_replace(
+          coalesce(p_message, ''),
+          'Failing row contains \([^)]*\)', 'Failing row contains [redacted]', 'g'
+        ),
+        'Key\s*\([^)]*\)(\s*=\s*\([^)]*\))?', 'Key [redacted]', 'g'
+      ),
+      500
+    ),
+    -- Allowlist of diagnostic fields only, each truncated; anything a caller
+    -- stuffs into detail (user data, secrets) is dropped.
     case
       when p_detail is null or jsonb_typeof(p_detail) <> 'object' then null
-      when length(p_detail::text) > 2000 then jsonb_build_object('truncated', true)
-      else p_detail
+      else nullif(
+        (
+          select jsonb_object_agg(e.key, left(e.value, 800))
+          from jsonb_each_text(p_detail) e
+          where e.key in ('stack', 'componentStack')
+        ),
+        '{}'::jsonb
+      )
     end,
     left(p_user_agent, 300),
     left(p_app_version, 50)
