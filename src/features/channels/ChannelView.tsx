@@ -80,7 +80,7 @@ export function ChannelView() {
     setMessagesLoaded(false)
   }, [id])
 
-  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, gmOnlyResourcesUrl } = useChannel(id, handleChannelRead, canMarkRead)
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
@@ -785,6 +785,7 @@ export function ChannelView() {
         <ChannelSettings 
           channel={channel} 
           gmOnlyResourcesUrl={gmOnlyResourcesUrl}
+          hasPassword={hasPassword}
           onClose={() => setShowSettings(false)} 
           onUpdate={refetch}
         />

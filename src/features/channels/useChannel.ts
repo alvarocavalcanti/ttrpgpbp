@@ -20,6 +20,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
   const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState<string | null>(null)
+  const [hasPassword, setHasPassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
@@ -109,7 +110,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     async function loadMembers(): Promise<ChannelMember[]> {
       const [membersResponse, secretsResponse] = await Promise.all([
         supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string),
-        supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId as string).maybeSingle()
+        supabase.from('channel_secrets').select('gm_only_resources_url, password_hash').eq('channel_id', channelId as string).maybeSingle()
       ])
       if (membersResponse.error) throw membersResponse.error
 
@@ -128,6 +129,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       if (mounted) {
         // channel_secrets is GM-only (RLS); non-GMs get no row.
         setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
+        // Password state lives in channel_secrets (the channels row has no
+        // password column), so the Settings label reads it here.
+        setHasPassword(!!secretsResponse.data?.password_hash)
         setMembers(formattedMembers)
         if (!boundaryCapturedRef.current) {
           boundaryCapturedRef.current = true
@@ -258,5 +262,5 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   // markRead is exposed so the owner (ChannelView) can fire the deferred
   // history-first read-mark once the messages-loaded gate opens (#412).
-  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch }
+  return { channel, members, gmOnlyResourcesUrl, hasPassword, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch }
 }

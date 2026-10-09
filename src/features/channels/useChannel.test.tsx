@@ -23,7 +23,7 @@ vi.mock('../../lib/supabase', () => ({
 }))
 
 describe('useChannel', () => {
-  const mockSecret = (data: { gm_only_resources_url: string | null } | null = null) => {
+  const mockSecret = (data: { gm_only_resources_url?: string | null; password_hash?: string | null } | null = null) => {
     const mockMaybeSingle = vi.fn().mockResolvedValue({ data, error: null })
     const mockEqSecrets = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
     const mockSelectSecrets = vi.fn().mockReturnValue({ eq: mockEqSecrets })
@@ -115,6 +115,35 @@ describe('useChannel', () => {
     })
 
     expect(result.current.gmOnlyResourcesUrl).toBe('https://gm.secret')
+  })
+
+  it('derives hasPassword from channel_secrets.password_hash for the GM', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret({ gm_only_resources_url: null, password_hash: 'pbkdf2-hash' }) as any
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.hasPassword).toBe(true)
   })
 
   it('handles error gracefully when members fetch fails', async () => {
