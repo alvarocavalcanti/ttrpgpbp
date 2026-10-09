@@ -54,6 +54,15 @@ describe('reportAppError', () => {
     expect(capture).toHaveBeenCalledWith(expect.any(Error), { componentStack: 'at <Bomb>' })
   })
 
+  it('redacts embedded row values before either sink sees the message', () => {
+    reportAppError(new Error('duplicate key value violates unique constraint "x" Key (email)=(secret@example.com) already exists'))
+
+    expect(lastRpcArg().p_message).not.toContain('secret@example.com')
+    const sentryError = capture.mock.calls[0][0] as Error
+    expect(sentryError.message).not.toContain('secret@example.com')
+    expect(sentryError.message).toContain('Key [redacted]')
+  })
+
   it('never throws when the report fails', async () => {
     rpc.mockRejectedValue(new Error('network'))
 

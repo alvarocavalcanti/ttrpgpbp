@@ -55,6 +55,18 @@ begin
     raise exception 'Not authenticated';
   end if;
 
+  -- Crude per-user burst cap: a retry loop or a wedged client can otherwise
+  -- grow the table without limit. 20 rows/minute is far above a healthy error
+  -- rate, so it never bites real usage. ponytail: windowed count, no separate
+  -- ledger; revisit if it ever throttles a legitimate burst.
+  if (
+    select count(*) from public.app_error_log
+    where user_id = auth.uid()
+      and created_at > now() - interval '1 minute'
+  ) >= 20 then
+    return;
+  end if;
+
   insert into public.app_error_log (user_id, route, message, detail, user_agent, app_version)
   values (
     auth.uid(),

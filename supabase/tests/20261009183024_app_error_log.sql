@@ -4,12 +4,13 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(11);
+SELECT plan(12);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
   ('00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test689admin@example.com', '', now(), '{}', '{}', now(), now()),
-  ('00000000-0000-0000-0000-000000000702', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test689player@example.com', '', now(), '{}', '{}', now(), now());
+  ('00000000-0000-0000-0000-000000000702', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test689player@example.com', '', now(), '{}', '{}', now(), now()),
+  ('00000000-0000-0000-0000-000000000703', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test689spammer@example.com', '', now(), '{}', '{}', now(), now());
 
 UPDATE profiles SET server_admin = true WHERE id = '00000000-0000-0000-0000-000000000701';
 
@@ -94,7 +95,18 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
--- ===== 7. Unauthenticated caller is rejected =====
+-- ===== 7. Per-user burst cap (20/minute) =====
+SELECT pg_temp.jwt('00000000-0000-0000-0000-000000000703');
+SET LOCAL ROLE authenticated;
+SELECT report_app_error('spam') FROM generate_series(1, 25);
+RESET ROLE;
+SELECT is(
+  (SELECT count(*) FROM app_error_log WHERE user_id = '00000000-0000-0000-0000-000000000703'),
+  20::bigint,
+  'per-user burst cap holds at 20/minute'
+);
+
+-- ===== 8. Unauthenticated caller is rejected =====
 SELECT set_config('request.jwt.claim.sub', '', false);
 SELECT set_config('request.jwt.claims', '{}', false);
 SELECT throws_ok(
