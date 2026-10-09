@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-09
+
+### Fixed
+
+- **Invite links lead where they should** — opening a campaign invite link now takes you to the join screen with the invite ready, even if you sign in first. Before, it could drop you in the lobby and then claim the password or link was wrong.
+- **Joining a campaign speaks plainly** — if a join fails unexpectedly, you now get a friendly explanation instead of a technical database message.
+- **Channel Settings tells the truth about passwords** — it now shows that a password is set when your campaign is protected, instead of always reporting "No password".
+- **Copying an invite link is more reliable** — if the browser blocks the first copy attempt, the link still lands on your clipboard instead of failing silently.
+
 ## 2026-10-07
 
 ### Added

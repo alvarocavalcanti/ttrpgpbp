@@ -198,6 +198,28 @@ describe('JoinChannel', () => {
     })
   })
 
+  it('shows a friendly message and logs the detail when the join throws', async () => {
+    mockHook()
+    const rawError = 'null value in column "attributes" of relation "channel_members" violates not-null constraint'
+    mockJoinChannel.mockRejectedValue(new Error(rawError))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderJoin()
+
+    await waitFor(() => {
+      expect(screen.getByText('Join Channel')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Join Campaign' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Something went wrong joining this campaign. Please try again.')).toBeInTheDocument()
+    })
+    // The raw database message must never reach the player.
+    expect(screen.queryByText(rawError)).not.toBeInTheDocument()
+    expect(consoleSpy).toHaveBeenCalledWith('Error joining channel:', expect.any(Error))
+  })
+
   it('cancels join flow', async () => {
     mockHook()
 

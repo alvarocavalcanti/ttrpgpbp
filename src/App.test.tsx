@@ -177,6 +177,96 @@ describe('App', () => {
     expect(screen.getByText('Profile')).toBeInTheDocument()
   })
 
+  it('keeps a deep-link query string (invite ?code=) when AppNav mounts', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    window.history.pushState({}, '', '/join/123?code=abc123')
+    render(<App />)
+
+    expect(await screen.findByText('Join Channel')).toBeInTheDocument()
+    // The invite code must survive AppNav's lobby-search param sync.
+    expect(window.location.search).toBe('?code=abc123')
+    window.history.replaceState({}, '', '/')
+  })
+
+  it('syncs lobby search into ?q= without dropping other lobby params', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    window.history.pushState({}, '', '/?foo=bar')
+    render(<App />)
+
+    const input = await screen.findByLabelText('Search channels')
+    fireEvent.change(input, { target: { value: 'dragon' } })
+
+    await waitFor(() => {
+      expect(window.location.search).toContain('q=dragon')
+      expect(window.location.search).toContain('foo=bar')
+    }, { timeout: 2000 })
+
+    fireEvent.change(input, { target: { value: '' } })
+
+    await waitFor(() => {
+      expect(window.location.search).not.toContain('q=')
+      expect(window.location.search).toContain('foo=bar')
+    }, { timeout: 2000 })
+
+    window.history.replaceState({}, '', '/')
+  })
+
   it('shows Server Admin menu item only for server admins', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },

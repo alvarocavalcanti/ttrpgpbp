@@ -46,7 +46,6 @@ describe('ChannelSettings', () => {
     name: 'Game Room',
     map_url: 'http://map',
     resources_url: 'http://resources',
-    has_password: false,
     invite_code: '123'
   }
 
@@ -99,6 +98,26 @@ describe('ChannelSettings', () => {
     expect(screen.getByDisplayValue('http://gmresources')).toBeInTheDocument()
     expect(screen.getByLabelText('GM-Only Resources URL')).toHaveAttribute('maxLength', '500')
     expect(screen.getByDisplayValue('http://localhost/join/c1?code=123')).toBeInTheDocument()
+  })
+
+  it('shows the password as set when hasPassword is true', () => {
+    render(
+      <ChannelSettings channel={mockChannel} hasPassword onClose={vi.fn()} onUpdate={vi.fn()} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(screen.getByText('Password is set (hidden)')).toBeInTheDocument()
+    expect(screen.queryByText('No password currently set')).not.toBeInTheDocument()
+  })
+
+  it('shows no password when hasPassword is false', () => {
+    render(
+      <ChannelSettings channel={mockChannel} hasPassword={false} onClose={vi.fn()} onUpdate={vi.fn()} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(screen.getByText('No password currently set')).toBeInTheDocument()
+    expect(screen.queryByText('Password is set (hidden)')).not.toBeInTheDocument()
   })
 
   it('copies invite link to clipboard', async () => {

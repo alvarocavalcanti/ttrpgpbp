@@ -150,13 +150,19 @@ function AppNav() {
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
   const debouncedSearch = useDebounce(searchInput, 300)
 
+  // Only the lobby owns the `q` search param. Never blanket-replace the query
+  // string here: deep links carry their own params (invite `?code=`, magic-link
+  // `?redirect=`) that this effect used to wipe before their screens read them.
+  // Even on the lobby, edit only `q` so unrelated params survive.
   useEffect(() => {
-    if (debouncedSearch) {
-      setSearchParams({ q: debouncedSearch }, { replace: true })
-    } else {
-      setSearchParams({}, { replace: true })
-    }
-  }, [debouncedSearch, setSearchParams])
+    if (location.pathname !== ROUTES.home) return
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (debouncedSearch) next.set('q', debouncedSearch)
+      else next.delete('q')
+      return next
+    }, { replace: true })
+  }, [debouncedSearch, location.pathname, setSearchParams])
 
   if (!user || location.pathname.startsWith('/channel/')) return null
 

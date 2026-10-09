@@ -56,12 +56,25 @@ describe('copyToClipboard', () => {
     expect(textareaCount()).toBe(0)
   })
 
-  it('propagates a rejected navigator.clipboard write', async () => {
+  it('falls back to execCommand when the clipboard write rejects', async () => {
     stubSecureContext(true)
     const writeText = vi.fn().mockRejectedValue(new Error('denied'))
     stubClipboard(writeText)
+    document.execCommand = vi.fn().mockReturnValue(true)
 
-    await expect(copyToClipboard('hello')).rejects.toThrow('denied')
+    await copyToClipboard('hello')
+
+    expect(writeText).toHaveBeenCalledWith('hello')
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(textareaCount()).toBe(0)
+  })
+
+  it('throws when the clipboard write rejects and execCommand also fails', async () => {
+    stubSecureContext(true)
+    stubClipboard(vi.fn().mockRejectedValue(new Error('denied')))
+    document.execCommand = vi.fn().mockReturnValue(false)
+
+    await expect(copyToClipboard('hello')).rejects.toThrow('execCommand returned false')
     expect(textareaCount()).toBe(0)
   })
 
