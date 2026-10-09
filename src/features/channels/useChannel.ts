@@ -108,9 +108,15 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     // Members + GM secrets. Extracted so a realtime INSERT can refetch with the
     // profile join intact.
     async function loadMembers(): Promise<ChannelMember[]> {
-      const [membersResponse, secretsResponse] = await Promise.all([
+      const [membersResponse, secretsResponse, passwordResponse] = await Promise.all([
         supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string),
-        supabase.from('channel_secrets').select('gm_only_resources_url, password_hash').eq('channel_id', channelId as string).maybeSingle()
+        supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId as string).maybeSingle(),
+        // Count rows rather than projecting password_hash: the browser only
+        // needs to know whether a password is set, never the stored hash (which
+        // plus the exposed salt would allow offline guessing). RLS keeps this 0
+        // for non-GMs.
+        supabase.from('channel_secrets').select('channel_id', { count: 'exact', head: true })
+          .eq('channel_id', channelId as string).not('password_hash', 'is', null)
       ])
       if (membersResponse.error) throw membersResponse.error
 
@@ -129,9 +135,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       if (mounted) {
         // channel_secrets is GM-only (RLS); non-GMs get no row.
         setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
-        // Password state lives in channel_secrets (the channels row has no
-        // password column), so the Settings label reads it here.
-        setHasPassword(!!secretsResponse.data?.password_hash)
+        setHasPassword((passwordResponse.count ?? 0) > 0)
         setMembers(formattedMembers)
         if (!boundaryCapturedRef.current) {
           boundaryCapturedRef.current = true

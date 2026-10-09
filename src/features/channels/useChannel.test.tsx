@@ -25,7 +25,9 @@ vi.mock('../../lib/supabase', () => ({
 describe('useChannel', () => {
   const mockSecret = (data: { gm_only_resources_url?: string | null; password_hash?: string | null } | null = null) => {
     const mockMaybeSingle = vi.fn().mockResolvedValue({ data, error: null })
-    const mockEqSecrets = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
+    // The password-presence check is a HEAD count, not a hash projection.
+    const mockNot = vi.fn().mockResolvedValue({ count: data?.password_hash ? 1 : 0, error: null })
+    const mockEqSecrets = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle, not: mockNot })
     const mockSelectSecrets = vi.fn().mockReturnValue({ eq: mockEqSecrets })
     return { select: mockSelectSecrets }
   }
