@@ -3,10 +3,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { ReactNode } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 
-vi.mock('../lib/sentry', () => ({ captureException: vi.fn() }))
+vi.mock('../lib/appErrorLog', () => ({ reportAppError: vi.fn() }))
 vi.mock('../lib/hardReload', () => ({ hardReload: vi.fn() }))
 
-import { captureException } from '../lib/sentry'
+import { reportAppError } from '../lib/appErrorLog'
 import { hardReload } from '../lib/hardReload'
 
 function Bomb(): ReactNode {
@@ -37,7 +37,7 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
     expect(spy).toHaveBeenCalledWith('Uncaught render error:', expect.any(Error), expect.anything())
-    expect(captureException).toHaveBeenCalledWith(expect.any(Error), { extra: expect.anything() })
+    expect(reportAppError).toHaveBeenCalledWith(expect.any(Error), { detail: { componentStack: expect.anything() } })
   })
 
   it('reloads the page from the fallback', () => {
