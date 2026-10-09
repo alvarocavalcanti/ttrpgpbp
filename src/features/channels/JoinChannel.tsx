@@ -5,6 +5,7 @@ import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
 import { useChannelJoin } from './useChannelJoin'
+import { reportAppError } from '../../lib/appErrorLog'
 
 export function JoinChannel() {
   const { id } = useParams<{ id: string }>()
@@ -77,6 +78,7 @@ export function JoinChannel() {
       // detail in the console; show the player a friendly message instead of a
       // raw database error.
       console.error('Error joining channel:', err)
+      reportAppError(err)
       setError('Something went wrong joining this campaign. Please try again.')
     } finally {
       setIsSubmitting(false)

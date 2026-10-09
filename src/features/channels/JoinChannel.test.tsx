@@ -19,6 +19,10 @@ vi.mock('../../lib/crypto', () => ({
   hashPasswordWithSalt: vi.fn().mockResolvedValue('hashed_password')
 }))
 
+vi.mock('../../lib/appErrorLog', () => ({ reportAppError: vi.fn() }))
+
+import { reportAppError } from '../../lib/appErrorLog'
+
 const previewChannel = { id: '123', name: 'Test Channel', game_system: 'none', has_password: false }
 
 const mockJoinChannel = vi.fn()
@@ -218,6 +222,7 @@ describe('JoinChannel', () => {
     // The raw database message must never reach the player.
     expect(screen.queryByText(rawError)).not.toBeInTheDocument()
     expect(consoleSpy).toHaveBeenCalledWith('Error joining channel:', expect.any(Error))
+    expect(reportAppError).toHaveBeenCalledWith(expect.any(Error))
   })
 
   it('cancels join flow', async () => {

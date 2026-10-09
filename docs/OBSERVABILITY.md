@@ -17,6 +17,32 @@ To enable:
 1. Create a Sentry account and a React project.
 2. Provide `VITE_SENTRY_DSN` in the environment variables (e.g., Cloudflare Pages environment variables).
 
+## Application error log
+
+Client errors are also written to `public.app_error_log` through the
+`report_app_error(...)` RPC (wired into `ErrorBoundary` and the JoinChannel
+failure path). This survives the ~1-day Supabase log window and needs no paid
+service. Every field is clamped server-side, the stored route is a pathname
+only (any query string is stripped), and no message content is captured.
+
+- Reads are **server-admin only** (RLS); writes go only through the RPC, so
+  clients cannot insert directly.
+- Query from the SQL editor / Studio:
+
+  ```sql
+  select created_at, user_id, route, message, detail
+  from public.app_error_log
+  order by created_at desc
+  limit 100;
+  ```
+
+- There is no scheduled retention job yet — errors are rare and bounded.
+  Prune manually when needed:
+
+  ```sql
+  delete from public.app_error_log where created_at < now() - interval '90 days';
+  ```
+
 ## Google Analytics 4 (GA4)
 
 Analytics is optional and build-time gated on `VITE_GA_MEASUREMENT_ID`; when it
