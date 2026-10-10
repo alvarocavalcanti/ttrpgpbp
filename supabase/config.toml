@@ -30,6 +30,14 @@ enabled = true
 # CLEANUP_IMAGES_SECRET header; no-op while app_settings.image_retention_days is 0.
 verify_jwt = false
 
+[functions.push-receipt]
+enabled = true
+# Service-worker-invoked while the app may be closed, so there is no session to
+# verify. Auth is the per-subscription ack_token carried in the push payload
+# (validated inside the function), not a platform JWT.
+verify_jwt = false
+entrypoint = "./functions/push-receipt/index.ts"
+
 [functions.upload-image]
 enabled = true
 # Browser-invoked with the user's JWT. The function resolves identity from that

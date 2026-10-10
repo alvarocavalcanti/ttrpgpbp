@@ -142,14 +142,16 @@ SELECT is(
   'batch admin counts gms announcement for an active GM'
 );
 
--- 8. The server admin sees the gms announcement without GMing a channel
--- (the inline server_admin check replaces is_server_admin()).
+-- 8. The server admin sees the gms announcement without GMing a channel (the
+-- inline server_admin check replaces is_server_admin()), and — like
+-- get_admin_unread_count — also sees the dm addressed across the thread, so
+-- the batch matches the single-user function for the admin too.
 SELECT is(
   (SELECT unread_count FROM public.get_admin_unread_totals(
     ARRAY['00000000-0000-0000-0000-000000000503'::UUID]
   )),
-  3::BIGINT,
-  'batch admin counts gms announcement for the server admin'
+  4::BIGINT,
+  'batch admin counts the dm, all_users, and gms announcements for the server admin'
 );
 
 -- 9. A plain user never sees the gms announcement.

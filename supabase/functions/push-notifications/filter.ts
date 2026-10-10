@@ -48,6 +48,13 @@ export interface PushPayload {
   url: string
   unreadCount: number
   badgeEnabled: boolean
+  // Receipt context: lets the service worker report delivery milestones back
+  // to push-receipt so a device-side drop is observable instead of silent.
+  eventId?: string
+  eventKind?: PushEventKind
+  subscriptionId?: string
+  ackToken?: string
+  receiptUrl?: string
 }
 
 const CHANNEL_URL = (channelId: string) => `/channel/${channelId}`
@@ -218,13 +225,15 @@ export function mergeUnreadTotals(
 
 // Shapes the per-user push payload sent to the service worker. Badge fields
 // let the SW set the app icon badge count on platforms that support it (iOS,
-// desktop). Pure: no IO.
+// desktop). The optional receipt context (event id, this subscription's id and
+// ack token, and the receipt endpoint) is appended when provided. Pure: no IO.
 export function buildPushPayload(
   target: { title: string; body: string; url: string },
   unreadCount: number,
-  badgeEnabled: boolean
+  badgeEnabled: boolean,
+  receipt?: Pick<PushPayload, 'eventId' | 'eventKind' | 'subscriptionId' | 'ackToken' | 'receiptUrl'>
 ): PushPayload {
-  return { ...target, unreadCount, badgeEnabled }
+  return { ...target, unreadCount, badgeEnabled, ...(receipt ?? {}) }
 }
 
 // Server-side mention parsing. The client persists mentions as markdown chips

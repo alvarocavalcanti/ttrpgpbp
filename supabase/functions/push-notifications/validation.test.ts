@@ -31,12 +31,17 @@ describe('TriggerPayloadSchema', () => {
 
 describe('PushSubscriptionSchema', () => {
   it('accepts a complete row', () => {
-    const row = { id: 's1', user_id: 'u1', endpoint: 'https://push.example.com', p256dh: 'a', auth: 'b' }
+    const row = { id: 's1', user_id: 'u1', endpoint: 'https://push.example.com', p256dh: 'a', auth: 'b', ack_token: 'token' }
     expect(PushSubscriptionSchema.safeParse(row).success).toBe(true)
+  })
+
+  it('rejects a row without an ack token', () => {
+    const row = { id: 's1', user_id: 'u1', endpoint: 'https://push.example.com', p256dh: 'a', auth: 'b' }
+    expect(PushSubscriptionSchema.safeParse(row).success).toBe(false)
   })
 
   it('rejects rows missing web-push fields', () => {
     expect(PushSubscriptionSchema.safeParse({ id: 's1', user_id: 'u1' }).success).toBe(false)
-    expect(PushSubscriptionSchema.safeParse({ id: 's1', user_id: 'u1', endpoint: '', p256dh: '', auth: '' }).success).toBe(false)
+    expect(PushSubscriptionSchema.safeParse({ id: 's1', user_id: 'u1', endpoint: '', p256dh: '', auth: '', ack_token: 't' }).success).toBe(false)
   })
 })

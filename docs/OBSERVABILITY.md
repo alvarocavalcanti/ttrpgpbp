@@ -147,6 +147,70 @@ To monitor failed push notifications, create a Log Alert in the Supabase Dashboa
 
 4. Set the trigger condition (e.g., > 0 results in 5 minutes) and notification channel.
 
+### Client-side push milestones (`push_client_log`)
+
+`push_delivery_log` stops at "the push service accepted it". `push_client_log`
+records what happened **on the device** — the service worker reporting that it
+received a push, failed to parse the payload, displayed the notification, hit a
+display error, or the user tapped it. Each row carries the correlation
+`event_id` and the `subscription_id`, plus the reporting `user_agent`.
+
+Which leg is dropping? A push is healthy end to end when the same `event_id`
+has a `sent` row in `push_delivery_log` **and** a `shown` row in
+`push_client_log` for each device:
+
+```sql
+-- Per-device trail for one event (server sent -> device received -> shown).
+select d.user_id, d.subscription_id, d.status as server_status, c.status as client_status, c.created_at
+from public.push_delivery_log d
+left join public.push_client_log c
+  on c.event_id = d.event_id and c.subscription_id = d.subscription_id
+where d.event_id = '<event-id>';
+```
+
+```sql
+-- Devices the server reached but that never reported a receipt (candidates
+-- for a stale FCM/Apple endpoint or a service worker that is not running).
+select d.subscription_id, d.user_id, max(d.created_at) as last_sent
+from public.push_delivery_log d
+where d.status = 'sent'
+  and d.created_at > now() - interval '7 days'
+  and not exists (
+    select 1 from public.push_client_log c
+    where c.subscription_id = d.subscription_id
+      and c.event_id = d.event_id
+      and c.status in ('received', 'shown')
+  )
+group by 1, 2
+order by last_sent desc;
+```
+
+```sql
+-- Payloads the worker could not parse (would otherwise drop silently).
+select user_agent, detail, count(*)
+from public.push_client_log
+where status = 'invalid_payload'
+group by 1, 2
+order by 3 desc;
+```
+
+```sql
+-- Self-heals: a device that lost its subscription and rebuilt it. Frequent
+-- rows here mean subscriptions are churning and worth investigating.
+select user_id, count(*) filter (where status = 'reconcile_ok') as recreated,
+       count(*) filter (where status = 'reconcile_error') as failed
+from public.push_client_log
+where created_at > now() - interval '30 days'
+group by 1
+having count(*) filter (where status = 'reconcile_ok') > 0
+order by 2 desc;
+```
+
+The client reports these receipts through the `push-receipt` edge function,
+authenticated by the per-subscription `ack_token` (never by a JWT — a push can
+arrive while the app is closed). The page also writes `subscribed`,
+`unsubscribed`, `reconcile_ok`, and `reconcile_error` rows directly.
+
 ### Realtime Connection Health
 
 Supabase exposes Realtime metrics via the Reports dashboard or via prometheus. You can also monitor unexpected disconnects via Log Explorer on the `realtime` source.

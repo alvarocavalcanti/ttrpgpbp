@@ -29,10 +29,39 @@ export const PushNotificationDataSchema = z.object({
 // Badge counts must be valid non-negative safe integers: setAppBadge's
   // [EnforceRange] unsigned long long conversion throws synchronously on
   // negative, fractional, or oversized values, so reject them at the boundary.
-  unreadCount: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional()
+  unreadCount: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+  // Receipt context: lets the worker report delivery milestones back to the
+  // push-receipt function so a device-side drop is observable, not silent.
+  eventId: z.string().optional(),
+  eventKind: z.string().optional(),
+  subscriptionId: z.string().optional(),
+  ackToken: z.string().optional(),
+  receiptUrl: z.string().optional()
 })
+// The subset of the payload needed to report a receipt. Pulled out leniently
+// (independent of the strict schema) so even a payload that fails validation
+// can report `invalid_payload` for the device that is failing.
+export interface PushReceipt {
+  eventId?: string
+  eventKind?: string
+  subscriptionId?: string
+  ackToken?: string
+  receiptUrl?: string
+}
 
-export type PushNotificationData = z.infer<typeof PushNotificationDataSchema>
+export type ReceiptStatus =
+  | 'received'
+  | 'invalid_payload'
+  | 'shown'
+  | 'show_error'
+  | 'clicked'
+
+type FetchLike = (input: string, init?: {
+  method?: string
+  headers?: Record<string, string>
+  body?: string
+  keepalive?: boolean
+}) => Promise<unknown>
 
 export interface PushHandlerScope {
   registration: {
@@ -42,6 +71,7 @@ export interface PushHandlerScope {
     setAppBadge?(count: number): Promise<void>
   }
   logger?: Pick<Console, 'error'>
+  fetch?: FetchLike
 }
 
 const DEFAULT_TITLE = 'Role by Post'
@@ -53,20 +83,97 @@ const DEFAULT_ICON = '/pwa-192x192.png'
 // white-on-transparent PNG — SVG is not reliably rasterized for badges.
 const DEFAULT_BADGE_ICON = '/notification-badge.png'
 
-// Shows the notification and updates the app badge, each guarded so one
-// failing async step never rejects the whole push event. Resolves always.
-export async function handlePushEvent(scope: PushHandlerScope, data: PushNotificationData): Promise<void> {
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+// Leniently extracts the receipt context from a raw (possibly invalid) payload.
+export function pushReceiptFrom(raw: unknown): PushReceipt {
+  if (typeof raw !== 'object' || raw === null) return {}
+  const source = raw as Record<string, unknown>
+  return {
+    eventId: asString(source.eventId),
+    eventKind: asString(source.eventKind),
+    subscriptionId: asString(source.subscriptionId),
+    ackToken: asString(source.ackToken),
+    receiptUrl: asString(source.receiptUrl)
+  }
+}
+
+// Best-effort delivery receipt. Never throws and never blocks the push: a
+// failed telemetry POST must not affect whether the notification is shown.
+// Sent as a CORS "simple request" (no content-type header -> text/plain), so
+// there is no preflight to block the beacon.
+export async function reportPushReceipt(
+  fetchFn: FetchLike,
+  receipt: PushReceipt,
+  status: ReceiptStatus,
+  detail?: string
+): Promise<void> {
+  if (!receipt.receiptUrl || !receipt.subscriptionId || !receipt.ackToken) return
+  try {
+    await fetchFn(receipt.receiptUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        subscription_id: receipt.subscriptionId,
+        ack_token: receipt.ackToken,
+        event_id: receipt.eventId ?? null,
+        event_kind: receipt.eventKind ?? null,
+        status,
+        detail: detail ? detail.slice(0, 500) : null
+      }),
+      keepalive: true
+    })
+  } catch (err) {
+    // Telemetry only — swallow.
+    void err
+  }
+}
+
+// Validates the raw push payload, shows the notification, updates the badge,
+// and reports the outcome. Each async step is isolated so one failing step
+// never rejects the whole push event. Resolves always. An invalid payload is
+// dropped (and reported) rather than shown with bad data.
+export async function handlePushEvent(scope: PushHandlerScope, raw: unknown): Promise<void> {
+  const receipt = pushReceiptFrom(raw)
+  const report = (status: ReceiptStatus, detail?: string) => {
+    if (scope.fetch) void reportPushReceipt(scope.fetch, receipt, status, detail)
+  }
+
+  // Report receipt even for a payload we cannot parse: the device reaching us
+  // at all is the important signal.
+  report('received')
+
+  const parsed = PushNotificationDataSchema.safeParse(raw)
+  if (!parsed.success) {
+    scope.logger?.error('Invalid push payload', parsed.error)
+    report('invalid_payload', JSON.stringify(parsed.error.issues))
+    return
+  }
+  const data = parsed.data
+
   const options: NotificationOptions = {
     body: data.body || '',
     icon: DEFAULT_ICON,
     badge: DEFAULT_BADGE_ICON,
-    data: { url: data.url || '/' }
+    // A stable tag collapses repeat pushes for the same target into one tray
+    // entry (Android otherwise stacks an unbounded number of them).
+    tag: data.url || '/',
+    data: {
+      url: data.url || '/',
+      // Carried onto the notification so the click handler can report it.
+      ...(receipt.receiptUrl ? { receipt } : {})
+    }
   }
 
   const tasks: Promise<unknown>[] = [
-    scope.registration.showNotification(data.title || DEFAULT_TITLE, options).catch((err) => {
-      scope.logger?.error('Error showing push notification', err)
-    })
+    scope.registration.showNotification(data.title || DEFAULT_TITLE, options).then(
+      () => report('shown'),
+      (err) => {
+        scope.logger?.error('Error showing push notification', err)
+        report('show_error', err instanceof Error ? err.message : String(err))
+      }
+    )
   ]
 
   // Badge count (iOS 16.4+, desktop). Respects the user's badge_enabled

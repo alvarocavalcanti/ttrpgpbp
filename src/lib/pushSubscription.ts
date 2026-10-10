@@ -17,6 +17,13 @@ export interface PersistResult {
   error?: Error
 }
 
+// `created` distinguishes a heal (a fresh subscription was minted) from a
+// routine reconcile of an existing one, so callers only log the interesting
+// case.
+export interface EnsureResult extends PersistResult {
+  created?: boolean
+}
+
 // Maps a PushSubscription object (as handed to the page) to its DB columns.
 export function subscriptionToRow(subscription: PushSubscription): PushSubscriptionRow {
   return subscriptionJsonToRow(subscription.toJSON())
@@ -63,19 +70,75 @@ export async function persistPushSubscription(
   return error ? { ok: false, error: error as Error } : { ok: true }
 }
 
-// Reconciles the server with the browser's current subscription: reads the
-// active PushSubscription and upserts its endpoint/keys. No-op when there is
-// no active subscription (nothing to persist). Surfaces any failure instead of
-// silently leaving the browser subscribed but absent from push_subscriptions.
-export async function reconcilePushSubscription(
+// Decodes a base64url VAPID public key into the byte array `subscribe` wants.
+// The `<ArrayBuffer>` return type pins it to the non-shared buffer the DOM's
+// BufferSource accepts.
+export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+// Brings the server in line with the browser's push state. Reads the active
+// PushSubscription and upserts it; when the browser has NO subscription but
+// permission is already granted and a VAPID key is configured, it CREATES one
+// and persists it. That creation is the self-heal path: a subscription lost to
+// a 410 deletion, a service-worker unregister, or a silently rotated browser
+// token is recreated on the next startup/foreground instead of leaving the
+// device permanently push-less. Never prompts (only `Notification.requestPermission`
+// does): creating a subscription needs a prior grant, so a silent mild-absence
+// of one just no-ops. Surfaces failures instead of throwing.
+export async function ensurePushSubscription(
   userId: string,
+  vapidPublicKey: string,
   client: PushSubscriptionsClient = supabase
-): Promise<PersistResult> {
+): Promise<EnsureResult> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: true }
   try {
-    const subscription = await getActiveSubscription()
-    if (!subscription) return { ok: true }
-    return persistPushSubscription(userId, subscriptionToRow(subscription), client)
+    const existing = await getActiveSubscription()
+    if (existing) return persistPushSubscription(userId, subscriptionToRow(existing), client)
+
+    if (!vapidPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      return { ok: true }
+    }
+
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+    })
+    const result = await persistPushSubscription(userId, subscriptionToRow(subscription), client)
+    return { ...result, created: result.ok }
   } catch (err) {
     return { ok: false, error: err as Error }
+  }
+}
+
+// Client-side push milestone (subscribed / unsubscribed / reconcile_ok /
+// reconcile_error). Written straight through PostgREST under the user's own
+// RLS policy; best-effort — observability must never break the flow.
+export type PushClientStatus = 'subscribed' | 'unsubscribed' | 'reconcile_ok' | 'reconcile_error'
+
+export async function logPushClientEvent(
+  userId: string,
+  status: PushClientStatus,
+  detail?: string,
+  client: PushSubscriptionsClient = supabase
+): Promise<void> {
+  try {
+    const { error } = await client.from('push_client_log').insert({
+      user_id: userId,
+      status,
+      detail: detail ?? null,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent?.slice(0, 300) ?? null : null
+    })
+    if (error) console.error('push client log write failed', error.message)
+  } catch (err) {
+    console.error('push client log write failed', err)
   }
 }

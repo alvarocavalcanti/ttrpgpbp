@@ -111,9 +111,14 @@ Copy `.env.example` and fill in the values. Note that the three `VITE_*` vars ar
 - [ ] (Optional) Push delivery is observable out of the box. Every send outcome
   lands in `public.push_delivery_log` (status `sent` / `transient` / `invalid` /
   `failed`, plus one `invocation` row per notification, keyed by `event_id`).
-  Query it from the SQL editor to see delivery health. Trigger dispatches are
-  recorded in `public.push_invocation_log`; re-queue Edge Function invocations
-  that failed at the HTTP layer with:
+  Device-side milestones (received / shown / invalid payload / error / tapped)
+  land in `public.push_client_log` via the `push-receipt` function, so a single
+  `event_id` traces from server send to on-device display (see
+  [OBSERVABILITY.md](docs/OBSERVABILITY.md)). Query them from the SQL editor to
+  see delivery health. Trigger dispatches are recorded in
+  `public.push_invocation_log`; a `pg_cron` job re-queues Edge Function
+  invocations that failed at the HTTP layer every 30 minutes, and you can run it
+  by hand with:
 
   ```sql
   select public.retry_failed_push_invocations();
@@ -132,6 +137,24 @@ browser, so no user JWT is involved.
   ```bash
   supabase functions deploy push-notifications --project-ref <project-ref>
   ```
+
+- [ ] Deploy the push-receipt function. It records device-side push milestones
+  (`push_client_log`) reported by the service worker, authenticated by the
+  per-subscription `ack_token` carried in the push payload (not a JWT, because a
+  push can arrive while the app is closed). It needs no extra secrets — the
+  platform provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+  ```bash
+  supabase functions deploy push-receipt --project-ref <project-ref>
+  ```
+
+- [ ] **Serve `/sw.js` with `Cache-Control: no-cache` on every domain.** The
+  `public/_headers` rule does this at the Pages origin, but a custom domain with
+  an overriding Cloudflare cache rule will serve the service worker with a
+  multi-hour `max-age` instead (check with
+  `curl -sI https://<domain>/sw.js`). A stale worker delays push-handling fixes;
+  add a cache rule exempting `/sw.js`. (Known live: `rolebypost.com` overrides
+  it, `ttrpgpbp.pages.dev` does not.)
 
 - [ ] Deploy the image-retention cleanup function. It requires a server-to-server
   secret and no-ops while `app_settings.image_retention_days` is 0 (the default).

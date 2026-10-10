@@ -460,4 +460,76 @@ describe('usePushNotifications', () => {
     })
     expect(result.current.error).toBeNull()
   })
+
+  it('recreates a lost subscription when permission is already granted', async () => {
+    vi.stubGlobal('Notification', { permission: 'granted', requestPermission: vi.fn().mockResolvedValue('granted') })
+    const created = {
+      toJSON: () => ({ endpoint: 'https://push.example.com/xyz', keys: { p256dh: 'p256dh-key', auth: 'auth-key' } })
+    }
+    // No live subscription on the first read; the freshly created one is
+    // visible on the reconcile's post-heal read.
+    mockPushManager.getSubscription.mockResolvedValueOnce(null).mockResolvedValue(created)
+
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'push_client_log') return { insert: mockInsert } as any
+      return {
+        select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+        upsert: mockUpsert
+      } as any
+    })
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(mockPushManager.subscribe).toHaveBeenCalled()
+    expect(mockUpsert).toHaveBeenCalledWith(
+      { user_id: 'u1', endpoint: 'https://push.example.com/xyz', p256dh: 'p256dh-key', auth: 'auth-key' },
+      { onConflict: 'user_id,endpoint' }
+    )
+    expect(result.current.isSubscribed).toBe(true)
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'u1', status: 'reconcile_ok' }))
+  })
+
+  it('recreates the subscription when the service worker reports it was revoked', async () => {
+    vi.stubGlobal('Notification', { permission: 'granted', requestPermission: vi.fn().mockResolvedValue('granted') })
+    let messageHandler: ((event: any) => void) | undefined
+    vi.stubGlobal('navigator', {
+      userAgent: 'test-agent',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager }),
+        addEventListener: (type: string, cb: any) => { if (type === 'message') messageHandler = cb },
+        removeEventListener: () => {}
+      }
+    })
+    mockPushManager.getSubscription.mockResolvedValue(null)
+    mockPushManager.subscribe.mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/healed', keys: { p256dh: 'p', auth: 'a' } })
+    })
+
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'push_client_log') return { insert: vi.fn().mockResolvedValue({ error: null }) } as any
+      return {
+        select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+        upsert: mockUpsert
+      } as any
+    })
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    mockUpsert.mockClear()
+
+    await act(async () => {
+      messageHandler?.({ data: { type: 'PUSH_SUBSCRIPTION_CHANGED', subscription: null } })
+    })
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledWith(
+        { user_id: 'u1', endpoint: 'https://push.example.com/healed', p256dh: 'p', auth: 'a' },
+        { onConflict: 'user_id,endpoint' }
+      )
+    })
+  })
 })

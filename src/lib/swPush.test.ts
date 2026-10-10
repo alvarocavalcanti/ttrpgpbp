@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { handlePushEvent, isSiteRelativeUrl, PushNotificationDataSchema } from './swPush'
+import { handlePushEvent, isSiteRelativeUrl, PushNotificationDataSchema, pushReceiptFrom, reportPushReceipt } from './swPush'
 
 function makeScope(overrides: Partial<Parameters<typeof handlePushEvent>[0]> = {}) {
   const logger = { error: vi.fn() }
@@ -9,8 +9,9 @@ function makeScope(overrides: Partial<Parameters<typeof handlePushEvent>[0]> = {
   const navigator = {
     setAppBadge: vi.fn().mockResolvedValue(undefined)
   }
-  const scope = { registration, navigator, logger, ...overrides }
-  return { scope, registration, navigator, logger }
+  const fetch = vi.fn().mockResolvedValue({ ok: true })
+  const scope = { registration, navigator, logger, fetch, ...overrides }
+  return { scope, registration, navigator, logger, fetch }
 }
 
 describe('PushNotificationDataSchema', () => {
@@ -131,5 +132,115 @@ describe('handlePushEvent', () => {
 
     await handlePushEvent(scope, { badgeEnabled: true, unreadCount: 2 })
     expect(navigator.setAppBadge).toHaveBeenCalledWith(2)
+  })
+
+  it('tags the notification so repeat pushes collapse', async () => {
+    const { scope, registration } = makeScope()
+    await handlePushEvent(scope, { title: 'T', url: '/channel/c1' })
+    expect(registration.showNotification).toHaveBeenCalledWith(
+      'T',
+      expect.objectContaining({ tag: '/channel/c1' })
+    )
+  })
+
+  it('reports received then shown when a receipt context is present', async () => {
+    const { scope, fetch } = makeScope()
+    await handlePushEvent(scope, {
+      title: 'T',
+      eventId: 'e1',
+      eventKind: 'message',
+      subscriptionId: 's1',
+      ackToken: 't1',
+      receiptUrl: 'https://fn.example/push-receipt'
+    })
+
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(fetch.mock.calls[0][0]).toBe('https://fn.example/push-receipt')
+    const statuses = fetch.mock.calls.map(call => JSON.parse(call[1].body).status)
+    expect(statuses).toEqual(['received', 'shown'])
+  })
+
+  it('does not report when the payload carries no receipt context', async () => {
+    const { scope, fetch } = makeScope()
+    await handlePushEvent(scope, { title: 'T' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('drops an invalid payload without showing, and reports it', async () => {
+    const { scope, registration, fetch } = makeScope()
+    await handlePushEvent(scope, {
+      url: 'https://evil.com',
+      subscriptionId: 's1',
+      ackToken: 't1',
+      receiptUrl: 'https://fn.example/push-receipt'
+    })
+
+    expect(registration.showNotification).not.toHaveBeenCalled()
+    const statuses = fetch.mock.calls.map(call => JSON.parse(call[1].body).status)
+    expect(statuses).toEqual(['received', 'invalid_payload'])
+  })
+
+  it('reports show_error with the failure message', async () => {
+    const { scope, registration, fetch } = makeScope()
+    registration.showNotification.mockRejectedValue(new Error('display blocked'))
+
+    await handlePushEvent(scope, {
+      title: 'T',
+      subscriptionId: 's1',
+      ackToken: 't1',
+      receiptUrl: 'https://fn.example/push-receipt'
+    })
+
+    const errorCall = fetch.mock.calls.find(call => JSON.parse(call[1].body).status === 'show_error')
+    expect(errorCall).toBeDefined()
+    expect(JSON.parse(errorCall![1].body).detail).toBe('display blocked')
+  })
+})
+
+describe('pushReceiptFrom', () => {
+  it('extracts the receipt context from a raw object', () => {
+    expect(pushReceiptFrom({
+      eventId: 'e1',
+      eventKind: 'message',
+      subscriptionId: 's1',
+      ackToken: 't1',
+      receiptUrl: 'https://fn'
+    })).toEqual({ eventId: 'e1', eventKind: 'message', subscriptionId: 's1', ackToken: 't1', receiptUrl: 'https://fn' })
+  })
+
+  it('returns an empty object for non-objects and drops non-strings', () => {
+    expect(pushReceiptFrom(null)).toEqual({})
+    expect(pushReceiptFrom('nope')).toEqual({})
+    expect(pushReceiptFrom({ subscriptionId: 42, ackToken: '' })).toEqual({})
+  })
+})
+
+describe('reportPushReceipt', () => {
+  it('no-ops when the receipt context is incomplete', async () => {
+    const fetch = vi.fn()
+    await reportPushReceipt(fetch, { subscriptionId: 's1' }, 'shown')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('posts the milestone with the ack token', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true })
+    await reportPushReceipt(
+      fetch,
+      { eventId: 'e1', eventKind: 'message', subscriptionId: 's1', ackToken: 't1', receiptUrl: 'https://fn' },
+      'shown'
+    )
+    expect(fetch).toHaveBeenCalledWith('https://fn', expect.objectContaining({ method: 'POST' }))
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
+      subscription_id: 's1', ack_token: 't1', event_id: 'e1', status: 'shown'
+    })
+  })
+
+  it('swallows a rejected telemetry POST', async () => {
+    const fetch = vi.fn().mockRejectedValue(new Error('offline'))
+    await expect(reportPushReceipt(
+      fetch,
+      { subscriptionId: 's1', ackToken: 't1', receiptUrl: 'https://fn' },
+      'received'
+    )).resolves.toBeUndefined()
   })
 })
