@@ -10,17 +10,15 @@ export function AdminMessagesView() {
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
 
   return (
-    // Bounded to the viewport below the app nav so the list/detail scroll
-    // internally: the nav and the thread header stay put instead of scrolling
-    // away with the document. 4.5rem is AppNav's single-row height
-    // (`p-4` = 2rem + a 2.5rem row); the logo truncates rather than wraps, so
-    // the height is constant across viewports.
-    <div className="h-[calc(100dvh-4.5rem)] w-full flex flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-      <div className={`md:w-1/3 w-full md:flex md:flex-col border-r border-gray-200 dark:border-gray-800 ${selectedThread ? 'hidden md:flex' : 'flex flex-1'}`}>
+    // Fills the bounded <main> on this route (see AppShell) and passes the
+    // height down with min-h-0 at every level, so the list and thread panes —
+    // not the document — scroll and the nav/thread header/composer stay put.
+    <div className="flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+      <div className={`md:w-1/3 w-full flex flex-col min-h-0 border-r border-gray-200 dark:border-gray-800 ${selectedThread ? 'hidden md:flex' : 'flex-1'}`}>
         <ThreadList selectedThreadId={selectedThread?.id} onSelectThread={setSelectedThread} />
       </div>
 
-      <div className={`md:flex-1 w-full md:flex md:flex-col ${selectedThread ? 'flex flex-1' : 'hidden md:flex bg-gray-50 dark:bg-gray-900 items-center justify-center'}`}>
+      <div className={`md:flex-1 w-full flex flex-col min-h-0 ${selectedThread ? 'flex-1' : 'hidden md:flex items-center justify-center bg-gray-50 dark:bg-gray-900'}`}>
         {selectedThread ? (
           <ThreadDetail thread={selectedThread} onBack={() => setSelectedThread(null)} />
         ) : (
