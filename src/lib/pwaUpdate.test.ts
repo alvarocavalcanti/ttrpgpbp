@@ -180,6 +180,32 @@ describe('reloadToUpdate', () => {
     expect(capture.hardReload).toHaveBeenCalledTimes(1)
   })
 
+  it('reloads when the new worker announces it has taken over', async () => {
+    await act(async () => pwaUpdate.reloadToUpdate())
+    const onMessage = capture.addEventListener.mock.calls.find(([type]) => type === 'message')?.[1]
+    expect(onMessage).toBeTypeOf('function')
+    await act(async () => onMessage({ data: { type: 'SW_UPDATED' } }))
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores worker messages that are not the update signal', async () => {
+    await act(async () => pwaUpdate.reloadToUpdate())
+    const onMessage = capture.addEventListener.mock.calls.find(([type]) => type === 'message')?.[1]
+    await act(async () => onMessage({ data: { type: 'PUSH_RECEIVED' } }))
+    expect(capture.hardReload).not.toHaveBeenCalled()
+  })
+
+  it('dedupes the worker message and controllerchange into one reload', async () => {
+    await act(async () => pwaUpdate.reloadToUpdate())
+    const onMessage = capture.addEventListener.mock.calls.find(([type]) => type === 'message')?.[1]
+    const onChange = capture.addEventListener.mock.calls.find(([type]) => type === 'controllerchange')?.[1]
+    await act(async () => {
+      onMessage({ data: { type: 'SW_UPDATED' } })
+      onChange()
+    })
+    expect(capture.hardReload).toHaveBeenCalledTimes(1)
+  })
+
   it('self-heals after 3s when the worker never takes control', async () => {
     vi.useFakeTimers()
     capture.getRegistrations.mockResolvedValue([{ unregister: capture.unregister }])

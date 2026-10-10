@@ -21,23 +21,18 @@ let skipWaitingRequested = false
 // page stays under the old worker — workbox-window's `controlling` event (which
 // triggers the update prompt's reload) would never fire (issue #385).
 //
-// On an update (issue #507) also reload every open window from here: Android
-// Chrome can drop the page-side `controllerchange` event, so the reload must be
-// driven by the worker itself. Navigating after claim guarantees the reload
-// runs under this (new) worker and serves the fresh pre-cached shell instead of
-// the stale one.
+// On an update (issue #507) every open window is told to reload itself. Android
+// Chrome can drop the page-side `controllerchange` event, so the worker posts
+// SW_UPDATED and the page (the single reload driver) reloads on it. The worker
+// must NOT call `WindowClient.navigate()` here: that worker-initiated
+// navigation raced the page's own `location.replace`, firing a double
+// navigation and making the banner reload far slower than a manual refresh.
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     await self.clients.claim()
     if (!skipWaitingRequested) return
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    await Promise.all(clients.map((client) => {
-      const win = client as WindowClient
-      // `navigate` is Chrome/Firefox-only; Safari lacks it, so the page-side
-      // `controllerchange`/fallback reload is what updates those clients.
-      if (typeof win.navigate !== 'function') return
-      return win.navigate(win.url).catch(() => {})
-    }))
+    for (const client of clients) client.postMessage({ type: 'SW_UPDATED' })
   })())
 })
 

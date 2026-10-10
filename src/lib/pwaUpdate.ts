@@ -168,12 +168,18 @@ let reloading = false
 // no `waiting` worker left to skip and `controllerchange` has fired while we
 // were frozen) — the tap then silently no-ops and the banner stays put. Fetch a
 // fresh registration, post SKIP_WAITING ourselves, and reload the moment the
-// new worker reports `activated`. Waiting for the worker's own lifecycle (not
-// `controllerchange`, which WebKit doesn't reliably deliver, and not a fixed
-// clock) guarantees the reload runs under the new worker: a timeout reload can
-// land while the old worker still controls the page, serving the stale shell
-// forever (issue #527 — "Updating…" that never updates on Safari). The worker's
-// SKIP_WAITING handler (src/sw.ts) does the actual skip.
+// new worker reports it has taken over. Waiting for the worker's own lifecycle
+// (not a fixed clock) guarantees the reload runs under the new worker: a
+// timeout reload can land while the old worker still controls the page, serving
+// the stale shell forever (issue #527 — "Updating…" that never updates on
+// Safari). The worker's SKIP_WAITING handler (src/sw.ts) does the actual skip.
+//
+// The PAGE is the single reload driver. The worker used to also call
+// `WindowClient.navigate()`, which raced this page-side reload and produced a
+// double navigation (a slow banner reload). The worker now posts
+// SW_UPDATED instead; `controllerchange` and its own `statechange` stay as
+// backstops. Every signal funnels through the idempotent `finish()`, so exactly
+// one reload runs.
 export function reloadToUpdate() {
   if (reloading) return
   // ponytail: page-lifetime singleton guard, never reset; a fresh load
@@ -188,13 +194,18 @@ export function reloadToUpdate() {
 
   let finished = false
   let timer: number | undefined
-  const finish = () => {
+  function finish() {
     if (finished) return
     finished = true
     window.clearTimeout(timer)
     hardReload()
   }
 
+  // The new worker tells every window it claimed to reload itself; this is the
+  // reliable takeover signal where `controllerchange` is dropped (Android).
+  navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+    if ((event.data as { type?: string } | undefined)?.type === 'SW_UPDATED') finish()
+  })
   // Belt and braces: browsers that do fire controllerchange take this path.
   navigator.serviceWorker.addEventListener('controllerchange', finish, { once: true })
 
@@ -218,7 +229,7 @@ export function reloadToUpdate() {
   // requests, already-claimed worker), nuke caches and reload busted instead
   // of a plain reload, which risks re-serving the stale shell under the old
   // worker and looping the banner (issue #601). `finish` cancels this the
-  // moment `controllerchange` arrives, so a slow worker near the 3s mark can't
+  // moment a takeover signal arrives, so a slow worker near the 3s mark can't
   // trigger both paths.
   timer = window.setTimeout(() => {
     if (finished) return
