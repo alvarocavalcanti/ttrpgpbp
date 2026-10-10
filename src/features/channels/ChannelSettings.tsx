@@ -20,16 +20,17 @@ import {
   MAX_URL_LENGTH,
 } from '../../constants'
 
-type Channel = Database['public']['Tables']['channels']['Row'] & { has_password?: boolean }
+type Channel = Database['public']['Tables']['channels']['Row']
 
 interface ChannelSettingsProps {
   channel: Channel
   gmOnlyResourcesUrl?: string | null
+  hasPassword?: boolean
   onClose: () => void
   onUpdate: () => void
 }
 
-export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUrlProp = null, onClose, onUpdate }: ChannelSettingsProps) {
+export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUrlProp = null, hasPassword = false, onClose, onUpdate }: ChannelSettingsProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
@@ -367,7 +368,7 @@ setIsSubmitting(true)
                   </div>
                 ) : (
                   <div className="mt-1 text-sm text-surface-500 dark:text-surface-400 italic">
-                    {channel.has_password ? 'Password is set (hidden)' : 'No password currently set'}
+                    {hasPassword ? 'Password is set (hidden)' : 'No password currently set'}
                   </div>
                 )}
               </div>

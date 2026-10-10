@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { hashPasswordWithSalt, hashPasswordLegacy } from '../../lib/crypto'
-import { toError } from '../../lib/errors'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
 import { useChannelJoin } from './useChannelJoin'
+import { reportAppError } from '../../lib/appErrorLog'
 
 export function JoinChannel() {
   const { id } = useParams<{ id: string }>()
@@ -66,13 +66,20 @@ export function JoinChannel() {
       })
 
       if (result && !result.success) {
-        throw new Error(result.error || 'Failed to join channel.')
+        // The RPC's own messages are player-facing ("Invalid password or invite
+        // code", rate limits, channel cap) — show them as-is.
+        setError(result.error || 'Failed to join channel.')
+        return
       }
 
       navigate(`/channel/${id}`)
     } catch (err) {
+      // Anything thrown here is an unexpected failure (network/DB). Keep the
+      // detail in the console; show the player a friendly message instead of a
+      // raw database error.
       console.error('Error joining channel:', err)
-      setError(toError(err).message)
+      reportAppError(err)
+      setError('Something went wrong joining this campaign. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

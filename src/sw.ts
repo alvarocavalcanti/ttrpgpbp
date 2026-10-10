@@ -1,11 +1,12 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
-import { handlePushEvent } from './lib/swPush'
-import { PushNotificationDataSchema, isSiteRelativeUrl } from './lib/swPush'
-import type { PushNotificationData } from './lib/swPush'
+import { handlePushEvent, reportPushReceipt, isSiteRelativeUrl } from './lib/swPush'
+import type { PushReceipt } from './lib/swPush'
 
 declare let self: ServiceWorkerGlobalScope
+
+const swFetch = (input: string, init?: RequestInit) => fetch(input, init)
 
 precacheAndRoute(self.__WB_MANIFEST || [])
 
@@ -92,26 +93,21 @@ function matchesPath(url: string, target: string): boolean {
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
-  let data: PushNotificationData
+  // handlePushEvent validates the payload, shows the notification, updates the
+  // badge, and reports each milestone to push-receipt (all isolated: a failure
+  // in one step never suppresses the tray notification or rejects the push).
+  let raw: unknown
   try {
-    const parsed = PushNotificationDataSchema.safeParse(event.data.json())
-    if (!parsed.success) {
-      console.error('Invalid push payload', parsed.error)
-      return
-    }
-    data = parsed.data
+    raw = event.data.json()
   } catch (err) {
     console.error('Invalid push payload', err)
     return
   }
 
-  // handlePushEvent shows the notification and updates the badge with each
-  // step isolated: a rejected setAppBadge never suppresses the tray
-  // notification and never rejects the push event.
   event.waitUntil(
     handlePushEvent(
-      { registration: self.registration, navigator: self.navigator, logger: console },
-      data
+      { registration: self.registration, navigator: self.navigator, logger: console, fetch: swFetch },
+      raw
     )
       .then(async () => {
         if (!self.clients?.matchAll) return
@@ -146,26 +142,35 @@ self.addEventListener('pushsubscriptionchange', ((event: ExtendableEvent) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = event.notification.data?.url
+  const receipt = event.notification.data?.receipt as PushReceipt | undefined
 
-  // Notification data travels with the push payload and may be crafted
-  // outside the schema's parse (e.g. an old notification), so re-check here:
-  // only site-relative url STRINGS may be focused or opened (#429). The
-  // typeof guard also keeps a truthy non-string url (number, object…) from
-  // reaching the validator and throwing.
-  if (typeof url === 'string' && url && isSiteRelativeUrl(url)) {
-    event.waitUntil(
-      self.clients.matchAll({ type: 'window' }).then((clientList) => {
-        for (const client of clientList) {
-          if (matchesPath(client.url, url) && 'focus' in client) {
-            return client.focus()
-          }
+  // Notification data travels with the push payload and may be crafted outside
+  // the schema's parse (e.g. an old notification), so re-check here: only
+  // site-relative url STRINGS may be focused or opened (#429). The typeof guard
+  // also keeps a truthy non-string url (number, object…) from reaching the
+  // validator and throwing.
+  const hasUrl = typeof url === 'string' && url !== '' && isSiteRelativeUrl(url)
+  const hasReceipt = !!(receipt?.receiptUrl && receipt.subscriptionId && receipt.ackToken)
+  if (!hasUrl && !hasReceipt) return
+
+  const tasks: Promise<unknown>[] = []
+  if (hasUrl) {
+    tasks.push(self.clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if (matchesPath(client.url, url) && 'focus' in client) {
+          return client.focus()
         }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(url)
-        }
-      })
-    )
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(url)
+      }
+    }))
   }
+  if (hasReceipt) {
+    tasks.push(reportPushReceipt(swFetch, receipt!, 'clicked'))
+  }
+
+  event.waitUntil(Promise.allSettled(tasks))
 })
 
 // The page asks us to dismiss a channel's system notifications once it has

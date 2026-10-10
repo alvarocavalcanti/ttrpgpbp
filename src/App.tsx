@@ -150,13 +150,19 @@ function AppNav() {
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
   const debouncedSearch = useDebounce(searchInput, 300)
 
+  // Only the lobby owns the `q` search param. Never blanket-replace the query
+  // string here: deep links carry their own params (invite `?code=`, magic-link
+  // `?redirect=`) that this effect used to wipe before their screens read them.
+  // Even on the lobby, edit only `q` so unrelated params survive.
   useEffect(() => {
-    if (debouncedSearch) {
-      setSearchParams({ q: debouncedSearch }, { replace: true })
-    } else {
-      setSearchParams({}, { replace: true })
-    }
-  }, [debouncedSearch, setSearchParams])
+    if (location.pathname !== ROUTES.home) return
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (debouncedSearch) next.set('q', debouncedSearch)
+      else next.delete('q')
+      return next
+    }, { replace: true })
+  }, [debouncedSearch, location.pathname, setSearchParams])
 
   if (!user || location.pathname.startsWith('/channel/')) return null
 
@@ -377,6 +383,35 @@ function PermissionBannerGate() {
   return <PermissionBanner />
 }
 
+// The app shell. On the Messages inbox the shell pins to the viewport height
+// and lets <main> own the remaining space (with min-h-0 so the flex children
+// may shrink), which is what lets that screen scroll internally — fixed nav,
+// fixed thread header, fixed composer — exactly like a channel. Every other
+// route keeps the document-scroll layout.
+function AppShell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  const fillViewport = pathname === ROUTES.messages
+
+  return (
+    <div className={`${fillViewport ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} bg-surface-50 dark:bg-surface-900 flex flex-col`}>
+      <AppNav />
+      {/* Single floating banner host (issue #620): every transient banner lives
+          here so none of them changes the document height or pushes the layout
+          down. The container is pointer-transparent so only the cards intercept
+          taps. z-[60] sits above the z-50 modals, like before. */}
+      <div data-testid="app-banner-host" className="fixed top-3 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none">
+        <RealtimeBanner />
+        <PwaUpdateBanner />
+        <InstallBannerGate />
+        <PermissionBannerGate />
+      </div>
+      <main className={`flex-1 flex flex-col ${fillViewport ? 'min-h-0' : ''}`}>
+        <RouteErrorBoundary>{children}</RouteErrorBoundary>
+      </main>
+    </div>
+  )
+}
+
 export default function App() {
   // The inline script in index.html hides #root for visitors with a persisted
   // session so the prerendered marketing landing never paints before the lobby
@@ -393,55 +428,39 @@ export default function App() {
           <RouteTracker />
           <AnalyticsConsentBanner />
           <ChangelogProvider>
-            <div className="min-h-[100dvh] bg-surface-50 dark:bg-surface-900 flex flex-col">
-              <AppNav />
-              {/* Single floating banner host (issue #620): every transient
-                  banner lives here so none of them changes the document
-                  height or pushes the layout down. The container is
-                  pointer-transparent so only the cards intercept taps.
-                  z-[60] sits above the z-50 modals, like before. */}
-              <div data-testid="app-banner-host" className="fixed top-3 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none">
-                <RealtimeBanner />
-                <PwaUpdateBanner />
-                <InstallBannerGate />
-                <PermissionBannerGate />
-              </div>
-              <main className="flex-1 flex flex-col">
-                <RouteErrorBoundary>
-                  <Routes>
-                    <Route path={ROUTES.login} element={<Lazy><LoginPage /></Lazy>} />
+            <AppShell>
+              <Routes>
+                <Route path={ROUTES.login} element={<Lazy><LoginPage /></Lazy>} />
 
-                    <Route element={<ProtectedRoute />}>
-                      <Route path={ROUTES.home} element={<Lazy><Lobby /></Lazy>} />
-                      <Route path={ROUTES.archived} element={<Lazy><ArchivedChannels /></Lazy>} />
-                      <Route path={ROUTES.messages} element={<Lazy><AdminMessagesView /></Lazy>} />
-                      <Route path={ROUTES.admin} element={<Lazy><AdminView /></Lazy>} />
-                      <Route path={ROUTES.adminChannel} element={<Lazy><AdminChannelView /></Lazy>} />
-                      <Route path={ROUTES.join} element={<Lazy><JoinChannel /></Lazy>} />
-                      <Route path={ROUTES.channel} element={<Lazy><ChannelView /></Lazy>} />
-                      <Route path={ROUTES.settings} element={<Lazy><ProfileSettings /></Lazy>} />
-                      <Route path={ROUTES.changelog} element={<Lazy><ChangelogPage /></Lazy>} />
-                      <Route path={ROUTES.about} element={<Lazy><AboutPage /></Lazy>} />
-                    </Route>
-                    <Route path={ROUTES.privacy} element={<PrivacyPage />} />
-                    <Route path={ROUTES.terms} element={<TermsPage />} />
-                    <Route path={ROUTES.features} element={<FeaturesPage />} />
-                    <Route path={ROUTES.press} element={<PressPage />} />
-                    <Route path={ROUTES.diceRoller} element={<DiceRollerPage />} />
-                    <Route path={ROUTES.gameSystem} element={<GameSystemPage />} />
-                    <Route path={ROUTES.playByPost} element={<ContentPage />} />
-                    <Route path={ROUTES.howToDnd} element={<ContentPage />} />
-                    <Route path={ROUTES.howToRun} element={<ContentPage />} />
-                    <Route path={ROUTES.vsDiscord} element={<ContentPage />} />
-                    <Route path={ROUTES.altRpol} element={<ContentPage />} />
-                    <Route path={ROUTES.altMythWeavers} element={<ContentPage />} />
-                    <Route path={ROUTES.help} element={<HelpPage />} />
-                    <Route path={ROUTES.helpTopic} element={<HelpPage />} />
-                    <Route path={ROUTES.notFound} element={<NotFound />} />
-                  </Routes>
-                </RouteErrorBoundary>
-              </main>
-            </div>
+                <Route element={<ProtectedRoute />}>
+                  <Route path={ROUTES.home} element={<Lazy><Lobby /></Lazy>} />
+                  <Route path={ROUTES.archived} element={<Lazy><ArchivedChannels /></Lazy>} />
+                  <Route path={ROUTES.messages} element={<Lazy><AdminMessagesView /></Lazy>} />
+                  <Route path={ROUTES.admin} element={<Lazy><AdminView /></Lazy>} />
+                  <Route path={ROUTES.adminChannel} element={<Lazy><AdminChannelView /></Lazy>} />
+                  <Route path={ROUTES.join} element={<Lazy><JoinChannel /></Lazy>} />
+                  <Route path={ROUTES.channel} element={<Lazy><ChannelView /></Lazy>} />
+                  <Route path={ROUTES.settings} element={<Lazy><ProfileSettings /></Lazy>} />
+                  <Route path={ROUTES.changelog} element={<Lazy><ChangelogPage /></Lazy>} />
+                  <Route path={ROUTES.about} element={<Lazy><AboutPage /></Lazy>} />
+                </Route>
+                <Route path={ROUTES.privacy} element={<PrivacyPage />} />
+                <Route path={ROUTES.terms} element={<TermsPage />} />
+                <Route path={ROUTES.features} element={<FeaturesPage />} />
+                <Route path={ROUTES.press} element={<PressPage />} />
+                <Route path={ROUTES.diceRoller} element={<DiceRollerPage />} />
+                <Route path={ROUTES.gameSystem} element={<GameSystemPage />} />
+                <Route path={ROUTES.playByPost} element={<ContentPage />} />
+                <Route path={ROUTES.howToDnd} element={<ContentPage />} />
+                <Route path={ROUTES.howToRun} element={<ContentPage />} />
+                <Route path={ROUTES.vsDiscord} element={<ContentPage />} />
+                <Route path={ROUTES.altRpol} element={<ContentPage />} />
+                <Route path={ROUTES.altMythWeavers} element={<ContentPage />} />
+                <Route path={ROUTES.help} element={<HelpPage />} />
+                <Route path={ROUTES.helpTopic} element={<HelpPage />} />
+                <Route path={ROUTES.notFound} element={<NotFound />} />
+              </Routes>
+            </AppShell>
           </ChangelogProvider>
         </BrowserRouter>
       </AuthProvider>

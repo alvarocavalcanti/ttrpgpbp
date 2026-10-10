@@ -9,10 +9,16 @@
 #
 # Every app route needs the rule — a reload at /channel/c1 requests that path,
 # not / or /index.html. Keep this list in sync with the Route list in
-# src/App.tsx. Fingerprinted assets (/assets/*, icons) are deliberately
-# excluded so their long-term caching is untouched.
+# src/App.tsx. The un-hashed static icons are left out so their caching stays
+# on the Pages default; the fingerprinted build assets get their own immutable
+# rule just below.
 /
   Cache-Control: no-cache
+# Vite content-hashes every build asset under /assets/*, so a given URL never
+# changes content and can be cached forever. Pages serves them as
+# `must-revalidate` by default, which re-validates (a round trip) on each load.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
 /index.html
   Cache-Control: no-cache
 # Prerendered empty SPA shell every app/auth route is rewritten to (issue

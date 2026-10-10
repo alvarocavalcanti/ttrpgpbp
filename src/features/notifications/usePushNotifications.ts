@@ -2,30 +2,20 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import {
+  clearPushOptedOut,
+  ensurePushSubscription,
   getActiveSubscription,
+  logPushClientEvent,
+  markPushOptedOut,
   persistPushSubscription,
-  reconcilePushSubscription,
   subscriptionJsonToRow,
-  subscriptionToRow
+  subscriptionToRow,
+  urlBase64ToUint8Array
 } from '../../lib/pushSubscription'
 import type { Database } from '../../types/database'
 import { env } from '../../env'
 
 type NotificationPrefs = Database['public']['Tables']['notification_preferences']['Row']
-
-// Helper to convert base64 url string to Uint8Array
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-
-  const rawData = window.atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i)
-  }
-  return outputArray
-}
 
 const PERSIST_ERROR = 'Failed to persist push subscription'
 
@@ -57,25 +47,35 @@ export function usePushNotifications() {
     let mounted = true
     if (!user?.id) return
 
-    // Reconciles the server with the browser's current subscription, surfacing
-    // failures instead of silently diverging (#191). Safe to call repeatedly:
-    // a fresh run is also how endpoint rotation gets repaired.
+    // Brings the browser and server in line with each other and, crucially,
+    // RECREATES a subscription the browser lost (410 deletion, SW unregister,
+    // token rotation) when permission is already granted (#191). Safe to call
+    // repeatedly, and de-duplicated across the hook's several mounts: a fresh
+    // run is also how endpoint rotation gets repaired.
     async function reconcile() {
       if (!user?.id) return
-      const result = await reconcilePushSubscription(user.id)
-      if (!result.ok && mounted) {
-        setError(result.error ?? new Error(PERSIST_ERROR))
+      const result = await ensurePushSubscription(user.id, env.VITE_VAPID_PUBLIC_KEY ?? '')
+      if (!result.ok) {
+        if (mounted) setError(result.error ?? new Error(PERSIST_ERROR))
+        return
       }
+      const subscription = await getActiveSubscription()
+      if (mounted) setIsSubscribed(!!subscription)
     }
 
     // The service worker relays browser-initiated subscription rotation via
     // PUSH_SUBSCRIPTION_CHANGED. Persist the fresh credentials while we're
-    // authenticated; if no tab is open, the next startup/foreground reconcile
-    // repairs it.
+    // authenticated; a `null` means the browser revoked the subscription, so
+    // reconcile recreates it. If no tab is open, the next startup/foreground
+    // reconcile repairs it.
     function handleMessage(event: MessageEvent) {
       const data = event.data as { type?: string; subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } } | null }
-      if (data?.type !== 'PUSH_SUBSCRIPTION_CHANGED' || !data.subscription) return
+      if (data?.type !== 'PUSH_SUBSCRIPTION_CHANGED') return
       if (!user?.id) return
+      if (!data.subscription) {
+        void reconcile()
+        return
+      }
 
       persistPushSubscription(user.id, subscriptionJsonToRow(data.subscription)).then(result => {
         if (!result.ok) setError(result.error ?? new Error(PERSIST_ERROR))
@@ -107,10 +107,9 @@ export function usePushNotifications() {
           })
         }
 
-        // Check if subscribed in SW, then repair the stored subscription.
+        // Repair — or recover — the stored subscription, then reflect the
+        // browser's resulting state in `isSubscribed`.
         if ('serviceWorker' in navigator) {
-          const subscription = await getActiveSubscription()
-          if (mounted) setIsSubscribed(!!subscription)
           await reconcile()
         }
       } catch (err) {
@@ -151,6 +150,10 @@ export function usePushNotifications() {
       throw new Error('Permission not granted for Notification')
     }
 
+    // The user explicitly enabled this device: clear any prior opt-out so a
+    // later reconcile may heal a lost subscription again.
+    clearPushOptedOut()
+
     const registration = await navigator.serviceWorker.ready
 
     // Subscribe
@@ -169,6 +172,7 @@ export function usePushNotifications() {
     if (!result.ok) throw result.error
 
     setIsSubscribed(true)
+    void logPushClientEvent(user.id, 'subscribed')
   }
 
   const unsubscribeFromPush = async () => {
@@ -187,6 +191,10 @@ export function usePushNotifications() {
         .match({ user_id: user.id, endpoint: subJson.endpoint! })
 
       setIsSubscribed(false)
+      // Remember the choice for this device: browser permission stays granted
+      // after unsubscribe, so reconcile must not recreate what was turned off.
+      markPushOptedOut()
+      void logPushClientEvent(user.id, 'unsubscribed')
     }
   }
 

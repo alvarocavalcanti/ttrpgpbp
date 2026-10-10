@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-10
+
+### Fixed
+
+- **Notifications recover on their own** — if a device's push subscription is ever lost (the browser rotates it, an update clears it, or the push service expires it), the app now quietly re-creates it the next time you open it, instead of going silent until you toggle notifications off and on again.
+- **Updates can no longer strand your phone without notifications** — the app's "stuck update" recovery used to leave Android without a push subscription. It now hands the subscription back so the app can rebuild it on the next launch.
+- **Repeat notifications tidy up** — several pushes for the same conversation now collapse into one updating notification instead of stacking up in the tray.
+- **Messages stay put when you scroll** — on the Messages screen the app bar and the conversation header now stay in place while you read, so getting back to the previous screen no longer means scrolling all the way up.
+
+## 2026-10-09
+
+### Fixed
+
+- **Invite links lead where they should** — opening a campaign invite link now takes you to the join screen with the invite ready, even if you sign in first. Before, it could drop you in the lobby and then claim the password or link was wrong.
+- **Joining a campaign speaks plainly** — if a join fails unexpectedly, you now get a friendly explanation instead of a technical database message.
+- **Channel Settings tells the truth about passwords** — it now shows that a password is set when your campaign is protected, instead of always reporting "No password".
+- **Copying an invite link is more reliable** — if the browser blocks the first copy attempt, the link still lands on your clipboard instead of failing silently.
+
 ## 2026-10-07
 
 ### Added

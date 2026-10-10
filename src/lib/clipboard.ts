@@ -1,11 +1,16 @@
-// Copy text to the clipboard. navigator.clipboard in secure contexts; a
-// hidden-textarea execCommand('copy') fallback on legacy/insecure origins
-// where the async Clipboard API is unavailable. Throws when the copy could
-// not be performed so callers surface a single failure path.
+// Copy text to the clipboard. Prefers the async Clipboard API in secure
+// contexts; if it's unavailable, or the write rejects (a transient focus/
+// permission failure the browser occasionally reports), fall back to a
+// hidden-textarea execCommand('copy'). Throws only when every path fails so
+// callers surface a single failure path.
 export async function copyToClipboard(text: string): Promise<void> {
   if (navigator.clipboard && window.isSecureContext) {
-    await navigator.clipboard.writeText(text)
-    return
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // fall through to the execCommand fallback
+    }
   }
   const textArea = document.createElement('textarea')
   try {

@@ -1,6 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import { captureException } from '../lib/sentry'
+import { reportAppError } from '../lib/appErrorLog'
 import { hardReload } from '../lib/hardReload'
 
 interface ErrorBoundaryProps {
@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Uncaught render error:', error, info)
-    void captureException(error, { extra: info as Record<string, unknown> })
+    reportAppError(error, { componentStack: info.componentStack ?? undefined })
   }
 
   handleReload = () => {

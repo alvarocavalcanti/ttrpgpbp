@@ -194,6 +194,21 @@ describe('reloadToUpdate', () => {
     expect(capture.hardReload).toHaveBeenCalledWith({ bustCache: true })
   })
 
+  it('unsubscribes push before unregistering so the device can recreate it', async () => {
+    vi.useFakeTimers()
+    const pushUnsubscribe = vi.fn().mockResolvedValue(true)
+    const pushGetSubscription = vi.fn().mockResolvedValue({ unsubscribe: pushUnsubscribe })
+    capture.getRegistrations.mockResolvedValue([
+      { pushManager: { getSubscription: pushGetSubscription }, unregister: capture.unregister }
+    ])
+    await act(async () => pwaUpdate.reloadToUpdate())
+    await act(async () => vi.advanceTimersByTime(3000))
+
+    expect(pushGetSubscription).toHaveBeenCalled()
+    expect(pushUnsubscribe).toHaveBeenCalled()
+    expect(capture.unregister).toHaveBeenCalled()
+  })
+
   it('self-heals when a registration has no waiting or installing worker', async () => {
     // The frozen-page case: the worker already activated while we were away, so
     // there is nothing left to skip and no controllerchange will ever fire.

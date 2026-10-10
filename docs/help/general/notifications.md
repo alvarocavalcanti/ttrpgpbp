@@ -14,6 +14,8 @@ title: Notifications
 
 On first load you may see a banner asking to enable push notifications. Accept it to stay in the loop when you're away.
 
+You don't have to keep watching the toggle: if a device's subscription is ever dropped (browsers rotate and expire them on their own), simply opening the app again re-enables notifications for that device.
+
 ## iOS support
 
 On iOS, push notifications require **installing the app to your Home Screen** — iOS only exposes the Push API inside installed web apps. The UI shows install guidance and disables push controls until the app is installed. For the home-screen badge to show, **Badges** must be enabled under iOS Settings → Notifications → the app.

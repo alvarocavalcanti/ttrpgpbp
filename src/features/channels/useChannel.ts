@@ -20,6 +20,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
   const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState<string | null>(null)
+  const [hasPassword, setHasPassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
@@ -107,9 +108,15 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     // Members + GM secrets. Extracted so a realtime INSERT can refetch with the
     // profile join intact.
     async function loadMembers(): Promise<ChannelMember[]> {
-      const [membersResponse, secretsResponse] = await Promise.all([
+      const [membersResponse, secretsResponse, passwordResponse] = await Promise.all([
         supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string),
-        supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId as string).maybeSingle()
+        supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId as string).maybeSingle(),
+        // Count rows rather than projecting password_hash: the browser only
+        // needs to know whether a password is set, never the stored hash (which
+        // plus the exposed salt would allow offline guessing). RLS keeps this 0
+        // for non-GMs.
+        supabase.from('channel_secrets').select('channel_id', { count: 'exact', head: true })
+          .eq('channel_id', channelId as string).not('password_hash', 'is', null)
       ])
       if (membersResponse.error) throw membersResponse.error
 
@@ -128,6 +135,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       if (mounted) {
         // channel_secrets is GM-only (RLS); non-GMs get no row.
         setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
+        setHasPassword((passwordResponse.count ?? 0) > 0)
         setMembers(formattedMembers)
         if (!boundaryCapturedRef.current) {
           boundaryCapturedRef.current = true
@@ -258,5 +266,5 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   // markRead is exposed so the owner (ChannelView) can fire the deferred
   // history-first read-mark once the messages-loaded gate opens (#412).
-  return { channel, members, gmOnlyResourcesUrl, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch }
+  return { channel, members, gmOnlyResourcesUrl, hasPassword, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch }
 }
