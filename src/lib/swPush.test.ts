@@ -134,12 +134,12 @@ describe('handlePushEvent', () => {
     expect(navigator.setAppBadge).toHaveBeenCalledWith(2)
   })
 
-  it('tags the notification so repeat pushes collapse', async () => {
+  it('tags the notification and re-alerts so repeats collapse without silencing', async () => {
     const { scope, registration } = makeScope()
     await handlePushEvent(scope, { title: 'T', url: '/channel/c1' })
     expect(registration.showNotification).toHaveBeenCalledWith(
       'T',
-      expect.objectContaining({ tag: '/channel/c1' })
+      expect.objectContaining({ tag: '/channel/c1', renotify: true })
     )
   })
 

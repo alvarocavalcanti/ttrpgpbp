@@ -12,10 +12,12 @@ import {
   clearPushOptedOut
 } from './pushSubscription'
 
-function mockClient(upsertResult: { error?: Error | null } = {}) {
+function mockClient(upsertResult: { error?: Error | null } = {}, existingRow: unknown = null) {
   const upsert = vi.fn().mockResolvedValue(upsertResult)
-  const from = vi.fn().mockReturnValue({ upsert })
-  return { from, upsert }
+  const maybeSingle = vi.fn().mockResolvedValue({ data: existingRow, error: null })
+  const select = vi.fn().mockReturnValue({ eq: () => ({ eq: () => ({ maybeSingle }) }) })
+  const from = vi.fn().mockReturnValue({ upsert, select })
+  return { from, upsert, select, maybeSingle }
 }
 
 describe('subscriptionToRow', () => {
@@ -125,11 +127,11 @@ describe('ensurePushSubscription (existing subscription only)', () => {
     expect(client.upsert).not.toHaveBeenCalled()
   })
 
-  it('upserts the active subscription', async () => {
+  it('upserts the active subscription the server still holds', async () => {
     mockPushManager.getSubscription.mockResolvedValue({
       toJSON: () => ({ endpoint: 'https://push.example.com/e', keys: { p256dh: 'p', auth: 'a' } })
     })
-    const client = mockClient({ error: null })
+    const client = mockClient({ error: null }, { id: 's1' })
 
     await expect(ensurePushSubscription('u1', '', client as any)).resolves.toEqual({ ok: true })
     expect(client.upsert).toHaveBeenCalledWith(
@@ -142,7 +144,7 @@ describe('ensurePushSubscription (existing subscription only)', () => {
     mockPushManager.getSubscription.mockResolvedValue({
       toJSON: () => ({ endpoint: 'e', keys: { p256dh: 'p', auth: 'a' } })
     })
-    const client = mockClient({ error: new Error('DB error') })
+    const client = mockClient({ error: new Error('DB error') }, { id: 's1' })
 
     const result = await ensurePushSubscription('u1', '', client as any)
     expect(result.ok).toBe(false)
@@ -228,11 +230,36 @@ describe('ensurePushSubscription', () => {
     mockPushManager.getSubscription.mockResolvedValue({
       toJSON: () => ({ endpoint: 'https://push.example.com/e', keys: { p256dh: 'p', auth: 'a' } })
     })
-    const client = mockClient()
+    const client = mockClient({ error: null }, { id: 's1' })
 
     await expect(ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any)).resolves.toEqual({ ok: true })
     expect(mockPushManager.subscribe).not.toHaveBeenCalled()
     expect(client.upsert).toHaveBeenCalled()
+  })
+
+  it('rotates a subscription the server no longer holds', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true)
+    mockPushManager.getSubscription.mockResolvedValue({
+      endpoint: 'https://push.example.com/dead',
+      unsubscribe,
+      toJSON: () => ({ endpoint: 'https://push.example.com/dead', keys: { p256dh: 'p', auth: 'a' } })
+    })
+    mockPushManager.subscribe.mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/fresh', keys: { p256dh: 'p2', auth: 'a2' } })
+    })
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    // Server row for the (user, endpoint) pair is gone — the 410-deletion case.
+    const client = mockClient({ error: null }, null)
+
+    const result = await ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any)
+
+    expect(unsubscribe).toHaveBeenCalled()
+    expect(mockPushManager.subscribe).toHaveBeenCalled()
+    expect(result).toEqual({ ok: true, created: true })
+    expect(client.upsert).toHaveBeenCalledWith(
+      { user_id: 'u1', endpoint: 'https://push.example.com/fresh', p256dh: 'p2', auth: 'a2' },
+      { onConflict: 'user_id,endpoint' }
+    )
   })
 
   it('surfaces a failed create instead of throwing', async () => {

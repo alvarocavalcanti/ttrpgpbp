@@ -8,9 +8,9 @@
 --      so a permanently failing event (deleted message, bad config) stops
 --      instead of looping forever every 30 minutes.
 --   2. retry_failed_push_invocations filters on a PRESENT failed pg_net
---      response (>= 400 or timed out). pg_net prunes old responses, so the
---      inner join already excludes pruned ones; the explicit timed_out check
---      keeps genuine timeouts retryable.
+--      response: >= 400, timed out, or a recorded NULL status (a transport/DNS
+--      failure pg_net surfaces without an HTTP code). pg_net prunes old
+--      responses, so the inner join already excludes pruned ones.
 --
 -- Scheduling is pg_cron (platform-native, no external scheduler and no stored
 -- database credentials). It runs as the extension owner, so the revoked
@@ -46,7 +46,7 @@ begin
     join net._http_response resp on resp.id = i.request_id
     where i.retried_at is null
       and i.attempt < 5
-      and (resp.status_code >= 400 or resp.timed_out)
+      and (resp.status_code is null or resp.status_code >= 400 or resp.timed_out)
       and i.created_at > now() - interval '7 days'
     order by i.created_at desc
     limit greatest(p_max, 0)

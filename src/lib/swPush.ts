@@ -160,13 +160,17 @@ export async function handlePushEvent(scope: PushHandlerScope, raw: unknown): Pr
   }
   const data = parsed.data
 
-  const options: NotificationOptions = {
+  // `renotify` is a standard member the bundled DOM lib omits from the type.
+  const options: NotificationOptions & { renotify?: boolean } = {
     body: data.body || '',
     icon: DEFAULT_ICON,
     badge: DEFAULT_BADGE_ICON,
     // A stable tag collapses repeat pushes for the same target into one tray
-    // entry (Android otherwise stacks an unbounded number of them).
+    // entry (Android otherwise stacks an unbounded number of them). `renotify`
+    // re-alerts on each update — without it, later messages in the same
+    // conversation would silently replace the tray entry.
     tag: data.url || '/',
+    renotify: true,
     data: {
       url: data.url || '/',
       // Carried onto the notification so the click handler can report it.

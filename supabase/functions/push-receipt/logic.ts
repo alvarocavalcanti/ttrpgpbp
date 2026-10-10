@@ -30,3 +30,50 @@ export const ReceiptSchema = z.object({
 })
 
 export type Receipt = z.infer<typeof ReceiptSchema>
+
+// Minimal client surface needed to record a receipt. The real service-role
+// supabase client satisfies it; tests pass a fake.
+export interface ReceiptDb {
+  from(table: string): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        eq(column: string, value: string): {
+          maybeSingle(): PromiseLike<{ data: { id: string; user_id: string } | null; error: { message?: string } | null }>
+        }
+      }
+    }
+    insert(row: Record<string, unknown>): PromiseLike<{ error: { message?: string } | null }>
+  }
+}
+
+export type ReceiptOutcome = 'ok' | 'unknown' | 'error'
+
+// Token-gated write. The subscription is looked up by (id, ack_token): a caller
+// that does not hold the device's ack_token matches no row and cannot write.
+// The stored user_id comes from the matched row, never from the request.
+export async function applyReceipt(
+  db: ReceiptDb,
+  receipt: Receipt,
+  userAgent: string | null
+): Promise<ReceiptOutcome> {
+  const { data: subscription, error: lookupError } = await db
+    .from('push_subscriptions')
+    .select('id, user_id')
+    .eq('id', receipt.subscription_id)
+    .eq('ack_token', receipt.ack_token)
+    .maybeSingle()
+
+  if (lookupError) return 'error'
+  if (!subscription) return 'unknown'
+
+  const { error } = await db.from('push_client_log').insert({
+    event_id: receipt.event_id ?? null,
+    subscription_id: subscription.id,
+    user_id: subscription.user_id,
+    event_kind: receipt.event_kind ?? null,
+    status: receipt.status,
+    detail: receipt.detail ?? null,
+    user_agent: userAgent,
+  })
+  return error ? 'error' : 'ok'
+}

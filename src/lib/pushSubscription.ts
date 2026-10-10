@@ -115,16 +115,41 @@ export function clearPushOptedOut(): void {
   }
 }
 
+// Whether the server still holds this exact (user, endpoint) row. A read
+// failure is treated as "saved" so a transient error never triggers needless
+// subscription churn.
+async function endpointSaved(
+  userId: string,
+  endpoint: string,
+  client: PushSubscriptionsClient
+): Promise<boolean> {
+  try {
+    const { data, error } = await client
+      .from('push_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('endpoint', endpoint)
+      .maybeSingle()
+    return !!error || !!data
+  } catch {
+    // A read failure must not trigger needless subscription churn.
+    return true
+  }
+}
+
 // Brings the server in line with the browser's push state. Reads the active
 // PushSubscription and upserts it; when the browser has NO subscription but
 // permission is already granted and a VAPID key is configured, it CREATES one
 // and persists it. That creation is the self-heal path: a subscription lost to
 // a 410 deletion, a service-worker unregister, or a silently rotated browser
 // token is recreated on the next startup/foreground instead of leaving the
-// device permanently push-less. Never prompts (only `Notification.requestPermission`
-// does): creating a subscription needs a prior grant, so a silent mild-absence
-// of one just no-ops. A device the user deliberately opted out on is left
-// alone. Surfaces failures instead of throwing.
+// device permanently push-less. A subscription the browser still reports but
+// the server no longer holds (its row was deleted after a 410) is rotated for a
+// fresh endpoint, since re-persisting it would only restore a dead one. Never
+// prompts (only `Notification.requestPermission` does): creating a subscription
+// needs a prior grant, so a silent mild-absence of one just no-ops. A device the
+// user deliberately opted out on is left alone. Surfaces failures instead of
+// throwing.
 export async function ensurePushSubscription(
   userId: string,
   vapidPublicKey: string,
@@ -134,7 +159,18 @@ export async function ensurePushSubscription(
   if (isPushOptedOut()) return { ok: true }
   try {
     const existing = await getActiveSubscription()
-    if (existing) return persistPushSubscription(userId, subscriptionToRow(existing), client)
+    if (existing && await endpointSaved(userId, existing.endpoint, client)) {
+      return persistPushSubscription(userId, subscriptionToRow(existing), client)
+    }
+    if (existing) {
+      // Server lost this endpoint (410 deletion) but the browser still hands us
+      // the dead object: force a fresh subscription instead of resurrecting it.
+      try {
+        await existing.unsubscribe()
+      } catch {
+        // Best-effort; subscribe() still mints a new endpoint.
+      }
+    }
 
     if (!vapidPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
       return { ok: true }

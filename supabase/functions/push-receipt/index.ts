@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
-import { ReceiptSchema } from "./logic.ts"
+import { ReceiptSchema, applyReceipt } from "./logic.ts"
+import type { ReceiptDb } from "./logic.ts"
 
 // Receives device-side push delivery milestones from the service worker (and
 // the page) and records them in push_client_log, closing the observability gap
@@ -33,41 +34,16 @@ serve(async (req) => {
     if (!parsed.success) {
       return new Response("Invalid payload", { status: 400 })
     }
-    const receipt = parsed.data
 
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey)
+    const outcome = await applyReceipt(
+      serviceClient as unknown as ReceiptDb,
+      parsed.data,
+      req.headers.get("user-agent")?.slice(0, 300) ?? null
+    )
 
-    // The ack_token gates the write: only a device that actually received a
-    // push holds it. A mismatched token resolves to no row and is rejected.
-    const { data: subscription, error: lookupError } = await serviceClient
-      .from("push_subscriptions")
-      .select("id, user_id")
-      .eq("id", receipt.subscription_id)
-      .eq("ack_token", receipt.ack_token)
-      .maybeSingle()
-
-    if (lookupError) {
-      console.error(`push-receipt lookup failed: ${lookupError.message}`)
-      return new Response("Internal server error", { status: 500 })
-    }
-    if (!subscription) {
-      return new Response("Unknown subscription", { status: 401 })
-    }
-
-    const { error } = await serviceClient.from("push_client_log").insert({
-      event_id: receipt.event_id ?? null,
-      subscription_id: subscription.id,
-      user_id: subscription.user_id,
-      event_kind: receipt.event_kind ?? null,
-      status: receipt.status,
-      detail: receipt.detail ?? null,
-      user_agent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
-    })
-    if (error) {
-      console.error(`push-receipt log write failed: ${error.message}`)
-      return new Response("Internal server error", { status: 500 })
-    }
-
+    if (outcome === "unknown") return new Response("Unknown subscription", { status: 401 })
+    if (outcome === "error") return new Response("Internal server error", { status: 500 })
     return new Response(null, { status: 204 })
   } catch (err) {
     console.error("push-receipt error:", err)
