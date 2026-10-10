@@ -108,6 +108,18 @@ describe('DiceRollerPage', () => {
     expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
   })
 
+  it('resets advantage when the selection is cleared (#697)', () => {
+    renderPage()
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Advantage' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
+
+    // Re-pick a d20: clearing reset Advantage, so this rolls a plain d20.
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(screen.getByText('1d20')).toBeInTheDocument()
+  })
+
   it('marks the active mode for assistive tech', () => {
     renderPage()
     const pool = screen.getByRole('button', { name: 'Pool' })

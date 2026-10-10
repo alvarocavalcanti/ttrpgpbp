@@ -48,9 +48,14 @@ export function useChannels() {
     // so recovery never needs the user to tap Retry.
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let retryAttempt = 0
+    // Monotonic id so only the newest in-flight fetch may touch state — a
+    // slower older response must not overwrite a newer one (#700 review).
+    let requestSeq = 0
 
     async function fetchChannels() {
       if (!user?.id || authLoading) return
+      const requestId = ++requestSeq
+      const isCurrent = () => mounted && requestId === requestSeq
 
       try {
         // Fetch my channels (via channel_members)
@@ -70,44 +75,47 @@ export function useChannels() {
           return channelId ? [channelId] : []
         }))
 
-        if (mounted) {
-          // One RPC for every channel's unread count instead of a count query
-          // per channel (C4).
-          const { data: unreadData, error: unreadError } = await supabase.rpc('get_user_channels_unread', { p_user_id: user.id })
-          if (unreadError) throw unreadError
-          const unreadMap = new Map((unreadData || []).map(row => [row.channel_id, row.unread_count]))
+        if (!isCurrent()) return
 
-          // Format my channels; malformed rows are dropped rather than
-          // rendered with undefined props (issue #338 runtime validation).
-          const formattedMyChannels = (memberData || []).flatMap(row => {
-            const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
-            const channel = parseRow(ChannelRowSchema, channelData)
-            const member = parseRow(ChannelMemberRowSchema, row)
-            if (!channel || !member) return []
-            return {
-              ...channel,
-              member: member as ChannelMember,
-              unread_count: unreadMap.get(member.channel_id ?? '') ?? 0
-            }
-          }) as (Channel & { member: ChannelMember, unread_count?: number })[]
+        // One RPC for every channel's unread count instead of a count query
+        // per channel (C4).
+        const { data: unreadData, error: unreadError } = await supabase.rpc('get_user_channels_unread', { p_user_id: user.id })
+        if (unreadError) throw unreadError
 
-          formattedMyChannels.sort(byRecentActivity)
+        if (!isCurrent()) return
 
-          if (mounted) setMyChannels(formattedMyChannels)
-          myChannelIdsRef.current = new Set(formattedMyChannels.map(c => c.id))
-          // Any successful fetch clears a stale error and cancels the retry
-          // chain — this is what makes the lobby self-heal (#700), including
-          // the automatic visibilitychange / push / realtime refetches.
-          retryAttempt = 0
-          if (retryTimer) {
-            clearTimeout(retryTimer)
-            retryTimer = undefined
+        const unreadMap = new Map((unreadData || []).map(row => [row.channel_id, row.unread_count]))
+
+        // Format my channels; malformed rows are dropped rather than
+        // rendered with undefined props (issue #338 runtime validation).
+        const formattedMyChannels = (memberData || []).flatMap(row => {
+          const channelData = Array.isArray(row.channel) ? row.channel[0] : row.channel
+          const channel = parseRow(ChannelRowSchema, channelData)
+          const member = parseRow(ChannelMemberRowSchema, row)
+          if (!channel || !member) return []
+          return {
+            ...channel,
+            member: member as ChannelMember,
+            unread_count: unreadMap.get(member.channel_id ?? '') ?? 0
           }
-          if (mounted) setError(null)
+        }) as (Channel & { member: ChannelMember, unread_count?: number })[]
+
+        formattedMyChannels.sort(byRecentActivity)
+
+        setMyChannels(formattedMyChannels)
+        myChannelIdsRef.current = new Set(formattedMyChannels.map(c => c.id))
+        // Any successful fetch clears a stale error and cancels the retry
+        // chain — this is what makes the lobby self-heal (#700), including
+        // the automatic visibilitychange / push / realtime refetches.
+        retryAttempt = 0
+        if (retryTimer) {
+          clearTimeout(retryTimer)
+          retryTimer = undefined
         }
+        setError(null)
       } catch (error) {
         console.error('Error fetching channels:', error)
-        if (mounted) {
+        if (isCurrent()) {
           setError(error as Error)
           // Retry with exponential backoff (capped at 30s), mirroring
           // subscribeWithRetry — the error screen recovers on its own.
@@ -121,7 +129,7 @@ export function useChannels() {
           }
         }
       } finally {
-        if (mounted) setLoading(false)
+        if (isCurrent()) setLoading(false)
       }
     }
 

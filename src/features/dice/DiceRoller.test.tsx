@@ -326,6 +326,21 @@ describe('DiceRoller', () => {
     expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('resets advantage when the selection is cleared (#697)', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
+
+    // Re-pick a d20: clearing reset Adv, so this rolls a plain d20.
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20')
+  })
+
   it('clears the dice after rolling so the next roll starts fresh', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)

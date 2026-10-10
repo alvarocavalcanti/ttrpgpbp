@@ -308,7 +308,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
         )}
         <button
           type="button"
-          onClick={() => setSelection([])}
+          onClick={() => handleSelectionChange([])}
           disabled={!canRoll}
           aria-label="Clear dice"
           className="ml-auto min-h-11 py-2 px-3 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 disabled:opacity-50 disabled:cursor-not-allowed"
