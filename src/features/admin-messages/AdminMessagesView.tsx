@@ -10,7 +10,12 @@ export function AdminMessagesView() {
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
 
   return (
-    <div className="flex-1 w-full flex flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+    // Bounded to the viewport below the app nav so the list/detail scroll
+    // internally: the nav and the thread header stay put instead of scrolling
+    // away with the document. 4.5rem is AppNav's single-row height
+    // (`p-4` = 2rem + a 2.5rem row); the logo truncates rather than wraps, so
+    // the height is constant across viewports.
+    <div className="h-[calc(100dvh-4.5rem)] w-full flex flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
       <div className={`md:w-1/3 w-full md:flex md:flex-col border-r border-gray-200 dark:border-gray-800 ${selectedThread ? 'hidden md:flex' : 'flex flex-1'}`}>
         <ThreadList selectedThreadId={selectedThread?.id} onSelectThread={setSelectedThread} />
       </div>
