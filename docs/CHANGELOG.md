@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Update reloads are quick now** — tapping Reload on the "New version available" banner used to leave the app loading for a long time, especially in a normal browser tab. It now updates in a single step, about as fast as refreshing the page yourself.
 - **Notifications recover on their own** — if a device's push subscription is ever lost (the browser rotates it, an update clears it, or the push service expires it), the app now quietly re-creates it the next time you open it, instead of going silent until you toggle notifications off and on again.
 - **Updates can no longer strand your phone without notifications** — the app's "stuck update" recovery used to leave Android without a push subscription. It now hands the subscription back so the app can rebuild it on the next launch.
 - **Repeat notifications tidy up** — several pushes for the same conversation now collapse into one updating notification instead of stacking up in the tray.

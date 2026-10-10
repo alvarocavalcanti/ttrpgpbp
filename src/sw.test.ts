@@ -283,10 +283,10 @@ describe('sw message handler skips waiting on update prompt', () => {
   })
 })
 
-describe('sw activate handler reloads clients on update', () => {
+describe('sw activate handler notifies clients on update', () => {
   let claim: ReturnType<typeof vi.fn>
   let matchAll: ReturnType<typeof vi.fn>
-  let navigate: ReturnType<typeof vi.fn>
+  let postMessage: ReturnType<typeof vi.fn>
   let skipWaiting: ReturnType<typeof vi.fn>
   let activateHandler: ((event: { waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
   let messageHandler: ((event: { data: unknown; waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
@@ -297,8 +297,8 @@ describe('sw activate handler reloads clients on update', () => {
     vi.resetModules()
     vi.clearAllMocks()
     claim = vi.fn().mockResolvedValue(undefined)
-    navigate = vi.fn().mockResolvedValue(undefined)
-    matchAll = vi.fn().mockResolvedValue([{ url: 'https://app.example/channel/c1', navigate }])
+    postMessage = vi.fn()
+    matchAll = vi.fn().mockResolvedValue([{ url: 'https://app.example/channel/c1', postMessage }])
     skipWaiting = vi.fn()
     Object.defineProperty(self, 'clients', { value: { claim, matchAll }, configurable: true })
     Object.defineProperty(self, 'skipWaiting', { value: skipWaiting, configurable: true })
@@ -311,7 +311,7 @@ describe('sw activate handler reloads clients on update', () => {
     messageHandler = find('message') as ((event: { data: unknown; waitUntil: (p: Promise<unknown>) => void }) => void) | undefined
   })
 
-  it('claims clients without reloading on first install', async () => {
+  it('claims clients without notifying on first install', async () => {
     const waitUntil = vi.fn((p: Promise<unknown>) => p)
     activateHandler?.({ waitUntil })
     await waitUntil.mock.calls[0][0]
@@ -319,7 +319,7 @@ describe('sw activate handler reloads clients on update', () => {
     expect(matchAll).not.toHaveBeenCalled()
   })
 
-  it('reloads every open window after the update prompt CTA', async () => {
+  it('notifies open windows to reload after the update prompt CTA', async () => {
     messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
     expect(skipWaiting).toHaveBeenCalledTimes(1)
 
@@ -329,27 +329,23 @@ describe('sw activate handler reloads clients on update', () => {
 
     expect(claim).toHaveBeenCalledTimes(1)
     expect(matchAll).toHaveBeenCalledWith({ type: 'window', includeUncontrolled: true })
-    expect(navigate).toHaveBeenCalledWith('https://app.example/channel/c1')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'SW_UPDATED' })
   })
 
-  it('swallows a navigation failure so activation still completes', async () => {
+  it('notifies every open window, not just the first', async () => {
+    const second = vi.fn()
+    matchAll.mockResolvedValue([
+      { url: 'https://app.example/a', postMessage },
+      { url: 'https://app.example/b', postMessage: second },
+    ])
     messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
-    navigate.mockRejectedValue(new Error('navigate failed'))
 
     const waitUntil = vi.fn((p: Promise<unknown>) => p)
     activateHandler?.({ waitUntil })
-    await expect(waitUntil.mock.calls[0][0]).resolves.toBeUndefined()
-  })
+    await waitUntil.mock.calls[0][0]
 
-  it('skips reloading when a client has no navigate support (Safari)', async () => {
-    messageHandler?.({ data: { type: 'SKIP_WAITING' }, waitUntil: vi.fn() })
-    // Safari WindowClient lacks `navigate`; the page-side reload covers it.
-    matchAll.mockResolvedValue([{ url: 'https://app.example/channel/c1' }])
-
-    const waitUntil = vi.fn((p: Promise<unknown>) => p)
-    activateHandler?.({ waitUntil })
-    await expect(waitUntil.mock.calls[0][0]).resolves.toBeUndefined()
-    expect(navigate).not.toHaveBeenCalled()
+    expect(postMessage).toHaveBeenCalledWith({ type: 'SW_UPDATED' })
+    expect(second).toHaveBeenCalledWith({ type: 'SW_UPDATED' })
   })
 })
 
