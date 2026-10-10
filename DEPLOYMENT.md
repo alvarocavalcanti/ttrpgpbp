@@ -149,12 +149,20 @@ browser, so no user JWT is involved.
   ```
 
 - [ ] **Serve `/sw.js` with `Cache-Control: no-cache` on every domain.** The
-  `public/_headers` rule does this at the Pages origin, but a custom domain with
-  an overriding Cloudflare cache rule will serve the service worker with a
-  multi-hour `max-age` instead (check with
-  `curl -sI https://<domain>/sw.js`). A stale worker delays push-handling fixes;
-  add a cache rule exempting `/sw.js`. (Known live: `rolebypost.com` overrides
-  it, `ttrpgpbp.pages.dev` does not.)
+  `public/_headers` rule does this at the Pages origin, but a custom domain can
+  override it with the zone's **Browser Cache TTL** (Caching → Configuration, or
+  SSL/TLS → Edge Certificates): a non-zero value replaces the origin
+  `Cache-Control` for cacheable assets, so the worker is served with a
+  multi-hour `max-age` and fixes reach installed PWAs slowly. Set it to
+  **Respect Existing Headers**, purge `https://<domain>/sw.js` once, and verify
+  with `curl -sI https://<domain>/sw.js` (expect `cache-control: no-cache`).
+  `rolebypost.com` is configured this way; `ttrpgpbp.pages.dev` is unaffected.
+
+- [ ] Confirm static-asset caching. `public/_headers` marks the fingerprinted
+  build assets (`/assets/*`) `public, max-age=31536000, immutable`; the
+  un-hashed icons and `/help-images/*` stay on the Pages default so a
+  regeneration is picked up. Verify with
+  `curl -sI https://<domain>/assets/<hashed>.js` (expect the immutable header).
 
 - [ ] Deploy the image-retention cleanup function. It requires a server-to-server
   secret and no-ops while `app_settings.image_retention_days` is 0 (the default).
