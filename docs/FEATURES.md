@@ -159,7 +159,7 @@
   - UI available to both GM and players, opened from a round floating button in the bottom-right of the channel (over the message avatars, above the composer)
   - Pick dice from an icon grid (d4, d6, d8, d10, d12, d20, d100), each with its own die-shaped icon; tap a die to add it and tap again to add more, with a count badge on the icon
   - Combine different dice in one roll (e.g. 2d6 + 1d8 + 3) — every selected die type is rolled and summed together
-  - Clear the whole dice selection with one button — Roll stays disabled until at least one die is picked
+  - Clear the whole dice selection with one button — it sits beside the modifier controls and is always shown (disabled until a die is picked); Roll stays disabled until at least one die is picked
   - Add modifier (+N / -N) in Sum mode only
   - Sum / Pool / Successes mode — Pool lists every face with no total, Successes adds a target number and counts how many dice hit it (target clamps to the die size as you type); a **Sort highest first** checkbox in Pool/Successes lists the faces highest-first. Pools use a single die type, so those modes are disabled while several types are selected
   - Advantage/disadvantage toggle (a single d20, Sum mode only)

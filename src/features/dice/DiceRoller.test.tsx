@@ -286,13 +286,20 @@ describe('DiceRoller', () => {
     expect(screen.queryByRole('button', { name: 'Adv' })).not.toBeInTheDocument()
   })
 
-  it('clears the whole dice selection and blocks rolling until a die is picked again', () => {
+  it('keeps Clear visible but disabled until a die is picked, and clears the selection (#697)', () => {
     const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+
+    // Clear lives on the modifier row and is always shown; with no dice picked
+    // it is disabled instead of hidden, so the form never shifts.
+    const clear = screen.getByRole('button', { name: 'Clear dice' })
+    expect(clear).toBeDisabled()
+
     pickDie(20)
-    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
+    expect(clear).toBeEnabled()
+    fireEvent.click(clear)
 
     // No die is selected and Roll is disabled with a hint.
     expect(screen.getByRole('button', { name: 'Add d20' })).toHaveAttribute('aria-pressed', 'false')
@@ -303,6 +310,20 @@ describe('DiceRoller', () => {
     pickDie(6, 2)
     fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRoll).toHaveBeenCalledWith('2d6')
+  })
+
+  it('keeps Clear available in Pool mode so a pool selection can be reset (#697)', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+
+    pickDie(6, 3)
+    const clear = screen.getByRole('button', { name: 'Clear dice' })
+    expect(clear).toBeEnabled()
+    fireEvent.click(clear)
+
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('clears the dice after rolling so the next roll starts fresh', () => {

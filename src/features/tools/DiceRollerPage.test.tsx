@@ -95,10 +95,16 @@ describe('DiceRollerPage', () => {
     expect(screen.getByText('1d20+1')).toBeInTheDocument()
   })
 
-  it('clears the dice selection', () => {
+  it('keeps Clear visible but disabled until a die is picked, then clears the selection (#697)', () => {
     renderPage()
+
+    const clear = screen.getByRole('button', { name: 'Clear dice' })
+    expect(clear).toBeDisabled()
+
     pickDie(20)
-    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
+    expect(clear).toBeEnabled()
+    fireEvent.click(clear)
+
     expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
   })
 

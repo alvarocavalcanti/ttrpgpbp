@@ -143,42 +143,58 @@ export function DiceRollerPage() {
             </label>
           )}
 
-          {poolMode === 'sum' && (
-            <div className="mt-4">
+          {/* Sum modifier controls and Clear share one always-present row so
+              the Clear button never shifts the form (#697); Pool/Successes
+              keep the row (Clear only) so a pool selection can still reset. */}
+          <div className="mt-4">
+            {poolMode === 'sum' && (
               <label
                 htmlFor="tool-dice-modifier"
                 className="mb-1 block text-xs font-medium text-surface-500 dark:text-surface-400"
               >
                 Modifier
               </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModifier((m) => Math.max(-999, m - 1))}
-                  aria-label="Decrease modifier"
-                  className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
-                >
-                  −
-                </button>
-                <NumericInput
-                  id="tool-dice-modifier"
-                  min={-999}
-                  max={999}
-                  value={modifier}
-                  onChange={setModifier}
-                  className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-                />
-                <button
-                  type="button"
-                  onClick={() => setModifier((m) => Math.min(999, m + 1))}
-                  aria-label="Increase modifier"
-                  className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
-                >
-                  +
-                </button>
-              </div>
+            )}
+            <div className="flex items-center gap-2">
+              {poolMode === 'sum' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setModifier((m) => Math.max(-999, m - 1))}
+                    aria-label="Decrease modifier"
+                    className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                  >
+                    −
+                  </button>
+                  <NumericInput
+                    id="tool-dice-modifier"
+                    min={-999}
+                    max={999}
+                    value={modifier}
+                    onChange={setModifier}
+                    className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setModifier((m) => Math.min(999, m + 1))}
+                    aria-label="Increase modifier"
+                    className="min-h-11 min-w-11 rounded border border-surface-300 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                  >
+                    +
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelection([])}
+                disabled={!canRoll}
+                aria-label="Clear dice"
+                className="ml-auto min-h-11 rounded px-3 py-2 text-sm font-medium text-surface-500 hover:text-surface-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-surface-400 dark:hover:text-surface-200"
+              >
+                Clear
+              </button>
             </div>
-          )}
+          </div>
 
           {poolMode === 'sum' && singleD20 && (
             <div className="mt-4 flex items-center rounded-md bg-surface-100 p-1 dark:bg-surface-900">
