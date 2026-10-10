@@ -9,7 +9,7 @@ function Harness({ initial, maxTotal, disabled }: { initial: DiceSelection[]; ma
 }
 
 describe('DiceIconPicker', () => {
-  it('renders one button per die size and no Clear without a selection', () => {
+  it('renders one button per die size and no Clear (the parent owns it)', () => {
     render(<Harness initial={[]} />)
 
     for (const sides of DIE_SIDES) {
@@ -42,14 +42,10 @@ describe('DiceIconPicker', () => {
     expect(screen.getByTestId('dice-count-d8')).toHaveTextContent('1')
   })
 
-  it('clears the whole selection', () => {
+  it('never renders a Clear button, even with a selection (#697)', () => {
     render(<Harness initial={[{ sides: 6, count: 2 }, { sides: 8, count: 1 }]} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear dice' }))
-
     expect(screen.queryByRole('button', { name: 'Clear dice' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Add d8' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('caps the total number of dice at maxTotal', () => {

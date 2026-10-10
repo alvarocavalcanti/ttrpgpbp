@@ -149,6 +149,68 @@ describe('useChannels', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
   })
 
+  it('clears a stale error when a later automatic fetch succeeds (self-heal, #700)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    let failing = true
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain(failing
+          ? { data: null, error: new Error('Member DB error') }
+          : { data: fillRows([{ id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'My Channel' } }]), error: null }) as any
+      }
+      return {} as any
+    })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+
+    // A service-worker push triggers an immediate (un-throttled) refetch — the
+    // same success path the visibilitychange / realtime refetches take.
+    let messageHandler: ((event: MessageEvent) => void) | undefined
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: {
+        addEventListener: vi.fn((_type: string, handler: (event: MessageEvent) => void) => { messageHandler = handler }),
+        removeEventListener: vi.fn(),
+      },
+      configurable: true,
+    })
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error))
+
+    failing = false
+    await act(async () => {
+      messageHandler?.({ data: { type: 'PUSH_RECEIVED' } } as MessageEvent)
+    })
+
+    await waitFor(() => expect(result.current.error).toBeNull())
+    expect(result.current.myChannels).toHaveLength(1)
+  })
+
+  it('retries a failed fetch automatically with backoff so the lobby self-heals (#700)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    let calls = 0
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        calls += 1
+        return createChain(calls === 1
+          ? { data: null, error: new Error('Member DB error') }
+          : { data: fillRows([{ id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'My Channel' } }]), error: null }) as any
+      }
+      return {} as any
+    })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error))
+
+    // No user action and no external event: the ~1s backoff retry recovers.
+    await waitFor(() => expect(result.current.error).toBeNull(), { timeout: 3000 })
+    expect(result.current.myChannels).toHaveLength(1)
+  })
+
   it('fetches and formats channels successfully with unread counts', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
     const mockMyChannelsRaw = [{

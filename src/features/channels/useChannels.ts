@@ -44,6 +44,10 @@ export function useChannels() {
 
   useEffect(() => {
     let mounted = true
+    // Self-heal (#700): a failed fetch retries in the background with backoff
+    // so recovery never needs the user to tap Retry.
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let retryAttempt = 0
 
     async function fetchChannels() {
       if (!user?.id || authLoading) return
@@ -91,10 +95,31 @@ export function useChannels() {
 
           if (mounted) setMyChannels(formattedMyChannels)
           myChannelIdsRef.current = new Set(formattedMyChannels.map(c => c.id))
+          // Any successful fetch clears a stale error and cancels the retry
+          // chain — this is what makes the lobby self-heal (#700), including
+          // the automatic visibilitychange / push / realtime refetches.
+          retryAttempt = 0
+          if (retryTimer) {
+            clearTimeout(retryTimer)
+            retryTimer = undefined
+          }
+          if (mounted) setError(null)
         }
       } catch (error) {
         console.error('Error fetching channels:', error)
-        if (mounted) setError(error as Error)
+        if (mounted) {
+          setError(error as Error)
+          // Retry with exponential backoff (capped at 30s), mirroring
+          // subscribeWithRetry — the error screen recovers on its own.
+          if (!retryTimer) {
+            const delay = Math.min(1000 * 2 ** retryAttempt, 30_000)
+            retryAttempt += 1
+            retryTimer = setTimeout(() => {
+              retryTimer = undefined
+              fetchChannels()
+            }, delay)
+          }
+        }
       } finally {
         if (mounted) setLoading(false)
       }
@@ -145,6 +170,7 @@ export function useChannels() {
       stopRealtimeStatus()
       stopLobbyUnread()
       if (unreadRefreshTimer) clearTimeout(unreadRefreshTimer)
+      if (retryTimer) clearTimeout(retryTimer)
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }

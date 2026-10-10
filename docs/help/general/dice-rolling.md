@@ -32,7 +32,7 @@ Both GMs and players can use the **Dice Roller Panel**, opened from the round di
 
 - Pick a die from the icon grid (d4, d6, d8, d10, d12, d20, d100) — tap it to add one and keep tapping to add more. A small badge shows how many of each you've picked
 - Combine different dice in one roll: pick 2d6 and 1d8 and they roll and add up together
-- **Clear** the whole dice selection with one tap — the Roll button stays off until you pick at least one die
+- **Clear** the whole dice selection with one tap — it sits with the modifier controls and is always shown (dimmed until you pick a die); the Roll button stays off until you pick at least one die
 - Add a modifier (+N / -N) in Sum mode only — on phones, use the − / + steppers
 - Switch between **Sum**, **Pool**, and **Successes**: Pool lists every face with no total; Successes adds a target number and counts how many dice hit it; a **Sort highest first** checkbox lists pool faces highest-first. Pools use a single die type, so they're unavailable while you have several types picked
 - Tap a chip to load one of the last three distinct roll notations used in the channel into the roller — check the values, then tap **Roll** to confirm, so an accidental tap no longer rolls. A few exotic rolls the panel can't rebuild (like drop-lowest) still roll the instant you tap.

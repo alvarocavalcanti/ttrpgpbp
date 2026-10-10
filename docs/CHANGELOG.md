@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file.
 - **Updates can no longer strand your phone without notifications** — the app's "stuck update" recovery used to leave Android without a push subscription. It now hands the subscription back so the app can rebuild it on the next launch.
 - **Repeat notifications tidy up** — several pushes for the same conversation now collapse into one updating notification instead of stacking up in the tray.
 - **Messages stay put when you scroll** — on the Messages screen the app bar and the conversation header now stay in place while you read, so getting back to the previous screen no longer means scrolling all the way up.
+- **The Clear button stays put** — in the dice roller, Clear now sits beside the modifier buttons and is always visible (it just goes dim until you've picked a die), so choosing or clearing dice no longer nudges the rest of the form up and down.
+- **The lobby reloads on its own** — if loading your channels ever hiccups, the lobby now quietly tries again in the background and fills in by itself. You no longer have to tap Retry.
 
 ## 2026-10-09
 

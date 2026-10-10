@@ -1,7 +1,7 @@
-// Dice bag for the roller (#629): tap a die to add one, tap again to add
-// more, and Clear wipes the whole selection. Presentational only — the parent
-// owns the selection so the roller's notation builder stays the source of
-// truth.
+// Dice bag for the roller (#629): tap a die to add one, tap again to add more.
+// Presentational only — the parent owns the selection (and the Clear action)
+// so the roller's notation builder stays the source of truth. Clear lives in
+// the parent's control row (#697) so it never shifts the form.
 import { DieIcon } from './diceIcons'
 
 // The die sizes the roller can render. Anything else the server accepts
@@ -69,20 +69,6 @@ export function DiceIconPicker({ selection, onChange, disabled = false, maxTotal
           )
         })}
       </div>
-
-      {selection.length > 0 && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => onChange([])}
-            disabled={disabled}
-            aria-label="Clear dice"
-            className="min-h-11 py-2 px-3 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 disabled:opacity-50"
-          >
-            Clear
-          </button>
-        </div>
-      )}
     </div>
   )
 }

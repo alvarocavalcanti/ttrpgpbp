@@ -270,37 +270,52 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
         </label>
       )}
 
-      {poolMode === 'sum' && (
-      <div className="flex items-center space-x-2">
-        {/* Explicit +/- steppers: numeric keyboards on phones often omit the
-            minus key, so the modifier can't be typed directly. */}
+      {/* One row holds the Sum modifier controls and the Clear button. Clear is
+          always present — disabled until a die is picked — so toggling a
+          selection never shifts the form vertically (#697). Pool/Successes
+          modes keep the row (Clear only) so a pool selection can still reset. */}
+      <div className="flex items-center gap-2">
+        {poolMode === 'sum' && (
+          <>
+            {/* Explicit +/- steppers: numeric keyboards on phones often omit the
+                minus key, so the modifier can't be typed directly. */}
+            <button
+              type="button"
+              onClick={() => setModifier(m => Math.max(-999, m - 1))}
+              aria-label="Decrease modifier"
+              className="min-h-11 min-w-11 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              −
+            </button>
+            <label htmlFor="dice-modifier" className="sr-only">Modifier</label>
+            <NumericInput
+              id="dice-modifier"
+              min={-999}
+              max={999}
+              value={modifier}
+              onChange={setModifier}
+              className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
+            />
+            <button
+              type="button"
+              onClick={() => setModifier(m => Math.min(999, m + 1))}
+              aria-label="Increase modifier"
+              className="min-h-11 min-w-11 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              +
+            </button>
+          </>
+        )}
         <button
           type="button"
-          onClick={() => setModifier(m => Math.max(-999, m - 1))}
-          aria-label="Decrease modifier"
-          className="min-h-11 min-w-11 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+          onClick={() => setSelection([])}
+          disabled={!canRoll}
+          aria-label="Clear dice"
+          className="ml-auto min-h-11 py-2 px-3 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          −
-        </button>
-        <label htmlFor="dice-modifier" className="sr-only">Modifier</label>
-        <NumericInput
-          id="dice-modifier"
-          min={-999}
-          max={999}
-          value={modifier}
-          onChange={setModifier}
-          className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
-        />
-        <button
-          type="button"
-          onClick={() => setModifier(m => Math.min(999, m + 1))}
-          aria-label="Increase modifier"
-          className="min-h-11 min-w-11 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          +
+          Clear
         </button>
       </div>
-      )}
 
       {poolMode === 'sum' && singleD20 && (
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-md">
