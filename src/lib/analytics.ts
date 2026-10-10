@@ -66,13 +66,20 @@ export function trackEvent(name: string, params?: Record<string, unknown>): void
 }
 
 // Fires a page_view for SPA route changes. Guards against gtag being
-// unavailable (analytics disabled or script not yet loaded). Only the
-// pathname is reported — the query string and fragment are stripped so
-// search terms (e.g. lobby search) never leave the device.
+// unavailable (analytics disabled or script not yet loaded). Only the pathname
+// is reported — the query string and fragment are stripped so search terms
+// (e.g. lobby search) never leave the device — except `utm_*` campaign
+// parameters, which GA4 needs for channel attribution. Read from the live URL,
+// not the passed path: RouteTracker forwards only the pathname.
 export function trackPageView(pagePath: string): void {
   const url = new URL(pagePath, window.location.origin)
+  const utm = new URLSearchParams(window.location.search)
+  for (const key of [...utm.keys()]) {
+    if (!key.startsWith('utm_')) utm.delete(key)
+  }
+  const campaign = utm.toString()
   push('event', 'page_view', {
     page_path: url.pathname,
-    page_location: url.origin + url.pathname,
+    page_location: url.origin + url.pathname + (campaign ? `?${campaign}` : ''),
   })
 }

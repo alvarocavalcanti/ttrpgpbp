@@ -15,6 +15,9 @@ describe('analytics', () => {
     delete (window as unknown as Record<string, unknown>).gtag
     localStorage.clear()
     sessionStorage.clear()
+    // Tests that set campaign query params mutate the URL; reset it so the
+    // utm allowlist never leaks between cases.
+    window.history.replaceState({}, '', '/')
     // Consent is granted for the firing tests; the no-op tests below cover the
     // gtag-absent case, and a dedicated test covers withdrawal.
     setAnalyticsConsent('granted')
@@ -101,6 +104,46 @@ describe('analytics', () => {
       expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
         page_path: '/channel/abc',
         page_location: `${window.location.origin}/channel/abc`,
+      })
+    })
+
+    it('keeps only utm_* campaign parameters so channel attribution survives', () => {
+      window.history.replaceState(
+        {},
+        '',
+        '/?utm_source=reddit&utm_medium=social&utm_campaign=r-shadowdark&q=secret%20dragon',
+      )
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      trackPageView('/')
+
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+        page_path: '/',
+        page_location: `${window.location.origin}/?utm_source=reddit&utm_medium=social&utm_campaign=r-shadowdark`,
+      })
+    })
+
+    it('drops utm params on later route changes once the URL no longer carries them', () => {
+      window.history.replaceState({}, '', '/?utm_source=reddit&utm_campaign=r-shadowdark')
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      trackPageView('/')
+      window.history.replaceState({}, '', '/features')
+      trackPageView('/features')
+
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
+        page_path: '/',
+        page_location: `${window.location.origin}/?utm_source=reddit&utm_campaign=r-shadowdark`,
+      })
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
+        page_path: '/features',
+        page_location: `${window.location.origin}/features`,
       })
     })
   })
