@@ -150,7 +150,35 @@ async function endpointSaved(
 // needs a prior grant, so a silent mild-absence of one just no-ops. A device the
 // user deliberately opted out on is left alone. Surfaces failures instead of
 // throwing.
-export async function ensurePushSubscription(
+// Single-flight guard. `usePushNotifications` is mounted by several components
+// at once (Lobby, ChannelView, badge sync, banner), and each runs a reconcile
+// on mount. Without this they race: each sees no (or a not-yet-persisted)
+// subscription and mints its own endpoint — or unsubscribes the one a sibling
+// just created — leaving orphan `push_subscriptions` rows and duplicate push
+// fan-out. Concurrent callers share one in-flight operation instead.
+let ensureInFlight: Promise<EnsureResult> | null = null
+
+export function ensurePushSubscription(
+  userId: string,
+  vapidPublicKey: string,
+  client: PushSubscriptionsClient = supabase
+): Promise<EnsureResult> {
+  if (!ensureInFlight) {
+    ensureInFlight = runEnsurePushSubscription(userId, vapidPublicKey, client)
+      .then((result) => {
+        // Logged once for the whole operation, not once per caller.
+        if (result.created) void logPushClientEvent(userId, 'reconcile_ok', 'recreated', client)
+        else if (!result.ok) void logPushClientEvent(userId, 'reconcile_error', result.error?.message, client)
+        return result
+      })
+      .finally(() => {
+        ensureInFlight = null
+      })
+  }
+  return ensureInFlight
+}
+
+async function runEnsurePushSubscription(
   userId: string,
   vapidPublicKey: string,
   client: PushSubscriptionsClient = supabase

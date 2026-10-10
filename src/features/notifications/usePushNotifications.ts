@@ -50,16 +50,15 @@ export function usePushNotifications() {
     // Brings the browser and server in line with each other and, crucially,
     // RECREATES a subscription the browser lost (410 deletion, SW unregister,
     // token rotation) when permission is already granted (#191). Safe to call
-    // repeatedly: a fresh run is also how endpoint rotation gets repaired.
+    // repeatedly, and de-duplicated across the hook's several mounts: a fresh
+    // run is also how endpoint rotation gets repaired.
     async function reconcile() {
       if (!user?.id) return
       const result = await ensurePushSubscription(user.id, env.VITE_VAPID_PUBLIC_KEY ?? '')
       if (!result.ok) {
-        void logPushClientEvent(user.id, 'reconcile_error', result.error?.message)
         if (mounted) setError(result.error ?? new Error(PERSIST_ERROR))
         return
       }
-      if (result.created) void logPushClientEvent(user.id, 'reconcile_ok', 'recreated')
       const subscription = await getActiveSubscription()
       if (mounted) setIsSubscribed(!!subscription)
     }
