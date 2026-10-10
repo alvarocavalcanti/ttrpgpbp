@@ -262,6 +262,23 @@ describe('ensurePushSubscription', () => {
     )
   })
 
+  it('shares one in-flight operation across concurrent callers', async () => {
+    mockPushManager.getSubscription.mockResolvedValue(null)
+    let release!: (value: unknown) => void
+    mockPushManager.subscribe.mockReturnValue(new Promise((resolve) => { release = resolve }))
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    const client = mockClient({ error: null })
+
+    const first = ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any)
+    const second = ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any)
+    release({ toJSON: () => ({ endpoint: 'https://push.example.com/once', keys: { p256dh: 'p', auth: 'a' } }) })
+
+    const [a, b] = await Promise.all([first, second])
+    expect(mockPushManager.subscribe).toHaveBeenCalledTimes(1)
+    expect(a).toEqual({ ok: true, created: true })
+    expect(b).toEqual(a)
+  })
+
   it('surfaces a failed create instead of throwing', async () => {
     mockPushManager.getSubscription.mockResolvedValue(null)
     mockPushManager.subscribe.mockRejectedValue(new Error('subscribe denied'))
