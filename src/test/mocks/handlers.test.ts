@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { supabaseUrl } from './handlers'
 
-// MSW runs with onUnhandledRequest: 'error'. These smoke tests pin the shape
+// MSW runs with onUnhandledFrame: 'error'. These smoke tests pin the shape
 // each registered handler returns so a stray component request through a
 // partially-mocked client resolves cleanly instead of failing the suite.
 describe('msw handlers', () => {

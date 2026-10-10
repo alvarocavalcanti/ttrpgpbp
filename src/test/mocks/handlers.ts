@@ -3,7 +3,7 @@ import { env } from '../../env'
 
 export const supabaseUrl = env.VITE_SUPABASE_URL || 'http://localhost:54321'
 
-// MSW runs with onUnhandledRequest: 'error' (src/test/setup.ts). These
+// MSW runs with onUnhandledFrame: 'error' (src/test/setup.ts). These
 // handlers cover the REST/RPC endpoints a component may hit when a test
 // renders through a partially-mocked Supabase client, so a stray request
 // resolves cleanly instead of failing the suite as "unhandled". Empty shapes
