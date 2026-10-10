@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-10
+
+### Fixed
+
+- **Notifications recover on their own** — if a device's push subscription is ever lost (the browser rotates it, an update clears it, or the push service expires it), the app now quietly re-creates it the next time you open it, instead of going silent until you toggle notifications off and on again.
+- **Updates can no longer strand your phone without notifications** — the app's "stuck update" recovery used to leave Android without a push subscription. It now hands the subscription back so the app can rebuild it on the next launch.
+- **Repeat notifications tidy up** — several pushes for the same conversation now collapse into one updating notification instead of stacking up in the tray.
+
 ## 2026-10-09
 
 ### Fixed

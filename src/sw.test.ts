@@ -404,4 +404,33 @@ describe('sw notificationclick focuses the exact channel', () => {
     expect(focus).not.toHaveBeenCalled()
     expect(openWindow).not.toHaveBeenCalled()
   })
+
+  it('reports a clicked receipt when the notification carries one', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    const { waitUntil, openWindow } = dispatchNotificationClick(
+      {
+        url: '/channel/c1',
+        receipt: { eventId: 'e1', eventKind: 'message', subscriptionId: 's1', ackToken: 't1', receiptUrl: 'https://fn.example/push-receipt' }
+      },
+      []
+    )
+    await waitUntil.mock.calls[0][0]
+    expect(openWindow).toHaveBeenCalledWith('/channel/c1')
+    expect(fetchMock).toHaveBeenCalledWith('https://fn.example/push-receipt', expect.objectContaining({ method: 'POST' }))
+    vi.unstubAllGlobals()
+  })
+
+  it('reports a clicked receipt even when the notification url is invalid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    const { waitUntil, matchAll } = dispatchNotificationClick(
+      { url: 'https://evil.example', receipt: { subscriptionId: 's1', ackToken: 't1', receiptUrl: 'https://fn.example/push-receipt' } },
+      []
+    )
+    await waitUntil.mock.calls[0][0]
+    expect(matchAll).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
 })

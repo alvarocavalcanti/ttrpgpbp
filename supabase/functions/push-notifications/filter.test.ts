@@ -470,6 +470,22 @@ describe('buildPushPayload', () => {
   it('carries zero unread count', () => {
     expect(buildPushPayload(target, 0, true).unreadCount).toBe(0)
   })
+
+  it('appends the receipt context when provided', () => {
+    const receipt = {
+      eventId: 'e1',
+      eventKind: 'message' as const,
+      subscriptionId: 's1',
+      ackToken: 'a1',
+      receiptUrl: 'https://fn.example/push-receipt'
+    }
+    expect(buildPushPayload(target, 5, true, receipt)).toEqual({
+      ...target,
+      unreadCount: 5,
+      badgeEnabled: true,
+      ...receipt
+    })
+  })
 })
 
 describe('mergeUnreadTotals', () => {

@@ -106,6 +106,15 @@ export async function selfHeal(): Promise<void> {
     writeStore(() => sessionStorage.setItem(SESSION_HEAL, '1'))
     try {
       const registrations = await navigator.serviceWorker.getRegistrations()
+      // Terminating a registration also terminates the push subscription that
+      // is bound to it. Unsubscribe first so the browser state is
+      // deterministic: the next boot sees no subscription and the push hook
+      // recreates one (see ensurePushSubscription), instead of the device
+      // silently running without push until the user toggles it manually.
+      await Promise.allSettled(registrations.map(async (registration) => {
+        const subscription = await registration.pushManager?.getSubscription?.()
+        await subscription?.unsubscribe?.()
+      }))
       // allSettled: one failed unregister must not skip the cache cleanup.
       await Promise.allSettled(registrations.map((registration) => registration.unregister()))
       const names = await caches.keys()

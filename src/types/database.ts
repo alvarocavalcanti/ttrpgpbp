@@ -974,6 +974,50 @@ export type Database = {
         }
         Relationships: []
       }
+      push_client_log: {
+        Row: {
+          created_at: string
+          detail: string | null
+          event_id: string | null
+          event_kind: string | null
+          id: string
+          status: string
+          subscription_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          event_id?: string | null
+          event_kind?: string | null
+          id?: string
+          status: string
+          subscription_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          event_id?: string | null
+          event_kind?: string | null
+          id?: string
+          status?: string
+          subscription_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_client_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_delivery_log: {
         Row: {
           created_at: string
@@ -1009,25 +1053,31 @@ export type Database = {
       }
       push_invocation_log: {
         Row: {
+          attempt: number
           created_at: string
           entity_id: string
           event_kind: string
           id: number
           request_id: number
+          retried_at: string | null
         }
         Insert: {
+          attempt?: number
           created_at?: string
           entity_id: string
           event_kind: string
           id?: number
           request_id: number
+          retried_at?: string | null
         }
         Update: {
+          attempt?: number
           created_at?: string
           entity_id?: string
           event_kind?: string
           id?: number
           request_id?: number
+          retried_at?: string | null
         }
         Relationships: []
       }
@@ -1048,6 +1098,7 @@ export type Database = {
       }
       push_subscriptions: {
         Row: {
+          ack_token: string
           auth: string
           created_at: string
           endpoint: string
@@ -1056,6 +1107,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ack_token?: string
           auth: string
           created_at?: string
           endpoint: string
@@ -1064,6 +1116,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ack_token?: string
           auth?: string
           created_at?: string
           endpoint?: string

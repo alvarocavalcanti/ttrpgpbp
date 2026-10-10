@@ -432,7 +432,14 @@ serve(async (req) => {
         const pushPayload = JSON.stringify(buildPushPayload(
           { title, body, url },
           unreadById.get(sub.user_id) ?? 0,
-          badgeEnabledById.get(sub.user_id) ?? true
+          badgeEnabledById.get(sub.user_id) ?? true,
+          {
+            eventId,
+            eventKind: event.kind,
+            subscriptionId: sub.id,
+            ackToken: sub.ack_token,
+            receiptUrl: `${supabaseUrl}/functions/v1/push-receipt`,
+          }
         ))
 
         const outcome = await sendWithRetry(

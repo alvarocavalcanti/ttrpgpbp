@@ -43,6 +43,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy push-receipt --project-ref "$SUPABASE_PROJECT_ID"
           supabase functions deploy delete-account --project-ref "$SUPABASE_PROJECT_ID"
           supabase functions deploy cleanup-images --project-ref "$SUPABASE_PROJECT_ID"
           supabase functions deploy upload-image --project-ref "$SUPABASE_PROJECT_ID"

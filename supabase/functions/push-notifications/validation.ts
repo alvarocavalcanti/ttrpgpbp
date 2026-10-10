@@ -36,5 +36,8 @@ export const PushSubscriptionSchema = z.object({
   endpoint: z.string().min(1),
   p256dh: z.string(),
   auth: z.string(),
+  // Per-device receipt token; travels in that device's push payload and gates
+  // the push-receipt endpoint.
+  ack_token: z.string(),
 })
 export type PushSubscription = z.infer<typeof PushSubscriptionSchema>
