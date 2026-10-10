@@ -84,6 +84,37 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuf
   return outputArray
 }
 
+// Device-local opt-out marker. `unsubscribeFromPush` deletes the browser
+// subscription but cannot revoke the granted browser permission, so without a
+// marker the next foreground reconcile would silently recreate the
+// subscription the user just turned off. Storage can throw (private mode), so
+// every access is guarded; a missing value means "not opted out".
+const PUSH_OPT_OUT_KEY = 'push:opted-out'
+
+export function isPushOptedOut(): boolean {
+  try {
+    return localStorage.getItem(PUSH_OPT_OUT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function markPushOptedOut(): void {
+  try {
+    localStorage.setItem(PUSH_OPT_OUT_KEY, '1')
+  } catch {
+    // Best-effort: an unavailable store fails open to the old behavior.
+  }
+}
+
+export function clearPushOptedOut(): void {
+  try {
+    localStorage.removeItem(PUSH_OPT_OUT_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 // Brings the server in line with the browser's push state. Reads the active
 // PushSubscription and upserts it; when the browser has NO subscription but
 // permission is already granted and a VAPID key is configured, it CREATES one
@@ -92,13 +123,15 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuf
 // token is recreated on the next startup/foreground instead of leaving the
 // device permanently push-less. Never prompts (only `Notification.requestPermission`
 // does): creating a subscription needs a prior grant, so a silent mild-absence
-// of one just no-ops. Surfaces failures instead of throwing.
+// of one just no-ops. A device the user deliberately opted out on is left
+// alone. Surfaces failures instead of throwing.
 export async function ensurePushSubscription(
   userId: string,
   vapidPublicKey: string,
   client: PushSubscriptionsClient = supabase
 ): Promise<EnsureResult> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: true }
+  if (isPushOptedOut()) return { ok: true }
   try {
     const existing = await getActiveSubscription()
     if (existing) return persistPushSubscription(userId, subscriptionToRow(existing), client)

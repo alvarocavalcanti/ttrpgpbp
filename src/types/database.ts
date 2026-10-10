@@ -1008,7 +1008,15 @@ export type Database = {
           user_agent?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "push_client_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_delivery_log: {
         Row: {
@@ -1045,6 +1053,7 @@ export type Database = {
       }
       push_invocation_log: {
         Row: {
+          attempt: number
           created_at: string
           entity_id: string
           event_kind: string
@@ -1053,6 +1062,7 @@ export type Database = {
           retried_at: string | null
         }
         Insert: {
+          attempt?: number
           created_at?: string
           entity_id: string
           event_kind: string
@@ -1061,6 +1071,7 @@ export type Database = {
           retried_at?: string | null
         }
         Update: {
+          attempt?: number
           created_at?: string
           entity_id?: string
           event_kind?: string

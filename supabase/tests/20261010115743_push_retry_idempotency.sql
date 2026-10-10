@@ -5,13 +5,20 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(3);
+SELECT plan(4);
 
 SELECT has_column(
   'public',
   'push_invocation_log',
   'retried_at',
   'push_invocation_log tracks when an invocation was retried'
+);
+
+SELECT has_column(
+  'public',
+  'push_invocation_log',
+  'attempt',
+  'push_invocation_log tracks the retry attempt count'
 );
 
 SELECT is(

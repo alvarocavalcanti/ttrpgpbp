@@ -19,7 +19,10 @@ create table if not exists public.push_client_log (
   id uuid primary key default gen_random_uuid(),
   event_id uuid,
   subscription_id uuid,
-  user_id uuid,
+  -- Cascades from profiles so account erasure removes this telemetry with the
+  -- rest of the user's data (subscription_id is intentionally not a FK: the
+  -- log should outlive the subscription row it describes).
+  user_id uuid references public.profiles(id) on delete cascade,
   event_kind text,
   status text not null check (status in (
     'received',

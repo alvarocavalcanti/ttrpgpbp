@@ -4,7 +4,9 @@
 --
 --   1. push_invocation_log gains retried_at; a retried invocation is skipped
 --      next time. Each retry is written back as a fresh invocation row so its
---      own outcome is tracked and can itself be retried.
+--      own outcome is tracked and can itself be retried — bounded by `attempt`
+--      so a permanently failing event (deleted message, bad config) stops
+--      instead of looping forever every 30 minutes.
 --   2. retry_failed_push_invocations filters on a PRESENT failed pg_net
 --      response (>= 400 or timed out). pg_net prunes old responses, so the
 --      inner join already excludes pruned ones; the explicit timed_out check
@@ -16,6 +18,9 @@
 
 alter table public.push_invocation_log
   add column if not exists retried_at timestamp with time zone;
+
+alter table public.push_invocation_log
+  add column if not exists attempt integer not null default 0;
 
 create or replace function public.retry_failed_push_invocations(p_max int default 50)
 returns int
@@ -36,10 +41,11 @@ begin
   end if;
 
   for r in
-    select i.id, i.event_kind, i.entity_id
+    select i.id, i.event_kind, i.entity_id, i.attempt
     from public.push_invocation_log i
     join net._http_response resp on resp.id = i.request_id
     where i.retried_at is null
+      and i.attempt < 5
       and (resp.status_code >= 400 or resp.timed_out)
       and i.created_at > now() - interval '7 days'
     order by i.created_at desc
@@ -68,8 +74,8 @@ begin
       ) into v_request_id;
     end if;
 
-    insert into public.push_invocation_log (request_id, event_kind, entity_id)
-    values (v_request_id, r.event_kind, r.entity_id);
+    insert into public.push_invocation_log (request_id, event_kind, entity_id, attempt)
+    values (v_request_id, r.event_kind, r.entity_id, r.attempt + 1);
 
     update public.push_invocation_log
       set retried_at = now()

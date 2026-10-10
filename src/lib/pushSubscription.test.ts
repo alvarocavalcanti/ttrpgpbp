@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   subscriptionToRow,
   subscriptionJsonToRow,
@@ -6,7 +6,10 @@ import {
   persistPushSubscription,
   ensurePushSubscription,
   logPushClientEvent,
-  urlBase64ToUint8Array
+  urlBase64ToUint8Array,
+  isPushOptedOut,
+  markPushOptedOut,
+  clearPushOptedOut
 } from './pushSubscription'
 
 function mockClient(upsertResult: { error?: Error | null } = {}) {
@@ -170,6 +173,7 @@ describe('ensurePushSubscription', () => {
   let mockPushManager: any
 
   beforeEach(() => {
+    clearPushOptedOut()
     mockPushManager = { getSubscription: vi.fn(), subscribe: vi.fn() }
     vi.stubGlobal('navigator', {
       userAgent: 'test-agent',
@@ -177,6 +181,8 @@ describe('ensurePushSubscription', () => {
     })
     vi.stubGlobal('PushManager', vi.fn())
   })
+
+  afterEach(() => clearPushOptedOut())
 
   it('creates and persists a subscription when permission is granted and none exists', async () => {
     mockPushManager.getSubscription.mockResolvedValue(null)
@@ -237,6 +243,30 @@ describe('ensurePushSubscription', () => {
     const result = await ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', mockClient() as any)
     expect(result.ok).toBe(false)
     expect(result.error?.message).toBe('subscribe denied')
+  })
+
+  it('does not recreate a subscription after a device opt-out', async () => {
+    markPushOptedOut()
+    mockPushManager.getSubscription.mockResolvedValue(null)
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any))
+      .resolves.toEqual({ ok: true })
+    expect(mockPushManager.subscribe).not.toHaveBeenCalled()
+    expect(client.upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('push opt-out marker', () => {
+  afterEach(() => clearPushOptedOut())
+
+  it('round-trips the marker in storage', () => {
+    expect(isPushOptedOut()).toBe(false)
+    markPushOptedOut()
+    expect(isPushOptedOut()).toBe(true)
+    clearPushOptedOut()
+    expect(isPushOptedOut()).toBe(false)
   })
 })
 

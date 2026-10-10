@@ -20,6 +20,9 @@ describe('usePushNotifications', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // The device opt-out marker lives in localStorage; clear it so one test's
+    // unsubscribe cannot disable healing in a later test.
+    localStorage.clear()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
 
     // Setup mock ServiceWorker
@@ -114,6 +117,8 @@ describe('usePushNotifications', () => {
   })
 
   it('handles subscribing to push', async () => {
+    // A prior device opt-out must be cleared when the user re-enables.
+    localStorage.setItem('push:opted-out', '1')
     const mockUpsert = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
@@ -130,6 +135,7 @@ describe('usePushNotifications', () => {
 
     expect(window.Notification.requestPermission).toHaveBeenCalled()
     expect(mockPushManager.subscribe).toHaveBeenCalled()
+    expect(localStorage.getItem('push:opted-out')).toBeNull()
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: 'u1',
@@ -173,6 +179,8 @@ describe('usePushNotifications', () => {
     expect(mockDelete).toHaveBeenCalled()
     expect(mockMatch).toHaveBeenCalledWith({ user_id: 'u1', endpoint: 'https://push.example.com/xyz' })
     expect(result.current.isSubscribed).toBe(false)
+    // The device opt-out is remembered so reconcile cannot silently recreate it.
+    expect(localStorage.getItem('push:opted-out')).toBe('1')
   })
 
   it('updates preferences', async () => {

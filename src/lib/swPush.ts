@@ -133,21 +133,29 @@ export async function reportPushReceipt(
 // Validates the raw push payload, shows the notification, updates the badge,
 // and reports the outcome. Each async step is isolated so one failing step
 // never rejects the whole push event. Resolves always. An invalid payload is
-// dropped (and reported) rather than shown with bad data.
+// dropped (and reported) rather than shown with bad data. Every receipt POST is
+// part of the returned promise chain, so it stays inside the caller's
+// `event.waitUntil` instead of racing worker termination.
 export async function handlePushEvent(scope: PushHandlerScope, raw: unknown): Promise<void> {
   const receipt = pushReceiptFrom(raw)
-  const report = (status: ReceiptStatus, detail?: string) => {
-    if (scope.fetch) void reportPushReceipt(scope.fetch, receipt, status, detail)
-  }
+  // `report` returns the POST promise so callers can chain it into the awaited
+  // work; a no-op returns undefined when there is nowhere to report.
+  const report = (status: ReceiptStatus, detail?: string) =>
+    scope.fetch ? reportPushReceipt(scope.fetch, receipt, status, detail) : undefined
+
+  const tasks: Promise<unknown>[] = []
 
   // Report receipt even for a payload we cannot parse: the device reaching us
   // at all is the important signal.
-  report('received')
+  const received = report('received')
+  if (received) tasks.push(received)
 
   const parsed = PushNotificationDataSchema.safeParse(raw)
   if (!parsed.success) {
     scope.logger?.error('Invalid push payload', parsed.error)
-    report('invalid_payload', JSON.stringify(parsed.error.issues))
+    const invalid = report('invalid_payload', JSON.stringify(parsed.error.issues))
+    if (invalid) tasks.push(invalid)
+    await Promise.allSettled(tasks)
     return
   }
   const data = parsed.data
@@ -166,15 +174,15 @@ export async function handlePushEvent(scope: PushHandlerScope, raw: unknown): Pr
     }
   }
 
-  const tasks: Promise<unknown>[] = [
+  tasks.push(
     scope.registration.showNotification(data.title || DEFAULT_TITLE, options).then(
       () => report('shown'),
       (err) => {
         scope.logger?.error('Error showing push notification', err)
-        report('show_error', err instanceof Error ? err.message : String(err))
+        return report('show_error', err instanceof Error ? err.message : String(err))
       }
     )
-  ]
+  )
 
   // Badge count (iOS 16.4+, desktop). Respects the user's badge_enabled
   // preference carried in the push payload. Android has no setAppBadge support

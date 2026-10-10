@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import {
+  clearPushOptedOut,
   ensurePushSubscription,
   getActiveSubscription,
   logPushClientEvent,
+  markPushOptedOut,
   persistPushSubscription,
   subscriptionJsonToRow,
   subscriptionToRow,
@@ -149,6 +151,10 @@ export function usePushNotifications() {
       throw new Error('Permission not granted for Notification')
     }
 
+    // The user explicitly enabled this device: clear any prior opt-out so a
+    // later reconcile may heal a lost subscription again.
+    clearPushOptedOut()
+
     const registration = await navigator.serviceWorker.ready
 
     // Subscribe
@@ -186,6 +192,9 @@ export function usePushNotifications() {
         .match({ user_id: user.id, endpoint: subJson.endpoint! })
 
       setIsSubscribed(false)
+      // Remember the choice for this device: browser permission stays granted
+      // after unsubscribe, so reconcile must not recreate what was turned off.
+      markPushOptedOut()
       void logPushClientEvent(user.id, 'unsubscribed')
     }
   }
