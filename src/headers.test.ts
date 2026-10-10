@@ -91,3 +91,17 @@ describe('Security Headers (public/_headers)', () => {
     expect(xfoLine!.split('X-Frame-Options:')[1].trim()).toBe('SAMEORIGIN')
   })
 })
+
+describe('Cache-Control (public/_headers)', () => {
+  it('caches the fingerprinted build assets immutably', () => {
+    const content = fs.readFileSync(HEADERS_PATH, 'utf-8')
+    expect(content).toMatch(/\/assets\/\*\n\s+Cache-Control: public, max-age=31536000, immutable/)
+  })
+
+  it('never caches the service worker or the app shell', () => {
+    const content = fs.readFileSync(HEADERS_PATH, 'utf-8')
+    expect(content).toMatch(/\/sw\.js\n\s+Cache-Control: no-cache/)
+    expect(content).toMatch(/\n\/\n\s+Cache-Control: no-cache/)
+    expect(content).toMatch(/\/app-shell\n\s+Cache-Control: no-cache/)
+  })
+})
