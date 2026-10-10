@@ -177,6 +177,49 @@ describe('App', () => {
     expect(screen.getByText('Profile')).toBeInTheDocument()
   })
 
+  it('pins the shell to the viewport on /messages so the inbox scrolls internally', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    window.history.pushState({}, '', '/messages')
+    render(<App />)
+    window.history.replaceState({}, '', '/')
+
+    // DAMP literals: the Messages route must pin the shell to the viewport and
+    // let <main> shrink (min-h-0), so the screen — not the document — scrolls.
+    const host = await screen.findByTestId('app-banner-host')
+    const shell = host.parentElement!
+    expect(shell).toHaveClass('h-[100dvh]')
+    expect(shell).toHaveClass('overflow-hidden')
+    expect(host.nextElementSibling).toHaveClass('min-h-0')
+  })
+
   it('keeps a deep-link query string (invite ?code=) when AppNav mounts', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },

@@ -24,7 +24,7 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-800">
+    <div className="flex flex-col h-full min-h-0 w-full bg-white dark:bg-gray-800">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Messages</h2>
         {isServerAdmin ? (
@@ -38,7 +38,7 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {loading && threads.length > 0 && (
           <div className="flex justify-center p-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 dark:border-indigo-500" aria-label="Loading"></div>

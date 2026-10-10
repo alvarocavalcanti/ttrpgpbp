@@ -8,13 +8,17 @@ vi.mock('./ThreadList', () => ({ ThreadList: () => <div data-testid="thread-list
 vi.mock('./ThreadDetail', () => ({ ThreadDetail: () => <div data-testid="thread-detail" /> }))
 
 describe('AdminMessagesView', () => {
-  it('bounds itself to the space below the app nav so it scrolls internally', () => {
+  it('fills its bounded parent and passes the height down with min-h-0', () => {
     const { container } = render(<AdminMessagesView />)
 
-    // DAMP literal so a change to the height contract breaks this test on
-    // purpose. Without a bounded ancestor the Messages panes grew the whole
-    // document and scrolled both headers off-screen.
-    expect(container.firstElementChild).toHaveClass('h-[calc(100dvh-4.5rem)]')
+    // DAMP literals so a change to the layout contract breaks this on purpose.
+    // `flex-1 min-h-0` lets the pane shrink to the bounded <main> so its own
+    // overflow scrolls; without min-h-0 the content grows past the box and the
+    // document scrolls / pulls to refresh instead.
+    const root = container.firstElementChild!
+    expect(root).toHaveClass('flex-1')
+    expect(root).toHaveClass('min-h-0')
+    expect(root).toHaveClass('overflow-hidden')
     expect(screen.getByTestId('thread-list')).toBeInTheDocument()
   })
 
