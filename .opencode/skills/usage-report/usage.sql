@@ -264,11 +264,11 @@ SELECT json_build_object(
             t.created_at,
             (SELECT count(*) FROM admin_messages m WHERE m.thread_id = t.id) AS messages,
             CASE WHEN t.audience = 'all_users'
-              THEN (SELECT count(*) FROM profiles WHERE NOT is_suspended)
+              THEN (SELECT count(*) FROM profiles p WHERE NOT p.is_suspended AND p.id <> t.created_by)
               ELSE (
                 SELECT count(DISTINCT c.gm_id)
                 FROM channels c JOIN profiles p ON p.id = c.gm_id
-                WHERE NOT c.is_archived AND NOT p.is_suspended
+                WHERE NOT c.is_archived AND NOT p.is_suspended AND c.gm_id <> t.created_by
               )
             END AS eligible,
             (SELECT count(*) FROM push_invocation_log i
@@ -283,9 +283,19 @@ SELECT json_build_object(
               WHERE d.event_kind = 'admin_message' AND d.status = 'sent'
                 AND d.source_entity_id IN (SELECT m.id FROM admin_messages m WHERE m.thread_id = t.id)
             ) AS sent_users,
-            (SELECT count(DISTINCT r.user_id) FROM admin_thread_reads r
+            (SELECT count(DISTINCT r.user_id)
+              FROM admin_thread_reads r
+              JOIN profiles p ON p.id = r.user_id
               WHERE r.thread_id = t.id
                 AND r.user_id <> t.created_by
+                AND NOT p.is_suspended
+                AND (
+                  t.audience = 'all_users'
+                  OR EXISTS (
+                    SELECT 1 FROM channels c
+                    WHERE c.gm_id = r.user_id AND NOT c.is_archived
+                  )
+                )
                 AND r.last_read_at >= (SELECT min(m.created_at) FROM admin_messages m WHERE m.thread_id = t.id)
             ) AS reads
           FROM admin_threads t
@@ -297,12 +307,37 @@ SELECT json_build_object(
     ),
     'totals', json_build_object(
       'announced', (SELECT count(*) FROM admin_threads WHERE type = 'announcement'),
-      'sent', (SELECT count(*) FROM push_delivery_log WHERE event_kind = 'admin_message' AND status = 'sent'),
-      'sent_users', (SELECT count(DISTINCT user_id) FROM push_delivery_log WHERE event_kind = 'admin_message' AND status = 'sent'),
+      'sent', (SELECT count(*) FROM push_delivery_log d
+        WHERE d.event_kind = 'admin_message' AND d.status = 'sent'
+          AND d.source_entity_id IN (
+            SELECT m.id FROM admin_messages m
+            JOIN admin_threads t ON t.id = m.thread_id
+            WHERE t.type = 'announcement'
+          )
+      ),
+      'sent_users', (SELECT count(DISTINCT d.user_id) FROM push_delivery_log d
+        WHERE d.event_kind = 'admin_message' AND d.status = 'sent'
+          AND d.source_entity_id IN (
+            SELECT m.id FROM admin_messages m
+            JOIN admin_threads t ON t.id = m.thread_id
+            WHERE t.type = 'announcement'
+          )
+      ),
       'reads', (
         SELECT count(DISTINCT (r.thread_id, r.user_id))
-        FROM admin_thread_reads r JOIN admin_threads t ON t.id = r.thread_id
-        WHERE t.type = 'announcement' AND r.user_id <> t.created_by
+        FROM admin_thread_reads r
+        JOIN admin_threads t ON t.id = r.thread_id
+        JOIN profiles p ON p.id = r.user_id
+        WHERE t.type = 'announcement'
+          AND r.user_id <> t.created_by
+          AND NOT p.is_suspended
+          AND (
+            t.audience = 'all_users'
+            OR EXISTS (
+              SELECT 1 FROM channels c
+              WHERE c.gm_id = r.user_id AND NOT c.is_archived
+            )
+          )
       )
     )
   ),
