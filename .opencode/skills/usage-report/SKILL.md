@@ -20,6 +20,7 @@ a standalone HTML file with graphs.
 | `LAUNCH_AT` | `2026-09-28T14:48:00Z` | Official launch — the r/pbp post at **2026-09-28 15:48 +01:00**. Baseline for every "since launch" metric. |
 | `ACTIVE_MIN_MSGS` | `15` | A table is "active" with **≥ 2 distinct human senders** and **≥ 15 non-system human messages**. Tune after reading the GM-only histogram. |
 | `RECENT_WINDOW` | `14 days` | Window for the "active now" variant (`active_recent`). |
+| `ANNOUNCEMENT_LIMIT` | `20` | Newest announcements listed individually in `announcements.list`. |
 
 Definitions used by the query:
 
@@ -61,7 +62,8 @@ key, stop and show the user the error — do not fabricate numbers.
 
 > `read_only: true` enforces the safety rail. Never remove it, and never edit
 > `usage.sql` to select `messages.content`, emails, or names — the report is
-> aggregates only.
+> aggregates only. (Announcement `subject` is an admin-authored label, not
+> player content, and is included in the `announcements` section by design.)
 
 ## Report template (chat)
 
@@ -84,7 +86,18 @@ not vanity totals.
    failures; notification opt-ins.
 6. **Retention** (`retention`) — launch-week cohort active in week 1 / 2 / 3,
    and how many joined but never posted.
-7. **Admin mirror** (`admin_mirror`) — image storage bytes, abuse reports by
+7. **Announcements** (`announcements`) — admin announcements (newest
+   `ANNOUNCEMENT_LIMIT` in `list`, plus `totals` and `by_audience`): per
+   announcement the `subject`, `audience`, `created_at`, `messages`,
+   `eligible` (current audience size), `dispatched` (push triggers),
+   `sent`/`sent_users` (pushes actually delivered) and `reads`/`read_rate`
+   (distinct recipients who opened it). Caveats to state: reads are
+   **thread-level** (`admin_thread_reads.last_read_at`, not per-message) and
+   exclude the author; `sent`/`sent_users` are exact only for announcements
+   sent **after** `push_delivery_log.source_entity_id` landed — older ones show
+   `dispatched` only (`sent` = 0); `subject` is admin-authored metadata (message
+   `content` is never selected).
+8. **Admin mirror** (`admin_mirror`) — image storage bytes, abuse reports by
    status, suspended users. (Same numbers the `/admin` console shows.)
 
 Keep the caveats visible: `active_recent` is the "still here" number, the
