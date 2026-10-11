@@ -65,6 +65,10 @@ async function logDelivery(
     user_id?: string
     subscription_id?: string
     error_category?: string
+    // The source row that triggered this push (admin_messages.id / messages.id
+    // / channel_members.id, per event_kind). Lets per-announcement delivery
+    // counts be derived; NULL for event kinds without a source row.
+    source_entity_id?: string
   }
 ): Promise<void> {
   const { error } = await client.from("push_delivery_log").insert(row)
@@ -350,8 +354,11 @@ serve(async (req) => {
 
     // Correlation id for this notification, shared across every delivery-log
     // row written below so a single push is traceable from trigger to device.
+    // sourceEntityId is the trigger's source row (message / member) so delivery
+    // rows can be grouped per announcement (or per any other push source).
     const eventId = crypto.randomUUID()
-    await logDelivery(serviceClient, { event_id: eventId, event_kind: event.kind, status: "invocation" })
+    const sourceEntityId = payload.table === "channel_members" ? payload.member_id : payload.message_id
+    await logDelivery(serviceClient, { event_id: eventId, event_kind: event.kind, status: "invocation", source_entity_id: sourceEntityId })
 
     const { targetUserIds, title, body, url } = resolvePushTargets(event, members)
 
@@ -459,6 +466,7 @@ serve(async (req) => {
             status: "sent",
             user_id: sub.user_id,
             subscription_id: sub.id,
+            source_entity_id: sourceEntityId,
           })
           return outcome.status
         }
@@ -475,6 +483,7 @@ serve(async (req) => {
             error_category: "invalid",
             user_id: sub.user_id,
             subscription_id: sub.id,
+            source_entity_id: sourceEntityId,
           })
           return outcome.status
         }
@@ -486,6 +495,7 @@ serve(async (req) => {
           error_category: outcome.status,
           user_id: sub.user_id,
           subscription_id: sub.id,
+          source_entity_id: sourceEntityId,
         })
         return outcome.status
       })

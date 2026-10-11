@@ -87,6 +87,13 @@
   </section>
 
   <section>
+    <h2>Announcements</h2>
+    <p class="muted" id="announce-note"></p>
+    <div id="chart-announce"></div>
+    <div id="announce-table"></div>
+  </section>
+
+  <section>
     <h2>Admin mirror</h2>
     <div id="admin"></div>
   </section>
@@ -179,7 +186,8 @@ try {
     + (DATA.launch_at ? ` · launch ${new Date(DATA.launch_at).toLocaleString()}` : '');
 
   const g = DATA.growth || {}, f = DATA.funnel || {}, ch = DATA.channels || {},
-    en = DATA.engagement || {}, r = DATA.retention || {}, ad = DATA.admin_mirror || {};
+    en = DATA.engagement || {}, r = DATA.retention || {}, ad = DATA.admin_mirror || {},
+    an = DATA.announcements || {};
 
   el('headline').innerHTML = [
     card('Active tables (lifetime)', fmt(ch.active_lifetime)),
@@ -267,6 +275,18 @@ try {
     ['…posted in week 3', fmt(r.cohort_sent_week3)],
     ['Joined but never posted', fmt(r.joined_never_posted)],
   ]);
+
+  const anTotals = an.totals || {}, anList = an.list || [];
+  el('announce-note').textContent =
+    `${fmt(anTotals.announced)} announcements · ${fmt(anTotals.reads)} reads · ${fmt(anTotals.sent)} pushes delivered`;
+  barChart(el('chart-announce'), anList.map(a => ({ label: String(a.subject || '—').slice(0, 14), value: a.read_rate })));
+  if (anList.length) {
+    el('announce-table').innerHTML = '<table><thead><tr><th>Announcement</th><th>Audience</th><th>Date</th>'
+      + '<th class="n">Eligible</th><th class="n">Dispatched</th><th class="n">Sent</th><th class="n">Reads</th><th class="n">Read %</th></tr></thead><tbody>'
+      + anList.map(a => `<tr><td>${esc(a.subject || '—')}</td><td>${esc(a.audience || '')}</td><td>${esc(dd(a.created_at))}</td>`
+        + `<td class="n">${fmt(a.eligible)}</td><td class="n">${fmt(a.dispatched)}</td><td class="n">${fmt(a.sent)}</td><td class="n">${fmt(a.reads)}</td><td class="n">${fmt(a.read_rate)}</td></tr>`).join('')
+      + '</tbody></table>';
+  }
 
   kvTable(el('admin'), [
     ['Image storage', bytes(ad.image_storage_bytes)],

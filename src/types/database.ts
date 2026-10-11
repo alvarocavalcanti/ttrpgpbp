@@ -1025,6 +1025,7 @@ export type Database = {
           event_id: string
           event_kind: string
           id: string
+          source_entity_id: string | null
           status: string
           subscription_id: string | null
           user_id: string | null
@@ -1035,6 +1036,7 @@ export type Database = {
           event_id: string
           event_kind: string
           id?: string
+          source_entity_id?: string | null
           status: string
           subscription_id?: string | null
           user_id?: string | null
@@ -1045,6 +1047,7 @@ export type Database = {
           event_id?: string
           event_kind?: string
           id?: string
+          source_entity_id?: string | null
           status?: string
           subscription_id?: string | null
           user_id?: string | null
