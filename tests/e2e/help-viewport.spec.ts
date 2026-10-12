@@ -16,7 +16,6 @@ async function snapshot(page: Page) {
       docScrollTop: doc.scrollTop,
       headerTop: rectTop('header'),
       sidebarTop: rectTop('nav[class*="lg:w-64"]'),
-      articleScrollTop: article instanceof HTMLElement ? article.scrollTop : null,
       articleClientH: article instanceof HTMLElement ? article.clientHeight : null,
     }
   })
