@@ -67,6 +67,22 @@ function truncate(text: string): string {
   return text.length > MAX_BODY_LENGTH ? `${text.slice(0, MAX_BODY_LENGTH)}…` : text
 }
 
+// Spoiler scrub for push bodies. Edge functions deploy standalone (no src/
+// imports), so this mirrors `src/lib/spoilerScrub.ts`: code spans/blocks
+// split out first so a `||` inside code never pairs with a spoiler
+// delimiter, then paired tokens collapse and any dangling opener scrubs
+// through end of string.
+function scrubSpoilers(text: string): string {
+  const scrub = (part: string): string => {
+    const paired = part.replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
+    return paired.replace(/\|\|[\s\S]*$/, '(spoiler)')
+  }
+  return text
+    .split(/(```[\s\S]*?```|`[^`]*`)/g)
+    .map((part, i) => (i % 2 === 0 ? scrub(part) : part))
+    .join('')
+}
+
 // Downgrades persisted markdown to plain text for push bodies, which surface
 // on the lock screen with no markdown renderer. Mention chips
 // (`[@Hero](user:uuid)`), dice/check chips (`[1d20](dice:1d20)`), and plain
@@ -76,9 +92,7 @@ function truncate(text: string): string {
 // Paired markers only, so `2*3` and `snake_case` survive untouched. Pure: no
 // IO, so it runs in vitest.
 export function toPlainText(markdown: string): string {
-  return markdown
-    .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
-    .replace(/\|\|[\s\S]*$/, '(spoiler)')
+  return scrubSpoilers(markdown)
     .replace(/^```[^\n]*\n([\s\S]*?)^```/gm, '$1')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')

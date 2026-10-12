@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Spoilers stay hidden next to code and half-typed markers** — a spoiler sharing a message with code now stays hidden in previews and notifications, and an unclosed `||` no longer swallows the text after it.
 - **The admin console keeps its top bar in place** — scrolling through a channel's messages no longer scrolls the app bar and the channel header off-screen; only the messages move. The same goes for the admin console itself, so the top bar stays put while you scroll the tables.
 - **Help keeps its place** — on the Help pages the topic list and the header stay put while you read; only the guide scrolls, so switching topics no longer means scrolling back up.
 - **Footer links are tidier on phones** — the site footer's links now tuck behind a single expandable "Site links" list on small screens instead of wrapping into a wall of links. Tap it to open; tap outside, press Escape, or tap it again to close.
