@@ -47,11 +47,11 @@ describe('LandingPage', () => {
       'href',
       'https://memorablenaton.es',
     )
-    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Privacy Policy' })[0]).toHaveAttribute(
       'href',
       '/privacy',
     )
-    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Terms of Service' })[0]).toHaveAttribute(
       'href',
       '/terms',
     )

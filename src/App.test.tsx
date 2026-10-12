@@ -284,6 +284,31 @@ describe('App', () => {
     expect(host.nextElementSibling).toHaveClass('min-h-0')
   })
 
+  it('pins the shell to the viewport on the public help pages', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    // `/help` is an exact path and `/help/:topic` a param template, so both
+    // branches of the shell predicate are guarded here. DAMP literals: the
+    // shell must pin to the viewport and <main> must shrink (min-h-0).
+    for (const path of ['/help', '/help/dice-rolling']) {
+      window.history.pushState({}, '', path)
+      const { unmount } = render(<App />)
+      const host = await screen.findByTestId('app-banner-host')
+      const shell = host.parentElement!
+      expect(shell).toHaveClass('h-[100dvh]')
+      expect(shell).toHaveClass('overflow-hidden')
+      expect(host.nextElementSibling).toHaveClass('min-h-0')
+      unmount()
+    }
+    window.history.replaceState({}, '', '/')
+  })
+
   it('keeps a deep-link query string (invite ?code=) when AppNav mounts', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },

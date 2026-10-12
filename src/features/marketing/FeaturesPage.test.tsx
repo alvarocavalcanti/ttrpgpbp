@@ -227,19 +227,19 @@ describe('FeaturesPage', () => {
     expect(screen.getByText('Drafts that survive')).toBeInTheDocument()
     expect(screen.getByText('Invite-only tables')).toBeInTheDocument()
     expect(screen.getByText('Sign in your way')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Privacy Policy' })[0]).toHaveAttribute(
       'href',
       '/privacy'
     )
-    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Terms of Service' })[0]).toHaveAttribute(
       'href',
       '/terms'
     )
-    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'GitHub' })[0]).toHaveAttribute(
       'href',
       'https://github.com/alvarocavalcanti/ttrpgpbp'
     )
-    expect(screen.getByRole('link', { name: 'You See This — token art' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'You See This — token art' })[0]).toHaveAttribute(
       'href',
       'https://youseethis.blog'
     )
@@ -251,7 +251,7 @@ describe('FeaturesPage', () => {
     expect(screen.getByRole('heading', { name: 'Frequently asked questions' })).toBeInTheDocument()
     expect(screen.getByText('How do the dice rolls work?')).toBeInTheDocument()
     expect(screen.getByText('Is Role by Post free?')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Play-by-Post' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Play-by-Post' })[0]).toHaveAttribute(
       'href',
       '/play-by-post'
     )

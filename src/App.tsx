@@ -24,7 +24,7 @@ import { Seo } from './components/Seo'
 import { trackEvent, trackPageView } from './lib/analytics'
 import { hasAnalyticsConsent } from './lib/analyticsConsent'
 import { AnalyticsConsentBanner } from './components/AnalyticsConsentBanner'
-import { isMarketingPath, ROUTES } from './lib/publicRoutes'
+import { isMarketingPath, normalizePath, ROUTES } from './lib/publicRoutes'
 // Prerendered public routes are eager: React can only hydrate browser-prerendered
 // markup when the matched tree has no Suspense boundary (createRoot emits no
 // Suspense markers). `/login` is not prerendered (it serves the empty app shell),
@@ -383,19 +383,23 @@ function PermissionBannerGate() {
   return <PermissionBanner />
 }
 
-// The app shell. On the Messages inbox and the admin console the shell pins to
-// the viewport height and lets <main> own the remaining space (with min-h-0 so
-// the flex children may shrink), which lets those screens scroll internally —
-// fixed nav, fixed header — exactly like a channel. Every other route keeps the
-// document-scroll layout.
+// The app shell. On the Messages inbox, the admin console, and the public help
+// pages the shell pins to the viewport height and lets <main> own the remaining
+// space (with min-h-0 so the flex children may shrink), which lets those screens
+// scroll internally — fixed nav, fixed header — exactly like a channel. Every
+// other route keeps the document-scroll layout.
 function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  // Routes whose screen owns its own scrolling. ROUTES.adminChannel is a param
-  // template, so match it rather than compare; ROUTES.admin is an exact path.
+  // Routes whose screen owns its own scrolling. Normalize a trailing slash first
+  // so `/help/` matches too. ROUTES.adminChannel and ROUTES.helpTopic are param
+  // templates, so match those; ROUTES.admin and ROUTES.help are exact paths.
+  const path = normalizePath(pathname)
   const fillViewport =
-    pathname === ROUTES.messages ||
-    pathname === ROUTES.admin ||
-    matchPath(ROUTES.adminChannel, pathname) !== null
+    path === ROUTES.messages ||
+    path === ROUTES.admin ||
+    matchPath(ROUTES.adminChannel, path) !== null ||
+    path === ROUTES.help ||
+    matchPath(ROUTES.helpTopic, path) !== null
 
   return (
     <div className={`${fillViewport ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} bg-surface-50 dark:bg-surface-900 flex flex-col`}>
