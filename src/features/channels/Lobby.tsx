@@ -43,13 +43,19 @@ function unreadBadgeAria(count: number): string {
 }
 
 // Plain-text preview of the most recent message; CSS `truncate` adds the ellipsis.
-// The DB caps the stored preview at 120 chars of raw markdown, so a long
-// message can slice a mention/link chip in half (#606): strip both complete
-// `[label](url)` tokens and the two dangling shapes the truncation leaves
-// behind — `[label](url` (no closing paren) and `[label` (no closing bracket).
+// Spoiler content (`||…||`, issue #709) collapses to a marker so lobby rows
+// never leak a secret. The DB caps the stored preview at 120 chars of raw
+// markdown, so a long message can slice a mention/link chip in half (#606):
+// strip both complete `[label](url)` tokens and the two dangling shapes the
+// truncation leaves behind — `[label](url` (no closing paren) and `[label`
+// (no closing bracket). The same truncation can orphan a spoiler's closing
+// `||` — or cut right after its first closing bar — so any dangling opener
+// scrubs to the marker too, pipes and all.
 function channelPreview(preview?: string | null): string {
   if (!preview) return 'No messages yet'
   return preview
+    .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
+    .replace(/\|\|[\s\S]*$/, '(spoiler)')
     .replace(/!?\[([^\]]*)\](?:\([^)]*\)?)?/g, '$1')
     .replace(/!?\[([^\]]*)$/g, '$1')
     .replace(/[*_`#>[\]]/g, '')

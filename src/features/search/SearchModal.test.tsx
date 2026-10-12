@@ -170,4 +170,45 @@ describe('SearchModal', () => {
     fireEvent.change(screen.getByPlaceholderText('Search by keywords...'), { target: { value: 'test' } })
     expect(mockSetSearchTerm).toHaveBeenCalledWith('test')
   })
+
+  it('revealing a spoiler in a result does not navigate (#709)', async () => {
+    vi.mocked(useSearch).mockReturnValue({
+      searchTerm: 'bridge',
+      setSearchTerm: vi.fn(),
+      results: [
+        {
+          id: 'msg-9',
+          content: 'Look out ||the bridge is trapped||',
+          created_at: '2023-01-01T12:00:00Z',
+          sender: { display_name: 'Hero' }
+        } as any,
+        {
+          id: 'msg-10',
+          content: 'And ||the cave floods||',
+          created_at: '2023-01-01T12:00:00Z',
+          sender: { display_name: 'Hero' }
+        } as any
+      ],
+      loading: false,
+      error: null,
+      retry: vi.fn()
+    })
+
+    render(<SearchModal channelId="c1" onClose={mockOnClose} onJumpToMessage={mockOnJumpToMessage} />)
+
+    const controls = await screen.findAllByRole('button', { name: /spoiler/i })
+    expect(controls).toHaveLength(2)
+
+    // Click reveal: secret shows, result does not navigate.
+    fireEvent.click(controls[0])
+    expect(screen.getByText('the bridge is trapped')).toBeInTheDocument()
+    expect(mockOnJumpToMessage).not.toHaveBeenCalled()
+    expect(mockOnClose).not.toHaveBeenCalled()
+
+    // Keyboard reveal: same, no navigation.
+    fireEvent.keyDown(controls[1], { key: 'Enter' })
+    expect(screen.getByText('the cave floods')).toBeInTheDocument()
+    expect(mockOnJumpToMessage).not.toHaveBeenCalled()
+    expect(mockOnClose).not.toHaveBeenCalled()
+  })
 })

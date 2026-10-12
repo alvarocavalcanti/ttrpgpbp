@@ -216,7 +216,7 @@ export function AdminChannelView() {
                   is_deleted without clearing content, and this view exists for
                   safety review. The Deleted badge above marks them. */}
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-snug prose-p:my-1 break-words">
-                    <Markdown components={renderers} urlTransform={urlTransform}>{msg.content}</Markdown>
+                    <Markdown components={renderers} urlTransform={urlTransform} spoilers>{msg.content}</Markdown>
                   </div>
                 </div>
               </div>

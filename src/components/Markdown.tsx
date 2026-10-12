@@ -10,15 +10,19 @@ export interface MarkdownProps {
   // Chat-style line breaks: a single newline renders as <br>. Only enabled on
   // user-authored surfaces (chat, admin messages, channel status).
   breaks?: boolean
+  // Spoiler parsing (`||…||`, issue #709). Off by default so
+  // author-controlled callers (help modal, changelog views) keep literal
+  // semantics; user-authored surfaces opt in explicitly.
+  spoilers?: boolean
 }
 
 // Memoized: MessageItem hands `components`/`urlTransform` down on its own
 // re-renders, and re-mounting the lazy markdown tree is the hot-path cost we
 // are avoiding (#408).
-export const Markdown = memo(function Markdown(props: MarkdownProps) {
+export const Markdown = memo(function Markdown({ spoilers = false, ...rest }: MarkdownProps) {
   return (
     <Suspense fallback={<div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-4 w-1/2 rounded my-1"></div>}>
-      <MarkdownImpl {...props} />
+      <MarkdownImpl {...rest} spoilers={spoilers} />
     </Suspense>
   )
 })
