@@ -375,6 +375,12 @@ describe('Lobby', () => {
           last_message_preview: 'Hero: Look out ||the bridge is trap',
           member: { character_name: 'Hero' },
         } as any,
+        {
+          id: '3',
+          name: 'TruncatedAtCloser',
+          last_message_preview: 'Hero: Look out ||the bridge is tra|',
+          member: { character_name: 'Hero' },
+        } as any,
       ],
       loading: false,
       error: null,
@@ -384,7 +390,7 @@ describe('Lobby', () => {
     render(<Lobby />, { wrapper: MemoryRouter })
 
     expect(screen.getByText('Hero: Look out (spoiler) today')).toBeInTheDocument()
-    expect(screen.getByText('Hero: Look out (spoiler)')).toBeInTheDocument()
+    expect(screen.getAllByText('Hero: Look out (spoiler)')).toHaveLength(2)
     expect(screen.queryByText(/bridge/)).not.toBeInTheDocument()
   })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {

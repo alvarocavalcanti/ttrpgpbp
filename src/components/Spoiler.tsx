@@ -6,6 +6,8 @@ import type { ReactNode } from 'react'
 // with role="button", focusable and operable by keyboard. While hidden the
 // text is transparent, unselectable, and aria-hidden; the wrapper's
 // aria-label is the announced affordance. Reveal is one-way (Discord-style).
+// Activation never propagates: search results nest this inside a clickable
+// row, and revealing must not also navigate.
 export function Spoiler({ children }: { children: ReactNode }) {
   const [revealed, setRevealed] = useState(false)
 
@@ -18,10 +20,14 @@ export function Spoiler({ children }: { children: ReactNode }) {
       role="button"
       tabIndex={0}
       aria-label="Spoiler — press to reveal"
-      onClick={() => setRevealed(true)}
+      onClick={(e) => {
+        e.stopPropagation()
+        setRevealed(true)
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
+          e.stopPropagation()
           setRevealed(true)
         }
       }}

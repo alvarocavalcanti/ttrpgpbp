@@ -683,6 +683,7 @@ describe('toPlainText', () => {
 
   it('scrubs a dangling spoiler opener', () => {
     expect(toPlainText('trailing ||secret')).toBe('trailing (spoiler)')
+    expect(toPlainText('cut right after the first closing bar ||secret|')).toBe('cut right after the first closing bar (spoiler)')
   })
 })
 

@@ -359,6 +359,26 @@ describe('MessageItem', () => {
     expect(await screen.findByRole('button', { name: /spoiler/i })).toBeInTheDocument()
   })
 
+  it('hides dice rolled inside a spoiler until revealed (#709)', async () => {
+    const mockOnRollDice = vi.fn()
+    const msg: any = {
+      id: 'm-dice-inside',
+      type: 'regular',
+      content: 'Secret: ||roll 1d20||',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+    // The dice chip hides inside the spoiler: no `||` leaks, no chip yet.
+    expect(screen.queryByText(/\|\|/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '1d20' })).not.toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole('button', { name: /spoiler/i }))
+    fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+    expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm-dice-inside')
+  })
+
   it('never leaks spoiler secrets in the reply quote (#709)', () => {
     const msg: any = {
       id: 'r-spoiler',

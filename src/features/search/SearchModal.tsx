@@ -114,7 +114,7 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                       </span>
                     </div>
                     <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 prose prose-sm max-w-none prose-p:my-0 dark:prose-invert">
-                      <Markdown>{message.content}</Markdown>
+                      <Markdown spoilers>{message.content}</Markdown>
                     </div>
                   </li>
                 ))}

@@ -49,12 +49,13 @@ function unreadBadgeAria(count: number): string {
 // strip both complete `[label](url)` tokens and the two dangling shapes the
 // truncation leaves behind — `[label](url` (no closing paren) and `[label`
 // (no closing bracket). The same truncation can orphan a spoiler's closing
-// `||`, so a dangling opener is scrubbed too.
+// `||` — or cut right after its first closing bar — so any dangling opener
+// scrubs to the marker too, pipes and all.
 function channelPreview(preview?: string | null): string {
   if (!preview) return 'No messages yet'
   return preview
     .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
-    .replace(/\|\|[^|]*$/, '(spoiler)')
+    .replace(/\|\|[\s\S]*$/, '(spoiler)')
     .replace(/!?\[([^\]]*)\](?:\([^)]*\)?)?/g, '$1')
     .replace(/!?\[([^\]]*)$/g, '$1')
     .replace(/[*_`#>[\]]/g, '')

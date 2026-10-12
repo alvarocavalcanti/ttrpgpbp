@@ -24,8 +24,10 @@ type SpanProps = ComponentProps<'span'> & { node?: unknown }
 
 // Maps remarkSpoiler's `md-spoiler` spans to the interactive Spoiler
 // component. No caller passes its own `span` renderer today; if one ever
-// does, compose it here instead of overwriting.
-function SpoilerSpan({ node: _node, className, children, ...rest }: SpanProps) {
+// does, compose it here instead of overwriting. Exported for a direct unit
+// test: no markdown construct emits a bare span, so the fallback path is
+// only reachable head-on.
+export function SpoilerSpan({ node: _node, className, children, ...rest }: SpanProps) {
   if (typeof className === 'string' && className.includes('md-spoiler')) return <Spoiler>{children}</Spoiler>
   return <span className={className} {...rest}>{children}</span>
 }

@@ -78,7 +78,7 @@ function truncate(text: string): string {
 export function toPlainText(markdown: string): string {
   return markdown
     .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
-    .replace(/\|\|[^|]*$/, '(spoiler)')
+    .replace(/\|\|[\s\S]*$/, '(spoiler)')
     .replace(/^```[^\n]*\n([\s\S]*?)^```/gm, '$1')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
