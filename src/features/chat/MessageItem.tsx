@@ -81,6 +81,10 @@ interface MessageItemProps {
 
 function snippet(text: string): string {
   return text
+    // Spoiler content (`||…||`, issue #709) collapses to a marker so reply
+    // quotes never leak a secret. First, so inner `*`/`_`/`[` can't corrupt
+    // the strips below.
+    .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[*_`#]/g, '')
@@ -711,7 +715,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </div>
             </div>
           ) : (
-            <Markdown breaks components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
+            <Markdown breaks spoilers components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}
@@ -789,7 +793,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             {isFavorite && <FavoriteStar />}
           </div>
           <div className={`prose prose-sm prose-chat dark:prose-invert max-w-none text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT}`}>
-            <Markdown breaks>{message.content}</Markdown>
+            <Markdown breaks spoilers>{message.content}</Markdown>
           </div>
           {errorOverlay}
           {!message.is_deleted && !message.pending && (
@@ -903,7 +907,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               </div>
             </div>
           ) : (
-            <Markdown breaks components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
+            <Markdown breaks spoilers components={renderers} urlTransform={urlTransform}>{linkifyDice(message.content, systemAttributes)}</Markdown>
           )}
           {error && <div className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</div>}
           {errorOverlay}

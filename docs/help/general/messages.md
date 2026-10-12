@@ -17,6 +17,10 @@ Messages support **Markdown** and emoji. Bold, italics, lists, headings and code
 
 Messages can contain up to **4,000 characters**, including Markdown. The same limit applies when editing.
 
+## Spoilers
+
+Wrap text in `||double bars||` to **hide it as a spoiler**. Readers see a blurred block instead of your words until they tap it (or focus it and press **Enter**). Handy for plot twists, secret doors, and anything the party shouldn't read by accident. Spoiler text stays hidden in reply quotes, channel previews, and notifications too.
+
 ## Editing and deleting
 
 - Messages can be **edited** within 15 minutes of posting. Edited messages are marked "edited".

@@ -359,6 +359,34 @@ describe('Lobby', () => {
     expect(screen.queryByText(/\[@/)).not.toBeInTheDocument()
     expect(screen.queryByText(/\]\(user:/)).not.toBeInTheDocument()
   })
+
+  it('collapses spoiler content in the preview, including DB-truncated orphans (#709)', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: 'Secret',
+          last_message_preview: 'Hero: Look out ||the bridge is trapped|| today',
+          member: { character_name: 'Hero' },
+        } as any,
+        {
+          id: '2',
+          name: 'Truncated',
+          last_message_preview: 'Hero: Look out ||the bridge is trap',
+          member: { character_name: 'Hero' },
+        } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText('Hero: Look out (spoiler) today')).toBeInTheDocument()
+    expect(screen.getByText('Hero: Look out (spoiler)')).toBeInTheDocument()
+    expect(screen.queryByText(/bridge/)).not.toBeInTheDocument()
+  })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {
     // Regression test for #369: the row's name container must allow its
     // truncate class to shrink, otherwise an 80-char name (the DB max) pushes

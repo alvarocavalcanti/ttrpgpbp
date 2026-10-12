@@ -674,6 +674,16 @@ describe('toPlainText', () => {
     expect(toPlainText('')).toBe('')
     expect(toPlainText('   \n  ')).toBe('')
   })
+
+  it('replaces spoiler content with a marker, never the secret (issue #709)', () => {
+    expect(toPlainText('Look out ||the bridge is trapped|| today')).toBe('Look out (spoiler) today')
+    expect(toPlainText('||secret||')).toBe('(spoiler)')
+    expect(toPlainText('a ||x|| b ||y|| c')).toBe('a (spoiler) b (spoiler) c')
+  })
+
+  it('scrubs a dangling spoiler opener', () => {
+    expect(toPlainText('trailing ||secret')).toBe('trailing (spoiler)')
+  })
 })
 
 describe('push body markdown stripping', () => {
@@ -778,5 +788,20 @@ describe('push body markdown stripping', () => {
       gm_id: 'u9'
     }, MEMBERS)
     expect(result.body).toBe('Alv: ***')
+  })
+
+  it('never puts spoiler secrets in the lock-screen body (issue #709)', () => {
+    const result = resolvePushTargets({
+      kind: 'message',
+      channel_id: 'c1',
+      channel_name: 'The Den',
+      sender_id: 'u1',
+      sender_name: 'Alv',
+      content: 'Look out ||the bridge is trapped|| today',
+      type: 'regular',
+      gm_id: 'u9'
+    }, MEMBERS)
+    expect(result.body).toBe('Alv: Look out (spoiler) today')
+    expect(result.body).not.toContain('bridge')
   })
 })
