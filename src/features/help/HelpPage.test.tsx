@@ -115,7 +115,7 @@ describe('HelpPage', () => {
     renderPage(['/help/dice-rolling'])
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('navigation', { name: 'Footer' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Play-by-Post' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Play-by-Post' })[0]).toHaveAttribute(
       'href',
       '/play-by-post'
     )
@@ -126,5 +126,20 @@ describe('HelpPage', () => {
     renderPage(['/help/dice-rolling'])
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Footer' })).not.toBeInTheDocument()
+  })
+
+  it('bounds its panes so the article scrolls internally (#706)', () => {
+    const { container } = renderPage(['/help/dice-rolling'])
+
+    // DAMP literals: inside the pinned AppShell the root fills the bounded
+    // <main> and lets its panes shrink (min-h-0) so the sidebar stays put and
+    // the article — not the document — scrolls. See AppShell + #706.
+    const root = container.firstElementChild!
+    expect(root).toHaveClass('flex-1')
+    expect(root).toHaveClass('min-h-0')
+
+    const article = screen.getByRole('main')
+    expect(article).toHaveClass('min-h-0')
+    expect(article).toHaveClass('overflow-y-auto')
   })
 })

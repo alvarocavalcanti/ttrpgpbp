@@ -36,11 +36,11 @@ export function HelpPage() {
   ].filter((group) => group.entries.length > 0)
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-50 dark:bg-gray-900">
       <Seo path={normalizePath(pathname)} />
       {!user && <MarketingHeader />}
 
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Topic list */}
         <nav className="lg:w-64 lg:shrink-0 bg-white dark:bg-gray-800 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 overflow-x-auto lg:overflow-y-auto">
           <h2 className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700">
@@ -73,8 +73,9 @@ export function HelpPage() {
           </div>
         </nav>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Content. Keyed by topic so switching topics resets the pane scroll
+            (ScrollToTop only scrolls the window, not this internal pane). */}
+        <main key={active.slug} data-testid="help-article" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <article className="max-w-3xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{active.title}</h1>
             {active.screenshot && (
