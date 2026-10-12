@@ -77,6 +77,18 @@ describe('AdminChannelView', () => {
     vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook() as any)
   })
 
+  it('bounds itself to the viewport so the channel header stays put', () => {
+    const { container } = renderView()
+
+    // DAMP literals: the route element fills the bounded <main> and lets its
+    // panes shrink (min-h-0) so the message list — not the document — scrolls
+    // and the channel header stays put. See AppShell + #704.
+    const root = container.firstElementChild!
+    expect(root).toHaveClass('flex-1')
+    expect(root).toHaveClass('min-h-0')
+    expect(root).toHaveClass('overflow-hidden')
+  })
+
   it('renders the channel header, read-only banner, and messages', async () => {
     vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({ messages: [baseMessage()] }) as any)
 

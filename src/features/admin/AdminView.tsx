@@ -348,7 +348,7 @@ export function AdminView() {
   ]
 
   return (
-    <div className="w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
+    <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
       <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100 mb-6">Server Admin</h2>
 
       {!loading && !settingsLoading && !imageSettingsLoading && !error && (

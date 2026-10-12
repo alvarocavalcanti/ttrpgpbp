@@ -220,6 +220,70 @@ describe('App', () => {
     expect(host.nextElementSibling).toHaveClass('min-h-0')
   })
 
+  // The admin routes pin the shell to the viewport so their screens scroll
+  // internally (see AppShell). One boot harness for both URLs; each test keeps
+  // its own DAMP literal assertions.
+  const mountAdminAt = async (path: string) => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Admin', avatar_url: null, server_admin: true, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    window.history.pushState({}, '', path)
+    render(<App />)
+    window.history.replaceState({}, '', '/')
+
+    const host = await screen.findByTestId('app-banner-host')
+    return { shell: host.parentElement!, host }
+  }
+
+  it('pins the shell to the viewport on the admin console so it scrolls internally', async () => {
+    // DAMP literals: the admin console must pin the shell to the viewport and
+    // let <main> shrink (min-h-0), so the console — not the document — scrolls
+    // and the app nav stays put.
+    const { shell, host } = await mountAdminAt('/admin')
+    expect(shell).toHaveClass('h-[100dvh]')
+    expect(shell).toHaveClass('overflow-hidden')
+    expect(host.nextElementSibling).toHaveClass('min-h-0')
+  })
+
+  it('pins the shell to the viewport on the admin channel screen', async () => {
+    // The admin channel route is a param template, so the shell predicate
+    // matches it (not an equality) — this guards that branch.
+    const { shell, host } = await mountAdminAt('/admin/channels/c1')
+    expect(shell).toHaveClass('h-[100dvh]')
+    expect(shell).toHaveClass('overflow-hidden')
+    expect(host.nextElementSibling).toHaveClass('min-h-0')
+  })
+
   it('keeps a deep-link query string (invite ?code=) when AppNav mounts', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },
