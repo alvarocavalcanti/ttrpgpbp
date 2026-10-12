@@ -356,7 +356,7 @@ describe('Lobby', () => {
     expect(screen.getByText('Hero: @Hero')).toBeInTheDocument()
     expect(screen.getByText('Hero: the ground shakes as the dragon stirs @Sir Reginald the')).toBeInTheDocument()
     expect(screen.getByText('Roll init @all, look tavern map')).toBeInTheDocument()
-    expect(screen.queryByText(/\[\@/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\[@/)).not.toBeInTheDocument()
     expect(screen.queryByText(/\]\(user:/)).not.toBeInTheDocument()
   })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {

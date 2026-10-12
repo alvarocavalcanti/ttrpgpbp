@@ -42,9 +42,12 @@ function writeDismissedAt(at: number): void {
 // otherwise — so it is wired to the banner's Install button onClick.
 export function usePwaInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [dismissedAt, setDismissedAt] = useState<number>(readDismissedAt)
+  // Cooldown is clock state: read once in an effect, never during render
+  // (react/purity). Initial false is safe — canShow also needs deferredPrompt.
+  const [coolingDown, setCoolingDown] = useState(false)
 
   useEffect(() => {
+    setCoolingDown(Date.now() - readDismissedAt() <= DISMISS_COOLDOWN_MS)
     const onBeforeInstall = (e: BeforeInstallPromptEvent) => {
       e.preventDefault() // suppress Chrome's default mini-infobar
       setDeferredPrompt(e)
@@ -58,7 +61,7 @@ export function usePwaInstall() {
     }
   }, [])
 
-  const canShow = !!deferredPrompt && Date.now() - dismissedAt > DISMISS_COOLDOWN_MS
+  const canShow = !!deferredPrompt && !coolingDown
 
   const install = useCallback(async () => {
     if (!deferredPrompt) return
@@ -67,18 +70,16 @@ export function usePwaInstall() {
     // banner down the same way as our own "No thanks", not re-offer every load.
     const choice = await deferredPrompt.userChoice
     if (choice.outcome === 'dismissed') {
-      const now = Date.now()
-      setDismissedAt(now)
-      writeDismissedAt(now)
+      setCoolingDown(true)
+      writeDismissedAt(Date.now())
     }
     setDeferredPrompt(null)
   }, [deferredPrompt])
 
   const dismiss = useCallback(() => {
     setDeferredPrompt(null)
-    const now = Date.now()
-    setDismissedAt(now)
-    writeDismissedAt(now)
+    setCoolingDown(true)
+    writeDismissedAt(Date.now())
   }, [])
 
   return { canShow, install, dismiss }

@@ -52,7 +52,7 @@ function channelPreview(preview?: string | null): string {
   return preview
     .replace(/!?\[([^\]]*)\](?:\([^)]*\)?)?/g, '$1')
     .replace(/!?\[([^\]]*)$/g, '$1')
-    .replace(/[*_`#>\[\]]/g, '')
+    .replace(/[*_`#>[\]]/g, '')
     .trim()
 }
 
