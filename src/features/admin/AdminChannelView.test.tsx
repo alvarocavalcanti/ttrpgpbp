@@ -1,6 +1,6 @@
 import { act, render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { AdminChannelView } from './AdminChannelView'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useAdminChannelMessages } from './useAdminChannelMessages'
