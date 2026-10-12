@@ -266,7 +266,13 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   // Check 15 min edit window. Scene messages are GM-authored, so the GM can
   // edit/delete them; the author can also edit/delete within 15 minutes. NPC
   // messages respect the same 15-minute window as regular messages.
-  const withinEditWindow = new Date().getTime() - new Date(message.created_at).getTime() < 15 * 60 * 1000
+  // Clock read lives in an effect, never in render (react/purity). Initial
+  // true so mount bails for in-window messages (memo render counts); the
+  // server RLS policy is the real enforcer, this only gates the button.
+  const [withinEditWindow, setWithinEditWindow] = useState(true)
+  useEffect(() => {
+    setWithinEditWindow(new Date().getTime() - new Date(message.created_at).getTime() < 15 * 60 * 1000)
+  }, [message.created_at])
   const canEdit = !message.is_deleted && (
     (isMe && withinEditWindow && (message.type === 'regular' || message.type === 'npc')) ||
     (isGM && message.type === 'scene')

@@ -13,7 +13,15 @@
     "jsx-a11y/prefer-tag-over-role": "off",
     "react-hooks/exhaustive-deps": "off",
     "vitest/require-mock-type-parameters": "off",
-    "vitest/require-to-throw-message": "off"
+    "vitest/require-to-throw-message": "off",
+    // Decision (b) from issue #567: React Compiler is NOT adopted — manual
+    // memoization, derive-from-fetch effects, and stability refs are the house
+    // style, so the compiler rules that contradict them stay off. Purity,
+    // globals, and immutability stay ON as real regression signal. Re-open if
+    // the compiler is ever adopted (option (a)).
+    "react/set-state-in-effect": "off",
+    "react/refs": "off",
+    "react/preserve-manual-memoization": "off"
   },
   "overrides": [
     {
@@ -38,7 +46,28 @@
       // excluded by turning the rule back off in a later override (later wins).
       "files": ["src/**/*.test.tsx"],
       "rules": {
-        "no-restricted-imports": "off"
+        "no-restricted-imports": "off",
+        // Deliberate test-harness patterns: probes writing to an outer
+        // variable during render (e.g. shared.isLoading, currentSearch).
+        "react/immutability": "off",
+        "react/globals": "off"
+      }
+    },
+    {
+      // Known false positive: Vitest supports the expect(actual, message)
+      // form; the diagnostic second arg is kept on failure output.
+      "files": ["scripts/**/*.test.ts"],
+      "rules": {
+        "vitest/valid-expect": "off"
+      }
+    },
+    {
+      // Deliberate: the role="log" scroll region stays keyboard-focusable
+      // (tabIndex={0}) so keyboard users can scroll it; asserted in
+      // MessageList.test.tsx.
+      "files": ["src/features/chat/MessageList.tsx"],
+      "rules": {
+        "jsx-a11y/no-noninteractive-tabindex": "off"
       }
     }
   ]

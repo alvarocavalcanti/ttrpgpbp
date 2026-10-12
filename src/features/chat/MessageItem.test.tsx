@@ -68,6 +68,18 @@ describe('MessageItem', () => {
     await waitFor(() => expect(mockOnEdit).toHaveBeenCalledWith('n1', 'Intruders!'))
   })
 
+  it('hides edit for the author once the 15-minute window passes', () => {
+    const msg: any = {
+      id: 'm-old',
+      type: 'regular',
+      content: 'Ancient history',
+      created_at: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+      sender_id: 'u1',
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
+  })
+
   it('caps message edits at 4000 characters', () => {
     const msg: any = {
       id: 'm1',

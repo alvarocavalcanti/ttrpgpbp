@@ -15,7 +15,7 @@
 
 ## Executive Summary
 
-All four 2026-09-20 architecture P2s are resolved in code: the clipboard fallback is extracted into `src/lib/clipboard.ts` and used by both former call sites, the render-time `Date.now()` count in `AdminView` is gone (the counts now come from `useAdminData`'s effect), and the admin channel-header over-fetch is now explicitly documented as an accepted tradeoff with a named ceiling. The one prior finding that stays open is the react-compiler warning backlog (issue #567): it grew from 45 to **48 non-test react warnings** (+3 on the app surface), with `set-state-in-effect` now 65% of the total.
+All four 2026-09-20 architecture P2s are resolved in code: the clipboard fallback is extracted into `src/lib/clipboard.ts` and used by both former call sites, the render-time `Date.now()` count in `AdminView` is gone (the counts now come from `useAdminData`'s effect), and the admin channel-header over-fetch is now explicitly documented as an accepted tradeoff with a named ceiling. The one prior finding that stays open is the react-compiler warning backlog (issue #567): it grew from 45 to **48 non-test react warnings** (+3 on the app surface), with `set-state-in-effect` now 65% of the total. **Resolved 2026-10-12** via option (b): the house-style rules were declared off in `.oxlintrc.json` and the residual fixed at source — `npx oxlint` now reports 0 warnings.
 
 The new surface is disciplined. The terms-acceptance path is layered and fail-closed (`ProtectedRoute` holds, never renders the `Outlet`, while a stamp is pending, and offers retry-not-reaccept on failure); dice favorites carry owner-scope and in-flight-delta guards; the `upload-image` rewrite retained the `#593` CORS fix (`x-client-info`); the new migration-order guard is wired into CI and `npm run check:migration-order`; and the analytics gtag queue mirrors Google's snippet correctly. Hook-only data access still holds absolutely — **zero** non-test `.tsx` files import the Supabase client, and **zero** `supabase.from(`/`.rpc(` calls exist outside hooks. Chat hot-path memoization is unchanged (no new unstable props on the `MessageList → MessageItem` edge).
 
@@ -30,7 +30,7 @@ No P0, no P1. What remains is a six-item P2 tail: the open compiler-warning back
 | #4 clipboard copy duplicated between `ChannelSettings` / `AdminView` | **[FIXED]** | `src/lib/clipboard.ts:5-27` exports `copyToClipboard` (secure-context branch + `execCommand` fallback + `isConnected` cleanup); `src/features/channels/ChannelSettings.tsx:5,124` and `src/features/admin/AdminView.tsx:9,298` both call it. Unit test `src/lib/clipboard.test.ts`. |
 | #5 `Date.now()` during render in `AdminView` | **[FIXED]** | The inline `sevenDaysAgo`/`newUsers`/`newChannels` computation is gone; the cutoff now runs inside the data effect (`src/features/admin/useAdminData.ts:120`) and the values are state (`:104-105`). AdminView reads `newUsers`/`newChannels` from the hook (`AdminView.tsx:128,357,368`). Residual impurity in the `userStatus` helper is tracked as a new finding below. |
 | #6 `useAdminChannelMessages` over-fetches full `admin_list_channels` for one header | **[FIXED]** (accepted tradeoff) | Still calls `admin_list_channels` (`src/features/admin/useAdminChannelMessages.ts:150`) but the choice is now documented with the exact ceiling and the upgrade path: "Intentional at current admin scale … swap to a scoped `admin_get_channel(p_channel_id)` RPC if channel counts grow" (`:52-56`). Option (b) of the prior fix. |
-| #7 react-compiler warning backlog | **[OPEN]** | `npx oxlint` → 48 non-test react warnings + 1 jsx-a11y (was 45 react). Tracked as issue #567. Composition and trend analyzed in P2 #1. |
+| #7 react-compiler warning backlog | **[OPEN at audit time — resolved 2026-10-12]** | `npx oxlint` → 48 non-test react warnings + 1 jsx-a11y (was 45 react). Tracked as issue #567. Composition and trend analyzed in P2 #1. |
 
 ---
 
@@ -44,7 +44,7 @@ None. Every significant gap from the 2026-09-07 and 2026-09-20 passes is remedia
 
 ## P2
 
-### 1. React-compiler warning backlog is still open and still growing [OPEN `arch-20260920#P2.4`, issue #567]
+### 1. React-compiler warning backlog is still open and still growing [OPEN `arch-20260920#P2.4`, issue #567 — RESOLVED 2026-10-12]
 
 **Evidence:** `npx oxlint` exit 0 with 54 warnings (0 errors). Composition:
 

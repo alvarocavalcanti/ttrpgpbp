@@ -91,4 +91,22 @@ describe('usePwaInstall', () => {
     expect(result.current.canShow).toBe(false)
     expect(window.localStorage.getItem(DISMISS_KEY)).not.toBeNull()
   })
+
+  it('stays hidden when dismissed within the 30-day cooldown', () => {
+    window.localStorage.setItem(DISMISS_KEY, String(Date.now()))
+    const { result } = renderHook(() => usePwaInstall())
+    act(() => {
+      dispatchBeforeInstall()
+    })
+    expect(result.current.canShow).toBe(false)
+  })
+
+  it('shows again after the 30-day cooldown elapses', () => {
+    window.localStorage.setItem(DISMISS_KEY, String(Date.now() - 31 * 86400000))
+    const { result } = renderHook(() => usePwaInstall())
+    act(() => {
+      dispatchBeforeInstall()
+    })
+    expect(result.current.canShow).toBe(true)
+  })
 })

@@ -33,7 +33,7 @@ Baseline (pre-fix) and final (post-fix) were both run on this branch:
 | pgTAP (`supabase db reset` + `supabase test db`) | 37 files / 411 tests PASS | 39 files / 421 tests PASS |
 | Playwright E2E | 7 passed | 7 passed |
 
-- **The 55th lint warning is a known false positive** (`vitest(valid-expect)` in `scripts/git/check-types-staged.test.ts`, which uses Vitest's supported `expect(actual, message)` form); the pre-existing react-compiler backlog is unchanged at 48 non-test warnings (issue #567).
+- **The 55th lint warning is a known false positive** (`vitest(valid-expect)` in `scripts/git/check-types-staged.test.ts`, which uses Vitest's supported `expect(actual, message)` form); the pre-existing react-compiler backlog is unchanged at 48 non-test warnings (issue #567). **Resolved 2026-10-12** via option (b) — the house-style rules were declared off in `.oxlintrc.json` and the residual fixed at source; `npx oxlint` now reports 0 warnings.
 - **pgTAP must run against a freshly reset database.** Running `supabase test db` against a database that already holds E2E-seeded users makes `20260909150000_issue_466_messages_audiences.sql` fail on recipient counts (leftover profiles). This is environmental, not a code defect — confirmed by a clean `db reset` pass.
 - `src/types/database.ts` is unchanged: the three new migrations are schema-neutral (policy, revoke, index), so typegen output is byte-identical.
 
@@ -42,7 +42,7 @@ Baseline (pre-fix) and final (post-fix) were both run on this branch:
 **All 2026-09-20 findings are verified fixed in code**, and the merged-but-unimplemented [20260923 message-heading plan](../20260923/audit_message_headings.md) was the one regression the 2026-09-20 round left behind — it is now implemented (UX P1-1 fix wave).
 
 - Security: 20260920 P2 #1 (grant durability) and #3 (`get_unread_totals` revoke) fixed; #2 (scan quota) **superseded** by the scanner removal (#600) with an equivalent gap tracked as security P2-1.
-- Architecture: 20260920 P2 #4 (clipboard), #5 (`Date.now` render), #6 (admin header over-fetch) fixed; #7 (react-compiler backlog) **still open** (issue #567).
+- Architecture: 20260920 P2 #4 (clipboard), #5 (`Date.now` render), #6 (admin header over-fetch) fixed; #7 (react-compiler backlog) **still open at audit time — resolved 2026-10-12** (issue #567).
 - PbP: 20260920 P2 #8/#9 (reaction merge + optimistic toggle) fixed.
 - UX/a11y: 20260920 P1 (TextPromptSheet control bytes) + P2 #10/#11/#12 fixed; the 20260923 heading plan was **not** implemented (P1-1 this round).
 - Legal: 20260920 P1 (CSAM report path) closed by scope change (#600); P2 #13/#15/#16 fixed, #14 copy fixed with a residual evidence gap (P2-1 this round).
@@ -83,7 +83,7 @@ Also fixed (tooling, not an audit finding): the pre-commit typegen guard demande
 
 ### P2 (27 deduped) — deferred to [#604](https://github.com/alvarocavalcanti/ttrpgpbp/issues/604) (16) + 1 residual P1
 
-Security P2-1 (unbounded upload volume) · Architecture P2-1–P2-6 (react-compiler direction [#567], PWA release-smoke/WebKit, shared CORS module, `safeStorage` adoption, dice-schema dedupe, render-time `Date.now`) · PbP P2-1–P2-4 (reconnect `client_request_id` collapse, server-stamped catch-up cursor, X-Card retry zero-clear, `retryMessage` no-id guard) · UX P2-1–P2-4 (PWA reload target, dice star, composer touch stragglers, re-consent focus trap) · Release P2-4 (rate limiting, with [#236](https://github.com/alvarocavalcanti/ttrpgpbp/issues/236)).
+Security P2-1 (unbounded upload volume) · Architecture P2-1–P2-6 (react-compiler direction [#567, resolved 2026-10-12], PWA release-smoke/WebKit, shared CORS module, `safeStorage` adoption, dice-schema dedupe, render-time `Date.now`) · PbP P2-1–P2-4 (reconnect `client_request_id` collapse, server-stamped catch-up cursor, X-Card retry zero-clear, `retryMessage` no-id guard) · UX P2-1–P2-4 (PWA reload target, dice star, composer touch stragglers, re-consent focus trap) · Release P2-4 (rate limiting, with [#236](https://github.com/alvarocavalcanti/ttrpgpbp/issues/236)).
 
 Residual P1: the scheduled free-tier backup workflow (the doc now covers the manual path).
 
@@ -115,7 +115,7 @@ Accepted residual risks: unscanned uploads with report-only moderation (disclose
 | Issue | Contents |
 |---|---|
 | [#604](https://github.com/alvarocavalcanti/ttrpgpbp/issues/604) | Post-1.0 hardening backlog — the 16 deferred P2s + 1 residual P1 (scheduled backup workflow). |
-| [#567](https://github.com/alvarocavalcanti/ttrpgpbp/issues/567) | React Compiler direction (Architecture P2-1). |
+| [#567](https://github.com/alvarocavalcanti/ttrpgpbp/issues/567) | React Compiler direction (Architecture P2-1) — **resolved 2026-10-12** (option (b)). |
 | [#236](https://github.com/alvarocavalcanti/ttrpgpbp/issues/236) | Rate/throttle limits (Release P2-4). |
 | [#552](https://github.com/alvarocavalcanti/ttrpgpbp/issues/552) | Deferred trust-and-safety work (AUP scan, link reputation) — accepted substitute at launch. |
 
@@ -123,6 +123,6 @@ Accepted residual risks: unscanned uploads with report-only moderation (disclose
 
 1. Security P2-1 upload cap — first if uploads are enabled (or before enabling them), since the cap is the free-tier storage bound.
 2. PbP P2-1 reconnect twin — the only remaining user-visible correctness bug on flaky connections.
-3. React Compiler direction (#567) — clears the growing lint signal.
+3. ~~React Compiler direction (#567) — clears the growing lint signal.~~ **Done 2026-10-12** (option (b)).
 4. Release backup workflow — close the last residual P1.
 5. UX touch-target/a11y batch and Architecture cleanup batch.
