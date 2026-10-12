@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-10-12
 
+### Added
+
+- **Hide secrets behind a spoiler** — wrap any text in `||double bars||` and it shows up blurred until the reader taps it. Perfect for plot twists, hidden doors, and GM reveals. Spoiler text also stays hidden in reply quotes, channel previews, and notifications.
+
 ### Fixed
 
 - **The admin console keeps its top bar in place** — scrolling through a channel's messages no longer scrolls the app bar and the channel header off-screen; only the messages move. The same goes for the admin console itself, so the top bar stays put while you scroll the tables.

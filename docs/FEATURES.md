@@ -86,6 +86,7 @@
 
 - Text bubbles with sender identity (character name + avatar)
 - Markdown and emoji support
+- **Spoilers** — `||hidden text||` renders blurred until tapped; secrets stay out of reply quotes, channel previews, and push notifications
 - **Three message types**:
   - **Regular** — normal conversation
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced).

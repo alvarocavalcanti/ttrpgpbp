@@ -115,7 +115,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
                   <span className="text-xs text-gray-500">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-snug break-words">
-                  <Markdown breaks>{msg.content}</Markdown>
+                  <Markdown breaks spoilers>{msg.content}</Markdown>
                 </div>
               </div>
             ) : (
@@ -129,7 +129,7 @@ export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () =>
                 <div className={`px-4 py-2 rounded-2xl ${msg.is_deleted ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 italic border border-gray-200 dark:border-gray-600' : (msg.sender_id === user?.id ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100')}`}>
                   {msg.is_deleted ? '[Message deleted]' : (
                     <div className={`prose prose-sm max-w-none prose-p:leading-snug break-words ${msg.sender_id === user?.id ? 'prose-invert prose-li:marker:text-white prose-ol:marker:text-white' : 'dark:prose-invert'}`}>
-                      <Markdown breaks>{msg.content}</Markdown>
+                      <Markdown breaks spoilers>{msg.content}</Markdown>
                     </div>
                   )}
                 </div>

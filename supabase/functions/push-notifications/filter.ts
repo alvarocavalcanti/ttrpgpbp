@@ -71,10 +71,14 @@ function truncate(text: string): string {
 // on the lock screen with no markdown renderer. Mention chips
 // (`[@Hero](user:uuid)`), dice/check chips (`[1d20](dice:1d20)`), and plain
 // links collapse to their labels; emphasis, headings, quotes, and rule markers
-// are dropped; newlines collapse to one line. Paired markers only, so `2*3`
-// and `snake_case` survive untouched. Pure: no IO, so it runs in vitest.
+// are dropped; spoiler content (`||…||`, issue #709) is replaced with a marker
+// so secrets never reach the lock screen; newlines collapse to one line.
+// Paired markers only, so `2*3` and `snake_case` survive untouched. Pure: no
+// IO, so it runs in vitest.
 export function toPlainText(markdown: string): string {
   return markdown
+    .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
+    .replace(/\|\|[\s\S]*$/, '(spoiler)')
     .replace(/^```[^\n]*\n([\s\S]*?)^```/gm, '$1')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -94,16 +98,19 @@ export function toPlainText(markdown: string): string {
 // only markers (e.g. `***`) falls back to the raw trimmed text — the DB only
 // guarantees non-blank content, and a blank tray line hides the message.
 // Empty-label links/images (`[](url)`, `![](url)`) instead collapse to a safe
-// empty body so their URLs never reach the lock screen. Non-global: `.test`
-// on a /g regex is stateful (lastIndex), so this stays a one-shot check.
+// empty body so their URLs never reach the lock screen. Spoiler-only input
+// (`||secret||` or a dangling `||secret`) likewise never falls back to raw
+// text. Non-global: `.test` on a /g regex is stateful (lastIndex), so this
+// stays a one-shot check.
 const HAS_LINK_OR_IMAGE_RE = /!?\[[^\]]*\]\([^)]*\)/
+const HAS_SPOILER_RE = /\|\|/
 
 function plainBody(content: string | null | undefined): string {
   const raw = (content ?? '').trim()
   if (!raw) return ''
   const plain = toPlainText(raw)
   if (plain) return truncate(plain)
-  return HAS_LINK_OR_IMAGE_RE.test(raw) ? '' : raw
+  return HAS_LINK_OR_IMAGE_RE.test(raw) || HAS_SPOILER_RE.test(raw) ? '' : raw
 }
 
 // Returns the member's effective boolean preference, defaulting to true.

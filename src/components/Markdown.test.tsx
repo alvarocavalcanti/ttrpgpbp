@@ -32,8 +32,7 @@ describe('Markdown', () => {
   })
 })
 
-describe('Markdown line breaks', () => {
-  it('renders a single newline as <br> when breaks is set', async () => {
+describe('Markdown line breaks', () => {  it('renders a single newline as <br> when breaks is set', async () => {
     const { default: MarkdownImpl } = await vi.importActual<typeof import('./MarkdownImpl')>('./MarkdownImpl')
     const { container } = render(<MarkdownImpl breaks>{'Kind Regards,\nAlvaro'}</MarkdownImpl>)
     expect(container.querySelector('br')).not.toBeNull()
@@ -43,5 +42,16 @@ describe('Markdown line breaks', () => {
     const { default: MarkdownImpl } = await vi.importActual<typeof import('./MarkdownImpl')>('./MarkdownImpl')
     const { container } = render(<MarkdownImpl>{'Kind Regards,\nAlvaro'}</MarkdownImpl>)
     expect(container.querySelector('br')).toBeNull()
+  })
+})
+
+describe('SpoilerSpan', () => {
+  it('maps md-spoiler spans to the control and renders other spans plainly', async () => {
+    const { SpoilerSpan } = await vi.importActual<typeof import('./MarkdownImpl')>('./MarkdownImpl')
+    const { container, unmount } = render(<SpoilerSpan className="md-spoiler">x</SpoilerSpan>)
+    expect(container.querySelector('span[role="button"]')).not.toBeNull()
+    unmount()
+    const { container: plain } = render(<SpoilerSpan className="plain">x</SpoilerSpan>)
+    expect(plain.querySelector('span.plain')?.textContent).toBe('x')
   })
 })
