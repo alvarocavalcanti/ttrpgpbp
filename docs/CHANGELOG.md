@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-12
+
+### Fixed
+
+- **The admin console keeps its top bar in place** — scrolling through a channel's messages no longer scrolls the app bar and the channel header off-screen; only the messages move. The same goes for the admin console itself, so the top bar stays put while you scroll the tables.
+
 ## 2026-10-10
 
 ### Fixed

@@ -2,7 +2,7 @@ import { useEdgeSwipe } from './hooks/useEdgeSwipe'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
 import { useFocusTrap } from './hooks/useFocusTrap'
 import { useTheme } from './hooks/useTheme'
-import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useLocation, useSearchParams, matchPath } from 'react-router-dom'
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import { AuthProvider } from './features/auth/AuthContext'
@@ -383,14 +383,19 @@ function PermissionBannerGate() {
   return <PermissionBanner />
 }
 
-// The app shell. On the Messages inbox the shell pins to the viewport height
-// and lets <main> own the remaining space (with min-h-0 so the flex children
-// may shrink), which is what lets that screen scroll internally — fixed nav,
-// fixed thread header, fixed composer — exactly like a channel. Every other
-// route keeps the document-scroll layout.
+// The app shell. On the Messages inbox and the admin console the shell pins to
+// the viewport height and lets <main> own the remaining space (with min-h-0 so
+// the flex children may shrink), which lets those screens scroll internally —
+// fixed nav, fixed header — exactly like a channel. Every other route keeps the
+// document-scroll layout.
 function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  const fillViewport = pathname === ROUTES.messages
+  // Routes whose screen owns its own scrolling. ROUTES.adminChannel is a param
+  // template, so match it rather than compare; ROUTES.admin is an exact path.
+  const fillViewport =
+    pathname === ROUTES.messages ||
+    pathname === ROUTES.admin ||
+    matchPath(ROUTES.adminChannel, pathname) !== null
 
   return (
     <div className={`${fillViewport ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} bg-surface-50 dark:bg-surface-900 flex flex-col`}>

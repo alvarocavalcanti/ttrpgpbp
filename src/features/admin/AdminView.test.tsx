@@ -195,6 +195,23 @@ describe('AdminView', () => {
     expect(screen.getByText('1 MB', { selector: 'div.text-2xl' })).toBeInTheDocument()
   })
 
+  it('scrolls its own content under a bounded shell so the top bars stay put', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+    await screen.findByText('Alice')
+
+    // DAMP literals: the console root fills the bounded <main> and owns the
+    // scroll (min-h-0 + overflow-y-auto) so the app nav stays fixed. See
+    // AppShell + #704.
+    const root = container.firstElementChild!
+    expect(root).toHaveClass('flex-1')
+    expect(root).toHaveClass('min-h-0')
+    expect(root).toHaveClass('overflow-y-auto')
+  })
+
   it('renders users tab by default with channel counts and join dates', async () => {
     render(
       <MemoryRouter>

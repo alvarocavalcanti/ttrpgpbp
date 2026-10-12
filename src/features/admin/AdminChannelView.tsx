@@ -115,7 +115,7 @@ export function AdminChannelView() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-white dark:bg-surface-800">
+    <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden bg-white dark:bg-surface-800">
       <div className="p-4 border-b border-surface-200 dark:border-surface-700">
         <div className="flex items-center gap-3">
           <Link to="/admin" aria-label="Back to admin" className="p-2 -ml-2 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-full">
@@ -172,7 +172,7 @@ export function AdminChannelView() {
         </details>
       </div>
 
-      <div ref={scrollRef} className="flex-1 w-full overflow-y-auto p-4 space-y-6">
+      <div ref={scrollRef} className="flex-1 min-h-0 w-full overflow-y-auto overscroll-contain p-4 space-y-6">
         {error && (
           <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
             <span>Couldn't load messages.</span>
