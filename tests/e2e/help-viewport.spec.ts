@@ -9,7 +9,9 @@ async function snapshot(page: Page) {
     const doc = document.scrollingElement!
     const rectTop = (selector: string) =>
       document.querySelector(selector)?.getBoundingClientRect().top ?? null
-    const article = document.querySelector('main')
+    // The scroll container is HelpPage's article pane, NOT AppShell's outer
+    // <main> (the first `main` in the DOM, which never scrolls).
+    const article = document.querySelector('[data-testid="help-article"]')
     return {
       docScrollH: doc.scrollHeight,
       docClientH: doc.clientHeight,
@@ -17,8 +19,17 @@ async function snapshot(page: Page) {
       headerTop: rectTop('header'),
       sidebarTop: rectTop('nav[class*="lg:w-64"]'),
       articleClientH: article instanceof HTMLElement ? article.clientHeight : null,
+      articleScrollTop: article instanceof HTMLElement ? article.scrollTop : null,
     }
   })
+}
+
+async function scrollArticle(page: Page, top: number) {
+  await page.evaluate((y) => {
+    const article = document.querySelector('[data-testid="help-article"]')
+    if (article instanceof HTMLElement) article.scrollTop = y
+  }, top)
+  await page.waitForTimeout(200)
 }
 
 test.describe('help page scroll lock (#706) — mobile', () => {
@@ -34,14 +45,12 @@ test.describe('help page scroll lock (#706) — mobile', () => {
     expect(before.docScrollH).toBeLessThanOrEqual(before.docClientH + 1)
 
     // Scroll the article pane itself.
-    await page.evaluate(() => {
-      const main = document.querySelector('main')
-      if (main instanceof HTMLElement) main.scrollTop = 400
-    })
-    await page.waitForTimeout(200)
+    await scrollArticle(page, 400)
 
     const after = await snapshot(page)
     expect(after.docScrollTop).toBe(0)
+    // The article itself moved — otherwise "nothing moved" would pass vacuously.
+    expect(after.articleScrollTop).toBeGreaterThan(0)
     // Only the article moved — the marketing header and the topic sidebar did not.
     expect(Math.abs(after.headerTop! - before.headerTop!)).toBeLessThan(2)
     expect(Math.abs(after.sidebarTop! - before.sidebarTop!)).toBeLessThan(2)
@@ -75,14 +84,11 @@ test.describe('help page scroll lock (#706) — desktop', () => {
     const before = await snapshot(page)
     expect(before.docScrollH).toBeLessThanOrEqual(before.docClientH + 1)
 
-    await page.evaluate(() => {
-      const main = document.querySelector('main')
-      if (main instanceof HTMLElement) main.scrollTop = 400
-    })
-    await page.waitForTimeout(200)
+    await scrollArticle(page, 400)
 
     const after = await snapshot(page)
     expect(after.docScrollTop).toBe(0)
+    expect(after.articleScrollTop).toBeGreaterThan(0)
     expect(Math.abs(after.sidebarTop! - before.sidebarTop!)).toBeLessThan(2)
   })
 })

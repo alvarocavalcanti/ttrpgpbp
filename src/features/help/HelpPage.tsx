@@ -75,7 +75,7 @@ export function HelpPage() {
 
         {/* Content. Keyed by topic so switching topics resets the pane scroll
             (ScrollToTop only scrolls the window, not this internal pane). */}
-        <main key={active.slug} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main key={active.slug} data-testid="help-article" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <article className="max-w-3xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{active.title}</h1>
             {active.screenshot && (
