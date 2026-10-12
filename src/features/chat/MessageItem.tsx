@@ -268,10 +268,16 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   // messages respect the same 15-minute window as regular messages.
   // Clock read lives in an effect, never in render (react/purity). Initial
   // true so mount bails for in-window messages (memo render counts); the
-  // server RLS policy is the real enforcer, this only gates the button.
+  // timer drops the button exactly at the deadline; the server RLS policy
+  // is the real enforcer.
   const [withinEditWindow, setWithinEditWindow] = useState(true)
   useEffect(() => {
-    setWithinEditWindow(new Date().getTime() - new Date(message.created_at).getTime() < 15 * 60 * 1000)
+    const elapsed = Date.now() - new Date(message.created_at).getTime()
+    setWithinEditWindow(elapsed < 15 * 60 * 1000)
+    const remaining = 15 * 60 * 1000 - elapsed
+    if (!(remaining > 0)) return
+    const t = setTimeout(() => setWithinEditWindow(false), remaining)
+    return () => clearTimeout(t)
   }, [message.created_at])
   const canEdit = !message.is_deleted && (
     (isMe && withinEditWindow && (message.type === 'regular' || message.type === 'npc')) ||

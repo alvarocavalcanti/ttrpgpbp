@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MessageItem } from './MessageItem'
 import { proseParchment, proseAmber } from './composerChip'
@@ -78,6 +78,27 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
+  })
+
+  it('removes edit when the 15-minute window expires while mounted', async () => {
+    vi.useFakeTimers()
+    try {
+      const msg: any = {
+        id: 'm-expiring',
+        type: 'regular',
+        content: 'Ticking clock',
+        created_at: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+        sender_id: 'u1',
+      }
+      render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+      expect(screen.getByLabelText('Edit')).toBeInTheDocument()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61 * 1000)
+      })
+      expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('caps message edits at 4000 characters', () => {
