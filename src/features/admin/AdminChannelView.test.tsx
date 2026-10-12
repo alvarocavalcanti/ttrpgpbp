@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { act, render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AdminChannelView } from './AdminChannelView'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
@@ -166,6 +166,117 @@ describe('AdminChannelView', () => {
 
     renderView()
     expect(await screen.findByRole('button', { name: 'Loading...' })).toBeDisabled()
+  })
+
+  describe('scroll anchoring', () => {
+    // jsdom has no layout: scrollHeight reads 0 unless stubbed. Mirror the
+    // MessageList scroll tests — one shared scrollTop/scrollHeight pair on the
+    // prototype, torn down after each case.
+    let scrollTop = 0
+    let scrollHeight = 0
+
+    beforeEach(() => {
+      scrollTop = 0
+      scrollHeight = 0
+      Object.defineProperty(window.HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get: () => scrollHeight,
+      })
+      Object.defineProperty(window.HTMLElement.prototype, 'scrollTop', {
+        configurable: true,
+        get: () => scrollTop,
+        set: (v: number) => { scrollTop = v },
+      })
+    })
+
+    afterEach(() => {
+      delete (window.HTMLElement.prototype as any).scrollHeight
+      delete (window.HTMLElement.prototype as any).scrollTop
+    })
+
+    it('anchors to the newest message at the bottom on load', async () => {
+      scrollHeight = 1000
+      vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+        messages: [baseMessage({ id: 'm1', channel_id: 'c1' })],
+      }) as any)
+
+      renderView()
+      await screen.findByText('Hello all')
+
+      expect(screen.getByTestId('admin-channel-scroll')).toHaveProperty('scrollTop', 1000)
+    })
+
+    it('preserves the viewport when older messages are prepended', async () => {
+      scrollHeight = 1000
+      vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+        messages: [baseMessage({ id: 'm2', channel_id: 'c1', content: 'Newer' })],
+        hasMore: true,
+      }) as any)
+
+      const { rerender } = renderView()
+      await screen.findByText('Newer')
+      expect(screen.getByTestId('admin-channel-scroll')).toHaveProperty('scrollTop', 1000)
+
+      // The reader scrolls up, then an older page lands above.
+      screen.getByTestId('admin-channel-scroll').scrollTop = 600
+      fireEvent.click(screen.getByRole('button', { name: 'Load earlier messages' }))
+
+      scrollHeight = 1400
+      vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+        messages: [
+          baseMessage({ id: 'm1', channel_id: 'c1', content: 'Older' }),
+          baseMessage({ id: 'm2', channel_id: 'c1', content: 'Newer' }),
+        ],
+        hasMore: true,
+      }) as any)
+      rerender(
+        <MemoryRouter initialEntries={['/admin/channels/c1']}>
+          <Routes>
+            <Route path="/admin/channels/:id" element={<AdminChannelView />} />
+            <Route path="/" element={<div>Home page</div>} />
+            <Route path="/admin" element={<div>Admin page</div>} />
+          </Routes>
+        </MemoryRouter>
+      )
+      await screen.findByText('Older')
+
+      // 400px were added above the viewport; scrollTop grows by that much so
+      // the visible messages stay put instead of jumping to the bottom.
+      expect(screen.getByTestId('admin-channel-scroll')).toHaveProperty('scrollTop', 1000)
+    })
+
+    it('re-anchors to the bottom after a channel switch', async () => {
+      scrollHeight = 1000
+      // Rows lag the route like the real hook's in-flight fetch: they follow
+      // liveChannel, not the URL, until it catches up.
+      let liveChannel = 'c1'
+      vi.mocked(useAdminChannelMessages).mockImplementation((channelId: string | undefined) => baseHook({
+        channel: { ...baseChannel, id: channelId ?? 'c1', name: channelId === 'c2' ? 'Harbor' : 'Strahd' },
+        messages: liveChannel === 'c2'
+          ? [baseMessage({ id: 'm9', channel_id: 'c2', content: 'C2 newest' })]
+          : [baseMessage({ id: 'm1', channel_id: 'c1', content: 'C1 newest' })],
+      }) as any)
+
+      const router = createMemoryRouter(
+        [{ path: '/admin/channels/:id', element: <AdminChannelView /> }],
+        { initialEntries: ['/admin/channels/c1'] },
+      )
+      render(<RouterProvider router={router} />)
+      await screen.findByText('C1 newest')
+      expect(screen.getByTestId('admin-channel-scroll')).toHaveProperty('scrollTop', 1000)
+
+      // The reader scrolls up, then switches channels while the old rows are
+      // still showing: the stale list must not claim the anchor.
+      screen.getByTestId('admin-channel-scroll').scrollTop = 200
+      await act(async () => { await router.navigate('/admin/channels/c2') })
+      expect(screen.getByTestId('admin-channel-scroll')).toHaveProperty('scrollTop', 200)
+
+      // The new channel's page arrives and pins to the bottom.
+      liveChannel = 'c2'
+      await act(async () => { await router.revalidate() })
+      await screen.findByText('C2 newest')
+      expect(screen.getByTestId('admin-channel-scroll')).toHaveProperty('scrollTop', 1000)
+    })
   })
 
   it('shows an empty state when the channel has no messages', async () => {

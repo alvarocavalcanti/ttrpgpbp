@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 - **The admin console keeps its top bar in place** — scrolling through a channel's messages no longer scrolls the app bar and the channel header off-screen; only the messages move. The same goes for the admin console itself, so the top bar stays put while you scroll the tables.
 - **Help keeps its place** — on the Help pages the topic list and the header stay put while you read; only the guide scrolls, so switching topics no longer means scrolling back up.
 - **Footer links are tidier on phones** — the site footer's links now tuck behind a single expandable "Site links" list on small screens instead of wrapping into a wall of links. Tap it to open; tap outside, press Escape, or tap it again to close.
+- **Reviewing a channel starts at the newest message** — opening a channel from the admin console used to land at the top of the loaded messages, so the latest posts were a scroll away. It now opens at the bottom with the most recent posts, just like the regular channel view.
 
 ## 2026-10-10
 

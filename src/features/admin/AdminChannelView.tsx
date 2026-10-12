@@ -47,6 +47,10 @@ export function AdminChannelView() {
   // Set to the container's height before a load-older prepend; the list then
   // keeps the viewport on the previously visible content instead of jumping.
   const loadOlderHeightRef = useRef<number | null>(null)
+  // Last channel whose newest page was pinned to the bottom. Anchors once per
+  // channel (initial load and each channel switch, like regular channels), not
+  // on refetches or older-page prepends.
+  const anchoredChannelRef = useRef<string | null>(null)
 
   // Recreate renderers once: nothing the closures capture ever changes, so
   // ReactMarkdown keeps a stable `components` reference and never re-parses.
@@ -72,13 +76,24 @@ export function AdminChannelView() {
     [members, channel?.gm_id],
   )
 
+  // Prepends preserve the current viewport; otherwise (fresh channel page)
+  // pin to the newest message at the bottom. The shown channel's own id gates
+  // the anchor so a stale previous-channel list cannot claim it mid-switch.
+  // The loading flags re-run this when the scroll container mounts.
   useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
     if (loadOlderHeightRef.current !== null) {
-      const el = scrollRef.current
-      if (el) el.scrollTop += el.scrollHeight - loadOlderHeightRef.current
+      el.scrollTop += el.scrollHeight - loadOlderHeightRef.current
       loadOlderHeightRef.current = null
+      return
     }
-  }, [messages])
+    const shownChannel = messages[messages.length - 1]?.channel_id
+    if (shownChannel && shownChannel === id && anchoredChannelRef.current !== id) {
+      anchoredChannelRef.current = id
+      el.scrollTop = el.scrollHeight
+    }
+  }, [messages, id, adminLoading, channelLoading])
 
   const handleLoadOlder = async () => {
     const el = scrollRef.current
@@ -172,7 +187,7 @@ export function AdminChannelView() {
         </details>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 w-full overflow-y-auto overscroll-contain p-4 space-y-6">
+      <div ref={scrollRef} data-testid="admin-channel-scroll" className="flex-1 min-h-0 w-full overflow-y-auto overscroll-contain p-4 space-y-6">
         {error && (
           <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
             <span>Couldn't load messages.</span>
