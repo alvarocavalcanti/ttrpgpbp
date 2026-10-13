@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseChangelog, fnv1a, getRecentItems, getChangelogHash, getChangelogMarkdown, CHANGELOG_RAW } from './changelog'
+import { parseChangelog, fnv1a, getRecentItems, getChangelogHash, getChangelogMarkdown, getPlayerChangelogMarkdown, stripAdminEntries } from './changelog'
 
 const sample = `# Changelog
 
@@ -51,6 +51,47 @@ describe('parseChangelog', () => {
   })
 })
 
+describe('stripAdminEntries', () => {
+  const tagged = `# Changelog
+
+## 2026-10-13
+
+### Added
+
+- **Player feature** — everyone sees this.
+- **Admin card** — only admins see this. <!-- admin-only -->
+
+## 2026-09-19
+
+### Added
+
+- **Admin-only section** — the whole section is admin-only. <!-- admin-only -->
+`
+
+  it('drops tagged entries and keeps the rest', () => {
+    const stripped = stripAdminEntries(tagged)
+    expect(stripped).toContain('Player feature')
+    expect(stripped).not.toContain('Admin card')
+    expect(stripped).not.toContain('admin-only')
+  })
+
+  it('drops date and section headers left with nothing under them', () => {
+    const stripped = stripAdminEntries(tagged)
+    expect(stripped).not.toContain('2026-09-19')
+    expect(stripped).toContain('2026-10-13')
+    expect(stripped).toContain('### Added')
+  })
+
+  it('an admin-only addition leaves the stripped output unchanged', () => {
+    const withExtra = `${tagged}- **Another admin thing** — hidden too. <!-- admin-only -->\n`
+    expect(stripAdminEntries(withExtra)).toBe(stripAdminEntries(tagged))
+  })
+
+  it('keeps an entry that merely mentions the marker mid-line', () => {
+    const raw = '- **Tag docs** — end lines with <!-- admin-only --> to hide them.\n'
+    expect(stripAdminEntries(raw)).toContain('Tag docs')
+  })
+})
 describe('fnv1a', () => {
   it('is deterministic for identical input', () => {
     expect(fnv1a('hello')).toBe(fnv1a('hello'))
@@ -66,21 +107,34 @@ describe('changelog module', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)
     // Newest entry at the top of the file leads the list: the first item
-    // belongs to the file's first dated section, whatever that date is.
-    const firstHeading = CHANGELOG_RAW.split('\n').find((line) => line.startsWith('## '))
+    // belongs to the player-facing markdown's first dated section, whatever
+    // that date is.
+    const firstHeading = getPlayerChangelogMarkdown().split('\n').find((line) => line.startsWith('## '))
     expect(items[0].version).toBe(firstHeading?.slice(3).trim())
+  })
+
+  it('hides admin-only entries from the player-facing markdown and items', () => {
+    // DAMP literals: tagged in docs/CHANGELOG.md, so players never see them.
+    expect(getPlayerChangelogMarkdown()).not.toContain('See which tables are alive')
+    expect(getPlayerChangelogMarkdown()).not.toContain('admin-only')
+    expect(getPlayerChangelogMarkdown()).toContain('Format while you type')
+    // 2026-09-19 held only an admin entry, so the whole date is gone.
+    expect(getPlayerChangelogMarkdown()).not.toContain('## 2026-09-19')
+    const titles = getRecentItems(50).map((i) => `${i.title} ${i.body}`)
+    expect(titles.some((t) => t.includes('Server Admin console has a new **Reports** tab'))).toBe(false)
   })
 
   it('getChangelogHash is a non-empty string', () => {
     expect(getChangelogHash()).toBeTruthy()
   })
 
-  it('getChangelogMarkdown returns the raw markdown', () => {
+  it('getChangelogMarkdown returns the player-facing markdown', () => {
     expect(getChangelogMarkdown()).toContain('# Changelog')
+    expect(getChangelogMarkdown()).not.toContain('admin-only')
   })
 
   it('keeps the changelog free of developer jargon (the What\'s New modal is player-facing)', () => {
-    const items = parseChangelog(CHANGELOG_RAW)
+    const items = parseChangelog(getPlayerChangelogMarkdown())
     const jargon = [
       /\bRLS\b/i, /PostgREST/i, /PGRST/, /SECURITY DEFINER/i, /app_settings/,
       /edge function/i, /\bRPC\b/i, /is_public/, /safety_card_events/i,

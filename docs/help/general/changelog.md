@@ -13,4 +13,4 @@ When new features ship, a **What's New** modal appears when you open the app. It
 
 ## Full changelog
 
-Click **View full changelog** in the modal, or open the **Change Log** menu item and visit the **/changelog** page, to read the complete change history.
+Click **View full changelog** in the modal, or open the **Change Log** menu item and visit the **/changelog** page, to read the complete change history. Changes to the Server Admin console (used only by the server administrator) are left out of both views.

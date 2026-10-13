@@ -7,7 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Format while you type** — the message box now shows a formatting toolbar when you tap into it: bold, italics, lists, quotes, code and spoilers with one tap, plus a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu.
-- **See which tables are alive** — the Server Admin view now shows an **Active Channels** card: tap it to jump straight to the tables where people are actually playing, and tap **Show all** to go back.
+- **See which tables are alive** — the Server Admin view now shows an **Active Channels** card: tap it to jump straight to the tables where people are actually playing, and tap **Show all** to go back. <!-- admin-only -->
 
 ## 2026-10-12
 
@@ -21,7 +21,7 @@ All notable changes to this project are documented in this file.
 - **The admin console keeps its top bar in place** — scrolling through a channel's messages no longer scrolls the app bar and the channel header off-screen; only the messages move. The same goes for the admin console itself, so the top bar stays put while you scroll the tables.
 - **Help keeps its place** — on the Help pages the topic list and the header stay put while you read; only the guide scrolls, so switching topics no longer means scrolling back up.
 - **Footer links are tidier on phones** — the site footer's links now tuck behind a single expandable "Site links" list on small screens instead of wrapping into a wall of links. Tap it to open; tap outside, press Escape, or tap it again to close.
-- **Reviewing a channel starts at the newest message** — opening a channel from the admin console used to land at the top of the loaded messages, so the latest posts were a scroll away. It now opens at the bottom with the most recent posts, just like the regular channel view.
+- **Reviewing a channel starts at the newest message** — opening a channel from the admin console used to land at the top of the loaded messages, so the latest posts were a scroll away. It now opens at the bottom with the most recent posts, just like the regular channel view. <!-- admin-only -->
 
 ## 2026-10-10
 
@@ -145,7 +145,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Archived channels are now easy to identify** — the Server Admin view has a new **Archived** tab listing every archived channel with its GM's name and email plus the characters playing in it, so when someone asks for a channel to be brought back, the right one is easy to find.
+- **Archived channels are now easy to identify** — the Server Admin view has a new **Archived** tab listing every archived channel with its GM's name and email plus the characters playing in it, so when someone asks for a channel to be brought back, the right one is easy to find. <!-- admin-only -->
 
 ### Fixed
 
@@ -212,7 +212,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Safety alerts now reach the team directly** — when someone files an abuse report, the details land in a new **System** thread in Messages, with links to the channel and the people involved, so reports can be acted on right away.
+- **Safety alerts now reach the team directly** — when someone files an abuse report, the details land in a new **System** thread in Messages, with links to the channel and the people involved, so reports can be acted on right away. <!-- admin-only -->
 - **Your acceptance of the rules is now on record** — the app records that you agreed to the Terms and Privacy Policy, and when those documents change you'll be asked to accept the new version once before continuing.
 - **Clearer privacy details** — the Privacy Policy now names who is responsible for your data and how to reach them, and says plainly how long uploads and safety records are kept.
 
@@ -228,13 +228,13 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Seeing who's in a channel you review** — the admin console's read-only channel view now lists the channel's players, so you can tell who took part in the conversation while reviewing a report.
+- **Seeing who's in a channel you review** — the admin console's read-only channel view now lists the channel's players, so you can tell who took part in the conversation while reviewing a report. <!-- admin-only -->
 
 ## 2026-09-18
 
 ### Added
 
-- **Reviewing any channel's messages** — the admin console's Channels list now opens a read-only view of each channel's conversation, so reports can be investigated in full context. Admins can look but cannot post, and every such view is recorded.
+- **Reviewing any channel's messages** — the admin console's Channels list now opens a read-only view of each channel's conversation, so reports can be investigated in full context. Admins can look but cannot post, and every such view is recorded. <!-- admin-only -->
 - **Faster turn-setting** — the GM can now name the active player straight from that player's menu in the roster, without leaving the sidebar.
 
 ## 2026-09-17
@@ -245,7 +245,7 @@ All notable changes to this project are documented in this file.
 - **Clearer rules for what belongs here** — the Terms now spell out what is not allowed, including illegal content and imagery, harassment, and using Role by Post for anything other than roleplaying and storytelling.
 - **Safer image sharing** — every uploaded image is now checked against known illegal material before it is stored. If something matches, the upload is blocked and the account is suspended automatically. *(Removed 2026-09-24 — the scanner was a paid service; uploads are no longer scanned. See that entry.)*
 - **Reviewing a reported message** — when you report a message, the team can now open that message to review your report. These views are recorded.
-- **Reviewing a player's history** — the admin console can page back through a player's older messages when reviewing a report. *(The scan-record cleanup described here was removed 2026-09-24 along with the scanner.)*
+- **Reviewing a player's history** — the admin console can page back through a player's older messages when reviewing a report. *(The scan-record cleanup described here was removed 2026-09-24 along with the scanner.)* <!-- admin-only -->
 
 ### Changed
 
@@ -326,7 +326,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Server admins can now act on player reports** — the Server Admin console has a new **Reports** tab listing every report with the reporter, the reported player, the reason, the channel, and the date. Open reports can be **resolved** (marked actioned), **dismissed**, or actioned by **suspending** the reported player in one step; the outcome is kept on the report so nothing gets lost.
+- **Server admins can now act on player reports** — the Server Admin console has a new **Reports** tab listing every report with the reporter, the reported player, the reason, the channel, and the date. Open reports can be **resolved** (marked actioned), **dismissed**, or actioned by **suspending** the reported player in one step; the outcome is kept on the report so nothing gets lost. <!-- admin-only -->
 
 ### Updated
 
@@ -377,7 +377,7 @@ All notable changes to this project are documented in this file.
 - **Character notes in your data export** — the "Download My Data" file now includes the character notes you saved on each channel, so everything you wrote down comes out with the rest of your data.
 - **Security hardening** — players can no longer change who the active player is or suspend accounts unless they hold the right role, and channels without a Game Master are protected from edits. These protections keep every table fair.
 - **Standalone active-player control (GM-only)** — the channel sidebar's new **Active Player** item opens a list of the channel's players. Check one or more to name who is up next and save — no message needed — and the active player gets an "It's your turn" notification. The composer also shows a small chip for each active option (Scene, NPC, Whisper, Active Player) once the options panel is closed, so it's clear what's queued.
-- **Server admins see who's who** — the Users tab in Server Admin now has a search box and a status filter (All / Active / Inactive / Suspended). Tap any user to open a detail view with their email (and whether it's verified), sign-in method, last login, last activity, message count, the channels they're in, and any past suspension history — and suspend or un-suspend them from the same place.
+- **Server admins see who's who** — the Users tab in Server Admin now has a search box and a status filter (All / Active / Inactive / Suspended). Tap any user to open a detail view with their email (and whether it's verified), sign-in method, last login, last activity, message count, the channels they're in, and any past suspension history — and suspend or un-suspend them from the same place. <!-- admin-only -->
 
 - **Server Admin & GM communication** — active Game Masters now have a dedicated "Admin Messages" menu item to report issues, ask questions, and read announcements from the server admin. The admin can broadcast announcements and start direct messages with any GM, with push notifications to keep everyone in the loop.
 
@@ -396,7 +396,7 @@ All notable changes to this project are documented in this file.
 - **Safety Tools: Lines & Veils** — a collapsible **Safety Tools (Lines & Veils)** section in GM Channel Settings holds persistent hard-limits (Lines) and off-screen topics (Veils). All members can view them via the new **Safety Tools** sidebar item.
 - **Safety Tools URL** — an optional link (e.g. a shared Google Doc) configured by the GM in settings and surfaced to every member as a **Safety Tools Doc** menu item in the sidebar, matching the Map/Resources URL pattern.
 - **Digital X-Card** — a card-with-X button on each message and in the composer lets any player privately flag a scene to the GM. The GM gets an instant in-app alert, and the player who pressed it gets a private confirmation. The flag is always anonymous.
-- **Server admin view** — a "Server Admin" menu item opens an admin area with Users, Channels, and Settings tabs. The Settings tab lets the admin change the **Maximum Channels per user** value. Nobody is kicked if the limit is lowered; players keep their existing channels.
+- **Server admin view** — a "Server Admin" menu item opens an admin area with Users, Channels, and Settings tabs. The Settings tab lets the admin change the **Maximum Channels per user** value. Nobody is kicked if the limit is lowered; players keep their existing channels. <!-- admin-only -->
 - **Admin-configurable channel cap** — the per-user channel limit is now a server setting (default 10), and the whole app stays in sync with it.
 - **GM/Player role badges in the lobby** — each channel in the lobby list now shows a "GM" badge when the user runs that channel and a "Player" badge otherwise.
 - **NPC messages (GM-only)** — GMs can speak as NPCs with a name and portrait, straight from the composer's "+" options. NPC messages look distinct, respect the usual edit window, support whispers and replies, and show up in search and exports with the NPC's name. Reusing an NPC keeps its portrait.
