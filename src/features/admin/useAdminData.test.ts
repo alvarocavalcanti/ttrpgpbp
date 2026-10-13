@@ -20,7 +20,7 @@ const baseUser = {
   last_login_at: null, last_message_at: null, message_count: 0, created_at: '',
   is_suspended: false, avatar_url: null, server_admin: false, email_verified: false, provider: null,
 }
-const baseChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice' }
+const baseChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice', human_sender_count: 3, human_message_count: 40 }
 const baseReport = {
   id: 'r1', reporter_id: 'u1', reporter_display_name: 'Alice', reported_user_id: 'u2',
   reported_display_name: 'Bob', channel_id: 'c1', channel_name: 'Strahd', message_id: null,

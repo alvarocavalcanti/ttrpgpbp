@@ -7,7 +7,7 @@ import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { BottomSheet } from '../../components/BottomSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
 import { copyToClipboard } from '../../lib/clipboard'
-import { useAdminData, type AdminUser, type AdminAbuseReport, type AdminMessageDetail } from './useAdminData'
+import { useAdminData, type AdminChannel, type AdminUser, type AdminAbuseReport, type AdminMessageDetail } from './useAdminData'
 import { useAdminArchivedChannels } from './useAdminArchivedChannels'
 import { UserDetailModal } from './UserDetailModal'
 
@@ -16,6 +16,11 @@ type SortDir = 'asc' | 'desc'
 type UserFilter = 'all' | 'active' | 'inactive' | 'suspended'
 
 const INACTIVE_DAYS = 30
+
+// "Active channel" mirrors the usage-report skill: >=2 distinct human senders
+// and >=15 non-system human messages (see the skill's usage.sql). Keep in sync.
+const ACTIVE_CHANNEL_MIN_SENDERS = 2
+const ACTIVE_CHANNEL_MIN_MESSAGES = 15
 
 // DB statuses stay pending/resolved/dismissed; the console speaks player-facing
 // "Open / Actioned / Dismissed".
@@ -95,6 +100,10 @@ function userStatus(u: AdminUser): Exclude<UserFilter, 'all'> {
   return 'active'
 }
 
+function isActiveChannel(c: AdminChannel): boolean {
+  return c.human_sender_count >= ACTIVE_CHANNEL_MIN_SENDERS && c.human_message_count >= ACTIVE_CHANNEL_MIN_MESSAGES
+}
+
 export function AdminView() {
   const navigate = useNavigate()
   const { addToast } = useToast()
@@ -115,6 +124,7 @@ export function AdminView() {
   const [viewMessageLoading, setViewMessageLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<UserFilter>('all')
+  const [activeOnly, setActiveOnly] = useState(false)
   // ?user=<id> deep link from system alerts (#562 P1): opens that user's
   // detail modal once the list is loaded.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -347,12 +357,15 @@ export function AdminView() {
     { id: 'suspended', label: 'Suspended' },
   ]
 
+  const visibleChannels = channelSort.sorted.filter(c => !activeOnly || isActiveChannel(c))
+  const activeCount = channels.filter(isActiveChannel).length
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
       <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100 mb-6">Server Admin</h2>
 
       {!loading && !settingsLoading && !imageSettingsLoading && !error && (
-        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="overflow-hidden rounded-lg bg-white dark:bg-surface-800 shadow px-4 py-5 sm:p-6">
             <dt className="truncate text-sm font-medium text-surface-500 dark:text-surface-400">Total Users</dt>
             <dd className="mt-1 flex items-baseline justify-between md:block lg:flex">
@@ -386,6 +399,23 @@ export function AdminView() {
               </div>
             </dd>
           </div>
+          <button
+            type="button"
+            onClick={() => { setTab('channels'); setActiveOnly(prev => !prev) }}
+            aria-pressed={activeOnly}
+            aria-label={`Active Channels: ${activeCount}. Show channels with real activity`}
+            className="overflow-hidden rounded-lg bg-white dark:bg-surface-800 shadow px-4 py-5 sm:p-6 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <dt className="truncate text-sm font-medium text-surface-500 dark:text-surface-400">Active Channels</dt>
+            <dd className="mt-1 flex items-baseline justify-between md:block lg:flex">
+              <div className="flex items-baseline text-2xl font-semibold text-surface-900 dark:text-surface-100">
+                {activeCount}
+              </div>
+              <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 md:mt-2 lg:mt-0">
+                2+ posters · 15+ posts
+              </div>
+            </dd>
+          </button>
         </div>
       )}
 
@@ -520,9 +550,24 @@ export function AdminView() {
           )}
 
           {tab === 'channels' && (
+            <div>
+              {activeOnly && (
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-sm text-surface-600 dark:text-surface-300">Showing active channels only</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveOnly(false)}
+                    className="inline-flex min-h-11 items-center px-3 py-1.5 rounded-md text-sm font-medium text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    Show all
+                  </button>
+                </div>
+              )}
             <div className="bg-white dark:bg-surface-800 shadow overflow-hidden rounded-md">
-              {channelSort.sorted.length === 0 ? (
+              {channels.length === 0 ? (
                 <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No channels found.</div>
+              ) : visibleChannels.length === 0 ? (
+                <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No active channels yet.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
@@ -537,7 +582,7 @@ export function AdminView() {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
-                      {channelSort.sorted.map(channel => (
+                      {visibleChannels.map(channel => (
                         <tr key={channel.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100"><Link to={`/admin/channels/${channel.id}`} aria-label={`Open ${channel.name} read-only`} className="text-primary-600 dark:text-primary-400 hover:underline">{channel.name}</Link></td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{channel.game_system || 'none'}</td>
@@ -572,6 +617,7 @@ export function AdminView() {
                   </table>
                 </div>
               )}
+            </div>
             </div>
           )}
 

@@ -80,6 +80,8 @@ export const AdminChannelRowSchema = z.object({
   created_at: z.string(),
   last_message_at: z.string().nullable(),
   gm_display_name: z.string().nullable(),
+  human_sender_count: z.number(),
+  human_message_count: z.number(),
 })
 
 export type AdminUser = z.infer<typeof AdminUserRowSchema>

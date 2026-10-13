@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Format while you type** — the message box now shows a formatting toolbar when you tap into it: bold, italics, lists, quotes, code and spoilers with one tap, plus a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu.
+- **See which tables are alive** — the Server Admin view now shows an **Active Channels** card: tap it to jump straight to the tables where people are actually playing, and tap **Show all** to go back.
 
 ## 2026-10-12
 
