@@ -80,5 +80,12 @@ export function applyMarkdownFormat(
   }
   const next = value.slice(0, lineStart) + edited + value.slice(lineEnd)
   if (next.length > maxLength) return null
+  // Collapsed cursor: place the caret so the next keystroke keeps the
+  // prefix — selecting it would erase it on type. Code fence caret lands on
+  // the empty line between the fences.
+  if (from === to) {
+    const caret = format === 'code-block' ? lineStart + 4 : lineStart + edited.length
+    return { value: next, selectionStart: caret, selectionEnd: caret }
+  }
   return { value: next, selectionStart: lineStart, selectionEnd: lineStart + edited.length }
 }

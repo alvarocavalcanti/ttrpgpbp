@@ -65,4 +65,18 @@ describe('applyMarkdownFormat', () => {
     const r = applyMarkdownFormat('first\nsecond', 0, 6, 'bulleted-list', MAX_MESSAGE_LENGTH)!
     expect(r.value).toBe('- first\nsecond')
   })
+
+  it('places the caret after the prefix for a collapsed cursor', () => {
+    const r = applyMarkdownFormat('', 0, 0, 'bulleted-list', MAX_MESSAGE_LENGTH)!
+    expect(r.value).toBe('- ')
+    expect(r.selectionStart).toBe(2)
+    expect(r.selectionEnd).toBe(2)
+  })
+
+  it('places the caret inside the fences for a collapsed code block', () => {
+    const r = applyMarkdownFormat('', 0, 0, 'code-block', MAX_MESSAGE_LENGTH)!
+    expect(r.value).toBe('```\n\n```')
+    expect(r.selectionStart).toBe(4)
+    expect(r.selectionEnd).toBe(4)
+  })
 })
