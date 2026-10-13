@@ -60,4 +60,9 @@ describe('applyMarkdownFormat', () => {
     expect(r.value).toBe('ab||spoiler||')
     expect(r.selectionStart).toBe(4)
   })
+
+  it('excludes the next line when a selection ends right after a newline', () => {
+    const r = applyMarkdownFormat('first\nsecond', 0, 6, 'bulleted-list', MAX_MESSAGE_LENGTH)!
+    expect(r.value).toBe('- first\nsecond')
+  })
 })

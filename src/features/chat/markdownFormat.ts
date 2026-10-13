@@ -60,9 +60,11 @@ export function applyMarkdownFormat(
     return { value: next, selectionStart: selStart, selectionEnd: selStart + body.length }
   }
 
-  // Line formats: expand to full lines.
+  // Line formats: expand to full lines. A nonempty selection ending right
+  // after a newline owns the line above, not the line below.
   const lineStart = value.lastIndexOf('\n', from - 1) + 1
-  let lineEnd = value.indexOf('\n', to)
+  const effectiveEnd = to > from && value[to - 1] === '\n' ? to - 1 : to
+  let lineEnd = value.indexOf('\n', effectiveEnd)
   if (lineEnd === -1) lineEnd = len
   const block = value.slice(lineStart, lineEnd)
   const lines = block.split('\n')

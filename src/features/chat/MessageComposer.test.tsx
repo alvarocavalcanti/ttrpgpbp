@@ -1369,6 +1369,24 @@ describe('MessageComposer', () => {
     fireEvent.blur(ta)
     expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
   })
+
+  it('keeps the toolbar mounted when focus moves into it via Shift+Tab', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.focus(ta)
+    const bold = screen.getByRole('button', { name: 'Bold' })
+    fireEvent.blur(ta, { relatedTarget: bold })
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
+  })
+
+  it('hides the toolbar when focus leaves the editor region', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.focus(ta)
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
+    fireEvent.blur(ta, { relatedTarget: document.body })
+    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+  })
 })
 
 it('folds the keyboard shortcut into the send button title and drops the floating tip', () => {

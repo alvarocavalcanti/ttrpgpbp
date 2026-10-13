@@ -795,7 +795,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
-            <div className="relative flex-1">
+            <div
+              className="relative flex-1"
+              onBlur={(e) => {
+                // Keyboard users Shift+Tab from the textarea into the toolbar:
+                // keep it mounted while focus stays inside this region, hide
+                // only when focus leaves it entirely.
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return
+                setIsEditorFocused(false)
+              }}
+            >
               <MarkdownToolbar onApply={applyFormat} hidden={!isEditorFocused || mentionOpen || npcSuggestionsOpen} />
               {(showAllMention || matchedMembers.length > 0) && (
                 <div id={listboxId} role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -841,7 +850,6 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
                 onFocus={() => setIsEditorFocused(true)}
-                onBlur={() => setIsEditorFocused(false)}
                 role="combobox"
                 aria-autocomplete={mentionOpen ? 'list' : undefined}
                 aria-expanded={mentionOpen}
