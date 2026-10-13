@@ -15,6 +15,8 @@ import { useClickOutside } from '../../hooks/useClickOutside'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 import { chipBase, chipIdle, chipActive } from './composerChip'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../lib/safeStorage'
+import { MarkdownToolbar } from './MarkdownToolbar'
+import { applyMarkdownFormat, type MarkdownFormat } from './markdownFormat'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -109,6 +111,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [isDragging, setIsDragging] = useState(false)
   const dragDepth = useRef(0)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isEditorFocused, setIsEditorFocused] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const listboxId = useId()
@@ -240,6 +243,27 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const insertImagePaths = useCallback((paths: string[]) => {
     insertAtCursor(paths.map(p => `![](${p})\n`).join(''))
   }, [insertAtCursor])
+
+  const applyFormat = useCallback((format: MarkdownFormat) => {
+    const ta = textareaRef.current
+    const start = ta?.selectionStart ?? contentRef.current.length
+    const end = ta?.selectionEnd ?? start
+    const result = applyMarkdownFormat(contentRef.current, start, end, format, MAX_MESSAGE_LENGTH)
+    if (!result) {
+      setError(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
+      return
+    }
+    setError(null)
+    contentRef.current = result.value
+    setContent(result.value)
+    setMentionState(null)
+    requestAnimationFrame(() => {
+      const nextTa = textareaRef.current
+      if (!nextTa) return
+      nextTa.focus()
+      nextTa.setSelectionRange(result.selectionStart, result.selectionEnd)
+    })
+  }, [])
 
   useImperativeHandle(ref, () => ({ insertImages: insertImagePaths }), [insertImagePaths])
 
@@ -772,6 +796,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
               </svg>
             </button>
             <div className="relative flex-1">
+              <MarkdownToolbar onApply={applyFormat} hidden={!isEditorFocused || mentionOpen || npcSuggestionsOpen} />
               {(showAllMention || matchedMembers.length > 0) && (
                 <div id={listboxId} role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {showAllMention && (
@@ -815,6 +840,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 onChange={handleChange}
                 maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
+                onFocus={() => setIsEditorFocused(true)}
+                onBlur={() => setIsEditorFocused(false)}
                 role="combobox"
                 aria-autocomplete={mentionOpen ? 'list' : undefined}
                 aria-expanded={mentionOpen}

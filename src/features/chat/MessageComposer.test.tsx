@@ -1305,6 +1305,70 @@ describe('MessageComposer', () => {
     // #404: no Active Player chip — the sidebar modal owns that state.
     expect(screen.queryByLabelText('Edit Active: Hero')).not.toBeInTheDocument()
   })
+
+  it('shows the formatting toolbar only while the message box is focused', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+    fireEvent.focus(screen.getByRole('combobox', { name: 'Message' }))
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
+    fireEvent.blur(screen.getByRole('combobox', { name: 'Message' }))
+    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+  })
+
+  it('applies bold to the selected text and persists the draft', () => {
+    render(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'hello' } })
+    ta.setSelectionRange(0, 5)
+    fireEvent.focus(ta)
+    fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
+    expect(ta.value).toBe('**hello**')
+    expect(localStorage.getItem('composer_draft_c1')).toBe('**hello**')
+  })
+
+  it('hides the toolbar while the mention listbox is open', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.focus(ta)
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
+    fireEvent.change(ta, { target: { value: '@He' } })
+    expect(screen.getByRole('listbox', { name: 'Mention options' })).toBeInTheDocument()
+    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+  })
+
+  it('refuses a format that would exceed the message limit', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    const value = 'a'.repeat(4000)
+    fireEvent.change(ta, { target: { value } })
+    ta.setSelectionRange(0, 4000)
+    fireEvent.focus(ta)
+    fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
+    expect(ta.value).toBe(value)
+    expect(screen.getByText(/too long/)).toBeInTheDocument()
+  })
+
+  it('applies a format from the overflow sheet on narrow screens', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'hi' } })
+    ta.setSelectionRange(0, 2)
+    fireEvent.focus(ta)
+    fireEvent.click(screen.getByRole('button', { name: 'More formatting options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Italic' }))
+    expect(ta.value).toBe('*hi*')
+  })
+
+  it('keeps the cheat sheet open when focus moves into it', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.focus(ta)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown cheat sheet' }))
+    expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
+    fireEvent.blur(ta)
+    expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
+  })
 })
 
 it('folds the keyboard shortcut into the send button title and drops the floating tip', () => {
