@@ -36,6 +36,8 @@ function makeChannel(overrides: Record<string, unknown> = {}) {
     created_at: '2026-09-18T10:00:00Z',
     last_message_at: null,
     gm_display_name: 'Alice',
+    human_sender_count: 3,
+    human_message_count: 40,
     ...overrides,
   }
 }

@@ -17,6 +17,7 @@ const baseChannel = {
   id: 'c1', name: 'Strahd', game_system: 'D&D 5e', gm_id: 'u1',
   member_count: 2, created_at: '2026-09-18T10:00:00Z',
   last_message_at: null, gm_display_name: 'Alice',
+  human_sender_count: 3, human_message_count: 40,
 }
 
 function baseMessage(overrides: Record<string, unknown> = {}) {

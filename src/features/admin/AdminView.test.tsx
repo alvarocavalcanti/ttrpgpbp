@@ -62,8 +62,8 @@ const users = [
 ]
 
 const channels = [
-  { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', gm_id: 'u1', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice' },
-  { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null },
+  { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', gm_id: 'u1', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice', human_sender_count: 3, human_message_count: 40 },
+  { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null, human_sender_count: 1, human_message_count: 4 },
 ]
 
 const makeReport = (over: Record<string, unknown> = {}) => ({
@@ -254,6 +254,103 @@ describe('AdminView', () => {
 
     expect(await screen.findByRole('link', { name: 'Open Curse of Strahd read-only' }))
       .toHaveAttribute('href', '/admin/channels/c1')
+  })
+
+  it('renders the Active Channels card with the active count', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    // DAMP literals: c1 has 3 senders / 40 messages (active), c2 has
+    // 1 sender / 4 messages (inactive), so the card shows 1.
+    expect(await screen.findByText('Active Channels')).toBeInTheDocument()
+    expect(screen.getByText('1', { selector: 'div.text-2xl' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Active Channels: show channels with real activity' }))
+      .toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clicking the Active Channels card filters the channels table', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Active Channels')
+    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: show channels with real activity' }))
+
+    expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
+    expect(screen.queryByText('Empty')).not.toBeInTheDocument()
+    expect(screen.getByText('Showing active channels only')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Active Channels: show channels with real activity' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    // Table shape is unchanged: name links still open the read-only view.
+    expect(screen.getByRole('link', { name: 'Open Curse of Strahd read-only' }))
+      .toHaveAttribute('href', '/admin/channels/c1')
+  })
+
+  it('Show all clears the active filter', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Active Channels')
+    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: show channels with real activity' }))
+    expect(await screen.findByText('Showing active channels only')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(await screen.findByText('Empty')).toBeInTheDocument()
+    expect(screen.queryByText('Showing active channels only')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Active Channels: show channels with real activity' }))
+      .toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clicking the Active Channels card again toggles the filter off', async () => {
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Active Channels')
+    const card = screen.getByRole('button', { name: 'Active Channels: show channels with real activity' })
+    fireEvent.click(card)
+    expect(await screen.findByText('Showing active channels only')).toBeInTheDocument()
+
+    fireEvent.click(card)
+    expect(await screen.findByText('Empty')).toBeInTheDocument()
+    expect(screen.queryByText('Showing active channels only')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty state when no channel meets the active rule', async () => {
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({
+        data: [{ ...channels[1], id: 'c9', name: 'Quiet' }],
+        error: null,
+      })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+      if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+    render(
+      <MemoryRouter>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    // DAMP literal: the lone channel has 1 sender / 4 messages, below the
+    // 2-sender / 15-message rule, so filtering empties the table.
+    await screen.findByText('Active Channels')
+    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: show channels with real activity' }))
+    expect(await screen.findByText('No active channels yet.')).toBeInTheDocument()
+    expect(screen.queryByText('Quiet')).not.toBeInTheDocument()
   })
 
   const switchToArchivedTab = () =>

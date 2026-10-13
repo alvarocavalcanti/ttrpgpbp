@@ -1266,6 +1266,8 @@ export type Database = {
           game_system: string
           gm_display_name: string
           gm_id: string
+          human_message_count: number
+          human_sender_count: number
           id: string
           last_message_at: string
           member_count: number
