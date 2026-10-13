@@ -40,16 +40,26 @@ describe('MarkdownToolbar', () => {
     expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
   })
 
-  it('collapses to a three-dot menu on narrow screens', () => {
+  it('collapses to cheat, bold and a three-dot menu on narrow screens', () => {
     setViewport(true)
     const onApply = vi.fn()
     render(<MarkdownToolbar onApply={onApply} />)
     const toolbar = screen.getByRole('toolbar', { name: 'Text formatting' })
     const buttons = toolbar.querySelectorAll('button')
-    expect(buttons.length).toBe(2)
+    expect(buttons.length).toBe(3)
+    expect(buttons[0].getAttribute('aria-label')).toBe('Markdown cheat sheet')
+    expect(buttons[1].getAttribute('aria-label')).toBe('Bold')
     fireEvent.click(screen.getByRole('button', { name: 'More formatting options' }))
     fireEvent.click(screen.getByRole('button', { name: 'Spoiler' }))
     expect(onApply).toHaveBeenCalledWith('spoiler')
+  })
+
+  it('applies bold straight from the narrow row', () => {
+    setViewport(true)
+    const onApply = vi.fn()
+    render(<MarkdownToolbar onApply={onApply} />)
+    fireEvent.click(screen.getByRole('toolbar', { name: 'Text formatting' }).querySelector('button[aria-label="Bold"]')!)
+    expect(onApply).toHaveBeenCalledWith('bold')
   })
 
   it('renders nothing when hidden', () => {

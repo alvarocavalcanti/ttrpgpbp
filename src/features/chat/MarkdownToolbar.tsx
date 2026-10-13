@@ -87,9 +87,20 @@ export function MarkdownToolbar({ onApply, hidden }: MarkdownToolbarProps) {
         {cheatButton}
         {!isNarrow && toolButtons}
         {isNarrow && (
-          <button
-            type="button"
-            aria-label="More formatting options"
+          <>
+            <button
+              type="button"
+              aria-label={TOOLS[0].label}
+              title={TOOLS[0].title}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onApply(TOOLS[0].format)}
+              className={btnClass}
+            >
+              {TOOLS[0].icon}
+            </button>
+            <button
+              type="button"
+              aria-label="More formatting options"
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             title="More formatting options"
@@ -102,7 +113,8 @@ export function MarkdownToolbar({ onApply, hidden }: MarkdownToolbarProps) {
               <circle cx="12" cy="12" r="1.8" />
               <circle cx="19" cy="12" r="1.8" />
             </svg>
-          </button>
+            </button>
+          </>
         )}
       </div>
       )}
