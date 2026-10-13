@@ -15,6 +15,8 @@ Scene and NPC text is set in an easy-reading serif typeface, sized to read comfo
 
 Messages support **Markdown** and emoji. Bold, italics, lists, headings and code all work. URLs you post become clickable links. Pressing Enter starts a new line, and a blank line starts a new paragraph.
 
+Tapping into the message box shows a formatting toolbar at the top right with one-tap buttons for bold, italics, lists, quotes, code and spoilers. The left-most button opens a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu, and the toolbar hides while mention or NPC suggestions are open.
+
 Messages can contain up to **4,000 characters**, including Markdown. The same limit applies when editing.
 
 ## Spoilers

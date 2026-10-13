@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-13
+
+### Added
+
+- **Format while you type** — the message box now shows a formatting toolbar when you tap into it: bold, italics, lists, quotes, code and spoilers with one tap, plus a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu.
+
 ## 2026-10-12
 
 ### Added
