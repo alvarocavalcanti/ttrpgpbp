@@ -401,6 +401,27 @@ describe('Lobby', () => {
     expect(screen.queryByText(/bridge/)).not.toBeInTheDocument()
     expect(screen.queryByText(/secret/)).not.toBeInTheDocument()
   })
+
+  it('never pairs a || inside a tilde-fenced block with a spoiler delimiter', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: 'Tilde',
+          last_message_preview: 'Hero: ~~~\na || b\n~~~\nand ||secret||',
+          member: { character_name: 'Hero' },
+        } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText(/and \(spoiler\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/secret/)).not.toBeInTheDocument()
+  })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {
     // Regression test for #369: the row's name container must allow its
     // truncate class to shrink, otherwise an 80-char name (the DB max) pushes

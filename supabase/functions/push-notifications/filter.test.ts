@@ -683,6 +683,7 @@ describe('toPlainText', () => {
 
   it('never pairs a || inside code with a spoiler delimiter', () => {
     expect(toPlainText('`a || b` and ||secret||')).toBe('a || b and (spoiler)')
+    expect(toPlainText('~~~\na || b\n~~~\nand ||secret||')).toBe('~~~ a || b ~~~ and (spoiler)')
   })
 
   it('scrubs a dangling spoiler opener', () => {

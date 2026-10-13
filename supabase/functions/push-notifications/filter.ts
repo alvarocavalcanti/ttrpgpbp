@@ -68,17 +68,17 @@ function truncate(text: string): string {
 }
 
 // Spoiler scrub for push bodies. Edge functions deploy standalone (no src/
-// imports), so this mirrors `src/lib/spoilerScrub.ts`: code spans/blocks
-// split out first so a `||` inside code never pairs with a spoiler
-// delimiter, then paired tokens collapse and any dangling opener scrubs
-// through end of string.
+// imports), so this mirrors `src/lib/spoilerScrub.ts`: backtick/tilde code
+// spans/blocks split out first so a `||` inside code never pairs with a
+// spoiler delimiter, then paired tokens collapse and any dangling opener
+// scrubs through end of string.
 function scrubSpoilers(text: string): string {
   const scrub = (part: string): string => {
     const paired = part.replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
     return paired.replace(/\|\|[\s\S]*$/, '(spoiler)')
   }
   return text
-    .split(/(```[\s\S]*?```|`[^`]*`)/g)
+    .split(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`]*`)/g)
     .map((part, i) => (i % 2 === 0 ? scrub(part) : part))
     .join('')
 }
