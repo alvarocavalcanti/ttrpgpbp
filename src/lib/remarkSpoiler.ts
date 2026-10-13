@@ -69,6 +69,7 @@ function pairInSiblings(nodes: PhrasingContent[]): PhrasingContent[] {
       const firstInner = rest.slice(openAt + 2)
       const captured: PhrasingContent[] = []
       if (firstInner) captured.push(textNode(firstInner))
+      const scanFrom = i
       let after = ''
       let closed = false
       while (i < nodes.length) {
@@ -88,8 +89,10 @@ function pairInSiblings(nodes: PhrasingContent[]): PhrasingContent[] {
         i++
       }
       if (!closed) {
-        // No closer anywhere ahead: the opener is literal, and nothing past
-        // it in this node can pair (no more delimiters by construction).
+        // No closer anywhere ahead: restore the scan so the outer loop emits
+        // the siblings unchanged, and the opener stays literal. Without the
+        // restore, the consumed siblings would be silently dropped.
+        i = scanFrom
         out.push(textNode(rest))
         break
       }

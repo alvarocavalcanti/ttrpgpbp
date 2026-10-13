@@ -9,6 +9,7 @@ import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { SignedImg } from '../../components/SignedImg'
 import { refreshAppBadge } from '../../lib/channelRead'
+import { scrubSpoilers } from '../../lib/spoilerScrub'
 import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
 
 // Invite links point at /join/:channelId; users paste the whole URL.
@@ -50,12 +51,11 @@ function unreadBadgeAria(count: number): string {
 // truncation leaves behind — `[label](url` (no closing paren) and `[label`
 // (no closing bracket). The same truncation can orphan a spoiler's closing
 // `||` — or cut right after its first closing bar — so any dangling opener
-// scrubs to the marker too, pipes and all.
+// scrubs to the marker too, pipes and all. Code spans split out first: a `||`
+// inside code must never pair with a spoiler delimiter.
 function channelPreview(preview?: string | null): string {
   if (!preview) return 'No messages yet'
-  return preview
-    .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
-    .replace(/\|\|[\s\S]*$/, '(spoiler)')
+  return scrubSpoilers(preview, true)
     .replace(/!?\[([^\]]*)\](?:\([^)]*\)?)?/g, '$1')
     .replace(/!?\[([^\]]*)$/g, '$1')
     .replace(/[*_`#>[\]]/g, '')

@@ -394,6 +394,20 @@ describe('MessageItem', () => {
     expect(screen.queryByText(/hidden lever/)).not.toBeInTheDocument()
   })
 
+  it('never pairs a || inside code with a spoiler delimiter in the reply quote', () => {
+    const msg: any = {
+      id: 'r-code-spoiler',
+      type: 'regular',
+      content: 'noted',
+      created_at: new Date().toISOString(),
+      sender_id: 'u1',
+      reply: { id: 'm1', content: 'Pull `a || b` then ||the hidden lever||', sender_id: 'u2', is_deleted: false, type: 'regular' }
+    }
+    render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} members={[{ user_id: 'u2', character_name: 'GM' }]} />)
+    expect(screen.getByText('Pull a || b then (spoiler)')).toBeInTheDocument()
+    expect(screen.queryByText(/hidden lever/)).not.toBeInTheDocument()
+  })
+
   it('renders single newlines as line breaks in regular messages', () => {
     const msg: any = {
       id: 'm-br',

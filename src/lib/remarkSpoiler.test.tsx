@@ -85,4 +85,11 @@ describe('remarkSpoiler (issue #709)', () => {
     const { container } = render(<MarkdownImpl spoilers>{'||open\n\nclose||'}</MarkdownImpl>)
     expect(container.querySelector('span[role="button"]')).toBeNull()
   })
+
+  it('keeps siblings after an unclosed opener', () => {
+    const { container } = render(<MarkdownImpl spoilers>{'a ||b **c**'}</MarkdownImpl>)
+    expect(container.querySelector('span[role="button"]')).toBeNull()
+    expect(container.textContent).toContain('a ||b ')
+    expect(container.querySelector('strong')?.textContent).toBe('c')
+  })
 })

@@ -17,6 +17,7 @@ import type { ReactionSummary } from './useMessages'
 import type { ChatMessage, Member } from './types'
 import { isNpcIconUrl } from './npcIcons'
 import { MAX_MESSAGE_LENGTH } from '../../constants'
+import { scrubSpoilers } from '../../lib/spoilerScrub'
 
 type Message = ChatMessage
 
@@ -79,12 +80,12 @@ interface MessageItemProps {
   onToggleFavorite?: (messageId: string) => void
 }
 
+// Plain-text reply-quote snippet. Spoiler content (`||…||`, issue #709)
+// collapses first — with code spans split out so a `||` inside code never
+// pairs with a spoiler delimiter — so inner `*`/`_`/`[` can't corrupt the
+// strips below.
 function snippet(text: string): string {
-  return text
-    // Spoiler content (`||…||`, issue #709) collapses to a marker so reply
-    // quotes never leak a secret. First, so inner `*`/`_`/`[` can't corrupt
-    // the strips below.
-    .replace(/\|\|[\s\S]*?\|\|/g, '(spoiler)')
+  return scrubSpoilers(text, false)
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[*_`#]/g, '')

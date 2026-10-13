@@ -381,6 +381,12 @@ describe('Lobby', () => {
           last_message_preview: 'Hero: Look out ||the bridge is tra|',
           member: { character_name: 'Hero' },
         } as any,
+        {
+          id: '4',
+          name: 'CodePipes',
+          last_message_preview: 'Hero: `a || b` and ||secret||',
+          member: { character_name: 'Hero' },
+        } as any,
       ],
       loading: false,
       error: null,
@@ -391,7 +397,30 @@ describe('Lobby', () => {
 
     expect(screen.getByText('Hero: Look out (spoiler) today')).toBeInTheDocument()
     expect(screen.getAllByText('Hero: Look out (spoiler)')).toHaveLength(2)
+    expect(screen.getByText('Hero: a || b and (spoiler)')).toBeInTheDocument()
     expect(screen.queryByText(/bridge/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/secret/)).not.toBeInTheDocument()
+  })
+
+  it('never pairs a || inside a tilde-fenced block with a spoiler delimiter', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: 'Tilde',
+          last_message_preview: 'Hero: ~~~\na || b\n~~~\nand ||secret||',
+          member: { character_name: 'Hero' },
+        } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+
+    expect(screen.getByText(/and \(spoiler\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/secret/)).not.toBeInTheDocument()
   })
   it('truncates a long channel name without pushing the unread badge out of the row', () => {
     // Regression test for #369: the row's name container must allow its

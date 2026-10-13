@@ -681,6 +681,11 @@ describe('toPlainText', () => {
     expect(toPlainText('a ||x|| b ||y|| c')).toBe('a (spoiler) b (spoiler) c')
   })
 
+  it('never pairs a || inside code with a spoiler delimiter', () => {
+    expect(toPlainText('`a || b` and ||secret||')).toBe('a || b and (spoiler)')
+    expect(toPlainText('~~~\na || b\n~~~\nand ||secret||')).toBe('~~~ a || b ~~~ and (spoiler)')
+  })
+
   it('scrubs a dangling spoiler opener', () => {
     expect(toPlainText('trailing ||secret')).toBe('trailing (spoiler)')
     expect(toPlainText('cut right after the first closing bar ||secret|')).toBe('cut right after the first closing bar (spoiler)')
