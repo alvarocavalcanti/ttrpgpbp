@@ -358,6 +358,7 @@ export function AdminView() {
   ]
 
   const visibleChannels = channelSort.sorted.filter(c => !activeOnly || isActiveChannel(c))
+  const activeCount = channels.filter(isActiveChannel).length
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
@@ -402,16 +403,16 @@ export function AdminView() {
             type="button"
             onClick={() => { setTab('channels'); setActiveOnly(prev => !prev) }}
             aria-pressed={activeOnly}
-            aria-label="Active Channels: show channels with real activity"
+            aria-label={`Active Channels: ${activeCount}. Show channels with real activity`}
             className="overflow-hidden rounded-lg bg-white dark:bg-surface-800 shadow px-4 py-5 sm:p-6 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <dt className="truncate text-sm font-medium text-surface-500 dark:text-surface-400">Active Channels</dt>
             <dd className="mt-1 flex items-baseline justify-between md:block lg:flex">
               <div className="flex items-baseline text-2xl font-semibold text-surface-900 dark:text-surface-100">
-                {channels.filter(isActiveChannel).length}
+                {activeCount}
               </div>
               <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 md:mt-2 lg:mt-0">
-                2+ players · 15+ posts
+                2+ posters · 15+ posts
               </div>
             </dd>
           </button>
