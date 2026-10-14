@@ -1187,6 +1187,49 @@ export type Database = {
           },
         ]
       }
+      sub_channel_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          sub_channel_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          sub_channel_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          sub_channel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_channel_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_channel_members_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_channel_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_channel_reads: {
         Row: {
           last_read_at: string
@@ -1233,6 +1276,7 @@ export type Database = {
           is_archived: boolean
           name: string
           updated_at: string
+          visibility: string
         }
         Insert: {
           allow_dice?: boolean
@@ -1246,6 +1290,7 @@ export type Database = {
           is_archived?: boolean
           name: string
           updated_at?: string
+          visibility?: string
         }
         Update: {
           allow_dice?: boolean
@@ -1259,6 +1304,7 @@ export type Database = {
           is_archived?: boolean
           name?: string
           updated_at?: string
+          visibility?: string
         }
         Relationships: [
           {
@@ -1282,6 +1328,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_sub_channel_member: {
+        Args: { p_sub_channel_id: string; p_user_id: string }
+        Returns: undefined
+      }
       admin_claim_channel: {
         Args: { p_channel_id: string }
         Returns: undefined
@@ -1451,6 +1501,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_view_sub_channel: {
+        Args: { p_sub_channel_id: string }
+        Returns: boolean
+      }
       confirm_age: { Args: never; Returns: undefined }
       confirm_terms: { Args: { p_version: string }; Returns: undefined }
       create_channel: {
@@ -1568,6 +1622,10 @@ export type Database = {
         Args: { p_key: string }
         Returns: string
       }
+      remove_sub_channel_member: {
+        Args: { p_sub_channel_id: string; p_user_id: string }
+        Returns: undefined
+      }
       reply_message: {
         Args: { "": Database["public"]["Tables"]["messages"]["Row"] }
         Returns: {
@@ -1669,6 +1727,10 @@ export type Database = {
       }
       set_active_players: {
         Args: { p_active_player_ids: string[]; p_channel_id: string }
+        Returns: undefined
+      }
+      set_sub_channel_visibility: {
+        Args: { p_sub_channel_id: string; p_visibility: string }
         Returns: undefined
       }
       update_channel_settings: {

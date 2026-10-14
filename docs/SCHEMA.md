@@ -101,6 +101,7 @@ parent `channel_id`; only the message room is new.
 | `channel_id` | UUID, FK → channels | `ON DELETE CASCADE` |
 | `name` | text | 1–40 characters after trim; unique per channel case-insensitively |
 | `is_archived` | boolean | Default `false`. Archived rooms leave the tab bar but stay readable. |
+| `visibility` | text | `all` (every member), `gm` (only the GM), or `private` (the GM + invited players). Default `all`. |
 | `allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers` | boolean | Default `true`. Per-room capability flags (#621 Phase 2); Main is unrestricted. |
 | `created_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
 | `created_at` / `updated_at` | timestamptz | |
@@ -109,6 +110,21 @@ All writes go through GM-only RPCs; the table has a SELECT-only policy. A room
 with messages is retired by archiving, never hard-deleted. Capability flags are
 enforced by the `messages_room_capabilities` BEFORE INSERT trigger, so they apply
 to the command RPCs and to direct inserts alike.
+
+### `sub_channel_members`
+
+Invited players of a `private` room (#621 Phase 3). The GM and channel membership
+always grant access; this table only widens a private room to named members.
+
+| Column | Type | Notes |
+|---|---|---|
+| `sub_channel_id` | UUID, FK → sub_channels | `ON DELETE CASCADE`; part of the composite PK |
+| `user_id` | UUID, FK → profiles | `ON DELETE CASCADE`; part of the composite PK |
+| `added_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
+| `created_at` | timestamptz | |
+
+Readable by the room's GM and by the member themselves; no client write policy —
+`set_sub_channel_audience` is the only writer.
 
 ### `sub_channel_reads`
 
@@ -154,9 +170,10 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **profiles**: Any authenticated user can read. Users can only update their own row.
 - **channels**: Readable only by their members (`channel_members`) since #81. For channels carrying an invite code, a non-member can read only the join-relevant projection via `get_join_channel_preview` (name, game system, whether a password is set); `invite_code` and GM-only URLs are never exposed.
 - **channel_members**: Readable by members of the same channel. GM can insert, update, and delete. Users can update their own row (character name, avatar, sheet URL).
-- **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, NPC snapshot fields (`npc_name` / `npc_avatar_url`) from non-GMs, cross-channel reply targets, and non-member whisper targets.
+- **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. A message in a restricted room is visible only to those who can view that room (`can_view_sub_channel`). Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, NPC snapshot fields (`npc_name` / `npc_avatar_url`) from non-GMs, cross-channel reply targets, and non-member whisper targets.
 - **dice_rolls**: Readable by channel members. **Insert is revoked from clients** — rolls are only created by the `roll_dice` command, so a fabricated result can never be persisted. Realtime INSERT events are published (`ALTER PUBLICATION`), and the roll history RPC excludes rolls from soft-deleted messages.
-- **sub_channels**: Readable by channel members. **No client write policy** — create/rename/archive/delete are GM-only SECURITY DEFINER RPCs.
+- **sub_channels**: Readable only where `can_view_sub_channel(id)` holds — a channel member, and (for a restricted room) the GM or an invited player. **No client write policy** — create/rename/archive/delete/audience are GM-only SECURITY DEFINER RPCs.
+- **sub_channel_members**: Readable by the room's GM and by the member themselves. **No client write policy** — `set_sub_channel_audience` is the only writer.
 - **sub_channel_reads**: Own-row only (read, insert, update a user's own read mark).
 - **notification_preferences**: Users can only read/write their own row.
 - **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`upload-image`, which enforces the admin toggle, the size cap, the path shape, and GM-of-channel) may INSERT/UPDATE. Adding an INSERT/UPDATE policy on this bucket re-opens a bypass of those server-side gates. `images_delete` remains GM-gated. Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`. Uploads are stored unscanned; abusive uploads are handled through player reports.
@@ -218,6 +235,7 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | `delete_sub_channel` | Hard-delete an empty room | GM-only, refused when the room has any messages (archive instead) |
 | `mark_sub_channel_read` | Advance the caller's per-room read mark | membership |
 | `get_channel_room_unread` | Read-only per-room unread counts, including the Main (`NULL`) group | member-only, mirrors `get_user_channels_unread` (excludes own, deleted, and unreadable whispers) |
+| `set_sub_channel_audience` | Set a room's `visibility` and replace its invited players (#621 Phase 3) | GM-only, `visibility` ∈ `all`/`gm`/`private`, invited users must be channel members |
 | `get_channel_roll_history` | Read-only roll history (excluding rolls from soft-deleted messages), attributed to each roller's channel character name (account name as fallback) | member-only via RLS |
 
 ---

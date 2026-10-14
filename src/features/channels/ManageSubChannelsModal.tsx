@@ -4,7 +4,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useToast } from '../../contexts/ToastContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MAX_ROOM_NAME_LENGTH, MAX_ROOMS_PER_CHANNEL } from '../../constants'
-import type { RoomCapabilities, SubChannel } from './useSubChannels'
+import type { RoomCapabilities, RoomVisibility, SubChannel } from './useSubChannels'
 
 interface ManageSubChannelsModalProps {
   channelId: string
@@ -17,6 +17,13 @@ interface ManageSubChannelsModalProps {
   onRename: (roomId: string, name: string) => Promise<void>
   onSetArchived: (roomId: string, archived: boolean) => Promise<void>
   onSetCapabilities: (roomId: string, caps: Partial<RoomCapabilities>) => Promise<void>
+  onSetVisibility: (roomId: string, visibility: RoomVisibility) => Promise<void>
+  onAddMember: (roomId: string, userId: string) => Promise<void>
+  onRemoveMember: (roomId: string, userId: string) => Promise<void>
+  // Channel members eligible to be invited (excludes the GM, who always sees).
+  members: { user_id: string; character_name: string }[]
+  // Invited user ids per room.
+  roomMembers: Record<string, string[]>
   onRemove: (roomId: string) => Promise<void>
   onOpenRoom: (roomId: string) => void
   onRetry: () => void
@@ -51,6 +58,11 @@ export function ManageSubChannelsModal({
   onRename,
   onSetArchived,
   onSetCapabilities,
+  onSetVisibility,
+  onAddMember,
+  onRemoveMember,
+  members,
+  roomMembers,
   onRemove,
   onOpenRoom,
   onRetry,
@@ -122,6 +134,25 @@ export function ManageSubChannelsModal({
       // Send only the toggled flag; update_sub_channel COALESCEs the rest, so a
       // rapid second toggle cannot revert the first through a stale snapshot.
       await onSetCapabilities(room.id, { [key]: !(room[key] ?? true) })
+      setActionError(null)
+    } catch (err) {
+      setActionError(friendlyRoomError(err))
+    }
+  }
+
+  const handleAudience = async (room: SubChannel, visibility: RoomVisibility) => {
+    try {
+      await onSetVisibility(room.id, visibility)
+      setActionError(null)
+    } catch (err) {
+      setActionError(friendlyRoomError(err))
+    }
+  }
+
+  const handleToggleMember = async (room: SubChannel, userId: string) => {
+    const invited = (roomMembers[room.id] ?? []).includes(userId)
+    try {
+      await (invited ? onRemoveMember(room.id, userId) : onAddMember(room.id, userId))
       setActionError(null)
     } catch (err) {
       setActionError(friendlyRoomError(err))
@@ -254,6 +285,33 @@ export function ManageSubChannelsModal({
                         </label>
                       ))}
                     </fieldset>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-600 dark:text-surface-300">
+                      <label className="inline-flex items-center gap-1.5">
+                        <span>Who can see it:</span>
+                        <select
+                          value={room.visibility ?? 'all'}
+                          onChange={(e) => handleAudience(room, e.target.value as RoomVisibility)}
+                          aria-label={`Audience for ${room.name ?? 'room'}`}
+                          className="rounded border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 py-1 px-2 text-xs"
+                        >
+                          <option value="all">Everyone</option>
+                          <option value="gm">Only the GM</option>
+                          <option value="private">Invited players</option>
+                        </select>
+                      </label>
+                      {(room.visibility ?? 'all') === 'private' && members.map(m => (
+                        <label key={m.user_id} className="inline-flex items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={(roomMembers[room.id] ?? []).includes(m.user_id)}
+                            onChange={() => handleToggleMember(room, m.user_id)}
+                            aria-label={`Invite ${m.character_name} to ${room.name ?? 'room'}`}
+                            className="h-4 w-4 rounded border border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500"
+                          />
+                          {m.character_name}
+                        </label>
+                      ))}
+                    </div>
                   </li>
                 ))}
               </ul>

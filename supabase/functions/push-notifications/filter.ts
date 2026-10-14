@@ -331,3 +331,20 @@ export function resolveAnnouncementTargets(
   }
   return [...new Set(gmIds.filter(id => !suspended.has(id)))]
 }
+
+// Private rooms (#621 Phase 3): a message in a restricted room must only reach
+// members who can view that room. The push pipeline runs with the service client
+// (bypasses RLS), so the recipient set is narrowed here.
+//   visibility 'all' (or unset) -> everyone
+//   'gm'                        -> the channel GM only
+//   'private'                   -> the channel GM plus the invited members
+export function filterMembersByRoomVisibility<T extends { user_id: string }>(
+  members: T[],
+  visibility: string | null | undefined,
+  gmId: string | null,
+  invitedUserIds: string[],
+): T[] {
+  if (!visibility || visibility === 'all') return members
+  const invited = new Set(invitedUserIds)
+  return members.filter((m) => m.user_id === gmId || invited.has(m.user_id))
+}

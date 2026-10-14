@@ -9,6 +9,7 @@ const room = (over: Partial<SubChannel> = {}): SubChannel => ({
   channel_id: 'c1',
   name: 'OOC',
   is_archived: false,
+  visibility: 'all',
   allow_dice: true,
   allow_scenes: true,
   allow_npc: true,
@@ -98,5 +99,12 @@ describe('SubChannelTabs', () => {
     expect(screen.getByText("Couldn't load rooms")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a lock glyph only on a restricted room (#621 Phase 3)', () => {
+    renderTabs({
+      subChannels: [room({ id: 'r1', visibility: 'private' }), room({ id: 'r2', visibility: 'all' })],
+    })
+    expect(screen.getAllByTestId('room-lock')).toHaveLength(1)
   })
 })

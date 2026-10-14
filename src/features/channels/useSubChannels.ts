@@ -8,6 +8,8 @@ import { SubChannelRowSchema, parseRow } from '../validation/rowSchemas'
 
 export type SubChannel = Database['public']['Tables']['sub_channels']['Row']
 
+export type RoomVisibility = 'all' | 'gm' | 'private'
+
 // Per-room capability flags (#621 Phase 2). All default true.
 export interface RoomCapabilities {
   allow_dice: boolean
@@ -26,6 +28,9 @@ export function useSubChannels(channelId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
+
+  // Invited user ids per private room (#621 Phase 3).
+  const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
 
   const refetch = useCallback(() => setRefetchTrigger(prev => prev + 1), [])
 
@@ -55,6 +60,23 @@ export function useSubChannels(channelId: string | undefined) {
           return room ? [room as SubChannel] : []
         })
         if (mounted) setRooms(parsed)
+
+        // Invited members per room (only meaningful for 'private').
+        const ids = parsed.map(r => r.id)
+        if (ids.length === 0) {
+          if (mounted) setRoomMembers({})
+          return
+        }
+        const { data: memberRows, error: memberError } = await supabase
+          .from('sub_channel_members')
+          .select('sub_channel_id, user_id')
+          .in('sub_channel_id', ids)
+        if (memberError) throw memberError
+        const byRoom: Record<string, string[]> = {}
+        for (const m of memberRows ?? []) {
+          ;(byRoom[m.sub_channel_id] ??= []).push(m.user_id)
+        }
+        if (mounted) setRoomMembers(byRoom)
       } catch (err) {
         console.error('Error fetching rooms:', err)
         if (mounted) setError(toError(err))
@@ -157,8 +179,37 @@ export function useSubChannels(channelId: string | undefined) {
     if (error) throw error
   }, [])
 
+  // Per-room audience (#621 Phase 3). Partial updates only — visibility, or a
+  // single member toggle — so rapid clicks cannot clobber each other.
+  const setVisibility = useCallback(async (roomId: string, visibility: RoomVisibility) => {
+    const { error } = await supabase.rpc('set_sub_channel_visibility', {
+      p_sub_channel_id: roomId,
+      p_visibility: visibility,
+    })
+    if (error) throw error
+    if (visibility !== 'private') setRoomMembers(prev => ({ ...prev, [roomId]: [] }))
+  }, [])
+
+  const addMember = useCallback(async (roomId: string, userId: string) => {
+    const { error } = await supabase.rpc('add_sub_channel_member', {
+      p_sub_channel_id: roomId,
+      p_user_id: userId,
+    })
+    if (error) throw error
+    setRoomMembers(prev => ({ ...prev, [roomId]: [...(prev[roomId] ?? []), userId] }))
+  }, [])
+
+  const removeMember = useCallback(async (roomId: string, userId: string) => {
+    const { error } = await supabase.rpc('remove_sub_channel_member', {
+      p_sub_channel_id: roomId,
+      p_user_id: userId,
+    })
+    if (error) throw error
+    setRoomMembers(prev => ({ ...prev, [roomId]: (prev[roomId] ?? []).filter(id => id !== userId) }))
+  }, [])
+
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, loading, error, create, rename, setArchived, setCapabilities, remove, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, refetch }
 }
