@@ -134,7 +134,7 @@ BEGIN
     RAISE EXCEPTION 'Scenes are turned off in this room.';
   END IF;
   IF NEW.type = 'npc' AND NOT v_npc THEN
-    RAISE EXCEPTION 'Character posts are turned off in this room.';
+    RAISE EXCEPTION 'NPCs are turned off in this room.';
   END IF;
   IF NEW.type = 'dice_roll' AND NOT v_dice THEN
     RAISE EXCEPTION 'Dice are turned off in this room.';

@@ -462,7 +462,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const offCapabilities: string[] = []
   if (!capabilities.allow_dice) offCapabilities.push('Dice')
   if (!capabilities.allow_scenes) offCapabilities.push('Scenes')
-  if (!capabilities.allow_npc) offCapabilities.push('Character posts')
+  if (!capabilities.allow_npc) offCapabilities.push('NPCs')
   if (!capabilities.allow_whispers) offCapabilities.push('Whispers')
 
   const optionsContent = (

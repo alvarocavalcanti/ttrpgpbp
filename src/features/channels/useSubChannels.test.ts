@@ -161,25 +161,20 @@ describe('useSubChannels', () => {
     await expect(result.current.create('x')).rejects.toThrow('No channel.')
   })
 
-  it('setCapabilities sends the full flag set to update_sub_channel', async () => {
+  it('setCapabilities sends only the supplied flag to update_sub_channel', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     vi.mocked(supabase.from).mockReturnValue({ select: mockList([]).select } as never)
 
     const { result } = renderHook(() => useSubChannels('c1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    await result.current.setCapabilities('r1', {
-      allow_dice: false,
-      allow_scenes: true,
-      allow_npc: true,
-      allow_whispers: false,
-    })
-    expect(supabase.rpc).toHaveBeenCalledWith('update_sub_channel', {
-      p_sub_channel_id: 'r1',
-      p_allow_dice: false,
-      p_allow_scenes: true,
-      p_allow_npc: true,
-      p_allow_whispers: false,
-    })
+    await result.current.setCapabilities('r1', { allow_dice: false })
+    const args = vi.mocked(supabase.rpc).mock.calls.at(-1)?.[1] as Record<string, unknown>
+    expect(args).toMatchObject({ p_sub_channel_id: 'r1', p_allow_dice: false })
+    // The unchanged flags are sent as undefined, which supabase-js drops from the
+    // body so update_sub_channel COALESCEs (and preserves) them.
+    expect(args.p_allow_scenes).toBeUndefined()
+    expect(args.p_allow_npc).toBeUndefined()
+    expect(args.p_allow_whispers).toBeUndefined()
   })
 })

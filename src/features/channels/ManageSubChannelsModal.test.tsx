@@ -133,16 +133,11 @@ describe('ManageSubChannelsModal', () => {
     await waitFor(() => expect(h.onRename).toHaveBeenCalledWith('r1', 'Chatter'))
   })
 
-  it('toggles a capability flag, sending the full set', async () => {
+  it('toggles a capability flag, sending only the changed flag', async () => {
     const h = renderModal({
       subChannels: [room({ id: 'r1', name: 'OOC', allow_dice: true, allow_scenes: false })],
     })
     fireEvent.click(screen.getByLabelText('Dice in OOC'))
-    await waitFor(() => expect(h.onSetCapabilities).toHaveBeenCalledWith('r1', {
-      allow_dice: false,
-      allow_scenes: false,
-      allow_npc: true,
-      allow_whispers: true,
-    }))
+    await waitFor(() => expect(h.onSetCapabilities).toHaveBeenCalledWith('r1', { allow_dice: false }))
   })
 })

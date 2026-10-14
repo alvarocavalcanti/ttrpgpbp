@@ -1437,7 +1437,7 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     expect(screen.queryByRole('button', { name: 'Scene Description' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'NPC Mode' })).not.toBeInTheDocument()
     expect(screen.queryByText('Whisper')).not.toBeInTheDocument()
-    expect(screen.getByText(/Turned off in this room: Dice, Scenes, Character posts, Whispers\./)).toBeInTheDocument()
+    expect(screen.getByText(/Turned off in this room: Dice, Scenes, NPCs, Whispers\./)).toBeInTheDocument()
   })
 
   it('keeps the controls when the room allows them', () => {
@@ -1455,5 +1455,29 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     expect(screen.getByRole('button', { name: 'NPC Mode' })).toBeInTheDocument()
     expect(screen.getByText('Whisper')).toBeInTheDocument()
     expect(screen.queryByText(/Turned off in this room/)).not.toBeInTheDocument()
+  })
+
+  it('drops an active scene when the room turns scenes off', async () => {
+    const onSend = vi.fn()
+    const caps = (allow_scenes: boolean) => ({
+      allow_dice: true, allow_scenes, allow_npc: true, allow_whispers: true,
+    })
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM members={members} onSendMessage={onSend} capabilities={caps(true)} />
+    )
+    openOptions()
+    fireEvent.click(screen.getByRole('button', { name: 'Scene Description' }))
+    expect(screen.getByRole('button', { name: 'Scene Description' })).toHaveAttribute('aria-pressed', 'true')
+
+    rerender(
+      <MessageComposer channelId="c1" isGM members={members} onSendMessage={onSend} capabilities={caps(false)} />
+    )
+    expect(screen.queryByRole('button', { name: 'Scene Description' })).not.toBeInTheDocument()
+
+    // The reset cleared isScene: the sent message is plain, not a scene.
+    const ta = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(ta, { target: { value: 'hello' } })
+    fireEvent.click(screen.getByRole('button', { name: /Send/i }))
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ type: 'regular' })))
   })
 })

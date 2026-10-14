@@ -142,9 +142,11 @@ export function useSubChannels(channelId: string | undefined) {
     if (error) throw error
   }, [])
 
-  // Per-room capability flags (#621 Phase 2). Sends the full set for the room,
-  // so a toggle is idempotent and never races a concurrent change.
-  const setCapabilities = useCallback(async (roomId: string, caps: RoomCapabilities) => {
+  // Per-room capability flags (#621 Phase 2). A PARTIAL update: only the
+  // supplied flags are sent and update_sub_channel COALESCEs the rest, so a
+  // rapid second toggle cannot clobber the first with a stale snapshot (the
+  // realtime echo has not landed yet).
+  const setCapabilities = useCallback(async (roomId: string, caps: Partial<RoomCapabilities>) => {
     const { error } = await supabase.rpc('update_sub_channel', {
       p_sub_channel_id: roomId,
       p_allow_dice: caps.allow_dice,

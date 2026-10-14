@@ -16,7 +16,7 @@ interface ManageSubChannelsModalProps {
   onCreate: (name: string) => Promise<string>
   onRename: (roomId: string, name: string) => Promise<void>
   onSetArchived: (roomId: string, archived: boolean) => Promise<void>
-  onSetCapabilities: (roomId: string, caps: RoomCapabilities) => Promise<void>
+  onSetCapabilities: (roomId: string, caps: Partial<RoomCapabilities>) => Promise<void>
   onRemove: (roomId: string) => Promise<void>
   onOpenRoom: (roomId: string) => void
   onRetry: () => void
@@ -119,13 +119,9 @@ export function ManageSubChannelsModal({
 
   const handleToggleCapability = async (room: SubChannel, key: keyof RoomCapabilities) => {
     try {
-      await onSetCapabilities(room.id, {
-        allow_dice: room.allow_dice,
-        allow_scenes: room.allow_scenes,
-        allow_npc: room.allow_npc,
-        allow_whispers: room.allow_whispers,
-        [key]: !room[key],
-      })
+      // Send only the toggled flag; update_sub_channel COALESCEs the rest, so a
+      // rapid second toggle cannot revert the first through a stale snapshot.
+      await onSetCapabilities(room.id, { [key]: !(room[key] ?? true) })
       setActionError(null)
     } catch (err) {
       setActionError(friendlyRoomError(err))
@@ -249,7 +245,7 @@ export function ManageSubChannelsModal({
                         <label key={flag.key} className="inline-flex items-center gap-1.5">
                           <input
                             type="checkbox"
-                            checked={room[flag.key]}
+                            checked={room[flag.key] ?? true}
                             onChange={() => handleToggleCapability(room, flag.key)}
                             aria-label={`${flag.label} in ${room.name ?? 'room'}`}
                             className="h-4 w-4 rounded border border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500"
