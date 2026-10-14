@@ -11,7 +11,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(64);
+SELECT plan(69);
 
 SELECT is(
   (SELECT count(*)
@@ -45,7 +45,7 @@ SELECT is(
   'authenticated cannot call build_dice_content'
 );
 SELECT is(
-  has_function_privilege('authenticated', 'public.roll_dice_unchecked(uuid,text,uuid,text,integer,uuid)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.roll_dice_unchecked(uuid,text,uuid,text,integer,uuid,uuid)', 'EXECUTE'),
   false,
   'authenticated cannot call roll_dice_unchecked'
 );
@@ -362,7 +362,7 @@ SELECT is(
 );
 
 SELECT is(
-  has_function_privilege('authenticated', 'public.send_message(uuid,text,text,uuid,uuid,uuid[],text,text,uuid)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.send_message(uuid,text,text,uuid,uuid,uuid[],text,text,uuid,uuid)', 'EXECUTE'),
   true,
   'authenticated keeps send_message (client RPC)'
 );
@@ -382,6 +382,34 @@ SELECT is(
   has_function_privilege('authenticated', 'public.mark_channel_read(uuid)', 'EXECUTE'),
   true,
   'authenticated keeps mark_channel_read (read-state RPC; anon grant stripped by 20260907132031)'
+);
+
+-- #621 rooms: the client-facing room RPCs keep authenticated EXECUTE; the
+-- anon=0 sweep above covers their anon revoke.
+SELECT is(
+  has_function_privilege('authenticated', 'public.create_sub_channel(uuid,text)', 'EXECUTE'),
+  true,
+  'authenticated keeps create_sub_channel (client RPC)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.update_sub_channel(uuid,text,boolean)', 'EXECUTE'),
+  true,
+  'authenticated keeps update_sub_channel (client RPC)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.delete_sub_channel(uuid)', 'EXECUTE'),
+  true,
+  'authenticated keeps delete_sub_channel (client RPC)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.mark_sub_channel_read(uuid)', 'EXECUTE'),
+  true,
+  'authenticated keeps mark_sub_channel_read (client RPC)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.get_channel_room_unread(uuid)', 'EXECUTE'),
+  true,
+  'authenticated keeps get_channel_room_unread (client RPC)'
 );
 
 SELECT * FROM finish();
