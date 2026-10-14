@@ -95,7 +95,7 @@ export function SubChannelTabs({
     tabs[next]?.focus()
   }
 
-  const renderTab = (key: string, label: string, href: string, unread: number) => {
+  const renderTab = (key: string, label: string, href: string, unread: number, locked = false) => {
     const isActive = key === activeKey
     return (
       <Link
@@ -107,6 +107,11 @@ export function SubChannelTabs({
         data-room-key={key}
         className={`${TAB_BASE} ${isActive ? TAB_ACTIVE : TAB_IDLE}`}
       >
+        {locked && (
+          <svg className="mr-1 h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true" data-testid="room-lock">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        )}
         {label}
         {unread > 0 && (
           <span
@@ -129,7 +134,7 @@ export function SubChannelTabs({
         className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto px-3 py-2"
       >
         {renderTab('main', 'Main', `/channel/${channelId}`, 0)}
-        {subChannels.map(room => renderTab(room.id, room.name ?? 'Room', channelRoomPath(channelId, room.id), counts[room.id] ?? 0))}
+        {subChannels.map(room => renderTab(room.id, room.name ?? 'Room', channelRoomPath(channelId, room.id), counts[room.id] ?? 0, (room.visibility ?? 'all') !== 'all'))}
       </div>
       {isGM && (
         <div className="flex-shrink-0 flex items-center gap-1 pr-2">

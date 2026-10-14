@@ -91,13 +91,14 @@ export function ChannelView() {
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
-  const { subChannels, archivedRooms, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
+  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setAudience: setRoomAudience, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
   const { counts: roomUnread, markRoomRead } = useSubChannelUnread(id, subId ?? null)
   const [showManageRooms, setShowManageRooms] = useState(false)
   // Active room and its capability flags (#621 Phase 2). Main (no room) and an
   // unknown room allow everything.
   const activeRoom = subChannels.find(r => r.id === subId) ?? archivedRooms.find(r => r.id === subId)
   const activeRoomName = activeRoom?.name ?? 'this room'
+  const activeVisibility = activeRoom?.visibility ?? 'all'
   const activeCapabilities = {
     allow_dice: activeRoom?.allow_dice ?? true,
     allow_scenes: activeRoom?.allow_scenes ?? true,
@@ -624,7 +625,7 @@ export function ChannelView() {
             onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
             favoriteIds={favoriteIds}
             onToggleFavorite={handleToggleFavorite}
-            emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : (subId ? `No messages in ${activeRoomName} yet. Start the conversation.` : undefined)}
+            emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : (subId ? (activeVisibility === 'private' ? 'Private room — only you and the GM.' : activeVisibility === 'gm' ? 'Only the GM can see this room.' : `No messages in ${activeRoomName} yet. Start the conversation.`) : undefined)}
             error={showFavoritesOnly ? favoritesError : messagesError}
             hasMore={showFavoritesOnly ? false : hasMore}
             loadingOlder={loadingOlder}
@@ -863,6 +864,9 @@ export function ChannelView() {
           onRename={renameRoom}
           onSetArchived={setRoomArchived}
           onSetCapabilities={setRoomCapabilities}
+          onSetAudience={setRoomAudience}
+          members={members.filter(m => m.user_id !== channel.gm_id && !m.is_blocked).map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+          roomMembers={roomMembers}
           onRemove={removeRoom}
           onOpenRoom={(roomId) => {
             setShowManageRooms(false)

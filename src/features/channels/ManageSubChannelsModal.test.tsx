@@ -9,6 +9,7 @@ const room = (over: Partial<SubChannel> = {}): SubChannel => ({
   channel_id: 'c1',
   name: 'OOC',
   is_archived: false,
+  visibility: 'all',
   allow_dice: true,
   allow_scenes: true,
   allow_npc: true,
@@ -26,6 +27,9 @@ const renderModal = (props: Partial<Parameters<typeof ManageSubChannelsModal>[0]
     onRename: vi.fn().mockResolvedValue(undefined),
     onSetArchived: vi.fn().mockResolvedValue(undefined),
     onSetCapabilities: vi.fn().mockResolvedValue(undefined),
+    onSetAudience: vi.fn().mockResolvedValue(undefined),
+    members: [],
+    roomMembers: {},
     onRemove: vi.fn().mockResolvedValue(undefined),
     onOpenRoom: vi.fn(),
     onRetry: vi.fn(),
@@ -139,5 +143,21 @@ describe('ManageSubChannelsModal', () => {
     })
     fireEvent.click(screen.getByLabelText('Dice in OOC'))
     await waitFor(() => expect(h.onSetCapabilities).toHaveBeenCalledWith('r1', { allow_dice: false }))
+  })
+
+  it('sets the room audience (#621 Phase 3)', async () => {
+    const h = renderModal({ subChannels: [room({ id: 'r1', name: 'OOC' })] })
+    fireEvent.change(screen.getByLabelText('Audience for OOC'), { target: { value: 'private' } })
+    await waitFor(() => expect(h.onSetAudience).toHaveBeenCalledWith('r1', 'private', []))
+  })
+
+  it('invites a member to a private room (#621 Phase 3)', async () => {
+    const h = renderModal({
+      subChannels: [room({ id: 'r1', name: 'OOC', visibility: 'private' })],
+      members: [{ user_id: 'u2', character_name: 'Hero' }],
+      roomMembers: { r1: [] },
+    })
+    fireEvent.click(screen.getByLabelText('Invite Hero to OOC'))
+    await waitFor(() => expect(h.onSetAudience).toHaveBeenCalledWith('r1', 'private', ['u2']))
   })
 })

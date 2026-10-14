@@ -8,6 +8,8 @@ import { SubChannelRowSchema, parseRow } from '../validation/rowSchemas'
 
 export type SubChannel = Database['public']['Tables']['sub_channels']['Row']
 
+export type RoomVisibility = 'all' | 'gm' | 'private'
+
 // Per-room capability flags (#621 Phase 2). All default true.
 export interface RoomCapabilities {
   allow_dice: boolean
@@ -26,6 +28,9 @@ export function useSubChannels(channelId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
+
+  // Invited user ids per private room (#621 Phase 3).
+  const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
 
   const refetch = useCallback(() => setRefetchTrigger(prev => prev + 1), [])
 
@@ -55,6 +60,22 @@ export function useSubChannels(channelId: string | undefined) {
           return room ? [room as SubChannel] : []
         })
         if (mounted) setRooms(parsed)
+
+        // Invited members per room (only meaningful for 'private').
+        const ids = parsed.map(r => r.id)
+        if (ids.length === 0) {
+          if (mounted) setRoomMembers({})
+          return
+        }
+        const { data: memberRows } = await supabase
+          .from('sub_channel_members')
+          .select('sub_channel_id, user_id')
+          .in('sub_channel_id', ids)
+        const byRoom: Record<string, string[]> = {}
+        for (const m of memberRows ?? []) {
+          ;(byRoom[m.sub_channel_id] ??= []).push(m.user_id)
+        }
+        if (mounted) setRoomMembers(byRoom)
       } catch (err) {
         console.error('Error fetching rooms:', err)
         if (mounted) setError(toError(err))
@@ -157,8 +178,20 @@ export function useSubChannels(channelId: string | undefined) {
     if (error) throw error
   }, [])
 
+  // Per-room audience (#621 Phase 3): sets visibility and replaces the invited
+  // set in one GM-only RPC.
+  const setAudience = useCallback(async (roomId: string, visibility: RoomVisibility, memberIds: string[]) => {
+    const { error } = await supabase.rpc('set_sub_channel_audience', {
+      p_sub_channel_id: roomId,
+      p_visibility: visibility,
+      p_member_ids: memberIds,
+    })
+    if (error) throw error
+    setRoomMembers(prev => ({ ...prev, [roomId]: visibility === 'private' ? memberIds : [] }))
+  }, [])
+
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, loading, error, create, rename, setArchived, setCapabilities, remove, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setAudience, remove, refetch }
 }
