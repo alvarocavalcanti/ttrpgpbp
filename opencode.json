@@ -1,39 +1,21 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@dietrichgebert/ponytail"],
-  "provider": {
-    "opencode-go": {
-      "models": {
-        "deepseek-v4.1-flash": {
-          "variants": {
-            "low": { "reasoningEffort": "low" },
-            "medium": { "reasoningEffort": "medium" },
-            "high": { "reasoningEffort": "high" },
-            "max": { "disabled": true }
-          }
-        },
-        "deepseek-v4-pro": {
-          "variants": {
-            "low": { "reasoningEffort": "low" },
-            "medium": { "reasoningEffort": "medium" },
-            "high": { "reasoningEffort": "high" },
-            "max": { "disabled": true }
-          }
-        },
-        "deepseek-v4-flash-vision-exp": {
-          "variants": {
-            "low": { "reasoningEffort": "low" },
-            "medium": { "reasoningEffort": "medium" },
-            "high": { "reasoningEffort": "high" },
-            "max": { "disabled": true }
-          }
-        }
+  "plugins": [
+    "@dietrichgebert/ponytail"
+  ],
+  "agents": {
+    "plan": {
+      "model": {
+        "providerID": "opencode-go",
+        "model": "deepseek-v4-flash-vision-exp"
       }
-    }
-  },
-  "agent": {
-    "plan": { "model": "opencode-go/deepseek-v4-flash-vision-exp", "variant": "high" },
-    "build": { "model": "opencode-go/deepseek-v4.1-flash", "variant": "low" },
+    },
+    "build": {
+      "model": {
+        "providerID": "opencode-go",
+        "model": "deepseek-v4.1-flash"
+      }
+    },
     "cavecrew-builder": {
       "mode": "subagent"
     },
@@ -44,72 +26,321 @@
       "mode": "subagent"
     }
   },
-  "permission": {
-    "edit": "allow",
-    "write": "allow",
-    "read": "allow",
-    "webfetch": "allow",
-    "question": "allow",
-    "skill": "allow",
-    "task": "allow",
-    "todowrite": "allow",
-    "bash": {
-      "*": "ask",
-      "git *": "allow",
-      "git log *": "allow",
-      "git fetch *": "allow",
-      "git commit *": "allow",
-      "git push *": "allow",
-      "git pull *": "allow",
-      "git add *": "allow",
-      "git stash *": "allow",
-      "git stash pop *": "allow",
-      "git checkout *": "allow",
-      "npm *": "allow",
-      "npx *": "allow",
-      "gh *": "allow",
-      "gh api *": "allow",
-      "gh pr checks *": "allow",
-      "mkdir *": "allow",
-      "cat *": "allow",
-      "echo *": "allow",
-      "grep *": "allow",
-      "find *": "allow",
-      "sleep *": "allow",
-      "jq *": "allow",
-      "cp *": "allow",
-      "rm *": "allow",
-      "ls *": "allow",
-      "ls -la *": "allow",
-      "wrangler *": "allow",
-      "direnv *": "allow",
-      "sed *": "allow",
-      "for *": "allow",
-      "head *": "allow",
-      "chmod *": "allow",
-      "gh pr create *": "allow",
-      "push_subscriptions *": "allow",
-      "notification_preferences *": "allow",
-      "push *": "allow",
-      "notificationclick *": "allow",
-      "tail *": "allow",
-      "rg *": "allow",
-      "gh issue create *": "allow",
-      "mv *": "allow",
-      "supabase *": "allow",
-      "node *": "allow",
-      "npm run test *": "allow",
-      "wc *": "allow",
-      "git remote -v *": "allow",
-      "gh pr list *": "allow",
-      "env *": "allow",
-      "docker ps *": "allow",
-      "base64 *": "allow",
-      "file *": "allow",
-      "tr *": "allow",
-      "sips *": "allow",
-      "printf *": "allow",
-      "perl *": "allow"
+  "permissions": [
+    {
+      "action": "edit",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "webfetch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "question",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "skill",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "subagent",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "todowrite",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git log *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git fetch *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git commit *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git push *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git pull *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git add *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git stash *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git stash pop *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git checkout *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "npm *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "npx *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh api *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh pr checks *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mkdir *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cat *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "echo *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "grep *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "find *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "sleep *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "jq *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cp *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "rm *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "ls *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "ls -la *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "wrangler *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "direnv *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "sed *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "for *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "head *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "chmod *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh pr create *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "push_subscriptions *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "notification_preferences *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "push *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "notificationclick *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "tail *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "rg *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh issue create *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mv *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "supabase *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "node *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "npm run test *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "wc *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote -v *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh pr list *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "env *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "docker ps *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "base64 *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "file *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "tr *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "sips *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "printf *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "perl *",
+      "effect": "allow"
     }
-  }
+  ]
 }
