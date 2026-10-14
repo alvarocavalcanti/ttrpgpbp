@@ -23,6 +23,7 @@ export const ROUTES = {
   adminChannel: '/admin/channels/:id',
   join: '/join/:id',
   channel: '/channel/:id',
+  channelRoom: '/channel/:id/sub/:subId',
   settings: '/settings',
   help: '/help',
   helpTopic: '/help/:topic',
@@ -32,6 +33,12 @@ export const ROUTES = {
 } as const
 
 export type RouteKey = keyof typeof ROUTES
+
+// Concrete path for a room (sub-channel) deep link (#621). Kept next to ROUTES
+// so the '/channel/:id/sub/:subId' template has one source of truth.
+export function channelRoomPath(channelId: string, roomId: string): string {
+  return ROUTES.channelRoom.replace(':id', channelId).replace(':subId', roomId)
+}
 
 export interface PublicRoute {
   path: string
@@ -331,6 +338,7 @@ export const APP_ROUTE_KEYS: RouteKey[] = [
   'adminChannel',
   'join',
   'channel',
+  'channelRoom',
   'settings',
   'changelog',
   'about',
@@ -369,10 +377,18 @@ export function appRedirectRules(): RedirectRule[] {
     destination: APP_SHELL_DESTINATION,
     status: 200 as const,
   }))
+  // Distinct route keys can collapse to the same source (channel and channelRoom
+  // both -> /channel/*). Emit each source once.
+  const seen = new Set<string>()
+  const unique = rules.filter((rule) => {
+    if (seen.has(rule.source)) return false
+    seen.add(rule.source)
+    return true
+  })
   // Cloudflare evaluates _redirects in order and requires static rules before
   // dynamic ones, so splats go last.
   const isDynamic = (rule: RedirectRule) => rule.source.includes('*')
-  return [...rules.filter((rule) => !isDynamic(rule)), ...rules.filter(isDynamic)]
+  return [...unique.filter((rule) => !isDynamic(rule)), ...unique.filter(isDynamic)]
 }
 
 export function buildRedirectsFile(): string {

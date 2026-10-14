@@ -103,6 +103,12 @@ export function isJpegSignature(bytes: Uint8Array): boolean {
   return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
 }
 
+// Main-only image uploads (#621): a non-empty room id means the upload targets
+// a room and must be refused. Absent or empty means Main and is allowed.
+export function isRoomUpload(subChannelId: unknown): boolean {
+  return typeof subChannelId === 'string' && subChannelId.length > 0
+}
+
 // Upload dimensions arrive as strings from the FormData. Absent must stay
 // absent — Number(null) is 0, which would write a bogus 0x0 box into the object
 // metadata (the client uses it to reserve space before the image loads).

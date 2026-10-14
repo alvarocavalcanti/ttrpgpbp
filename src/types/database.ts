@@ -805,6 +805,7 @@ export type Database = {
           roll_success: boolean | null
           search_vector: unknown
           sender_id: string | null
+          sub_channel_id: string | null
           type: string
           updated_at: string
           whisper_to: string | null
@@ -824,6 +825,7 @@ export type Database = {
             roll_success: boolean | null
             search_vector: unknown
             sender_id: string | null
+            sub_channel_id: string | null
             type: string
             updated_at: string
             whisper_to: string | null
@@ -845,6 +847,7 @@ export type Database = {
           roll_success?: boolean | null
           search_vector?: unknown
           sender_id?: string | null
+          sub_channel_id?: string | null
           type: string
           updated_at?: string
           whisper_to?: string | null
@@ -865,6 +868,7 @@ export type Database = {
           roll_success?: boolean | null
           search_vector?: unknown
           sender_id?: string | null
+          sub_channel_id?: string | null
           type?: string
           updated_at?: string
           whisper_to?: string | null
@@ -889,6 +893,13 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
             referencedColumns: ["id"]
           },
           {
@@ -1176,6 +1187,84 @@ export type Database = {
           },
         ]
       }
+      sub_channel_reads: {
+        Row: {
+          last_read_at: string
+          sub_channel_id: string
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string
+          sub_channel_id: string
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string
+          sub_channel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_channel_reads_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_channel_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_channels: {
+        Row: {
+          channel_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_channels_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_channels_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1365,6 +1454,14 @@ export type Database = {
         }
         Returns: string
       }
+      create_sub_channel: {
+        Args: { p_channel_id: string; p_name: string }
+        Returns: string
+      }
+      delete_sub_channel: {
+        Args: { p_sub_channel_id: string }
+        Returns: undefined
+      }
       escape_markdown: { Args: { p_text: string }; Returns: string }
       get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
       get_admin_unread_totals: {
@@ -1384,6 +1481,13 @@ export type Database = {
           result: number
           roller_character_name: string
           roller_id: string
+        }[]
+      }
+      get_channel_room_unread: {
+        Args: { p_channel_id: string }
+        Returns: {
+          sub_channel_id: string
+          unread_count: number
         }[]
       }
       get_channel_salt: { Args: { p_channel_id: string }; Returns: string }
@@ -1438,6 +1542,10 @@ export type Database = {
         Returns: undefined
       }
       mark_channel_read: { Args: { p_channel_id: string }; Returns: undefined }
+      mark_sub_channel_read: {
+        Args: { p_sub_channel_id: string }
+        Returns: undefined
+      }
       moderate_member: {
         Args: { p_action: string; p_channel_id: string; p_member_id: string }
         Returns: undefined
@@ -1466,6 +1574,7 @@ export type Database = {
           roll_success: boolean | null
           search_vector: unknown
           sender_id: string | null
+          sub_channel_id: string | null
           type: string
           updated_at: string
           whisper_to: string | null
@@ -1506,6 +1615,7 @@ export type Database = {
           p_dc?: number
           p_notation: string
           p_reply_to?: string
+          p_sub_channel_id?: string
           p_warning?: string
         }
         Returns: {
@@ -1520,6 +1630,7 @@ export type Database = {
           p_dc?: number
           p_notation: string
           p_reply_to?: string
+          p_sub_channel_id?: string
           p_warning?: string
         }
         Returns: {
@@ -1536,6 +1647,7 @@ export type Database = {
           p_npc_avatar_url?: string
           p_npc_name?: string
           p_reply_to?: string
+          p_sub_channel_id?: string
           p_type?: string
           p_whisper_to?: string
         }
@@ -1566,6 +1678,14 @@ export type Database = {
       }
       update_channel_status: {
         Args: { p_channel_id: string; p_status_text: string }
+        Returns: undefined
+      }
+      update_sub_channel: {
+        Args: {
+          p_is_archived?: boolean
+          p_name?: string
+          p_sub_channel_id: string
+        }
         Returns: undefined
       }
       url_scheme_allowed: { Args: { p_url: string }; Returns: boolean }

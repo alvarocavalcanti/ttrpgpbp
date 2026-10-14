@@ -44,6 +44,10 @@ export const ServerMessageSchema = z.object({
   roll_dc: z.number().nullable(),
   roll_success: z.boolean().nullable(),
   client_request_id: z.string().nullable().optional(),
+  // Room the message belongs to (NULL = Main, #621). Without this key the
+  // schema strips it and the realtime room filter reads `undefined` for every
+  // row, silently disabling room realtime.
+  sub_channel_id: z.string().nullable().optional(),
   mention_user_ids: z.array(z.string()).nullable().optional(),
   search_vector: z.unknown().optional(),
   sender: JoinedProfileSchema.optional(),

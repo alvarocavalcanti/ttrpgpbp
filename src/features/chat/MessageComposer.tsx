@@ -31,6 +31,10 @@ export interface ReplyTarget {
 
 interface MessageComposerProps {
   channelId?: string
+  // Active room (#621), null for Main. Drives the draft key, the placeholder
+  // and the room-scoped hide of image uploads.
+  subChannelId?: string | null
+  roomName?: string
   isGM: boolean
   members: ChannelMember[]
   npcs?: Npc[]
@@ -47,11 +51,15 @@ export interface MessageComposerHandle {
   insertImages: (paths: string[]) => void
 }
 
-export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, subChannelId = null, roomName, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
 
-  const draftKey = channelId ? `composer_draft_${channelId}` : null
+  // Draft is scoped to the room: without the room suffix, text typed in one
+  // room would bleed into another and be silently lost on switch (#621). Main
+  // keeps the legacy key without the room suffix so drafts saved before rooms
+  // survive.
+  const draftKey = channelId ? `composer_draft_${channelId}${subChannelId ? `_${subChannelId}` : ''}` : null
 
   // Latest content for the save-on-leave cleanup below, which must persist
   // the text belonging to the key being left — a closure would see stale
@@ -288,7 +296,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   // Drag-and-drop is a desktop-only entry point for the same upload flow,
   // available only when a GM may actually upload. Non-GM/no-op leaves the
   // browser's default drop behavior untouched (acceptance #4).
-  const canDropImages = isGM && uploadEnabled && !settingsLoading
+  const canDropImages = isGM && !subChannelId && uploadEnabled && !settingsLoading
 
   const handleDragEnter = (e: React.DragEvent) => {
     if (!canDropImages) return
@@ -450,7 +458,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
           </button>
         )}
 
-        {isGM && (
+        {isGM && !subChannelId && (
           <label
             className={`${chipBase} ${chipIdle} cursor-pointer focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed`}
             title="Upload an image"
@@ -856,6 +864,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 aria-controls={mentionOpen ? listboxId : undefined}
                 aria-activedescendant={mentionOpen ? `${listboxId}-option-${Math.min(activeMentionIndex, mentionOptions.length - 1)}` : undefined}
                 aria-label="Message"
+                placeholder={subChannelId ? `Message #${roomName ?? 'room'}` : undefined}
                 className={`block w-full text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />

@@ -449,6 +449,7 @@ export default function App() {
                   <Route path={ROUTES.adminChannel} element={<Lazy><AdminChannelView /></Lazy>} />
                   <Route path={ROUTES.join} element={<Lazy><JoinChannel /></Lazy>} />
                   <Route path={ROUTES.channel} element={<Lazy><ChannelView /></Lazy>} />
+                  <Route path={ROUTES.channelRoom} element={<Lazy><ChannelView /></Lazy>} />
                   <Route path={ROUTES.settings} element={<Lazy><ProfileSettings /></Lazy>} />
                   <Route path={ROUTES.changelog} element={<Lazy><ChangelogPage /></Lazy>} />
                   <Route path={ROUTES.about} element={<Lazy><AboutPage /></Lazy>} />

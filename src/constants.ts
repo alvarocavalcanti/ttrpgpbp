@@ -13,3 +13,8 @@ export const MAX_SAFETY_TEXT_LENGTH = 2000
 export const MAX_AWAY_MESSAGE_LENGTH = 200
 export const MAX_ADMIN_SUSPEND_REASON_LENGTH = 200
 export const MAX_NPC_NAME_LENGTH = 40
+
+// Rooms (sub-channels) per channel (#621). create_sub_channel enforces the same
+// hardcoded cap server-side; this mirrors it for client-side validation copy.
+export const MAX_ROOMS_PER_CHANNEL = 10
+export const MAX_ROOM_NAME_LENGTH = 40

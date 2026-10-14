@@ -63,7 +63,9 @@ describe('public/_redirects', () => {
       expect(redirects).toContain(`${rule.source} ${rule.destination} ${rule.status}`)
     }
     expect(redirects).not.toMatch(/^\/\* /m)
-    expect(sources).toHaveLength(APP_ROUTE_KEYS.length)
+    // Distinct route keys can collapse to one source (channel/channelRoom both
+    // -> /channel/*); each source is emitted once, so no duplicate lines.
+    expect(new Set(sources).size).toBe(sources.length)
   })
 
   it('targets the trailing-slash shell so Pages serves it in place (200)', () => {

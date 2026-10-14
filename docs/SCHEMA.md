@@ -82,11 +82,40 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `roll_dc` / `roll_success` | integer / boolean, nullable | Called-out DC check target + outcome (meets beats) |
 | `mention_user_ids` | uuid[], nullable | Canonical mention recipients, resolved + validated server-side |
 | `client_request_id` | UUID, nullable | Idempotency key (sender + channel unique): a command replay returns the existing row instead of duplicating |
+| `sub_channel_id` | UUID, FK → sub_channels, nullable | Room the message belongs to (`NULL` = Main). `ON DELETE RESTRICT`: a room with messages cannot be deleted. Immutable once written (routing trigger). |
 | `is_edited` | boolean | Default `false` |
 | `is_deleted` | boolean | Default `false`. Soft delete — content replaced in UI. |
 | `search_vector` | tsvector | Generated column for full-text search |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
+
+### `sub_channels` (Rooms, #621)
+
+Rooms are a message-scoping dimension on top of a channel, not child `channels`
+rows. Membership, character identity, and the channel cap all stay keyed on the
+parent `channel_id`; only the message room is new.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID, PK | |
+| `channel_id` | UUID, FK → channels | `ON DELETE CASCADE` |
+| `name` | text | 1–40 characters after trim; unique per channel case-insensitively |
+| `is_archived` | boolean | Default `false`. Archived rooms leave the tab bar but stay readable. |
+| `created_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
+| `created_at` / `updated_at` | timestamptz | |
+
+All writes go through GM-only RPCs; the table has a SELECT-only policy. A room
+with messages is retired by archiving, never hard-deleted.
+
+### `sub_channel_reads`
+
+Per-user, per-room read mark backing the unread dot. Own-row RLS.
+
+| Column | Type | Notes |
+|---|---|---|
+| `sub_channel_id` | UUID, FK → sub_channels | `ON DELETE CASCADE`; part of the composite PK |
+| `user_id` | UUID, FK → profiles | `ON DELETE CASCADE`; part of the composite PK |
+| `last_read_at` | timestamptz | Default `now()`, advanced by `mark_sub_channel_read` |
 
 ### `dice_rolls`
 
@@ -124,6 +153,8 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **channel_members**: Readable by members of the same channel. GM can insert, update, and delete. Users can update their own row (character name, avatar, sheet URL).
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, cross-channel reply targets, and non-member whisper targets.
 - **dice_rolls**: Readable by channel members. **Insert is revoked from clients** — rolls are only created by the `roll_dice` command, so a fabricated result can never be persisted. Realtime INSERT events are published (`ALTER PUBLICATION`), and the roll history RPC excludes rolls from soft-deleted messages.
+- **sub_channels**: Readable by channel members. **No client write policy** — create/rename/archive/delete are GM-only SECURITY DEFINER RPCs.
+- **sub_channel_reads**: Own-row only (read, insert, update a user's own read mark).
 - **notification_preferences**: Users can only read/write their own row.
 - **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`upload-image`, which enforces the admin toggle, the size cap, the path shape, and GM-of-channel) may INSERT/UPDATE. Adding an INSERT/UPDATE policy on this bucket re-opens a bypass of those server-side gates. `images_delete` remains GM-gated. Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`. Uploads are stored unscanned; abusive uploads are handled through player reports.
 
@@ -173,12 +204,17 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 
 | Function | Purpose | Enforces |
 |---|---|---|
-| `send_message` | Create a `regular`/`scene`/`npc` message (+ optional active-player flip) | membership, archived, type authz (scene/NPC GM-only), content length, reply target same channel, whisper target is member, mention resolution + `@all` GM-only, NPC roster snapshot, idempotency |
-| `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, warning maximum 500 characters, modifier clamped to game-system bounds, DC success (meets beats), archived, membership, reply target, idempotency |
+| `send_message` | Create a `regular`/`scene`/`npc` message in Main or a room (+ optional active-player flip) | membership, archived, type authz (scene/NPC GM-only), content length, room belongs to channel, reply target same room, whisper target is member, mention resolution + `@all` GM-only, NPC roster snapshot, idempotency |
+| `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, warning maximum 500 characters, modifier clamped to game-system bounds, DC success (meets beats), archived, membership, room belongs to channel, reply target same room, idempotency |
 | `moderate_member` | Block / unblock / kick / leave + system message | GM-only (block/unblock/kick), self-only (leave), GM is never removable |
 | `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field length limits |
 | `update_channel_status` | Update `channels.status_text` + system message | GM-only, suspended blocked, no-op (unchanged text) skipped, archived allowed (matches settings) |
 | `join_channel` | Join + attributes + join system message | password/invite, archived, channel cap, attribute bounds |
+| `create_sub_channel` | Create a room | GM-only, suspended, archived channel, trimmed name 1–40 chars, unique per channel, hardcoded cap of 10 (server admins bypass) |
+| `update_sub_channel` | Rename and/or archive/restore a room | GM-only, same name validation |
+| `delete_sub_channel` | Hard-delete an empty room | GM-only, refused when the room has any messages (archive instead) |
+| `mark_sub_channel_read` | Advance the caller's per-room read mark | membership |
+| `get_channel_room_unread` | Read-only per-room unread counts, including the Main (`NULL`) group | member-only, mirrors `get_user_channels_unread` (excludes own, deleted, and unreadable whispers) |
 | `get_channel_roll_history` | Read-only roll history (excluding rolls from soft-deleted messages), attributed to each roller's channel character name (account name as fallback) | member-only via RLS |
 
 ---
