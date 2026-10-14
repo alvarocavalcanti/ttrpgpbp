@@ -68,11 +68,16 @@ export function useSubChannels(channelId: string | undefined) {
           if (payload.eventType === 'INSERT') {
             const next = parseRow(SubChannelRowSchema, payload.new)
             if (next) {
-              setRooms(prev =>
-                [...prev, next as SubChannel].sort(
+              setRooms(prev => {
+                // Merge, don't blind-append: a realtime INSERT racing the
+                // initial/reconnect fetch must not create a duplicate tab.
+                if (prev.some(r => r.id === next.id)) {
+                  return prev.map(r => (r.id === next.id ? ({ ...r, ...next } as SubChannel) : r))
+                }
+                return [...prev, next as SubChannel].sort(
                   (a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''),
-                ),
-              )
+                )
+              })
             }
           } else if (payload.eventType === 'UPDATE') {
             const next = parseRow(SubChannelRowSchema, payload.new)

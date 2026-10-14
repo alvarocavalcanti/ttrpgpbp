@@ -105,8 +105,11 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
         const embedded = parsed.data.message
         const message = parseServerMessage(Array.isArray(embedded) ? embedded[0] : embedded) as ChatMessage | null
         // Room scope (#621): a favorite belongs to the room its message lives
-        // in, so only the active room's favorites are members here. A row whose
-        // message we can't resolve has no room and is dropped.
+        // in, so only the active room's favorites are members here. An
+        // unresolvable embed (RLS-hidden or malformed) has no known room, so in
+        // a room it is dropped; on Main it keeps its id — the #672 contract —
+        // so the star survives a hidden or transiently unresolvable embed even
+        // though its snapshot row is dropped.
         if ((message?.sub_channel_id ?? null) !== (subChannelId ?? null)) continue
         if (!fetched.includes(parsed.data.message_id)) fetched.push(parsed.data.message_id)
         if (message && !snapshot.has(message.id)) snapshot.set(message.id, message)

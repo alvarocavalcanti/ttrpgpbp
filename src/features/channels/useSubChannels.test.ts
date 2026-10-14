@@ -108,6 +108,11 @@ describe('useSubChannels', () => {
     await act(async () => { handler?.({ eventType: 'INSERT', new: room({ id: 'r2', name: 'Dice' }) }) })
     expect(result.current.subChannels.map(r => r.id)).toEqual(['r1', 'r2'])
 
+    // A duplicate echo for an existing room (fetch/realtime race) must not
+    // append a second tab.
+    await act(async () => { handler?.({ eventType: 'INSERT', new: room({ id: 'r2', name: 'Dice' }) }) })
+    expect(result.current.subChannels.map(r => r.id)).toEqual(['r1', 'r2'])
+
     await act(async () => { handler?.({ eventType: 'UPDATE', new: room({ id: 'r2', is_archived: true }) }) })
     expect(result.current.subChannels.map(r => r.id)).toEqual(['r1'])
     expect(result.current.archivedRooms.map(r => r.id)).toEqual(['r2'])

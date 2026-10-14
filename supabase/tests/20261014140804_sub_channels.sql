@@ -3,7 +3,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(21);
+SELECT plan(24);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -20,7 +20,8 @@ VALUES
 INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
 VALUES
   ('00000000-0000-0000-0000-000000200001', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e001', 'GM', now() - interval '1 hour'),
-  ('00000000-0000-0000-0000-000000200002', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e002', 'P1', now() - interval '1 hour');
+  ('00000000-0000-0000-0000-000000200002', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e002', 'P1', now() - interval '1 hour'),
+  ('00000000-0000-0000-0000-000000200003', '00000000-0000-0000-0000-00000000f003', '00000000-0000-0000-0000-00000000e001', 'GMCap', now() - interval '1 hour');
 
 -- A fixed room per channel for the routing/scoping assertions, plus one room
 -- with a Main message and a room message so unread has something to count.
@@ -72,6 +73,19 @@ SELECT throws_ok(
   $$SELECT create_sub_channel('00000000-0000-0000-0000-00000000f003', 'OneTooMany')$$,
   'P0001', NULL,
   'The room cap is enforced'
+);
+SELECT lives_ok(
+  $$SELECT update_sub_channel((SELECT id FROM sub_channels WHERE channel_id = '00000000-0000-0000-0000-00000000f003' AND name = 'R1'), NULL, true)$$,
+  'Archiving a room frees a slot'
+);
+SELECT lives_ok(
+  $$SELECT create_sub_channel('00000000-0000-0000-0000-00000000f003', 'Freed')$$,
+  'A room can be created once a slot is freed'
+);
+SELECT throws_ok(
+  $$SELECT update_sub_channel((SELECT id FROM sub_channels WHERE channel_id = '00000000-0000-0000-0000-00000000f003' AND name = 'R1'), NULL, false)$$,
+  'P0001', NULL,
+  'Restoring a room at the active cap is rejected'
 );
 
 SELECT lives_ok(

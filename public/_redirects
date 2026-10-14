@@ -8,4 +8,3 @@
 /admin/channels/* /app-shell/ 200
 /join/* /app-shell/ 200
 /channel/* /app-shell/ 200
-/channel/* /app-shell/ 200

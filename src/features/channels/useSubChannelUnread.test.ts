@@ -88,8 +88,25 @@ describe('useSubChannelUnread', () => {
     expect(result.current.counts.r1).toBe(1)
   })
 
-  it('skips the room the user is currently viewing', async () => {
+  it('advances the read mark (not the dot) for a live message in the room being viewed', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    mockRpc([{ sub_channel_id: 'r1', unread_count: 4 }])
+    const getHandler = installMessagesHandler()
+
+    const { result } = renderHook(() => useSubChannelUnread('c1', 'r1'))
+    await waitFor(() => expect(result.current.counts.r1).toBe(4))
+
+    // A message arrives in the room the user is reading: no dot, and the room's
+    // read mark advances so a later reopen does not re-flag it.
+    await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: 'r1', sender_id: 'u2' } }) })
+    expect(result.current.counts.r1).toBe(0)
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_sub_channel_read', { p_sub_channel_id: 'r1' })
+  })
+
+  it('does not advance the read mark for the active room while the tab is hidden', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
     mockRpc([{ sub_channel_id: 'r1', unread_count: 4 }])
     const getHandler = installMessagesHandler()
 
@@ -97,6 +114,7 @@ describe('useSubChannelUnread', () => {
     await waitFor(() => expect(result.current.counts.r1).toBe(4))
 
     await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: 'r1', sender_id: 'u2' } }) })
+    expect(supabase.rpc).not.toHaveBeenCalledWith('mark_sub_channel_read', expect.anything())
     expect(result.current.counts.r1).toBe(4)
   })
 

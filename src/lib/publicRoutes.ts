@@ -377,10 +377,18 @@ export function appRedirectRules(): RedirectRule[] {
     destination: APP_SHELL_DESTINATION,
     status: 200 as const,
   }))
+  // Distinct route keys can collapse to the same source (channel and channelRoom
+  // both -> /channel/*). Emit each source once.
+  const seen = new Set<string>()
+  const unique = rules.filter((rule) => {
+    if (seen.has(rule.source)) return false
+    seen.add(rule.source)
+    return true
+  })
   // Cloudflare evaluates _redirects in order and requires static rules before
   // dynamic ones, so splats go last.
   const isDynamic = (rule: RedirectRule) => rule.source.includes('*')
-  return [...rules.filter((rule) => !isDynamic(rule)), ...rules.filter(isDynamic)]
+  return [...unique.filter((rule) => !isDynamic(rule)), ...unique.filter(isDynamic)]
 }
 
 export function buildRedirectsFile(): string {

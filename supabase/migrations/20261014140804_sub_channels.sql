@@ -230,6 +230,9 @@ DECLARE
   v_uid UUID := auth.uid();
   v_channel_id UUID;
   v_name TEXT;
+  v_is_admin BOOLEAN;
+  -- ponytail: hardcoded room cap of 10; keep in sync with create_sub_channel.
+  v_cap CONSTANT INTEGER := 10;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -258,6 +261,18 @@ BEGIN
   END IF;
 
   IF p_is_archived IS NOT NULL THEN
+    -- Restoring reactivates a room: enforce the active cap here too, or a
+    -- create -> archive -> create -> restore loop bypasses it forever.
+    IF p_is_archived = false AND EXISTS (
+      SELECT 1 FROM sub_channels WHERE id = p_sub_channel_id AND is_archived
+    ) THEN
+      SELECT server_admin INTO v_is_admin FROM profiles WHERE id = v_uid;
+      IF NOT COALESCE(v_is_admin, false) THEN
+        IF (SELECT COUNT(*) FROM sub_channels WHERE channel_id = v_channel_id AND NOT is_archived) >= v_cap THEN
+          RAISE EXCEPTION 'Room limit reached (%). Archive or delete a room first.', v_cap;
+        END IF;
+      END IF;
+    END IF;
     UPDATE sub_channels SET is_archived = p_is_archived, updated_at = now()
     WHERE id = p_sub_channel_id;
   END IF;

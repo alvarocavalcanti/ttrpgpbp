@@ -8,9 +8,13 @@ import { RoomUnreadRowSchema, parseRow } from '../validation/rowSchemas'
 // channel opens, so without a room dot the player has no signal of where the
 // new posts are. Counts come from get_channel_room_unread (server truth, keyed
 // on sub_channel_reads) and are refreshed on channel change, on foreground
-// return, and live from room message INSERTs. Marking a room read is
-// history-first: the owner calls markRoomRead only after the room's history
+// return, and live from room message INSERTs.
+//
+// History-first: the owner calls markRoomRead only after the room's history
 // fetch resolves, so a failed fetch can never clear a dot for unseen posts.
+// A message arriving in the room the user is currently viewing instead advances
+// that room's read mark (mirroring the channel's live advance in useChannel),
+// so a later reopen does not re-flag messages the user already read live.
 export function useSubChannelUnread(channelId: string | undefined, activeSubChannelId: string | null) {
   const { user } = useAuth()
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -20,6 +24,12 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
   activeRef.current = activeSubChannelId
 
   const refetch = useCallback(() => setRefetchTrigger(prev => prev + 1), [])
+
+  const markRoomRead = useCallback(async (roomId: string) => {
+    setCounts(prev => (prev[roomId] ? { ...prev, [roomId]: 0 } : prev))
+    const { error } = await supabase.rpc('mark_sub_channel_read', { p_sub_channel_id: roomId })
+    if (error) console.error('Failed to mark room read', error)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -54,9 +64,16 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
           if (!mounted) return
           const row = payload.new as { sub_channel_id?: string | null; sender_id?: string | null }
           const subId = row.sub_channel_id ?? null
-          // Main has no dot, own messages are already read, and the room the
-          // user is looking at is marked read by its history fetch.
-          if (!subId || row.sender_id === user?.id || subId === activeRef.current) return
+          // Main has no dot.
+          if (!subId) return
+          // The room the user is looking at: advance its read mark so a later
+          // reopen does not re-flag it (mirrors useChannel's live advance).
+          if (subId === activeRef.current) {
+            if (document.visibilityState === 'visible') void markRoomRead(subId)
+            return
+          }
+          // Other rooms: own messages are already read; anything else lights a dot.
+          if (row.sender_id === user?.id) return
           setCounts(prev => ({ ...prev, [subId]: (prev[subId] ?? 0) + 1 }))
         },
       )
@@ -80,13 +97,7 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
       stopRealtime()
       void supabase.removeChannel(realtimeChannel)
     }
-  }, [channelId, user?.id, refetchTrigger])
-
-  const markRoomRead = useCallback(async (roomId: string) => {
-    setCounts(prev => (prev[roomId] ? { ...prev, [roomId]: 0 } : prev))
-    const { error } = await supabase.rpc('mark_sub_channel_read', { p_sub_channel_id: roomId })
-    if (error) console.error('Failed to mark room read', error)
-  }, [])
+  }, [channelId, user?.id, markRoomRead, refetchTrigger])
 
   return { counts, markRoomRead, refetch }
 }
