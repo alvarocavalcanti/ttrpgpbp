@@ -178,7 +178,7 @@ export function ManageSubChannelsModal({
                           onChange={(e) => setEditName(e.target.value)}
                           maxLength={MAX_ROOM_NAME_LENGTH}
                           aria-label="Room name"
-                          className="flex-1 min-w-0 bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 rounded-md text-sm py-1.5 px-3 focus:ring-primary-500 focus:border-primary-500"
+                          className="flex-1 min-w-0 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md text-sm py-1.5 px-3 focus:ring-primary-500 focus:border-primary-500"
                           autoFocus
                           onKeyDown={(e) => { if (e.key === 'Enter') handleRename(room); if (e.key === 'Escape') setEditingId(null) }}
                         />
@@ -232,7 +232,7 @@ export function ManageSubChannelsModal({
                   onChange={(e) => { setNewName(e.target.value); setCreateError(null) }}
                   placeholder="e.g. OOC, Dice, Chapter 1"
                   maxLength={MAX_ROOM_NAME_LENGTH}
-                  className="flex-1 min-w-0 w-full bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 rounded-md text-sm py-1.5 px-3 focus:ring-primary-500 focus:border-primary-500"
+                  className="flex-1 min-w-0 w-full bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md text-sm py-1.5 px-3 focus:ring-primary-500 focus:border-primary-500"
                   onKeyDown={(e) => { if (e.key === 'Enter' && canCreate) handleCreate() }}
                 />
                 <button

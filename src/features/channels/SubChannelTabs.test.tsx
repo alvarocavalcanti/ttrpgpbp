@@ -50,7 +50,7 @@ describe('SubChannelTabs', () => {
     })
 
     expect(screen.getByRole('tablist', { name: 'Rooms' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Goblin Cave' })).toHaveAttribute('href', '/channel/c1')
+    expect(screen.getByRole('tab', { name: 'Main' })).toHaveAttribute('href', '/channel/c1')
     expect(screen.getByRole('tab', { name: 'OOC' })).toHaveAttribute('href', '/channel/c1/sub/r1')
     expect(screen.getByRole('tab', { name: 'Dice' })).toHaveAttribute('href', '/channel/c1/sub/r2')
   })
@@ -58,7 +58,7 @@ describe('SubChannelTabs', () => {
   it('marks the active tab from activeSubId', () => {
     renderTabs({ subChannels: [room({ id: 'r1' })], activeSubId: 'r1' })
     expect(screen.getByRole('tab', { name: 'OOC' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: 'Goblin Cave' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'Main' })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('shows an unread dot only for rooms with a positive count', () => {

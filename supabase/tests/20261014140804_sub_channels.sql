@@ -3,7 +3,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(24);
+SELECT plan(27);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -86,6 +86,23 @@ SELECT throws_ok(
   $$SELECT update_sub_channel((SELECT id FROM sub_channels WHERE channel_id = '00000000-0000-0000-0000-00000000f003' AND name = 'R1'), NULL, false)$$,
   'P0001', NULL,
   'Restoring a room at the active cap is rejected'
+);
+
+-- Reserve "Main" so a room cannot collide with the Main tab label.
+SELECT throws_ok(
+  $$SELECT create_sub_channel('00000000-0000-0000-0000-00000000f001', 'Main')$$,
+  'P0001', NULL,
+  'A room cannot be named Main'
+);
+SELECT throws_ok(
+  $$SELECT create_sub_channel('00000000-0000-0000-0000-00000000f001', '  main  ')$$,
+  'P0001', NULL,
+  'The reserved name is matched case- and whitespace-insensitively'
+);
+SELECT throws_ok(
+  $$SELECT update_sub_channel('00000000-0000-0000-0000-000000300001', 'Main', NULL)$$,
+  'P0001', NULL,
+  'An existing room cannot be renamed to Main'
 );
 
 SELECT lives_ok(

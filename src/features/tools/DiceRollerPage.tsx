@@ -119,7 +119,7 @@ export function DiceRollerPage() {
                 max={dieSides}
                 value={target}
                 onChange={setTarget}
-                className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+                className="w-16 min-h-11 rounded border border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
               />
               <span className="text-sm text-surface-500 dark:text-surface-400">
                 or higher counts as a success
@@ -172,7 +172,7 @@ export function DiceRollerPage() {
                     max={999}
                     value={modifier}
                     onChange={setModifier}
-                    className="w-16 min-h-11 rounded border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+                    className="w-16 min-h-11 rounded border border-surface-300 bg-white text-center text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
                   />
                   <button
                     type="button"

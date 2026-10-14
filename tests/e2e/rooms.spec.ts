@@ -46,7 +46,7 @@ test.describe('Rooms', () => {
     await expect(page.getByText('OOC-only message')).toBeVisible();
 
     // Main must not show the room's message.
-    await page.getByRole('tab', { name: channelName }).click();
+    await page.getByRole('tab', { name: 'Main' }).click();
     await expect(page).toHaveURL(/\/channel\/[^/]+$/);
     await expect(page.getByText('OOC-only message')).toHaveCount(0);
 
