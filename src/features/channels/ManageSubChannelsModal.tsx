@@ -17,7 +17,9 @@ interface ManageSubChannelsModalProps {
   onRename: (roomId: string, name: string) => Promise<void>
   onSetArchived: (roomId: string, archived: boolean) => Promise<void>
   onSetCapabilities: (roomId: string, caps: Partial<RoomCapabilities>) => Promise<void>
-  onSetAudience: (roomId: string, visibility: RoomVisibility, memberIds: string[]) => Promise<void>
+  onSetVisibility: (roomId: string, visibility: RoomVisibility) => Promise<void>
+  onAddMember: (roomId: string, userId: string) => Promise<void>
+  onRemoveMember: (roomId: string, userId: string) => Promise<void>
   // Channel members eligible to be invited (excludes the GM, who always sees).
   members: { user_id: string; character_name: string }[]
   // Invited user ids per room.
@@ -56,7 +58,9 @@ export function ManageSubChannelsModal({
   onRename,
   onSetArchived,
   onSetCapabilities,
-  onSetAudience,
+  onSetVisibility,
+  onAddMember,
+  onRemoveMember,
   members,
   roomMembers,
   onRemove,
@@ -138,7 +142,7 @@ export function ManageSubChannelsModal({
 
   const handleAudience = async (room: SubChannel, visibility: RoomVisibility) => {
     try {
-      await onSetAudience(room.id, visibility, roomMembers[room.id] ?? [])
+      await onSetVisibility(room.id, visibility)
       setActionError(null)
     } catch (err) {
       setActionError(friendlyRoomError(err))
@@ -146,10 +150,9 @@ export function ManageSubChannelsModal({
   }
 
   const handleToggleMember = async (room: SubChannel, userId: string) => {
-    const current = roomMembers[room.id] ?? []
-    const next = current.includes(userId) ? current.filter(id => id !== userId) : [...current, userId]
+    const invited = (roomMembers[room.id] ?? []).includes(userId)
     try {
-      await onSetAudience(room.id, 'private', next)
+      await (invited ? onRemoveMember(room.id, userId) : onAddMember(room.id, userId))
       setActionError(null)
     } catch (err) {
       setActionError(friendlyRoomError(err))

@@ -192,13 +192,14 @@ END;
 $func$;
 
 -- ==========================================
--- 6. audience RPC (GM-only): sets visibility and replaces the invited set
+-- 6. audience RPCs (GM-only). Partial updates only: a visibility change never
+--    carries the invited set and a member toggle never carries the others, so
+--    rapid toggles cannot clobber each other through a stale snapshot.
 -- ==========================================
 
-CREATE OR REPLACE FUNCTION public.set_sub_channel_audience(
+CREATE OR REPLACE FUNCTION public.set_sub_channel_visibility(
   p_sub_channel_id UUID,
-  p_visibility TEXT,
-  p_member_ids UUID[] DEFAULT NULL
+  p_visibility TEXT
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -230,19 +231,209 @@ BEGIN
   UPDATE sub_channels SET visibility = p_visibility, updated_at = now()
   WHERE id = p_sub_channel_id;
 
-  -- Replace the invited set; it only matters for 'private'.
-  DELETE FROM sub_channel_members WHERE sub_channel_id = p_sub_channel_id;
-  IF p_visibility = 'private' AND p_member_ids IS NOT NULL THEN
-    INSERT INTO sub_channel_members (sub_channel_id, user_id, added_by)
-    SELECT p_sub_channel_id, uid, v_uid
-    FROM unnest(p_member_ids) AS uid
-    WHERE EXISTS (
-      SELECT 1 FROM channel_members cm
-      WHERE cm.channel_id = v_channel_id AND cm.user_id = uid AND NOT cm.is_blocked
-    );
+  -- Invites only matter for a private room: clear them when leaving private so
+  -- re-privating does not resurrect a stale audience.
+  IF p_visibility <> 'private' THEN
+    DELETE FROM sub_channel_members WHERE sub_channel_id = p_sub_channel_id;
   END IF;
 END;
 $func$;
 
-REVOKE ALL ON FUNCTION public.set_sub_channel_audience(UUID, TEXT, UUID[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.set_sub_channel_audience(UUID, TEXT, UUID[]) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.set_sub_channel_visibility(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_sub_channel_visibility(UUID, TEXT) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.add_sub_channel_member(
+  p_sub_channel_id UUID,
+  p_user_id UUID
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $func$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_channel_id UUID;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  IF is_suspended(v_uid) THEN
+    RAISE EXCEPTION 'Account suspended.';
+  END IF;
+
+  SELECT channel_id INTO v_channel_id FROM sub_channels
+  WHERE id = p_sub_channel_id AND visibility = 'private';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Room not found, or it is not private.';
+  END IF;
+  IF NOT is_channel_gm(v_channel_id) THEN
+    RAISE EXCEPTION 'Only the GM can manage rooms.';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM channel_members cm
+    WHERE cm.channel_id = v_channel_id AND cm.user_id = p_user_id AND NOT cm.is_blocked
+  ) THEN
+    RAISE EXCEPTION 'That player is not a member of this channel.';
+  END IF;
+
+  INSERT INTO sub_channel_members (sub_channel_id, user_id, added_by)
+  VALUES (p_sub_channel_id, p_user_id, v_uid)
+  ON CONFLICT (sub_channel_id, user_id) DO NOTHING;
+END;
+$func$;
+
+REVOKE ALL ON FUNCTION public.add_sub_channel_member(UUID, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.add_sub_channel_member(UUID, UUID) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.remove_sub_channel_member(
+  p_sub_channel_id UUID,
+  p_user_id UUID
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $func$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_channel_id UUID;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  IF is_suspended(v_uid) THEN
+    RAISE EXCEPTION 'Account suspended.';
+  END IF;
+
+  SELECT channel_id INTO v_channel_id FROM sub_channels WHERE id = p_sub_channel_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Room not found.';
+  END IF;
+  IF NOT is_channel_gm(v_channel_id) THEN
+    RAISE EXCEPTION 'Only the GM can manage rooms.';
+  END IF;
+
+  DELETE FROM sub_channel_members
+  WHERE sub_channel_id = p_sub_channel_id AND user_id = p_user_id;
+END;
+$func$;
+
+REVOKE ALL ON FUNCTION public.remove_sub_channel_member(UUID, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.remove_sub_channel_member(UUID, UUID) TO authenticated, service_role;
+
+-- ==========================================
+-- 7. Gate derived data by the parent message's room visibility. Otherwise a
+--    non-viewer reads a private room's rolls and reactions, and learns its
+--    unread count.
+-- ==========================================
+
+-- Latest prior text: 20260801101940_fix_rls_recursion.sql.
+DROP POLICY IF EXISTS "Dice rolls viewable by channel members" ON dice_rolls;
+CREATE POLICY "Dice rolls viewable by channel members"
+  ON dice_rolls FOR SELECT USING (
+    is_channel_member(channel_id)
+    AND EXISTS (
+      SELECT 1 FROM messages m
+      WHERE m.id = message_id
+        AND (m.sub_channel_id IS NULL OR can_view_sub_channel(m.sub_channel_id))
+    )
+  );
+
+-- Latest prior text: 20260806120000_add_replies_reactions.sql.
+DROP POLICY IF EXISTS "Reactions viewable by channel members" ON message_reactions;
+CREATE POLICY "Reactions viewable by channel members"
+  ON message_reactions FOR SELECT USING (
+    is_channel_member(channel_id)
+    AND EXISTS (
+      SELECT 1 FROM messages m
+      WHERE m.id = message_id
+        AND (m.sub_channel_id IS NULL OR can_view_sub_channel(m.sub_channel_id))
+    )
+  );
+
+-- get_channel_room_unread: only rooms the caller can view (Main stays).
+CREATE OR REPLACE FUNCTION public.get_channel_room_unread(
+  p_channel_id UUID
+)
+RETURNS TABLE (sub_channel_id UUID, unread_count BIGINT)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $func$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_my_last_read TIMESTAMPTZ;
+  v_is_gm BOOLEAN;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  IF NOT is_channel_member(p_channel_id) THEN
+    RAISE EXCEPTION 'You are not a member of this channel.';
+  END IF;
+
+  v_is_gm := is_channel_gm(p_channel_id);
+
+  SELECT cm.last_read_at INTO v_my_last_read
+  FROM channel_members cm
+  WHERE cm.channel_id = p_channel_id AND cm.user_id = v_uid;
+
+  RETURN QUERY
+  WITH rooms AS (
+    SELECT NULL::UUID AS sub_channel_id, v_my_last_read AS last_read_at
+    UNION ALL
+    SELECT sc.id, scr.last_read_at
+    FROM sub_channels sc
+    LEFT JOIN sub_channel_reads scr
+      ON scr.sub_channel_id = sc.id AND scr.user_id = v_uid
+    WHERE sc.channel_id = p_channel_id
+      AND can_view_sub_channel(sc.id)
+  )
+  SELECT r.sub_channel_id, COALESCE((
+    SELECT COUNT(*) FROM messages m
+    WHERE m.channel_id = p_channel_id
+      AND m.sub_channel_id IS NOT DISTINCT FROM r.sub_channel_id
+      AND m.created_at > COALESCE(r.last_read_at, '-infinity'::timestamptz)
+      AND m.sender_id <> v_uid
+      AND m.is_deleted = false
+      AND (
+        m.whisper_to IS NULL
+        OR m.whisper_to = v_uid
+        OR m.sender_id = v_uid
+        OR v_is_gm
+      )
+  ), 0)::BIGINT
+  FROM rooms r;
+END;
+$func$;
+
+-- get_channel_roll_history: only rolls from rooms the caller can view.
+-- Latest prior text: 20261001131049_roll_history_character_name.sql.
+CREATE OR REPLACE FUNCTION public.get_channel_roll_history(p_channel_id UUID)
+RETURNS TABLE (
+  id UUID,
+  notation TEXT,
+  result INTEGER,
+  breakdown JSONB,
+  created_at TIMESTAMPTZ,
+  roller_id UUID,
+  roller_character_name TEXT
+)
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT d.id, d.notation, d.result, d.breakdown, d.created_at, d.roller_id,
+         COALESCE(cm.character_name, p.display_name)
+  FROM dice_rolls d
+  JOIN messages m ON m.id = d.message_id
+  LEFT JOIN profiles p ON p.id = d.roller_id
+  LEFT JOIN channel_members cm
+    ON cm.channel_id = d.channel_id AND cm.user_id = d.roller_id
+  WHERE d.channel_id = p_channel_id AND NOT m.is_deleted
+    AND (m.sub_channel_id IS NULL OR can_view_sub_channel(m.sub_channel_id))
+  ORDER BY d.created_at DESC
+  LIMIT 50;
+$$;

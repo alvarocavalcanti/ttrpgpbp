@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
-import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals } from "./filter.ts"
+import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals, filterMembersByRoomVisibility } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
 import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
 import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription } from "./validation.ts"
@@ -100,7 +100,7 @@ async function buildMessageEvent(
 
   const { data: message, error } = await serviceClient
     .from("messages")
-    .select("id, channel_id, sender_id, content, type, npc_name, whisper_to")
+    .select("id, channel_id, sender_id, content, type, npc_name, whisper_to, sub_channel_id")
     .eq("id", messageId)
     .maybeSingle()
 
@@ -120,7 +120,21 @@ async function buildMessageEvent(
       .eq("channel_id", message.channel_id),
   ])
 
-  const members = fetchedMembers ?? []
+  // Private rooms (#621 Phase 3): narrow the recipient set to members who can
+  // view the room. The service client bypasses RLS, so this is enforced here.
+  let members = fetchedMembers ?? []
+  if (message.sub_channel_id) {
+    const [{ data: room }, { data: roomMembers }] = await Promise.all([
+      serviceClient.from("sub_channels").select("visibility").eq("id", message.sub_channel_id).maybeSingle(),
+      serviceClient.from("sub_channel_members").select("user_id").eq("sub_channel_id", message.sub_channel_id),
+    ])
+    members = filterMembersByRoomVisibility(
+      members,
+      room?.visibility,
+      channel?.gm_id ?? null,
+      (roomMembers ?? []).map((r: { user_id: string }) => r.user_id),
+    )
+  }
 
   // Mentions are parsed from the persisted markdown chips, not trusted from the
   // request, so routing works for any caller. Whisper content is never parsed

@@ -1,5 +1,5 @@
 import {describe, it, expect } from 'vitest'
-import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals, toPlainText} from './filter.ts'
+import {resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals, toPlainText, filterMembersByRoomVisibility} from './filter.ts'
 
 const MEMBERS = [
   { user_id: 'u1', notify_all_messages: true, notify_gm_messages: true, notify_turn: true },
@@ -809,5 +809,22 @@ describe('push body markdown stripping', () => {
     }, MEMBERS)
     expect(result.body).toBe('Alv: Look out (spoiler) today')
     expect(result.body).not.toContain('bridge')
+  })
+})
+
+describe('filterMembersByRoomVisibility (#621 Phase 3)', () => {
+  const members = [{ user_id: 'gm' }, { user_id: 'a' }, { user_id: 'b' }]
+
+  it('keeps everyone for an open room', () => {
+    expect(filterMembersByRoomVisibility(members, 'all', 'gm', [])).toHaveLength(3)
+    expect(filterMembersByRoomVisibility(members, null, 'gm', [])).toHaveLength(3)
+  })
+
+  it('keeps only the GM for a gm room', () => {
+    expect(filterMembersByRoomVisibility(members, 'gm', 'gm', []).map((m) => m.user_id)).toEqual(['gm'])
+  })
+
+  it('keeps the GM plus the invited members for a private room', () => {
+    expect(filterMembersByRoomVisibility(members, 'private', 'gm', ['a']).map((m) => m.user_id)).toEqual(['gm', 'a'])
   })
 })

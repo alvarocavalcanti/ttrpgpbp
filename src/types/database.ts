@@ -1328,6 +1328,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_sub_channel_member: {
+        Args: { p_sub_channel_id: string; p_user_id: string }
+        Returns: undefined
+      }
       admin_claim_channel: {
         Args: { p_channel_id: string }
         Returns: undefined
@@ -1618,6 +1622,10 @@ export type Database = {
         Args: { p_key: string }
         Returns: string
       }
+      remove_sub_channel_member: {
+        Args: { p_sub_channel_id: string; p_user_id: string }
+        Returns: undefined
+      }
       reply_message: {
         Args: { "": Database["public"]["Tables"]["messages"]["Row"] }
         Returns: {
@@ -1721,12 +1729,8 @@ export type Database = {
         Args: { p_active_player_ids: string[]; p_channel_id: string }
         Returns: undefined
       }
-      set_sub_channel_audience: {
-        Args: {
-          p_member_ids?: string[]
-          p_sub_channel_id: string
-          p_visibility: string
-        }
+      set_sub_channel_visibility: {
+        Args: { p_sub_channel_id: string; p_visibility: string }
         Returns: undefined
       }
       update_channel_settings: {

@@ -67,10 +67,11 @@ export function useSubChannels(channelId: string | undefined) {
           if (mounted) setRoomMembers({})
           return
         }
-        const { data: memberRows } = await supabase
+        const { data: memberRows, error: memberError } = await supabase
           .from('sub_channel_members')
           .select('sub_channel_id, user_id')
           .in('sub_channel_id', ids)
+        if (memberError) throw memberError
         const byRoom: Record<string, string[]> = {}
         for (const m of memberRows ?? []) {
           ;(byRoom[m.sub_channel_id] ??= []).push(m.user_id)
@@ -178,20 +179,37 @@ export function useSubChannels(channelId: string | undefined) {
     if (error) throw error
   }, [])
 
-  // Per-room audience (#621 Phase 3): sets visibility and replaces the invited
-  // set in one GM-only RPC.
-  const setAudience = useCallback(async (roomId: string, visibility: RoomVisibility, memberIds: string[]) => {
-    const { error } = await supabase.rpc('set_sub_channel_audience', {
+  // Per-room audience (#621 Phase 3). Partial updates only — visibility, or a
+  // single member toggle — so rapid clicks cannot clobber each other.
+  const setVisibility = useCallback(async (roomId: string, visibility: RoomVisibility) => {
+    const { error } = await supabase.rpc('set_sub_channel_visibility', {
       p_sub_channel_id: roomId,
       p_visibility: visibility,
-      p_member_ids: memberIds,
     })
     if (error) throw error
-    setRoomMembers(prev => ({ ...prev, [roomId]: visibility === 'private' ? memberIds : [] }))
+    if (visibility !== 'private') setRoomMembers(prev => ({ ...prev, [roomId]: [] }))
+  }, [])
+
+  const addMember = useCallback(async (roomId: string, userId: string) => {
+    const { error } = await supabase.rpc('add_sub_channel_member', {
+      p_sub_channel_id: roomId,
+      p_user_id: userId,
+    })
+    if (error) throw error
+    setRoomMembers(prev => ({ ...prev, [roomId]: [...(prev[roomId] ?? []), userId] }))
+  }, [])
+
+  const removeMember = useCallback(async (roomId: string, userId: string) => {
+    const { error } = await supabase.rpc('remove_sub_channel_member', {
+      p_sub_channel_id: roomId,
+      p_user_id: userId,
+    })
+    if (error) throw error
+    setRoomMembers(prev => ({ ...prev, [roomId]: (prev[roomId] ?? []).filter(id => id !== userId) }))
   }, [])
 
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setAudience, remove, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, refetch }
 }

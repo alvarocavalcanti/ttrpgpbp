@@ -3,7 +3,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(12);
+SELECT plan(18);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -33,6 +33,12 @@ INSERT INTO messages (id, channel_id, sender_id, type, content, sub_channel_id)
 VALUES
   ('00000000-0000-0000-0000-00000000ee01', '00000000-0000-0000-0000-00000000eb01', '00000000-0000-0000-0000-00000000ea01', 'regular', 'main', NULL),
   ('00000000-0000-0000-0000-00000000ee02', '00000000-0000-0000-0000-00000000eb01', '00000000-0000-0000-0000-00000000ea01', 'regular', 'secret', '00000000-0000-0000-0000-00000000ec02');
+
+-- Derived data hanging off the private room's message.
+INSERT INTO dice_rolls (message_id, channel_id, roller_id, notation, result, breakdown)
+VALUES ('00000000-0000-0000-0000-00000000ee02', '00000000-0000-0000-0000-00000000eb01', '00000000-0000-0000-0000-00000000ea01', '1d20', 12, '{}'::jsonb);
+INSERT INTO message_reactions (message_id, channel_id, user_id, emoji)
+VALUES ('00000000-0000-0000-0000-00000000ee02', '00000000-0000-0000-0000-00000000eb01', '00000000-0000-0000-0000-00000000ea01', '👍');
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
@@ -74,6 +80,20 @@ SELECT is(
   'An invited member reads the private room''s messages'
 );
 
+-- Derived data (#4): the parent message's room visibility gates rolls and
+-- reactions too.
+SELECT is((SELECT count(*) FROM dice_rolls), 1::bigint, 'An invited member reads the private room''s rolls');
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000ea03', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000ea03","role":"authenticated"}', true);
+SELECT is((SELECT count(*) FROM dice_rolls), 0::bigint, 'A non-viewer cannot read a private room''s rolls');
+SELECT is((SELECT count(*) FROM message_reactions), 0::bigint, 'A non-viewer cannot read a private room''s reactions');
+SELECT is(
+  (SELECT count(*) FROM get_channel_room_unread('00000000-0000-0000-0000-00000000eb01') WHERE sub_channel_id = '00000000-0000-0000-0000-00000000ec02'),
+  0::bigint,
+  'A non-viewer gets no unread row for a private room'
+);
+
 -- ---- posting ---------------------------------------------------------------
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000ea03', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000ea03","role":"authenticated"}', true);
@@ -90,9 +110,9 @@ SELECT lives_ok(
   'An invited member can post into the private room'
 );
 
--- ---- set_sub_channel_audience ---------------------------------------------
+-- ---- audience RPCs ---------------------------------------------------------
 SELECT throws_ok(
-  $$SELECT set_sub_channel_audience('00000000-0000-0000-0000-00000000ec02', 'all', NULL)$$,
+  $$SELECT set_sub_channel_visibility('00000000-0000-0000-0000-00000000ec02', 'all')$$,
   'P0001', NULL,
   'A non-GM cannot change a room''s audience'
 );
@@ -100,8 +120,16 @@ SELECT throws_ok(
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000ea01', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000ea01","role":"authenticated"}', true);
 SELECT lives_ok(
-  $$SELECT set_sub_channel_audience('00000000-0000-0000-0000-00000000ec02', 'private', ARRAY['00000000-0000-0000-0000-00000000ea03']::uuid[])$$,
-  'The GM can replace the invited set'
+  $$SELECT set_sub_channel_visibility('00000000-0000-0000-0000-00000000ec02', 'private')$$,
+  'The GM can set the room audience'
+);
+SELECT lives_ok(
+  $$SELECT add_sub_channel_member('00000000-0000-0000-0000-00000000ec02', '00000000-0000-0000-0000-00000000ea03')$$,
+  'The GM can invite a member'
+);
+SELECT lives_ok(
+  $$SELECT remove_sub_channel_member('00000000-0000-0000-0000-00000000ec02', '00000000-0000-0000-0000-00000000ea02')$$,
+  'The GM can remove an invited member'
 );
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000ea03', true);
