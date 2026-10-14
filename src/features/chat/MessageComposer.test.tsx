@@ -1399,3 +1399,61 @@ it('folds the keyboard shortcut into the send button title and drops the floatin
   expect(send).toHaveClass('p-3')
   expect(queryByText(/to send/i)).not.toBeInTheDocument()
 })
+
+describe('MessageComposer room capabilities (#621 Phase 2)', () => {
+  const members = [{ id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } }] as any[]
+
+  beforeEach(() => {
+    localStorage.clear()
+    // Non-matching viewport so the options render inline, not in a BottomSheet.
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: true, settingsLoading: false, uploading: false, uploadImage: mockUploadImage,
+    } as any)
+  })
+
+  const openOptions = () => fireEvent.click(screen.getByRole('button', { name: 'Toggle options' }))
+
+  it('hides the gated controls and explains what is off', () => {
+    render(
+      <MessageComposer
+        channelId="c1"
+        isGM
+        members={members}
+        onSendMessage={vi.fn()}
+        capabilities={{ allow_dice: false, allow_scenes: false, allow_npc: false, allow_whispers: false }}
+      />
+    )
+    openOptions()
+    expect(screen.queryByRole('button', { name: 'Scene Description' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'NPC Mode' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Whisper')).not.toBeInTheDocument()
+    expect(screen.getByText(/Turned off in this room: Dice, Scenes, Character posts, Whispers\./)).toBeInTheDocument()
+  })
+
+  it('keeps the controls when the room allows them', () => {
+    render(
+      <MessageComposer
+        channelId="c1"
+        isGM
+        members={members}
+        onSendMessage={vi.fn()}
+        capabilities={{ allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true }}
+      />
+    )
+    openOptions()
+    expect(screen.getByRole('button', { name: 'Scene Description' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'NPC Mode' })).toBeInTheDocument()
+    expect(screen.getByText('Whisper')).toBeInTheDocument()
+    expect(screen.queryByText(/Turned off in this room/)).not.toBeInTheDocument()
+  })
+})

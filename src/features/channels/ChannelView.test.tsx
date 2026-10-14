@@ -2673,6 +2673,7 @@ describe('ChannelView viewport scroll lock (#620)', () => {
 describe('ChannelView rooms (#621)', () => {
   const room = (over: Record<string, unknown> = {}) => ({
     id: 'r1', channel_id: 'c1', name: 'OOC', is_archived: false,
+    allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true,
     created_by: 'u1', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z', ...over,
   })
 
@@ -2751,5 +2752,16 @@ describe('ChannelView rooms (#621)', () => {
 
     expect(await screen.findByText('MAIN TIMELINE')).toBeInTheDocument()
     expect(await screen.findByText("That room no longer exists. You're back in Main.")).toBeInTheDocument()
+  })
+
+  it('hides the dice FAB when the active room turns dice off', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1', allow_dice: false })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), setCapabilities: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    expect(screen.queryByRole('button', { name: 'Open dice roller' })).not.toBeInTheDocument()
   })
 })

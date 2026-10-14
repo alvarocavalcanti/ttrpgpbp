@@ -101,11 +101,14 @@ parent `channel_id`; only the message room is new.
 | `channel_id` | UUID, FK → channels | `ON DELETE CASCADE` |
 | `name` | text | 1–40 characters after trim; unique per channel case-insensitively |
 | `is_archived` | boolean | Default `false`. Archived rooms leave the tab bar but stay readable. |
+| `allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers` | boolean | Default `true`. Per-room capability flags (#621 Phase 2); Main is unrestricted. |
 | `created_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
 | `created_at` / `updated_at` | timestamptz | |
 
 All writes go through GM-only RPCs; the table has a SELECT-only policy. A room
-with messages is retired by archiving, never hard-deleted.
+with messages is retired by archiving, never hard-deleted. Capability flags are
+enforced by the `messages_room_capabilities` BEFORE INSERT trigger, so they apply
+to the command RPCs and to direct inserts alike.
 
 ### `sub_channel_reads`
 
@@ -211,7 +214,7 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | `update_channel_status` | Update `channels.status_text` + system message | GM-only, suspended blocked, no-op (unchanged text) skipped, archived allowed (matches settings) |
 | `join_channel` | Join + attributes + join system message | password/invite, archived, channel cap, attribute bounds |
 | `create_sub_channel` | Create a room | GM-only, suspended, archived channel, trimmed name 1–40 chars, unique per channel, not `Main` (reserved), hardcoded cap of 10 active rooms (server admins bypass) |
-| `update_sub_channel` | Rename and/or archive/restore a room | GM-only, same name validation (reserved `Main` included); restoring at the active cap is rejected |
+| `update_sub_channel` | Rename, archive/restore, and set per-room capability flags (`allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers`) | GM-only, same name validation (reserved `Main` included); restoring at the active cap is rejected |
 | `delete_sub_channel` | Hard-delete an empty room | GM-only, refused when the room has any messages (archive instead) |
 | `mark_sub_channel_read` | Advance the caller's per-room read mark | membership |
 | `get_channel_room_unread` | Read-only per-room unread counts, including the Main (`NULL`) group | member-only, mirrors `get_user_channels_unread` (excludes own, deleted, and unreadable whispers) |

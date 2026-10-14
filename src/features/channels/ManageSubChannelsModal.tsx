@@ -4,7 +4,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useToast } from '../../contexts/ToastContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MAX_ROOM_NAME_LENGTH, MAX_ROOMS_PER_CHANNEL } from '../../constants'
-import type { SubChannel } from './useSubChannels'
+import type { RoomCapabilities, SubChannel } from './useSubChannels'
 
 interface ManageSubChannelsModalProps {
   channelId: string
@@ -16,6 +16,7 @@ interface ManageSubChannelsModalProps {
   onCreate: (name: string) => Promise<string>
   onRename: (roomId: string, name: string) => Promise<void>
   onSetArchived: (roomId: string, archived: boolean) => Promise<void>
+  onSetCapabilities: (roomId: string, caps: RoomCapabilities) => Promise<void>
   onRemove: (roomId: string) => Promise<void>
   onOpenRoom: (roomId: string) => void
   onRetry: () => void
@@ -29,6 +30,14 @@ function friendlyRoomError(err: unknown): string {
   return msg
 }
 
+// Per-room capability toggles (#621 Phase 2).
+const CAPABILITY_FLAGS: { key: keyof RoomCapabilities; label: string }[] = [
+  { key: 'allow_dice', label: 'Dice' },
+  { key: 'allow_scenes', label: 'Scenes' },
+  { key: 'allow_npc', label: 'NPCs' },
+  { key: 'allow_whispers', label: 'Whispers' },
+]
+
 // GM-only room manager (#621): create, rename, archive/restore, and hard-delete
 // empty rooms. All writes are server-owned RPCs; this modal only collects input
 // and surfaces their errors.
@@ -41,6 +50,7 @@ export function ManageSubChannelsModal({
   onCreate,
   onRename,
   onSetArchived,
+  onSetCapabilities,
   onRemove,
   onOpenRoom,
   onRetry,
@@ -101,6 +111,21 @@ export function ManageSubChannelsModal({
     try {
       await onSetArchived(room.id, archived)
       addToast(archived ? `Room ${room.name ?? ''} archived.` : `Room ${room.name ?? ''} restored.`, 'success')
+      setActionError(null)
+    } catch (err) {
+      setActionError(friendlyRoomError(err))
+    }
+  }
+
+  const handleToggleCapability = async (room: SubChannel, key: keyof RoomCapabilities) => {
+    try {
+      await onSetCapabilities(room.id, {
+        allow_dice: room.allow_dice,
+        allow_scenes: room.allow_scenes,
+        allow_npc: room.allow_npc,
+        allow_whispers: room.allow_whispers,
+        [key]: !room[key],
+      })
       setActionError(null)
     } catch (err) {
       setActionError(friendlyRoomError(err))
@@ -170,7 +195,8 @@ export function ManageSubChannelsModal({
             {subChannels.length > 0 && (
               <ul className="space-y-2 mb-4">
                 {subChannels.map(room => (
-                  <li key={room.id} className="flex items-center gap-2 p-2 rounded-md bg-surface-50 dark:bg-surface-900">
+                  <li key={room.id} className="p-2 rounded-md bg-surface-50 dark:bg-surface-900">
+                    <div className="flex items-center gap-2">
                     {editingId === room.id ? (
                       <div className="flex-1 min-w-0 flex items-center gap-2">
                         <input
@@ -216,6 +242,22 @@ export function ManageSubChannelsModal({
                         </button>
                       </div>
                     )}
+                    </div>
+                    <fieldset className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-600 dark:text-surface-300">
+                      <legend className="sr-only">Room features for {room.name ?? 'room'}</legend>
+                      {CAPABILITY_FLAGS.map(flag => (
+                        <label key={flag.key} className="inline-flex items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={room[flag.key]}
+                            onChange={() => handleToggleCapability(room, flag.key)}
+                            aria-label={`${flag.label} in ${room.name ?? 'room'}`}
+                            className="h-4 w-4 rounded border border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500"
+                          />
+                          {flag.label}
+                        </label>
+                      ))}
+                    </fieldset>
                   </li>
                 ))}
               </ul>

@@ -29,12 +29,18 @@ export interface ReplyTarget {
   senderName: string | null
 }
 
+// Main (and any caller that omits capabilities) allows everything.
+const ALL_CAPABILITIES = { allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true }
+
 interface MessageComposerProps {
   channelId?: string
   // Active room (#621), null for Main. Drives the draft key, the placeholder
   // and the room-scoped hide of image uploads.
   subChannelId?: string | null
   roomName?: string
+  // Per-room capability flags (#621 Phase 2). Main passes the all-true default,
+  // so a disallowed control is hidden only inside a room that turns it off.
+  capabilities?: { allow_dice: boolean; allow_scenes: boolean; allow_npc: boolean; allow_whispers: boolean }
   isGM: boolean
   members: ChannelMember[]
   npcs?: Npc[]
@@ -51,7 +57,7 @@ export interface MessageComposerHandle {
   insertImages: (paths: string[]) => void
 }
 
-export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, subChannelId = null, roomName, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, subChannelId = null, roomName, capabilities = ALL_CAPABILITIES, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
 
@@ -117,6 +123,18 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+
+  // When the active room turns a feature off, drop any in-progress use of it so
+  // a hidden control never leaves a stale scene/NPC/whisper queued (#621).
+  useEffect(() => {
+    if (!capabilities.allow_scenes) setIsScene(false)
+    if (!capabilities.allow_npc) {
+      setIsNpc(false)
+      setNpcName('')
+      setNpcAvatarUrl(null)
+    }
+    if (!capabilities.allow_whispers) setWhisperTo('')
+  }, [capabilities.allow_scenes, capabilities.allow_npc, capabilities.allow_whispers])
   const dragDepth = useRef(0)
   const [isExpanded, setIsExpanded] = useState(false)
   const [isEditorFocused, setIsEditorFocused] = useState(false)
@@ -439,6 +457,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const isMobile = useMediaQuery('(max-width: 640px)')
 
+  // Human-readable list of the features this room turns off (#621 Phase 2),
+  // shown in the options panel so a hidden control is explained, not just gone.
+  const offCapabilities: string[] = []
+  if (!capabilities.allow_dice) offCapabilities.push('Dice')
+  if (!capabilities.allow_scenes) offCapabilities.push('Scenes')
+  if (!capabilities.allow_npc) offCapabilities.push('Character posts')
+  if (!capabilities.allow_whispers) offCapabilities.push('Whispers')
+
   const optionsContent = (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-wrap items-center gap-3">
@@ -486,8 +512,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         )}
       </div>
 
-      {isGM && (
+      {isGM && (capabilities.allow_scenes || capabilities.allow_npc) && (
         <div className="flex flex-wrap items-center gap-3">
+          {capabilities.allow_scenes && (
           <button
             type="button"
             aria-pressed={isScene}
@@ -501,7 +528,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             </svg>
             Scene
           </button>
+          )}
 
+          {capabilities.allow_npc && (
           <button
             type="button"
             aria-pressed={isNpc}
@@ -515,11 +544,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             </svg>
             NPC
           </button>
+          )}
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {!isScene && (
+        {!isScene && capabilities.allow_whispers && (
           <Menu
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -538,6 +568,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
           />
         )}
       </div>
+
+      {offCapabilities.length > 0 && (
+        <p className="text-xs text-surface-400 dark:text-surface-500">
+          Turned off in this room: {offCapabilities.join(', ')}.
+        </p>
+      )}
     </div>
   )
 
