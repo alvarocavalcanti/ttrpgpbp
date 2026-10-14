@@ -8,6 +8,14 @@ import { SubChannelRowSchema, parseRow } from '../validation/rowSchemas'
 
 export type SubChannel = Database['public']['Tables']['sub_channels']['Row']
 
+// Per-room capability flags (#621 Phase 2). All default true.
+export interface RoomCapabilities {
+  allow_dice: boolean
+  allow_scenes: boolean
+  allow_npc: boolean
+  allow_whispers: boolean
+}
+
 // Rooms (sub-channels) of one channel. Reads are membership-gated by RLS; every
 // write is GM-only and server-owned (create/update/delete_sub_channel), so the
 // hook never writes state optimistically — it relies on the realtime echo, so a
@@ -134,8 +142,23 @@ export function useSubChannels(channelId: string | undefined) {
     if (error) throw error
   }, [])
 
+  // Per-room capability flags (#621 Phase 2). A PARTIAL update: only the
+  // supplied flags are sent and update_sub_channel COALESCEs the rest, so a
+  // rapid second toggle cannot clobber the first with a stale snapshot (the
+  // realtime echo has not landed yet).
+  const setCapabilities = useCallback(async (roomId: string, caps: Partial<RoomCapabilities>) => {
+    const { error } = await supabase.rpc('update_sub_channel', {
+      p_sub_channel_id: roomId,
+      p_allow_dice: caps.allow_dice,
+      p_allow_scenes: caps.allow_scenes,
+      p_allow_npc: caps.allow_npc,
+      p_allow_whispers: caps.allow_whispers,
+    })
+    if (error) throw error
+  }, [])
+
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, loading, error, create, rename, setArchived, remove, refetch }
+  return { subChannels, archivedRooms, loading, error, create, rename, setArchived, setCapabilities, remove, refetch }
 }

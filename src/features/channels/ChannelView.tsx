@@ -91,11 +91,19 @@ export function ChannelView() {
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
-  const { subChannels, archivedRooms, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
+  const { subChannels, archivedRooms, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
   const { counts: roomUnread, markRoomRead } = useSubChannelUnread(id, subId ?? null)
   const [showManageRooms, setShowManageRooms] = useState(false)
-  // Room name for the composer placeholder and the empty state (#621).
-  const activeRoomName = subChannels.find(r => r.id === subId)?.name ?? archivedRooms.find(r => r.id === subId)?.name ?? 'this room'
+  // Active room and its capability flags (#621 Phase 2). Main (no room) and an
+  // unknown room allow everything.
+  const activeRoom = subChannels.find(r => r.id === subId) ?? archivedRooms.find(r => r.id === subId)
+  const activeRoomName = activeRoom?.name ?? 'this room'
+  const activeCapabilities = {
+    allow_dice: activeRoom?.allow_dice ?? true,
+    allow_scenes: activeRoom?.allow_scenes ?? true,
+    allow_npc: activeRoom?.allow_npc ?? true,
+    allow_whispers: activeRoom?.allow_whispers ?? true,
+  }
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -624,7 +632,7 @@ export function ChannelView() {
           />
           )}
 
-          {!channel.is_archived && (
+          {!channel.is_archived && activeCapabilities.allow_dice && (
             <DiceRollerFab
               channelId={channel.id}
               popup={isMobile}
@@ -640,6 +648,7 @@ export function ChannelView() {
             channelId={channel.id}
             subChannelId={subId ?? null}
             roomName={activeRoomName}
+            capabilities={activeCapabilities}
             isGM={isGM} 
             members={whisperableMembers} 
             npcs={npcs}
@@ -853,6 +862,7 @@ export function ChannelView() {
           onCreate={createRoom}
           onRename={renameRoom}
           onSetArchived={setRoomArchived}
+          onSetCapabilities={setRoomCapabilities}
           onRemove={removeRoom}
           onOpenRoom={(roomId) => {
             setShowManageRooms(false)

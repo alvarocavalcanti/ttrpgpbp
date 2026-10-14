@@ -9,6 +9,10 @@ const room = (over: Partial<SubChannel> = {}): SubChannel => ({
   channel_id: 'c1',
   name: 'OOC',
   is_archived: false,
+  allow_dice: true,
+  allow_scenes: true,
+  allow_npc: true,
+  allow_whispers: true,
   created_by: 'u1',
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
@@ -21,6 +25,7 @@ const renderModal = (props: Partial<Parameters<typeof ManageSubChannelsModal>[0]
     onCreate: vi.fn().mockResolvedValue('new-room'),
     onRename: vi.fn().mockResolvedValue(undefined),
     onSetArchived: vi.fn().mockResolvedValue(undefined),
+    onSetCapabilities: vi.fn().mockResolvedValue(undefined),
     onRemove: vi.fn().mockResolvedValue(undefined),
     onOpenRoom: vi.fn(),
     onRetry: vi.fn(),
@@ -126,5 +131,13 @@ describe('ManageSubChannelsModal', () => {
     fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'Chatter' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(h.onRename).toHaveBeenCalledWith('r1', 'Chatter'))
+  })
+
+  it('toggles a capability flag, sending only the changed flag', async () => {
+    const h = renderModal({
+      subChannels: [room({ id: 'r1', name: 'OOC', allow_dice: true, allow_scenes: false })],
+    })
+    fireEvent.click(screen.getByLabelText('Dice in OOC'))
+    await waitFor(() => expect(h.onSetCapabilities).toHaveBeenCalledWith('r1', { allow_dice: false }))
   })
 })

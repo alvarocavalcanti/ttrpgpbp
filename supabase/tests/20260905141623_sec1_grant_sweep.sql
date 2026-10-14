@@ -392,7 +392,7 @@ SELECT is(
   'authenticated keeps create_sub_channel (client RPC)'
 );
 SELECT is(
-  has_function_privilege('authenticated', 'public.update_sub_channel(uuid,text,boolean)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.update_sub_channel(uuid,text,boolean,boolean,boolean,boolean,boolean)', 'EXECUTE'),
   true,
   'authenticated keeps update_sub_channel (client RPC)'
 );

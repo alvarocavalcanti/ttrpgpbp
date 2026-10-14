@@ -1222,6 +1222,10 @@ export type Database = {
       }
       sub_channels: {
         Row: {
+          allow_dice: boolean
+          allow_npc: boolean
+          allow_scenes: boolean
+          allow_whispers: boolean
           channel_id: string
           created_at: string
           created_by: string | null
@@ -1231,6 +1235,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_dice?: boolean
+          allow_npc?: boolean
+          allow_scenes?: boolean
+          allow_whispers?: boolean
           channel_id: string
           created_at?: string
           created_by?: string | null
@@ -1240,6 +1248,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_dice?: boolean
+          allow_npc?: boolean
+          allow_scenes?: boolean
+          allow_whispers?: boolean
           channel_id?: string
           created_at?: string
           created_by?: string | null
@@ -1682,6 +1694,10 @@ export type Database = {
       }
       update_sub_channel: {
         Args: {
+          p_allow_dice?: boolean
+          p_allow_npc?: boolean
+          p_allow_scenes?: boolean
+          p_allow_whispers?: boolean
           p_is_archived?: boolean
           p_name?: string
           p_sub_channel_id: string
