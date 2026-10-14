@@ -164,7 +164,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                           onChange={(e) => setEditName(e.target.value)}
                           maxLength={MAX_NPC_NAME_LENGTH}
                           aria-label="NPC name"
-                          className="flex-1 min-w-0 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                          className="flex-1 min-w-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                           autoFocus
                           onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditingId(null) }}
                         />
@@ -244,7 +244,7 @@ export function NpcManagementModal({ channelId, onClose, onUpdate }: NpcManageme
                   placeholder="NPC name"
                   aria-label="New NPC name"
                   maxLength={MAX_NPC_NAME_LENGTH}
-                  className="flex-1 min-w-0 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="flex-1 min-w-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500"
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
                 />
                 {newAvatar ? (

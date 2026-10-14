@@ -251,7 +251,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
             max={dieSides}
             value={target}
             onChange={setTarget}
-            className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
+            className="bg-white dark:bg-gray-800 w-16 min-h-11 border border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
           />
           <span className="text-sm text-gray-500 dark:text-gray-400">or higher counts as a success</span>
         </div>
@@ -294,7 +294,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
               max={999}
               value={modifier}
               onChange={setModifier}
-              className="bg-white dark:bg-gray-800 w-16 min-h-11 border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
+              className="bg-white dark:bg-gray-800 w-16 min-h-11 border border-gray-300 dark:border-gray-600 rounded text-sm py-2 text-center"
             />
             <button
               type="button"
