@@ -115,6 +115,22 @@ export const AdminMessageRowSchema = z.looseObject({
   sender: JoinedProfileRefSchema.nullish(),
 })
 
+// Rooms (sub-channels) and their per-room unread, #621.
+export const SubChannelRowSchema = z.looseObject({
+  id: z.string(),
+  channel_id: z.string().nullish(),
+  name: z.string().nullish(),
+  is_archived: z.boolean().nullish(),
+  created_by: z.string().nullish(),
+  created_at: z.string().nullish(),
+  updated_at: z.string().nullish(),
+})
+
+export const RoomUnreadRowSchema = z.looseObject({
+  sub_channel_id: z.string().nullable(),
+  unread_count: z.number().nullish(),
+})
+
 export const ProfileRowSchema = z.looseObject({
   id: z.string(),
   display_name: z.string().nullish(),

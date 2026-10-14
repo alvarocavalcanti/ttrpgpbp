@@ -27,6 +27,10 @@ export interface MessageSendPayload {
   reply_to?: string
   npc_name?: string
   npc_avatar_url?: string
+  // Room the message was written in (NULL = Main). Stamped by useMessages when
+  // the pending payload is stored, so a retry replays into the original room
+  // even after the user switched rooms (#621).
+  sub_channel_id?: string | null
 }
 
 // A channel member with optional per-ability modifiers (keyed by e.g. STR).
@@ -40,4 +44,4 @@ export interface Member {
 // original send without re-deriving it from the optimistic row.
 export type PendingPayload =
   | ({ kind: 'message' } & MessageSendPayload)
-  | { kind: 'roll'; notation: string; replyToId?: string; warning?: string; dc?: number | null }
+  | { kind: 'roll'; notation: string; replyToId?: string; warning?: string; dc?: number | null; subChannelId: string | null }

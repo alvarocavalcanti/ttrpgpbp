@@ -27,7 +27,7 @@ const favoriteRowSchema = z.object({
 // which already reconciles in-flight toggles; the snapshot is only a row
 // cache, so edit/delete parity is a one-way patch into it and never needs the
 // reconciliation machinery.
-export function useMessageFavorites(channelId: string | undefined, enabled = true) {
+export function useMessageFavorites(channelId: string | undefined, enabled = true, subChannelId: string | null = null) {
   const { user } = useAuth()
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [favoriteMessages, setFavoriteMessages] = useState<ChatMessage[]>([])
@@ -45,9 +45,9 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
   // useMessages).
   const favoriteIdsRef = useRef(favoriteIds)
   favoriteIdsRef.current = favoriteIds
-  // Owner scope (channel + user). Rollbacks and late fetches from a previous
-  // scope must never touch the new scope's state.
-  const scope = `${channelId ?? ''}::${user?.id ?? ''}`
+  // Owner scope (channel + room + user). Rollbacks and late fetches from a
+  // previous scope must never touch the new scope's state.
+  const scope = `${channelId ?? ''}::${subChannelId ?? 'main'}::${user?.id ?? ''}`
   const scopeRef = useRef(scope)
   const prevScopeRef = useRef(scope)
   useEffect(() => {
@@ -102,9 +102,13 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
       for (const row of data) {
         const parsed = favoriteRowSchema.safeParse(row)
         if (!parsed.success) continue
-        if (!fetched.includes(parsed.data.message_id)) fetched.push(parsed.data.message_id)
         const embedded = parsed.data.message
         const message = parseServerMessage(Array.isArray(embedded) ? embedded[0] : embedded) as ChatMessage | null
+        // Room scope (#621): a favorite belongs to the room its message lives
+        // in, so only the active room's favorites are members here. A row whose
+        // message we can't resolve has no room and is dropped.
+        if ((message?.sub_channel_id ?? null) !== (subChannelId ?? null)) continue
+        if (!fetched.includes(parsed.data.message_id)) fetched.push(parsed.data.message_id)
         if (message && !snapshot.has(message.id)) snapshot.set(message.id, message)
       }
       // Reconcile with toggles made while the request was in flight: keep
@@ -126,7 +130,7 @@ export function useMessageFavorites(channelId: string | undefined, enabled = tru
       }
     })()
     return () => { cancelled = true }
-  }, [enabled, channelId, user?.id, scope, reloadKey])
+  }, [enabled, channelId, user?.id, subChannelId, scope, reloadKey])
 
   const isFavorite = (messageId: string) => favoriteIds.has(messageId)
 

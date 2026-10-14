@@ -5,6 +5,7 @@ import {
   buildImageMetadata,
   evaluateUploadGuards,
   isJpegSignature,
+  isRoomUpload,
   isValidProfileUploadPath,
   isValidUploadPath,
 } from "./logic.ts"
@@ -88,6 +89,14 @@ serve(async (req) => {
         return json({ error: "Not authorized" }, 403, req)
       }
     } else {
+      // Best-effort Main-only enforcement (#621): the client hides the upload
+      // control inside a room, and a caller that still claims one is refused
+      // here. A caller that omits the field can still upload — binding an
+      // upload to a later message is deferred, so this is not airtight.
+      if (isRoomUpload(form.get("subChannelId"))) {
+        return json({ error: "Images can only be shared in Main." }, 403, req)
+      }
+
       if (!isValidUploadPath(path, channelId as string)) {
         return json({ error: "Invalid upload path" }, 400, req)
       }

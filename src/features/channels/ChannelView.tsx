@@ -1,4 +1,4 @@
-import { useParams, Navigate, Link } from 'react-router-dom'
+import { useParams, Navigate, Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useChannel } from './useChannel'
 import { ChannelSettings } from './ChannelSettings'
@@ -8,6 +8,10 @@ import { useMessages } from '../chat/useMessages'
 import { MessageList } from '../chat/MessageList'
 import { useMessageFavorites } from '../chat/useMessageFavorites'
 import { MessageComposer, type MessageComposerHandle, type ReplyTarget } from '../chat/MessageComposer'
+import { SubChannelTabs } from './SubChannelTabs'
+import { ManageSubChannelsModal } from './ManageSubChannelsModal'
+import { useSubChannels } from './useSubChannels'
+import { useSubChannelUnread } from './useSubChannelUnread'
 import { ChannelMediaPanel } from './ChannelMediaPanel'
 import type { ChatMessage, Member } from '../chat/types'
 import { useAuth } from '../auth/useAuth'
@@ -15,6 +19,7 @@ import { SignedImg } from '../../components/SignedImg'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { trackEvent } from '../../lib/analytics'
+import { channelRoomPath } from '../../lib/publicRoutes'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { DiceRollerFab } from '../dice/DiceRollerFab'
@@ -39,7 +44,8 @@ const SIDEBAR_MENU_ITEM =
   'block w-full text-left px-4 py-2.5 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors'
 
 export function ChannelView() {
-  const { id } = useParams<{ id: string }>()
+  const { id, subId } = useParams<{ id: string; subId?: string }>()
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const { user } = useAuth()
   const { preferences } = usePushNotifications()
@@ -73,18 +79,23 @@ export function ChannelView() {
     setMessagesLoaded(true)
   }, [])
   const canMarkRead = useCallback(() => messagesLoadedRef.current, [])
-  // Switching channels re-gates: the new channel's history must load before
-  // its read mark advances.
+  // Switching channels or rooms re-gates: the new room's history must load
+  // before its read mark advances.
   useEffect(() => {
     messagesLoadedRef.current = false
     setMessagesLoaded(false)
-  }, [id])
+  }, [id, subId])
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, handleMessagesLoaded)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, subId ?? null, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
-  const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id)
+  const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
+  const { subChannels, archivedRooms, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
+  const { counts: roomUnread, markRoomRead } = useSubChannelUnread(id, subId ?? null)
+  const [showManageRooms, setShowManageRooms] = useState(false)
+  // Room name for the composer placeholder and the empty state (#621).
+  const activeRoomName = subChannels.find(r => r.id === subId)?.name ?? archivedRooms.find(r => r.id === subId)?.name ?? 'this room'
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -173,7 +184,25 @@ export function ChannelView() {
     if (!messagesLoaded || !myMemberInfo?.id) return
     if (document.visibilityState !== 'visible') return
     markRead()
-  }, [messagesLoaded, myMemberInfo?.id, markRead])
+    // Per-room read mark (#621): a room is marked read only once its history
+    // has loaded, so a failed fetch never clears a dot for unseen posts. Main
+    // has no dot, so only named rooms are marked.
+    if (subId) void markRoomRead(subId)
+  }, [messagesLoaded, myMemberInfo?.id, markRead, subId, markRoomRead])
+
+  // Unknown or deleted room deep link (#621): once the room list has resolved,
+  // fall back to Main with a toast instead of a blank timeline. A still-loading
+  // or failed room fetch must not redirect — the room may exist. Archived rooms
+  // stay readable, so they are not treated as unknown.
+  const unknownRoomHandledRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!subId || roomsLoading || roomsError) return
+    if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) return
+    if (unknownRoomHandledRef.current === subId) return
+    unknownRoomHandledRef.current = subId
+    addToast("That room no longer exists. You're back in Main.", 'error')
+    navigate(`/channel/${id}`, { replace: true })
+  }, [subId, roomsLoading, roomsError, subChannels, archivedRooms, addToast, navigate, id])
 
   // Jump targets (search results, quoted replies) may sit outside the loaded
   // latest-50 window: load history pages until the target is rendered, then
@@ -474,6 +503,19 @@ export function ChannelView() {
           </div>
         )}
 
+        <SubChannelTabs
+          channelId={channel.id}
+          channelName={channel.name}
+          subChannels={subChannels}
+          counts={roomUnread}
+          activeSubId={subId ?? null}
+          loading={roomsLoading}
+          error={roomsError}
+          isGM={isGM}
+          onManage={() => setShowManageRooms(true)}
+          onRetry={refetchRooms}
+        />
+
         <ChannelStatusBar
           channelId={channel.id}
           statusText={channel.status_text}
@@ -549,7 +591,7 @@ export function ChannelView() {
             </div>
           ) : (
           <MessageList
-            key={showFavoritesOnly ? `${channel.id}:favorites` : channel.id}
+            key={`${channel.id}:${subId ?? 'main'}${showFavoritesOnly ? ':favorites' : ''}`}
             messages={visibleMessages}
             isGM={isGM}
             onEdit={handleEditMessage}
@@ -574,7 +616,7 @@ export function ChannelView() {
             onEditCharacter={myMemberInfo?.id ? handleEditCharacter : undefined}
             favoriteIds={favoriteIds}
             onToggleFavorite={handleToggleFavorite}
-            emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : undefined}
+            emptyMessage={showFavoritesOnly ? 'No favorite messages yet. Star a message to find it here.' : (subId ? `No messages in ${activeRoomName} yet. Start the conversation.` : undefined)}
             error={showFavoritesOnly ? favoritesError : messagesError}
             hasMore={showFavoritesOnly ? false : hasMore}
             loadingOlder={loadingOlder}
@@ -596,6 +638,8 @@ export function ChannelView() {
           <MessageComposer 
             ref={composerRef}
             channelId={channel.id}
+            subChannelId={subId ?? null}
+            roomName={activeRoomName}
             isGM={isGM} 
             members={whisperableMembers} 
             npcs={npcs}
@@ -755,6 +799,13 @@ export function ChannelView() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setShowManageRooms(true)}
+                  className={SIDEBAR_MENU_ITEM}
+                >
+                  Rooms
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowActivePlayer(true)}
                   className={SIDEBAR_MENU_ITEM}
                 >
@@ -788,6 +839,26 @@ export function ChannelView() {
           hasPassword={hasPassword}
           onClose={() => setShowSettings(false)} 
           onUpdate={refetch}
+        />
+      )}
+
+      {showManageRooms && isGM && (
+        <ManageSubChannelsModal
+          channelId={channel.id}
+          subChannels={subChannels}
+          archivedRooms={archivedRooms}
+          loading={roomsLoading}
+          error={roomsError}
+          onClose={() => setShowManageRooms(false)}
+          onCreate={createRoom}
+          onRename={renameRoom}
+          onSetArchived={setRoomArchived}
+          onRemove={removeRoom}
+          onOpenRoom={(roomId) => {
+            setShowManageRooms(false)
+            navigate(channelRoomPath(channel.id, roomId))
+          }}
+          onRetry={refetchRooms}
         />
       )}
 

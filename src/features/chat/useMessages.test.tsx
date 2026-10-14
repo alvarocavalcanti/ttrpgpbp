@@ -17,10 +17,17 @@ vi.mock('../../lib/supabase', () => ({
   }
 }))
 
+// The object returned by the channel_id .eq() must also accept the room filter
+// (#621: .is('sub_channel_id', null) for Main or .eq('sub_channel_id', …) for a
+// room). Both return the same ordered tail.
+function roomTail(tail: any) {
+  return { ...tail, eq: () => tail, is: () => tail }
+}
+
 // Builds a mock `from()` chain. For 'messages' it uses fetchBuilder, for
 // 'message_reactions' it returns an empty list (override with reactionsBuilder).
 function mockFrom({
-  fetchBuilder = () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+  fetchBuilder = () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
   reactionsBuilder = () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
   tableHandler,
 }: {
@@ -64,7 +71,7 @@ function makeOrder(limit: any) {
 const baseMessage = (overrides: Record<string, unknown> = {}) => ({
   id: 'm1', channel_id: 'c1', sender_id: 'u1', content: '', type: 'regular',
   whisper_to: null, reply_to: null, npc_name: null, npc_avatar_url: null,
-  is_deleted: false, is_edited: false, created_at: '2023-01-01T00:00:00.000Z',
+  is_deleted: false, is_edited: false, created_at: '2023-01-01T00:00:00.000Z', sub_channel_id: null,
   updated_at: '2023-01-01T00:00:00.000Z', roll_dc: null, roll_success: null,
   ...overrides,
 })
@@ -81,17 +88,17 @@ describe('useMessages', () => {
   })
 
   it('returns early if no channelId', () => {
-    const { result } = renderHook(() => useMessages(undefined))
+    const { result } = renderHook(() => useMessages(undefined, null))
     expect(result.current.loading).toBe(false)
   })
 
   it('fetches messages and subscribes', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ sender: [{ display_name: 'Hero' }] })], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -107,11 +114,11 @@ describe('useMessages', () => {
     // #412: the read-mark gate keys on a successful messages fetch.
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage()], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     mockChannels()
 
     const onLoaded = vi.fn()
-    const { result } = renderHook(() => useMessages('c1', onLoaded))
+    const { result } = renderHook(() => useMessages('c1', null, onLoaded))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -122,11 +129,11 @@ describe('useMessages', () => {
   it('does not call onLoaded when the fetch fails', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('Messages DB Error') })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     mockChannels()
 
     const onLoaded = vi.fn()
-    const { result } = renderHook(() => useMessages('c1', onLoaded))
+    const { result } = renderHook(() => useMessages('c1', null, onLoaded))
 
     await waitFor(() => {
       expect(result.current.error).toBeTruthy()
@@ -143,11 +150,11 @@ describe('useMessages', () => {
     // Self-chaining order shared by the initial fetch (two .order calls) and
     // the reconcile pass (.or + two .order calls).
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, or: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder, or: mockOrder }) }) })
     mockChannels()
 
     const onLoaded = vi.fn()
-    const { result } = renderHook(() => useMessages('c1', onLoaded))
+    const { result } = renderHook(() => useMessages('c1', null, onLoaded))
     await waitFor(() => {
       expect(result.current.error).toBeTruthy()
     })
@@ -177,10 +184,10 @@ describe('useMessages', () => {
     const updateOrder = vi.fn()
     updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
     const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.messages).toHaveLength(1)
@@ -210,10 +217,10 @@ describe('useMessages', () => {
       .mockImplementationOnce(() => retryFetch)
       .mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, or: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder, or: mockOrder }) }) })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => {
       expect(result.current.error).toBeTruthy()
     })
@@ -242,10 +249,10 @@ describe('useMessages', () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
     const fetchedRow = baseMessage({ id: 'm2', sender_id: 'u2', sender: [{ display_name: 'Orc' }] })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: vi.fn().mockResolvedValue({ data: fetchedRow, error: null }) }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder, single: vi.fn().mockResolvedValue({ data: fetchedRow, error: null }) }) }) })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     const before = {
@@ -285,10 +292,10 @@ describe('useMessages', () => {
 
     // eq() serves the initial fetch (.order desc), the INSERT catch-up
     // (.gt -> .order asc) and the UPDATE reconcile (.or -> .order asc).
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -328,10 +335,10 @@ describe('useMessages', () => {
     updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
     const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
 
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -366,10 +373,10 @@ describe('useMessages', () => {
     const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
     // eq() serves the initial fetch (order), the INSERT catch-up (gt) and the
     // UPDATE reconcile (or with a composite cursor).
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -408,10 +415,10 @@ describe('useMessages', () => {
     const updateOrder = vi.fn()
     updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
     const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -448,10 +455,10 @@ describe('useMessages', () => {
     updateOrder.mockReturnValue({ order: updateOrder, limit: updateLimit })
     const mockOr = vi.fn().mockReturnValue({ order: updateOrder })
 
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockDescOrder, gt: mockGt, or: mockOr }) }) })
     const { emitStatus } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -472,10 +479,10 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: [baseMessage({ id: 'm1', content: 'from c1' })], error: null })
       .mockResolvedValueOnce({ data: [baseMessage({ id: 'm2', content: 'from c2' })], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     mockChannels()
 
-    const { result, rerender } = renderHook(({ id }) => useMessages(id), { initialProps: { id: 'c1' } })
+    const { result, rerender } = renderHook(({ id }) => useMessages(id, null), { initialProps: { id: 'c1' } })
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(1)
@@ -498,7 +505,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // First submit stays in flight (the rpc promise is unresolved until the
@@ -528,12 +535,12 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -568,12 +575,12 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValue({ data: [{ message_id: 'real-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -599,12 +606,12 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -630,12 +637,12 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-roll-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -666,12 +673,12 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValueOnce({ data: [{ message_id: 'real-roll-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -708,12 +715,12 @@ describe('useMessages', () => {
       .mockResolvedValueOnce({ data: null, error: new Error('boom') })
       .mockResolvedValue({ data: [{ message_id: 'real-roll-id' }], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -739,12 +746,12 @@ describe('useMessages', () => {
   it('marks a message unconfirmed when the RPC returns no id', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -760,12 +767,12 @@ describe('useMessages', () => {
 
   it('handles fetch error gracefully', async () => {
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('DB Error') })) }) })
     })
     mockChannels()
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -777,7 +784,7 @@ describe('useMessages', () => {
   it('fetches messages using the reply_message computed relationship', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ reply: { id: 'm0', content: '', sender_id: null, is_deleted: false, type: 'regular' } })], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder }))
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
@@ -785,7 +792,7 @@ describe('useMessages', () => {
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -802,11 +809,11 @@ describe('useMessages', () => {
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: baseMessage({ id: 'm3', sender: { display_name: 'JoinedUser' } }) })
 
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder, single: mockSingleJoin }) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -824,11 +831,11 @@ describe('useMessages', () => {
     const mockSingleJoin = vi.fn().mockResolvedValue({ data: null })
 
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: mockOrder, single: mockSingleJoin }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder, single: mockSingleJoin }) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -842,10 +849,10 @@ describe('useMessages', () => {
   it('drops malformed realtime INSERT and UPDATE payloads', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'valid' })], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(1)
@@ -867,10 +874,10 @@ describe('useMessages', () => {
       error: null,
     })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(1)
@@ -889,10 +896,10 @@ describe('useMessages', () => {
   it('handles realtime INSERT without joins', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -908,10 +915,10 @@ describe('useMessages', () => {
   it('handles realtime UPDATE and DELETE', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'hello' })], error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -936,9 +943,9 @@ describe('useMessages', () => {
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
 
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => roomTail({ order: mockOrder }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -946,7 +953,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -967,7 +974,7 @@ describe('useMessages', () => {
   })
 
   it('rejects oversized message edits before sending them', async () => {
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await expect(result.current.editMessage('m1', 'x'.repeat(4001))).rejects.toThrow('max 4000')
   })
@@ -983,14 +990,14 @@ describe('useMessages', () => {
 
     mockFrom({
       tableHandler: (table) => {
-        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => roomTail({ order: mockOrder }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.messages[0].content).toBe('old content')
@@ -1026,14 +1033,14 @@ describe('useMessages', () => {
 
     mockFrom({
       tableHandler: (table) => {
-        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => roomTail({ order: mockOrder }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1060,14 +1067,14 @@ describe('useMessages', () => {
 
     mockFrom({
       tableHandler: (table) => {
-        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => ({ order: mockOrder }) }) }
+        if (table === 'messages') return { update: mockUpdate, select: () => ({ eq: () => roomTail({ order: mockOrder }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1093,9 +1100,9 @@ describe('useMessages', () => {
   it('sends reply_to when replying', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1103,7 +1110,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1117,9 +1124,9 @@ describe('useMessages', () => {
   it('sends NPC messages through the send_message command', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1127,7 +1134,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1146,12 +1153,12 @@ describe('useMessages', () => {
 
   it('handles reactions fetch error without failing the view', async () => {    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: null, error: new Error('Reactions DB Error') }) })
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -1168,12 +1175,12 @@ describe('useMessages', () => {
       { id: 'r3', message_id: 'm1', channel_id: 'c1', user_id: 'u2', emoji: '🔥', created_at: '' },
     ]
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: reactionsData, error: null }) })
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.reactions['m1']).toHaveLength(2)
@@ -1192,12 +1199,12 @@ describe('useMessages', () => {
       { id: 'r2', message_id: 'm1', emoji: '🔥' },
     ]
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: reactionsData, error: null }) })
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.reactions['m1']).toHaveLength(1)
@@ -1210,11 +1217,11 @@ describe('useMessages', () => {
 
   it('updates reactions on realtime INSERT and DELETE', async () => {
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1231,11 +1238,11 @@ describe('useMessages', () => {
 
   it('tracks each reactor separately when one of several un-reacts', async () => {
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1259,15 +1266,15 @@ describe('useMessages', () => {
     const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
 
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
         if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -1288,12 +1295,12 @@ describe('useMessages', () => {
     let resolveFetch!: (value: { data: unknown[]; error: null }) => void
     const fetchPromise = new Promise<{ data: unknown[]; error: null }>(resolve => { resolveFetch = resolve })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockReturnValue(fetchPromise) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await act(async () => {
       await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r-live', message_id: 'm9', user_id: 'u2' }) })
@@ -1316,12 +1323,12 @@ describe('useMessages', () => {
     let resolveFetch!: (value: { data: unknown[]; error: null }) => void
     const fetchPromise = new Promise<{ data: unknown[]; error: null }>(resolve => { resolveFetch = resolve })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       reactionsBuilder: () => ({ eq: vi.fn().mockReturnValue(fetchPromise) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await act(async () => {
       await callbacks['message_reactions']({ eventType: 'INSERT', new: validReaction({ id: 'r-live', message_id: 'm1', user_id: 'u3' }) })
@@ -1340,11 +1347,11 @@ describe('useMessages', () => {
     // Optimistic flip + realtime echo, or a duplicated realtime delivery, must
     // count the same (message, user, emoji) once.
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
     })
     const { callbacks } = mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -1363,15 +1370,15 @@ describe('useMessages', () => {
     const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
     const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
         if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     let togglePromise!: Promise<void>
@@ -1400,15 +1407,15 @@ describe('useMessages', () => {
     const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
     const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
         if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
-        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -1422,15 +1429,15 @@ describe('useMessages', () => {
     const mockMatchDelete = vi.fn().mockResolvedValue({ error: null })
     const mockDelete = vi.fn().mockReturnValue({ match: mockMatchDelete })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
         if (table === 'message_reactions') return { insert: mockInsert, delete: mockDelete, select: () => ({ eq: vi.fn().mockResolvedValue({ data: [validReaction({ id: 'r1', message_id: 'm1', user_id: 'u1' })], error: null }) }) }
-        return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
       }
     })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => {
       expect(result.current.reactions['m1']).toHaveLength(1)
     })
@@ -1447,9 +1454,9 @@ describe('useMessages', () => {
   it('updates active_player_ids when sending a message', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1457,7 +1464,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1471,9 +1478,9 @@ describe('useMessages', () => {
   it('sends a dice roll through the roll_dice command', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1481,7 +1488,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1497,7 +1504,7 @@ describe('useMessages', () => {
   })
 
   it('rejects oversized roll warnings before sending them', async () => {
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await expect(result.current.sendDiceRoll('1d20', undefined, 'x'.repeat(501))).rejects.toThrow('max 500')
     expect(supabase.rpc).not.toHaveBeenCalledWith('roll_dice', expect.anything())
@@ -1506,9 +1513,9 @@ describe('useMessages', () => {
   it('passes the DC and reply target for check rolls', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1516,7 +1523,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1535,9 +1542,9 @@ describe('useMessages', () => {
   it('rolls without a reply target or DC when omitted', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1545,7 +1552,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1564,9 +1571,9 @@ describe('useMessages', () => {
   it('surfaces roll_dice errors', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: new Error('Too many dice') })
     mockFrom({
-      fetchBuilder: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
       tableHandler: (table) => {
-        if (table === 'messages') return { select: () => ({ eq: () => ({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
         if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
         return {}
       }
@@ -1574,7 +1581,7 @@ describe('useMessages', () => {
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -1586,10 +1593,10 @@ describe('useMessages', () => {
     const full = Array.from({ length: 50 }, (_, i) => baseMessage({ id: `m${i}`, content: `msg ${i}`, created_at: `2023-01-01T00:00:0${i % 10}Z` }))
     const mockLimit = vi.fn().mockResolvedValue({ data: full, error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -1602,10 +1609,10 @@ describe('useMessages', () => {
     const partial = [baseMessage({ id: 'm1', content: 'only one' })]
     const mockLimit = vi.fn().mockResolvedValue({ data: partial, error: null })
     const mockOrder = vi.fn(); mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    mockFrom({ fetchBuilder: () => ({ eq: () => ({ order: mockOrder }) }) })
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: mockOrder }) }) })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -1625,11 +1632,11 @@ describe('useMessages', () => {
     // eq() must satisfy both the initial fetch (order) and loadOlder (or),
     // which now uses a composite (created_at, id) cursor.
     const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+    const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
     mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
@@ -1650,11 +1657,11 @@ describe('useMessages', () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
     const mockOrder = vi.fn()
     mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder }))
     mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
     mockChannels()
 
-    const { result } = renderHook(() => useMessages('c1'))
+    const { result } = renderHook(() => useMessages('c1', null))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // The initial page must share loadOlder's composite order so a
@@ -1669,11 +1676,11 @@ describe('useMessages', () => {
       const mockLimit = vi.fn().mockResolvedValue({ data: initial, error: null })
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1690,11 +1697,11 @@ describe('useMessages', () => {
       const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1714,12 +1721,12 @@ describe('useMessages', () => {
       const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
       vi.mocked(supabase.rpc).mockReturnValue(new Promise(() => {}) as any)
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       act(() => {
@@ -1745,11 +1752,11 @@ describe('useMessages', () => {
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
       const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1777,11 +1784,11 @@ describe('useMessages', () => {
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
       const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1805,11 +1812,11 @@ describe('useMessages', () => {
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
       const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1828,11 +1835,11 @@ describe('useMessages', () => {
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
       const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1858,11 +1865,11 @@ describe('useMessages', () => {
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
       const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result, rerender } = renderHook(({ id }) => useMessages(id), { initialProps: { id: 'c1' } })
+      const { result, rerender } = renderHook(({ id }) => useMessages(id, null), { initialProps: { id: 'c1' } })
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump!: Promise<string | undefined>
@@ -1898,11 +1905,11 @@ describe('useMessages', () => {
       const mockOrder = vi.fn()
       mockOrder.mockReturnValue({ order: mockOrder, limit: mockLimit })
       const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
-      const mockEq = vi.fn().mockReturnValue({ order: mockOrder, or: mockOr })
+      const mockEq = vi.fn().mockReturnValue(roomTail({ order: mockOrder, or: mockOr }))
       mockFrom({ fetchBuilder: () => ({ eq: mockEq }) })
       mockChannels()
 
-      const { result } = renderHook(() => useMessages('c1'))
+      const { result } = renderHook(() => useMessages('c1', null))
       await waitFor(() => expect(result.current.loading).toBe(false))
 
       let jump: string | undefined
@@ -1914,5 +1921,115 @@ describe('useMessages', () => {
       expect(mockLimit).toHaveBeenCalledTimes(pages.length)
       expect(result.current.messages.some((m: { id: string }) => m.id === 'm-deep')).toBe(true)
     })
+  })
+})
+
+describe('useMessages rooms (#621)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+  })
+
+  // Captures the room predicate the read path applied after channel_id.
+  const roomFilterHarness = () => {
+    const filterCalls: Array<[string, string, unknown]> = []
+    const tail = { order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }
+    const holder = {
+      eq: (col: string, val: unknown) => { filterCalls.push(['eq', col, val]); return tail },
+      is: (col: string, val: unknown) => { filterCalls.push(['is', col, val]); return tail },
+    }
+    const outerEq = vi.fn().mockReturnValue(holder)
+    mockFrom({ fetchBuilder: () => ({ eq: outerEq }) })
+    return filterCalls
+  }
+
+  it('scopes Main reads to sub_channel_id IS NULL', async () => {
+    const filterCalls = roomFilterHarness()
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', null))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(filterCalls).toContainEqual(['is', 'sub_channel_id', null])
+  })
+
+  it("scopes a room's reads to sub_channel_id equality", async () => {
+    const filterCalls = roomFilterHarness()
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', 'room-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(filterCalls).toContainEqual(['eq', 'sub_channel_id', 'room-1'])
+  })
+
+  it('drops a realtime INSERT for another room and keeps the active room', async () => {
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
+    const { callbacks } = mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', 'room-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'x-other', sub_channel_id: 'room-2', sender_id: null }) })
+    })
+    expect(result.current.messages).toHaveLength(0)
+
+    await act(async () => {
+      await callbacks['messages']({ eventType: 'INSERT', new: baseMessage({ id: 'x-mine', sub_channel_id: 'room-1', sender_id: null }) })
+    })
+    expect(result.current.messages.map(m => m.id)).toEqual(['x-mine'])
+  })
+
+  it('sends p_sub_channel_id for the active room and stamps the pending payload', async () => {
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
+    mockChannels()
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [{ message_id: 'm9' }], error: null } as any)
+
+    const { result } = renderHook(() => useMessages('c1', 'room-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    expect(supabase.rpc).toHaveBeenCalledWith('send_message', expect.objectContaining({ p_sub_channel_id: 'room-1' }))
+  })
+
+  it("replays a retry into the room the message was written in", async () => {
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
+    mockChannels()
+    // First send fails so an errored bubble stays in the window.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('boom') } as any)
+
+    const { result } = renderHook(() => useMessages('c1', 'room-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hi', type: 'regular' }).catch(() => {})
+    })
+    const errored = result.current.messages.find(m => m.error)
+    expect(errored).toBeTruthy()
+    expect(errored?.pending_payload?.kind === 'message' && errored.pending_payload.sub_channel_id).toBe('room-1')
+
+    // Retry replays the original room, sourced from the pending payload.
+    vi.mocked(supabase.rpc).mockClear()
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [{ message_id: 'm9' }], error: null } as any)
+    await act(async () => {
+      await result.current.retryMessage(errored!.id)
+    })
+
+    expect(supabase.rpc).toHaveBeenCalledWith('send_message', expect.objectContaining({ p_sub_channel_id: 'room-1' }))
+  })
+
+  it('resets the window when the room changes', async () => {
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'main-1', sub_channel_id: null })], error: null })) }) }) })
+    mockChannels()
+
+    const { result, rerender } = renderHook(({ sub }: { sub: string | null }) => useMessages('c1', sub), { initialProps: { sub: null as string | null } })
+    await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['main-1']))
+
+    rerender({ sub: 'room-1' })
+    await waitFor(() => expect(result.current.messages).toHaveLength(0))
   })
 })

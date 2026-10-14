@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isValidProfileUploadPath, isValidUploadPath } from './logic'
+import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isRoomUpload, isValidProfileUploadPath, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
@@ -169,5 +169,22 @@ describe('evaluateUploadGuards', () => {
 
   it('prefers disabled over oversized', () => {
     expect(evaluateUploadGuards([{ key: 'image_uploading_enabled', value: false }], 100 * MB)).toBe('disabled')
+  })
+})
+
+describe('isRoomUpload (#621)', () => {
+  it('treats a non-empty room id as a room upload', () => {
+    expect(isRoomUpload('11111111-2222-3333-4444-555555555555')).toBe(true)
+  })
+
+  it('treats absent or empty as Main', () => {
+    expect(isRoomUpload(null)).toBe(false)
+    expect(isRoomUpload(undefined)).toBe(false)
+    expect(isRoomUpload('')).toBe(false)
+  })
+
+  it('rejects non-string values', () => {
+    expect(isRoomUpload(123)).toBe(false)
+    expect(isRoomUpload(new File([], 'x'))).toBe(false)
   })
 })

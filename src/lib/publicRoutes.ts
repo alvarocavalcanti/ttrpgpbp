@@ -23,6 +23,7 @@ export const ROUTES = {
   adminChannel: '/admin/channels/:id',
   join: '/join/:id',
   channel: '/channel/:id',
+  channelRoom: '/channel/:id/sub/:subId',
   settings: '/settings',
   help: '/help',
   helpTopic: '/help/:topic',
@@ -32,6 +33,12 @@ export const ROUTES = {
 } as const
 
 export type RouteKey = keyof typeof ROUTES
+
+// Concrete path for a room (sub-channel) deep link (#621). Kept next to ROUTES
+// so the '/channel/:id/sub/:subId' template has one source of truth.
+export function channelRoomPath(channelId: string, roomId: string): string {
+  return ROUTES.channelRoom.replace(':id', channelId).replace(':subId', roomId)
+}
 
 export interface PublicRoute {
   path: string
@@ -331,6 +338,7 @@ export const APP_ROUTE_KEYS: RouteKey[] = [
   'adminChannel',
   'join',
   'channel',
+  'channelRoom',
   'settings',
   'changelog',
   'about',

@@ -5,6 +5,8 @@ import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { useMessageFavorites } from '../chat/useMessageFavorites'
+import { useSubChannels } from './useSubChannels'
+import { useSubChannelUnread } from './useSubChannelUnread'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
@@ -23,6 +25,14 @@ vi.mock('../chat/useMessages', () => ({
 
 vi.mock('../chat/useMessageFavorites', () => ({
   useMessageFavorites: vi.fn()
+}))
+
+vi.mock('./useSubChannels', () => ({
+  useSubChannels: vi.fn()
+}))
+
+vi.mock('./useSubChannelUnread', () => ({
+  useSubChannelUnread: vi.fn()
 }))
 
 vi.mock('../auth/useAuth', () => ({
@@ -56,6 +66,23 @@ vi.mock('./useSafetyCardEvents', () => ({
 }))
 
 const useMessagesMock = () => (useMessages as unknown as () => any)()
+
+// Room hooks default to "no rooms" so ChannelView renders the legacy layout;
+// room-specific tests override these.
+beforeEach(() => {
+  vi.mocked(useSubChannels).mockReturnValue({
+    subChannels: [],
+    archivedRooms: [],
+    loading: false,
+    error: null,
+    create: vi.fn(),
+    rename: vi.fn(),
+    setArchived: vi.fn(),
+    remove: vi.fn(),
+    refetch: vi.fn(),
+  } as any)
+  vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), refetch: vi.fn() } as any)
+})
 
 describe('ChannelView search functionality', () => {
   beforeEach(() => {
@@ -1327,6 +1354,7 @@ describe('ChannelView search functionality', () => {
       'Help',
       'GM Resources',
       'NPCs',
+      'Rooms',
       'Active Player',
       'Settings'
     ])
@@ -2299,7 +2327,7 @@ describe('ChannelView history-gated read-mark (#412)', () => {
       gateArg = canMarkRead
       return baseChannelMock()
     }) as any)
-    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, _subId: unknown, onLoaded: () => void) => {
       onLoadedArg = onLoaded
       return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
     }) as any)
@@ -2319,7 +2347,7 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     let onLoadedArg: (() => void) | undefined
     const markRead = vi.fn()
     vi.mocked(useChannel).mockImplementation((() => baseChannelMock({ markRead })) as any)
-    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, _subId: unknown, onLoaded: () => void) => {
       onLoadedArg = onLoaded
       return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
     }) as any)
@@ -2342,7 +2370,7 @@ describe('ChannelView history-gated read-mark (#412)', () => {
     let onLoadedArg: (() => void) | undefined
     const markRead = vi.fn()
     vi.mocked(useChannel).mockImplementation((() => baseChannelMock({ markRead })) as any)
-    vi.mocked(useMessages).mockImplementation(((_id: unknown, onLoaded: () => void) => {
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, _subId: unknown, onLoaded: () => void) => {
       onLoadedArg = onLoaded
       return baseMessagesMock({ messages: [{ id: 'msg1', content: 'hi', type: 'regular', sender_id: 'user1' }] })
     }) as any)
@@ -2639,5 +2667,89 @@ describe('ChannelView viewport scroll lock (#620)', () => {
     expect(root).toHaveClass('fixed', 'inset-0')
     expect(root.className).not.toMatch(/h-\[100dvh\]/)
     expect(root.className).not.toMatch(/\brelative\b/)
+  })
+})
+
+describe('ChannelView rooms (#621)', () => {
+  const room = (over: Record<string, unknown> = {}) => ({
+    id: 'r1', channel_id: 'c1', name: 'OOC', is_archived: false,
+    created_by: 'u1', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z', ...over,
+  })
+
+  beforeEach(() => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false, alertCount: 0, catchUpError: false, retryCatchUp: vi.fn(), dismissAlert: vi.fn(), triggerXCard: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      markRead: vi.fn(),
+      refetch: vi.fn(),
+    } as any)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [], reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false, retrying: false,
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+      addReaction: vi.fn(), removeReaction: vi.fn(), retryMessage: vi.fn(), removePendingMessage: vi.fn(),
+      refresh: vi.fn().mockResolvedValue(undefined), loadOlder: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(), favoriteMessages: [], isFavorite: () => false,
+      toggleFavorite: vi.fn(), patchFavoriteMessage: vi.fn(), loading: false, error: null, refetch: vi.fn(),
+    } as any)
+  })
+
+  const renderAt = (path: string, extraRoute?: { path: string; element: React.ReactNode }) =>
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            {extraRoute && <Route path={extraRoute.path} element={extraRoute.element} />}
+            <Route path="/channel/:id" element={<ChannelView />} />
+            <Route path="/channel/:id/sub/:subId" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    )
+
+  it('renders the room bar when the channel has rooms', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room()], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    expect(screen.getByRole('tablist', { name: 'Rooms' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'OOC' })).toBeInTheDocument()
+  })
+
+  it('passes the route room through to useMessages', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room()], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    expect(vi.mocked(useMessages)).toHaveBeenCalledWith('c1', 'r1', expect.any(Function))
+  })
+
+  it('falls back to Main with a toast when the room does not exist', async () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/bogus', { path: '/channel/c1', element: <div>MAIN TIMELINE</div> })
+
+    expect(await screen.findByText('MAIN TIMELINE')).toBeInTheDocument()
+    expect(await screen.findByText("That room no longer exists. You're back in Main.")).toBeInTheDocument()
   })
 })

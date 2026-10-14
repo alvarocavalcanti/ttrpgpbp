@@ -106,6 +106,7 @@ describe('APP_ROUTE_KEYS', () => {
       'adminChannel',
       'join',
       'channel',
+      'channelRoom',
       'settings',
       'changelog',
       'about',

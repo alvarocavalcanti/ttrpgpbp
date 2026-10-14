@@ -41,6 +41,17 @@ function formatMessage(m: unknown): Message | null {
   return parseServerMessage(m) as Message | null
 }
 
+// Applies the active-room predicate to a messages query (#621). Main is
+// sub_channel_id IS NULL; a room is an equality. PostgREST cannot express both
+// with one operator, so every read path must route through here — a path that
+// skips it leaks another room's messages. Module-level and pure so it needs no
+// effect dependency.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withRoom<T>(query: T, subChannelId: string | null): T {
+  const q = query as any
+  return (subChannelId ? q.eq('sub_channel_id', subChannelId) : q.is('sub_channel_id', null)) as T
+}
+
 // Both updaters copy only the affected message's reaction array instead of
 // deep-cloning the whole map (M8); unaffected messages keep stable references
 // so React.memo on MessageItem can skip them.
@@ -83,7 +94,9 @@ function dropReaction(map: Record<string, ReactionSummary[]>, row: ReactionKey, 
 // onLoaded (optional, #412): fires after the first successful messages fetch
 // for the channel. ChannelView uses it to open the read-mark gate in
 // useChannel, so history must load before anything is marked read.
-export function useMessages(channelId: string | undefined, onLoaded?: () => void) {
+// subChannelId (#621): the active room, or null for the Main timeline. Every
+// read path and the realtime handler are scoped to it.
+export function useMessages(channelId: string | undefined, subChannelId: string | null, onLoaded?: () => void) {
   const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [reactions, setReactions] = useState<Record<string, ReactionSummary[]>>({})
@@ -118,6 +131,14 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
   useEffect(() => {
     channelIdRef.current = channelId
   }, [channelId])
+
+  // The active room, tracked alongside the channel so an in-flight jump/load
+  // can detect a room switch and bail instead of leaking the previous room's
+  // rows into the new room's window (#621).
+  const subChannelIdRef = useRef(subChannelId)
+  useEffect(() => {
+    subChannelIdRef.current = subChannelId
+  }, [subChannelId])
 
   // Mutation tokens per message id: a failed mutation may only roll back its
   // optimistic state if no newer mutation has started on the same message,
@@ -164,10 +185,10 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
 
     async function fetchMessages() {
       try {
-        const { data, error: fetchError } = await supabase
-          .from('messages')
-          .select(MESSAGE_SELECT)
-          .eq('channel_id', channelId as string)
+        const { data, error: fetchError } = await withRoom(
+          supabase.from('messages').select(MESSAGE_SELECT).eq('channel_id', channelId as string),
+          subChannelId,
+        )
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .limit(PAGE_SIZE)
@@ -248,10 +269,10 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       let cursor = newest.created_at
       for (let guard = 0; guard < 100; guard += 1) {
         if (!mounted) return
-        const { data, error } = await supabase
-          .from('messages')
-          .select(MESSAGE_SELECT)
-          .eq('channel_id', channelId as string)
+        const { data, error } = await withRoom(
+          supabase.from('messages').select(MESSAGE_SELECT).eq('channel_id', channelId as string),
+          subChannelId,
+        )
           .gt('created_at', cursor)
           .order('created_at', { ascending: true })
           .limit(PAGE_SIZE)
@@ -296,10 +317,10 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       let cursorId: string = ''
       for (let guard = 0; guard < 100; guard += 1) {
         if (!mounted) return
-        const { data, error } = await supabase
-          .from('messages')
-          .select(MESSAGE_SELECT)
-          .eq('channel_id', channelId as string)
+        const { data, error } = await withRoom(
+          supabase.from('messages').select(MESSAGE_SELECT).eq('channel_id', channelId as string),
+          subChannelId,
+        )
           .or(cursorId
             ? `updated_at.gt.${cursorAt},and(updated_at.eq.${cursorAt},id.gt.${cursorId})`
             : `updated_at.gt.${cursorAt}`)
@@ -361,6 +382,9 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         if (payload.eventType === 'INSERT') {
           const newMsg = parseServerMessage(payload.new)
           if (!newMsg) return
+          // Realtime cannot filter on a NULL sub_channel_id, so the subscription
+          // stays channel-level and rows from other rooms are dropped here.
+          if ((newMsg.sub_channel_id ?? null) !== (subChannelId ?? null)) return
 
           if (newMsg.sender_id || newMsg.whisper_to) {
             // Re-fetch this single message with joins
@@ -390,6 +414,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         } else if (payload.eventType === 'UPDATE') {
           const updatedMsg = parseServerMessage(payload.new)
           if (!updatedMsg || !mounted) return
+          if ((updatedMsg.sub_channel_id ?? null) !== (subChannelId ?? null)) return
           setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg as Message } : m))
         } else if (payload.eventType === 'DELETE') {
           const deletedId = payload.old.id
@@ -453,7 +478,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       stopRealtime()
       void supabase.removeChannel(realtimeChannel)
     }
-  }, [channelId, user?.id])
+  }, [channelId, subChannelId, user?.id])
 
   // Loads the page older than the oldest loaded message and prepends it.
   const loadOlder = useCallback(async () => {
@@ -463,15 +488,19 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     try {
       // Composite (created_at, id) cursor so two messages sharing the exact
       // created_at at the page boundary can't straddle or skip.
-      const { data, error } = await supabase
-        .from('messages')
-        .select(MESSAGE_SELECT)
-        .eq('channel_id', channelId)
+      const { data, error } = await withRoom(
+        supabase.from('messages').select(MESSAGE_SELECT).eq('channel_id', channelId),
+        subChannelId,
+      )
         .or(`created_at.lt.${oldest.created_at},and(created_at.eq.${oldest.created_at},id.lt.${oldest.id})`)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(PAGE_SIZE)
       if (error) throw error
+
+      // A room/channel switch while this page was in flight: the effect already
+      // reset the window, so prepending would leak the old room's rows.
+      if (channelIdRef.current !== channelId || subChannelIdRef.current !== subChannelId) return
 
       const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
       setMessages(prev => {
@@ -512,19 +541,19 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
     // cursor would otherwise spin forever (PR review on #457).
     for (;;) {
       try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select(MESSAGE_SELECT)
-          .eq('channel_id', channelId)
+        const { data, error } = await withRoom(
+          supabase.from('messages').select(MESSAGE_SELECT).eq('channel_id', channelId),
+          subChannelId,
+        )
           .or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .limit(PAGE_SIZE)
         if (error) throw error
-        // The user may have switched channels while this page was in flight:
-        // the channel effect already reset the window for the new channel,
-        // so prepending would leak the old channel's rows into it.
-        if (channelIdRef.current !== channelId) return 'cancelled'
+        // The user may have switched channels or rooms while this page was in
+        // flight: the effect already reset the window for the new one, so
+        // prepending would leak the old room's rows into it.
+        if (channelIdRef.current !== channelId || subChannelIdRef.current !== subChannelId) return 'cancelled'
         const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
         if (older.length === 0) return 'missing'
         setMessages(prev => {
@@ -566,6 +595,10 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
   const sendMessage = useCallback(async (payload: MessageSendPayload) => {
     if (!channelId || !user) return
     if (payload.content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
+    // The room this send targets. Stamped on the optimistic row and the stored
+    // pending payload so a retry replays into this room, not whichever room the
+    // user has since switched to (#621, B10).
+    const roomId = subChannelId ?? null
 
     // Double-send guard: a re-submit while the same payload is still pending
     // (double-click, flaky-network resubmit) would mint a fresh
@@ -585,6 +618,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         (p.reply_to ?? null) === (payload.reply_to ?? null) &&
         (p.npc_name ?? null) === (payload.npc_name ?? null) &&
         (p.npc_avatar_url ?? null) === (payload.npc_avatar_url ?? null) &&
+        (p.sub_channel_id ?? null) === roomId &&
         JSON.stringify(p.active_player_ids ?? null) === JSON.stringify(payload.active_player_ids ?? null)
     }
     const duplicate = messagesRef.current.find(m => sameMessagePayload(m) && !m.error)
@@ -607,6 +641,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       reply_to: payload.reply_to ?? null,
       npc_name: payload.npc_name ?? null,
       npc_avatar_url: payload.npc_avatar_url ?? null,
+      sub_channel_id: roomId,
       is_deleted: false,
       is_edited: false,
       created_at: new Date().toISOString(),
@@ -615,7 +650,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       roll_success: null,
       client_request_id: clientRequestId,
       pending: true,
-      pending_payload: { kind: 'message', ...payload },
+      pending_payload: { kind: 'message', ...payload, sub_channel_id: roomId },
       reply_message: null,
       sender: { display_name: user.user_metadata?.display_name ?? null, avatar_url: null },
       mention_user_ids: null,
@@ -639,6 +674,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       p_npc_name: payload.npc_name ?? undefined,
       p_npc_avatar_url: payload.npc_avatar_url ?? undefined,
       p_client_request_id: clientRequestId,
+      p_sub_channel_id: roomId ?? undefined,
     })
 
     if (error) {
@@ -651,11 +687,12 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       // user can retry; client_request_id keeps the retry idempotent.
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Message was not confirmed. Tap retry to resend.' } : m))
     }
-  }, [channelId, user])
+  }, [channelId, subChannelId, user])
 
   const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
     if (!channelId || !user) return
     if (warning && warning.length > MAX_ROLL_WARNING_LENGTH) throw new Error(`Roll warning is too long (max ${MAX_ROLL_WARNING_LENGTH} characters).`)
+    const roomId = subChannelId ?? null
 
     // Double-send guard: same rationale as sendMessage — a second click on a
     // `dice:` link while the roll bubble is still pending reuses that request
@@ -668,7 +705,8 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         p.notation === notation &&
         (p.replyToId ?? null) === (replyToId ?? null) &&
         (p.warning ?? null) === (warning ?? null) &&
-        (p.dc ?? null) === (dc ?? null)
+        (p.dc ?? null) === (dc ?? null) &&
+        (p.subChannelId ?? null) === roomId
     }
     const duplicate = messagesRef.current.find(m => sameRollPayload(m) && !m.error)
     if (duplicate) return
@@ -694,6 +732,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       reply_to: replyToId ?? null,
       npc_name: null,
       npc_avatar_url: null,
+      sub_channel_id: roomId,
       is_deleted: false,
       is_edited: false,
       created_at: new Date().toISOString(),
@@ -702,7 +741,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       roll_success: null,
       client_request_id: clientRequestId,
       pending: true,
-      pending_payload: { kind: 'roll', notation, replyToId, warning, dc },
+      pending_payload: { kind: 'roll', notation, replyToId, warning, dc, subChannelId: roomId },
       reply_message: null,
       sender: { display_name: user.user_metadata?.display_name ?? null, avatar_url: null },
       mention_user_ids: null,
@@ -723,6 +762,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
       p_warning: warning ?? undefined,
       p_dc: dc ?? undefined,
       p_client_request_id: clientRequestId,
+      p_sub_channel_id: roomId ?? undefined,
     })
     
     if (rollError) {
@@ -837,6 +877,9 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         p_warning: warning ?? undefined,
         p_dc: dc ?? undefined,
         p_client_request_id: msg.client_request_id ?? undefined,
+        // Replay into the room the roll was written in, not the room the user
+        // is now looking at (#621, B10).
+        p_sub_channel_id: pending.subChannelId ?? undefined,
       })
       if (rollError) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: rollError.message } : m))
@@ -844,7 +887,7 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         applyRpcResult(msg.client_request_id ?? id, rollData)
       }
     } else {
-      const { content, type, whisper_to, reply_to, active_player_ids, npc_name, npc_avatar_url } = pending
+      const { content, type, whisper_to, reply_to, active_player_ids, npc_name, npc_avatar_url, sub_channel_id } = pending
       const { data, error } = await supabase.rpc('send_message', {
         p_channel_id: channelId as string,
         p_content: content,
@@ -855,6 +898,9 @@ export function useMessages(channelId: string | undefined, onLoaded?: () => void
         p_npc_name: npc_name ?? undefined,
         p_npc_avatar_url: npc_avatar_url ?? undefined,
         p_client_request_id: msg.client_request_id ?? undefined,
+        // Replay into the room the message was written in, not the room the
+        // user is now looking at (#621, B10).
+        p_sub_channel_id: sub_channel_id ?? undefined,
       })
       if (error) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: error.message } : m))
