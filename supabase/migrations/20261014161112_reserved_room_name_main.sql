@@ -6,6 +6,16 @@
 --
 -- CREATE OR REPLACE keeps the existing signatures (and therefore their grants).
 
+-- Rooms created before the reserve could be named "Main" in any case. Rename
+-- them so none collides with the Main tab, active or archived. Keyed on the
+-- room id, so the new name cannot collide within the channel, and a no-op on a
+-- clean database. Renamed rather than archived: the UI only offers Restore for
+-- an archived room, so an archived "Main" could not be renamed and would be a
+-- dead end.
+UPDATE sub_channels
+SET name = 'Main room ' || left(id::text, 8), updated_at = now()
+WHERE lower(trim(name)) = 'main';
+
 CREATE OR REPLACE FUNCTION public.create_sub_channel(
   p_channel_id UUID,
   p_name TEXT
