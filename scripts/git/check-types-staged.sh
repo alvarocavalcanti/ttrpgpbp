@@ -111,6 +111,14 @@ only_replaces_typed_functions() {
     | grep -Eo 'create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+[a-z0-9_".]+' \
     | sed -E 's/.*function[[:space:]]+//')"
   [ -n "$names" ] || return 1
+  # Trigger functions are absent from the generated types (typegen omits them),
+  # so a body-only replacement of one has nothing to stage and can never satisfy
+  # the name lookup below. Detect them from the RETURNS TRIGGER that follows the
+  # signature in the flattened added SQL.
+  added_flat="$(printf '%s\n' "$added" | sed -E 's/^[+-]//' | tr '\n' ' ')"
+  trigger_names="$(printf '%s\n' "$added_flat" \
+    | grep -Eo 'create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+[a-z0-9_".]+[[:space:]]*\([^)]*\)[[:space:]]+returns[[:space:]]+trigger' \
+    | sed -E 's/.*function[[:space:]]+//; s/[[:space:]]*\(.*$//')"
   types_file="$(git show HEAD:src/types/database.ts 2>/dev/null || true)"
   [ -n "$types_file" ] || return 1
   for n in $names; do
@@ -119,6 +127,10 @@ only_replaces_typed_functions() {
     # only inside that schema's Functions block and only when its entry
     # carries Args (columns never do).
     plain="$(printf '%s' "$n" | tr -d '"')"
+    # A trigger function is exempt: it is absent from the generated types.
+    case " $trigger_names " in
+      *" $plain "*) continue ;;
+    esac
     case "$plain" in
       *.*) schema="${plain%%.*}"; base="${plain#*.}" ;;
       *) schema="public"; base="$plain" ;;
