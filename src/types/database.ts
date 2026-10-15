@@ -336,6 +336,64 @@ export type Database = {
           },
         ]
       }
+      channel_join_requests: {
+        Row: {
+          channel_id: string
+          character_name: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          message: string | null
+          status: Database["public"]["Enums"]["join_request_status"]
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          character_name: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["join_request_status"]
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          character_name?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["join_request_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_join_requests_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_join_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_join_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_members: {
         Row: {
           attributes: Json
@@ -503,13 +561,17 @@ export type Database = {
       }
       channels: {
         Row: {
+          application_prompt: string | null
           avatar_url: string | null
+          constraints: string | null
           created_at: string
+          description: string | null
           game_system: string
           gm_id: string | null
           id: string
           invite_code: string | null
           is_archived: boolean
+          join_mode: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at: string | null
           last_message_preview: string | null
           map_url: string | null
@@ -520,13 +582,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          application_prompt?: string | null
           avatar_url?: string | null
+          constraints?: string | null
           created_at?: string
+          description?: string | null
           game_system?: string
           gm_id?: string | null
           id?: string
           invite_code?: string | null
           is_archived?: boolean
+          join_mode?: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at?: string | null
           last_message_preview?: string | null
           map_url?: string | null
@@ -537,13 +603,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          application_prompt?: string | null
           avatar_url?: string | null
+          constraints?: string | null
           created_at?: string
+          description?: string | null
           game_system?: string
           gm_id?: string | null
           id?: string
           invite_code?: string | null
           is_archived?: boolean
+          join_mode?: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at?: string | null
           last_message_preview?: string | null
           map_url?: string | null
@@ -1420,9 +1490,11 @@ export type Database = {
           human_message_count: number
           human_sender_count: number
           id: string
+          join_mode: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at: string
           member_count: number
           name: string
+          pending_request_count: number
         }[]
       }
       admin_list_message_recipients: {
@@ -1492,6 +1564,10 @@ export type Database = {
         Args: { p_reason?: string; p_suspend: boolean; p_user_id: string }
         Returns: undefined
       }
+      admin_takedown_channel: {
+        Args: { p_channel_id: string; p_reason?: string }
+        Returns: undefined
+      }
       build_dice_content: {
         Args: {
           p_modifier: number
@@ -1523,6 +1599,10 @@ export type Database = {
       create_sub_channel: {
         Args: { p_channel_id: string; p_name: string }
         Returns: string
+      }
+      decide_join_request: {
+        Args: { p_approve: boolean; p_request_id: string }
+        Returns: undefined
       }
       delete_sub_channel: {
         Args: { p_sub_channel_id: string }
@@ -1569,6 +1649,22 @@ export type Database = {
         }[]
       }
       get_or_create_system_thread: { Args: never; Returns: string }
+      get_public_channel: {
+        Args: { p_channel_id: string }
+        Returns: {
+          application_prompt: string
+          constraints: string
+          description: string
+          game_system: string
+          gm_display_name: string
+          id: string
+          is_member: boolean
+          last_message_at: string
+          member_count: number
+          name: string
+          pending_request_id: string
+        }[]
+      }
       get_unread_totals: {
         Args: { p_user_ids: string[] }
         Returns: {
@@ -1604,6 +1700,24 @@ export type Database = {
           p_password_hash?: string
         }
         Returns: Json
+      }
+      list_public_channels: {
+        Args: {
+          p_game_system?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+        }
+        Returns: {
+          constraints: string
+          description: string
+          game_system: string
+          gm_display_name: string
+          id: string
+          last_message_at: string
+          member_count: number
+          name: string
+        }[]
       }
       mark_admin_thread_read: {
         Args: { p_thread_id: string }
@@ -1667,6 +1781,18 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: undefined
+      }
+      report_channel_listing: {
+        Args: { p_channel_id: string; p_reason: string }
+        Returns: undefined
+      }
+      request_to_join_channel: {
+        Args: {
+          p_channel_id: string
+          p_character_name: string
+          p_message?: string
+        }
+        Returns: string
       }
       resolve_mention_user_ids: {
         Args: { p_channel_id: string; p_content: string }
@@ -1737,10 +1863,14 @@ export type Database = {
       }
       update_channel_settings: {
         Args: {
+          p_application_prompt?: string
           p_channel_id: string
           p_clear_password?: boolean
+          p_constraints?: string
+          p_description?: string
           p_game_system?: string
           p_gm_only_resources_url?: string
+          p_join_mode?: string
           p_map_url?: string
           p_name?: string
           p_password_hash?: string
@@ -1769,10 +1899,16 @@ export type Database = {
         Returns: undefined
       }
       url_scheme_allowed: { Args: { p_url: string }; Returns: boolean }
+      withdraw_join_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       admin_thread_audience: "all_users" | "gms"
       admin_thread_type: "announcement" | "dm" | "system"
+      channel_join_mode: "invite" | "approval"
+      join_request_status: "pending" | "approved" | "rejected" | "withdrawn"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1905,6 +2041,8 @@ export const Constants = {
     Enums: {
       admin_thread_audience: ["all_users", "gms"],
       admin_thread_type: ["announcement", "dm", "system"],
+      channel_join_mode: ["invite", "approval"],
+      join_request_status: ["pending", "approved", "rejected", "withdrawn"],
     },
   },
 } as const
