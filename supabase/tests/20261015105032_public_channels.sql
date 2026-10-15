@@ -7,7 +7,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(37);
+SELECT plan(42);
 
 -- ==========================================
 -- Fixtures (owner: bypasses RLS)
@@ -338,6 +338,25 @@ SELECT is(
   'A listing report names the channel GM as the reported party'
 );
 
+-- Guards: no duplicate open report, and no self-report.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000067a02', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000067a02","role":"authenticated"}', true);
+
+SELECT throws_ok(
+  $$SELECT report_channel_listing('00000000-0000-0000-0000-000000067b01', 'again')$$,
+  NULL,
+  'A second open report for the same listing is rejected'
+);
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000067a01', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000067a01","role":"authenticated"}', true);
+
+SELECT throws_ok(
+  $$SELECT report_channel_listing('00000000-0000-0000-0000-000000067b01', 'mine')$$,
+  NULL,
+  'A GM cannot report their own listing'
+);
+
 -- ==========================================
 -- 9. Admin takedown
 -- ==========================================
@@ -383,6 +402,45 @@ SELECT is(
       AND status = 'pending'),
   0::bigint,
   'Takedown closes the channel''s open applications'
+);
+
+-- ==========================================
+-- 10. Takedown durability + restore
+-- ==========================================
+
+-- The GM cannot re-list while the takedown marker is set.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000067a01', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000067a01","role":"authenticated"}', true);
+
+SELECT throws_ok(
+  $$SELECT update_channel_settings(
+      '00000000-0000-0000-0000-000000067b01',
+      p_join_mode => 'approval',
+      p_description => 'Again.',
+      p_constraints => 'Rules.')$$,
+  NULL,
+  'A taken-down channel cannot be re-listed by the GM'
+);
+
+-- An admin can clear the takedown, after which the GM may re-list.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000067a04', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000067a04","role":"authenticated"}', true);
+
+SELECT lives_ok(
+  $$SELECT admin_restore_channel_listing('00000000-0000-0000-0000-000000067b01')$$,
+  'A server admin can restore a taken-down listing'
+);
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000067a01', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000067a01","role":"authenticated"}', true);
+
+SELECT lives_ok(
+  $$SELECT update_channel_settings(
+      '00000000-0000-0000-0000-000000067b01',
+      p_join_mode => 'approval',
+      p_description => 'Again.',
+      p_constraints => 'Rules.')$$,
+  'After a restore the GM can re-list'
 );
 
 SELECT * FROM finish();

@@ -309,11 +309,17 @@ BEGIN
     SET status = 'approved', decided_at = now(), decided_by = v_uid
     WHERE id = p_request_id;
 
-    -- Name from the request, respecting the 20-char member limit.
+    -- Name from the request, respecting the 20-char member limit. The
+    -- transaction-local marker below is the consent that
+    -- enforce_member_insert_consent accepts for this one insert; it is cleared
+    -- immediately after, so a historical approved request can never re-add a
+    -- member later.
     v_name := LEFT(v_req.character_name, 20);
+    PERFORM set_config('app.approving_request', p_request_id::text, true);
     INSERT INTO channel_members (channel_id, user_id, character_name)
     VALUES (v_req.channel_id, v_req.user_id, v_name)
     ON CONFLICT (channel_id, user_id) DO NOTHING;
+    PERFORM set_config('app.approving_request', '', true);
 
     INSERT INTO messages (channel_id, sender_id, type, content)
     VALUES (v_req.channel_id, v_req.user_id, 'system', v_name || ' joined the channel');
@@ -331,22 +337,24 @@ $$;
 
 -- The consent trigger (20260831150000) lets an authenticated writer add only
 -- themselves, which is what stops a GM force-adding a stranger. decide_join_request
--- legitimately adds the APPLICANT, so extend the trigger to also allow the insert
--- when an approved request exists for that (channel, user). A GM still cannot
--- force-add: the only path to an approved request is the applicant-initiated
--- apply -> GM-approve flow (clients hold no INSERT on channel_join_requests).
+-- legitimately adds the APPLICANT, so the trigger also allows an insert while a
+-- transaction-local marker names the exact request being approved. The marker is
+-- set and cleared by decide_join_request, so a persistent approved request alone
+-- never authorises a later re-add.
 CREATE OR REPLACE FUNCTION public.enforce_member_insert_consent()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_approving TEXT := NULLIF(current_setting('app.approving_request', true), '');
 BEGIN
-  -- Authenticated writers may only add themselves, unless completing an
-  -- approved join request. Definer contexts (auth.uid() IS NULL) are server-side
-  -- joins and stay allowed.
+  -- Authenticated writers may only add themselves, unless they are completing
+  -- the approval of the request named by the marker. Definer contexts
+  -- (auth.uid() IS NULL) are server-side joins and stay allowed.
   IF auth.uid() IS NOT NULL AND NEW.user_id IS DISTINCT FROM auth.uid() THEN
-    IF NOT EXISTS (
+    IF v_approving IS NULL OR NOT EXISTS (
       SELECT 1 FROM channel_join_requests cjr
-      WHERE cjr.channel_id = NEW.channel_id
+      WHERE cjr.id::text = v_approving
+        AND cjr.channel_id = NEW.channel_id
         AND cjr.user_id = NEW.user_id
-        AND cjr.status = 'approved'
     ) THEN
       RAISE EXCEPTION 'You can only join a channel as yourself.';
     END IF;
@@ -394,6 +402,20 @@ BEGIN
     RAISE EXCEPTION 'Listing not found.';
   END IF;
 
+  IF v_gm = v_uid THEN
+    RAISE EXCEPTION 'You cannot report your own listing.';
+  END IF;
+
+  -- One open report per (reporter, channel): without this a single account can
+  -- flood the admin moderation queue (each insert alerts the admin thread).
+  IF EXISTS (
+    SELECT 1 FROM abuse_reports
+    WHERE reporter_id = v_uid AND channel_id = p_channel_id
+      AND message_id IS NULL AND status = 'pending'
+  ) THEN
+    RAISE EXCEPTION 'You already have an open report for this listing.';
+  END IF;
+
   -- The channel's GM is the reported party (message_id stays NULL: this is a
   -- listing report, and the null-message integrity path preserves the target).
   INSERT INTO abuse_reports (reporter_id, reported_user_id, channel_id, message_id, reason)
@@ -422,12 +444,40 @@ BEGIN
   END IF;
 
   -- Delist only: the channel and its history stay intact. The channels
-  -- listing-lifecycle trigger closes any open applications.
-  UPDATE channels SET join_mode = 'invite', updated_at = now()
+  -- listing-lifecycle trigger closes any open applications. The takedown marker
+  -- makes the decision durable: update_channel_settings refuses to re-list while
+  -- it is set (cleared by admin_restore_channel_listing).
+  UPDATE channels SET join_mode = 'invite', listing_takedown_at = now(), updated_at = now()
   WHERE id = p_channel_id;
 
   INSERT INTO audit_logs (admin_id, action, target_id, details)
   VALUES (v_uid, 'takedown_channel_listing', p_channel_id, jsonb_build_object('reason', p_reason));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_restore_channel_listing(p_channel_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+BEGIN
+  IF NOT is_server_admin() THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM channels WHERE id = p_channel_id) THEN
+    RAISE EXCEPTION 'Channel not found.';
+  END IF;
+
+  -- Clears the takedown marker only; the GM re-lists deliberately afterwards.
+  UPDATE channels SET listing_takedown_at = NULL, updated_at = now()
+  WHERE id = p_channel_id;
+
+  INSERT INTO audit_logs (admin_id, action, target_id, details)
+  VALUES (v_uid, 'restore_channel_listing', p_channel_id, '{}'::jsonb);
 END;
 $$;
 
@@ -508,6 +558,9 @@ BEGIN
     v_prompt := NULLIF(btrim(p_application_prompt), '');
 
     IF p_join_mode = 'approval' THEN
+      IF v_channel.listing_takedown_at IS NOT NULL THEN
+        RAISE EXCEPTION 'This listing was taken down by a server admin and cannot be re-listed.';
+      END IF;
       IF v_description IS NULL OR v_constraints IS NULL THEN
         RAISE EXCEPTION 'A listed channel needs a description and constraints.';
       END IF;
@@ -717,6 +770,9 @@ GRANT EXECUTE ON FUNCTION public.report_channel_listing(UUID, TEXT) TO authentic
 
 REVOKE ALL ON FUNCTION public.admin_takedown_channel(UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_takedown_channel(UUID, TEXT) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.admin_restore_channel_listing(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_restore_channel_listing(UUID) TO authenticated, service_role;
 
 REVOKE ALL ON FUNCTION public.admin_list_channels() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_list_channels() TO authenticated, service_role;

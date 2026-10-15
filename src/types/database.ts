@@ -574,6 +574,7 @@ export type Database = {
           join_mode: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at: string | null
           last_message_preview: string | null
+          listing_takedown_at: string | null
           map_url: string | null
           name: string
           resources_url: string | null
@@ -595,6 +596,7 @@ export type Database = {
           join_mode?: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at?: string | null
           last_message_preview?: string | null
+          listing_takedown_at?: string | null
           map_url?: string | null
           name: string
           resources_url?: string | null
@@ -616,6 +618,7 @@ export type Database = {
           join_mode?: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at?: string | null
           last_message_preview?: string | null
+          listing_takedown_at?: string | null
           map_url?: string | null
           name?: string
           resources_url?: string | null
@@ -1558,6 +1561,10 @@ export type Database = {
       }
       admin_resolve_abuse_report: {
         Args: { p_report_id: string; p_status: string }
+        Returns: undefined
+      }
+      admin_restore_channel_listing: {
+        Args: { p_channel_id: string }
         Returns: undefined
       }
       admin_suspend_user: {

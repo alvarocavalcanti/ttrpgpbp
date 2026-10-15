@@ -42,6 +42,11 @@ ALTER TABLE public.channels ADD CONSTRAINT channels_prompt_len CHECK (
   application_prompt IS NULL OR char_length(application_prompt) <= 300
 );
 
+-- Admin moderation state: set by admin_takedown_channel, cleared by
+-- admin_restore_channel_listing. While set, the GM cannot re-list the channel,
+-- so an admin takedown is durable rather than instantly reversible.
+ALTER TABLE public.channels ADD COLUMN listing_takedown_at TIMESTAMPTZ;
+
 -- ==========================================
 -- 2. Join requests
 -- ==========================================
