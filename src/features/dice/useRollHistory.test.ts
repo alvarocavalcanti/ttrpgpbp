@@ -327,5 +327,56 @@ describe('useRollHistory', () => {
     expect(result.current.rolls[0].sub_channel_name).toBe('OOC')
     expect(result.current.rolls[0].sub_channel_id).toBe('room-1')
   })
+
+  it('resolves the room for a realtime INSERT (#621 Phase 4 review)', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    vi.mocked(supabase.from).mockImplementation(((table: string) => {
+      if (table === 'messages') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { sub_channel_id: 'room-1', sub_channels: { name: 'OOC' } },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { character_name: 'Foo' }, error: null }),
+            }),
+          }),
+        }),
+      }
+    }) as any)
+    const onMock = vi.fn()
+    mockChannel(onMock)
+
+    const { result } = renderHook(() => useRollHistory('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const insertCb = onMock.mock.calls.find((c: unknown[]) => (c[0] as string) === 'postgres_changes')![2] as any
+    await insertCb({
+      new: {
+        id: 'r3',
+        message_id: 'm3',
+        roller_id: 'u2',
+        notation: '1d6',
+        result: 4,
+        breakdown: { rolls: [4] },
+        created_at: '2026-01-02T00:00:00.000Z',
+      },
+    })
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalledWith('messages')
+      expect(result.current.rolls[0].sub_channel_id).toBe('room-1')
+      expect(result.current.rolls[0].sub_channel_name).toBe('OOC')
+    })
+  })
 })
 

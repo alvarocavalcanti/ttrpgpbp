@@ -852,4 +852,11 @@ describe('room deep link (#621 Phase 4)', () => {
     expect(resolvePushTargets({ ...base, sub_channel_id: null }, members).url).toBe('/channel/c1')
     expect(resolvePushTargets(base, members).url).toBe('/channel/c1')
   })
+
+  it('keeps a whisper out of the room deep link (#621 Phase 4 review)', () => {
+    // A whisper can reach a recipient outside the room, so it must not carry
+    // the room's id.
+    const r = resolvePushTargets({ ...base, sub_channel_id: 'r1', whisper_to: 'u2' }, members)
+    expect(r.url).toBe('/channel/c1')
+  })
 })

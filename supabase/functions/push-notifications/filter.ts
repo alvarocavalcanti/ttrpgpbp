@@ -228,7 +228,10 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     targetUserIds,
     title,
     body,
-    url: event.sub_channel_id
+    // A whisper can reach a recipient who is not in the room (a whisper into a
+    // private room), so it must not carry the room's id (#621 Phase 4 review).
+    // Room deep links are for room-wide messages only.
+    url: event.sub_channel_id && !event.whisper_to
       ? CHANNEL_ROOM_URL(event.channel_id, event.sub_channel_id)
       : CHANNEL_URL(event.channel_id),
   }
