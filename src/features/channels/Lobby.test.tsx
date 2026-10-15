@@ -1,9 +1,9 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
@@ -905,26 +905,102 @@ describe('Lobby', () => {
       expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
     })
 
-    it('forwards the header search and the game-system filter to the hook', () => {
+    it('renders a Discover search box instead of a game-system filter', () => {
       withMyChannels(oneChannel)
       mockDiscover()
       vi.mocked(usePublicChannels).mockClear()
       render(
-        <MemoryRouter initialEntries={['/?tab=discover&q=dragon']}>
+        <MemoryRouter initialEntries={['/?tab=discover&dq=beam']}>
           <Routes>
             <Route path="/" element={<Lobby />} />
           </Routes>
         </MemoryRouter>
       )
 
+      const input = screen.getByLabelText('Search games')
+      expect(input).toHaveValue('beam')
+      expect(screen.queryByLabelText('Game system')).not.toBeInTheDocument()
       expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
-        expect.objectContaining({ search: 'dragon', enabled: true })
+        expect.objectContaining({ search: 'beam', enabled: true })
+      )
+    })
+
+    it('drives the Discover search from its own box, not the header query', async () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      vi.mocked(usePublicChannels).mockClear()
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover&q=header-only']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
       )
 
-      fireEvent.change(screen.getByLabelText('Game system'), { target: { value: 'shadowdark' } })
+      // The header's My Games query does not search the listings.
       expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
-        expect.objectContaining({ gameSystem: 'shadowdark' })
+        expect.objectContaining({ search: '' })
       )
+
+      fireEvent.change(screen.getByLabelText('Search games'), { target: { value: 'dragon' } })
+
+      // Debounced: the param (and so the RPC) waits for the typing to settle.
+      await waitFor(
+        () =>
+          expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+            expect.objectContaining({ search: 'dragon' })
+          ),
+        { timeout: 2000 }
+      )
+    })
+
+    it('adopts an external ?dq change and drops the pending write', async () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      vi.mocked(usePublicChannels).mockClear()
+
+      // A second entry point into the lobby (back/forward, a deep link) that
+      // changes ?dq behind the search box's back.
+      function NavigationHarness() {
+        const navigate = useNavigate()
+        const [params] = useSearchParams()
+        return (
+          <>
+            <button type="button" onClick={() => navigate('/?tab=discover&dq=beam')}>
+              external-nav
+            </button>
+            <span data-testid="dq-param">{params.get('dq') ?? ''}</span>
+            <Lobby />
+          </>
+        )
+      }
+
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover']}>
+          <Routes>
+            <Route path="/" element={<NavigationHarness />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      fireEvent.change(screen.getByLabelText('Search games'), { target: { value: 'drag' } })
+      expect(screen.getByLabelText('Search games')).toHaveValue('drag')
+
+      fireEvent.click(screen.getByRole('button', { name: 'external-nav' }))
+
+      // The box adopts the navigation...
+      await waitFor(() => expect(screen.getByLabelText('Search games')).toHaveValue('beam'))
+      // ...and the query follows it, not the abandoned text.
+      expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: 'beam' })
+      )
+
+      // The write still pending for 'drag' must not land after its debounce.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      })
+      expect(screen.getByTestId('dq-param')).toHaveTextContent('beam')
+      expect(screen.getByLabelText('Search games')).toHaveValue('beam')
     })
 
     it('does not query Discover while My Games is active', () => {
@@ -964,7 +1040,7 @@ describe('Lobby', () => {
       withMyChannels(oneChannel)
       mockDiscover([])
       const { unmount } = render(
-        <MemoryRouter initialEntries={['/?tab=discover&q=zzz']}>
+        <MemoryRouter initialEntries={['/?tab=discover&dq=zzz']}>
           <Routes>
             <Route path="/" element={<Lobby />} />
           </Routes>
