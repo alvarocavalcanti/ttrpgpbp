@@ -2,12 +2,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
+import { usePublicChannels } from './usePublicChannels'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { trackEvent } from '../../lib/analytics'
 
 vi.mock('../../hooks/useIsServerAdmin', () => ({
   useIsServerAdmin: vi.fn()
@@ -15,6 +17,21 @@ vi.mock('../../hooks/useIsServerAdmin', () => ({
 
 vi.mock('./useChannels', () => ({
   useChannels: vi.fn()
+}))
+
+vi.mock('./usePublicChannels', () => ({
+  usePublicChannels: vi.fn()
+}))
+
+vi.mock('./PublicChannelDetailSheet', () => ({
+  PublicChannelDetailSheet: ({ channelId }: { channelId: string }) => (
+    <div data-testid="detail-sheet">{channelId}</div>
+  )
+}))
+
+vi.mock('../../lib/analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/analytics')>()),
+  trackEvent: vi.fn(),
 }))
 
 vi.mock('./CreateChannelModal', () => ({
@@ -52,6 +69,15 @@ describe('Lobby', () => {
       preferences: { badge_enabled: true } as any
     } as any)
     vi.mocked(supabase.rpc).mockResolvedValue({ data: false, error: null } as any)
+    vi.mocked(usePublicChannels).mockReturnValue({
+      channels: [],
+      loading: false,
+      loadingMore: false,
+      error: null,
+      hasMore: false,
+      refetch: vi.fn(),
+      loadMore: vi.fn(),
+    } as any)
   })
 
   it('renders loading state', () => {
@@ -716,5 +742,261 @@ describe('Lobby', () => {
     const { getByTestId } = render(<Lobby />, { wrapper: MemoryRouter })
     expect(getByTestId('channel-avatar').tagName).toBe('DIV')
     expect(getByTestId('channel-avatar')).toHaveTextContent('M')
+  })
+
+  // #674: the Discover tab.
+  describe('Discover tab', () => {
+    const card = {
+      id: 'c1',
+      name: 'Dragon Hunt',
+      gm_display_name: 'Aria',
+      game_system: 'shadowdark',
+      description: 'A weekly game about dragons.',
+      constraints: 'Be kind.',
+      member_count: 4,
+      last_message_at: '2026-10-01T10:00:00Z',
+    }
+
+    function mockDiscover(channels: unknown[] = [card], overrides: Record<string, unknown> = {}) {
+      const loadMore = vi.fn()
+      const refetch = vi.fn()
+      vi.mocked(usePublicChannels).mockReturnValue({
+        channels,
+        loading: false,
+        loadingMore: false,
+        error: null,
+        hasMore: false,
+        refetch,
+        loadMore,
+        ...overrides,
+      } as any)
+      return { loadMore, refetch }
+    }
+
+    function withMyChannels(myChannels: unknown[]) {
+      vi.mocked(useChannels).mockReturnValue({ myChannels, loading: false, error: null, refetch: vi.fn() } as any)
+    }
+
+    const oneChannel = [{ id: '1', name: 'Mine', member: { character_name: 'Hero' } }]
+
+    it('renders both tabs', () => {
+      withMyChannels(oneChannel)
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByRole('button', { name: 'My Games' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Discover' })).toBeInTheDocument()
+    })
+
+    it('defaults to My Games when the user has channels', () => {
+      withMyChannels(oneChannel)
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByRole('button', { name: 'My Games' })).toHaveAttribute('aria-current', 'page')
+    })
+
+    it('falls back to Discover when the user has no channels', () => {
+      withMyChannels([])
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page')
+      // The first-run prompt still rides along, so onboarding is not lost.
+      expect(screen.getByTestId('empty-lobby')).toBeInTheDocument()
+    })
+
+    it('keeps an explicit My Games choice for a user with no channels', () => {
+      withMyChannels([])
+      mockDiscover()
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      // First load falls back to Discover...
+      expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page')
+
+      // ...but choosing My Games must stick, so its empty state stays reachable.
+      fireEvent.click(screen.getByRole('button', { name: 'My Games' }))
+      expect(screen.getByRole('button', { name: 'My Games' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByTestId('empty-lobby')).toBeInTheDocument()
+    })
+
+    it('renders discover cards with GM, description and member count', () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+      expect(screen.getByText('Dragon Hunt')).toBeInTheDocument()
+      expect(screen.getByText('GM Aria')).toBeInTheDocument()
+      expect(screen.getByText('A weekly game about dragons.')).toBeInTheDocument()
+      expect(screen.getByText(/4 members/)).toBeInTheDocument()
+    })
+
+    it('opens the detail sheet when a card is tapped', () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+      fireEvent.click(screen.getByTestId('discover-card'))
+
+      expect(screen.getByTestId('detail-sheet')).toHaveTextContent('c1')
+    })
+
+    it('reads and writes the ?tab=discover URL param', () => {
+      withMyChannels(oneChannel)
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page')
+      fireEvent.click(screen.getByRole('button', { name: 'My Games' }))
+      expect(screen.getByRole('button', { name: 'My Games' })).toHaveAttribute('aria-current', 'page')
+    })
+
+    it('shows an empty state when nothing is listed', () => {
+      withMyChannels(oneChannel)
+      mockDiscover([])
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+      expect(screen.getByText('No games listed yet.')).toBeInTheDocument()
+    })
+
+    it('shows an error with a Retry that refetches Discover', () => {
+      withMyChannels(oneChannel)
+      const { refetch } = mockDiscover([], { error: new Error('down') })
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+      expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't load games/)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      expect(refetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows a spinner while Discover loads', () => {
+      withMyChannels(oneChannel)
+      mockDiscover([], { loading: true })
+      const { container } = render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+      expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    })
+
+    it('loads more when another page exists', () => {
+      withMyChannels(oneChannel)
+      const { loadMore } = mockDiscover([card], { hasMore: true })
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+      expect(loadMore).toHaveBeenCalledTimes(1)
+    })
+
+    it('hides Load more on the last page', () => {
+      withMyChannels(oneChannel)
+      mockDiscover([card])
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+      expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
+    })
+
+    it('forwards the header search and the game-system filter to the hook', () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      vi.mocked(usePublicChannels).mockClear()
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover&q=dragon']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: 'dragon', enabled: true })
+      )
+
+      fireEvent.change(screen.getByLabelText('Game system'), { target: { value: 'shadowdark' } })
+      expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ gameSystem: 'shadowdark' })
+      )
+    })
+
+    it('does not query Discover while My Games is active', () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ enabled: false })
+      )
+    })
+
+    it('fires lobby_tab_view for the active tab', () => {
+      withMyChannels([])
+      mockDiscover()
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(trackEvent).toHaveBeenCalledWith('lobby_tab_view', { tab: 'discover' })
+    })
+
+    it('does not log a phantom My Games view while the channel list is loading', () => {
+      vi.mocked(useChannels).mockReturnValue({ myChannels: [], loading: true, error: null, refetch: vi.fn() } as any)
+      mockDiscover()
+
+      const { rerender } = render(<Lobby />, { wrapper: MemoryRouter })
+      // The tab is undecided until My Games settles, so nothing is logged yet.
+      expect(trackEvent).not.toHaveBeenCalled()
+
+      withMyChannels([])
+      rerender(<Lobby />)
+
+      expect(trackEvent).toHaveBeenCalledWith('lobby_tab_view', { tab: 'discover' })
+      expect(trackEvent).not.toHaveBeenCalledWith('lobby_tab_view', { tab: 'my' })
+    })
+
+    it('distinguishes an empty Discover from a search with no matches', () => {
+      withMyChannels(oneChannel)
+      mockDiscover([])
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/?tab=discover&q=zzz']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
+      )
+      expect(screen.getByText('No matching games found.')).toBeInTheDocument()
+      unmount()
+
+      mockDiscover([])
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
+      )
+      expect(screen.getByText('No games listed yet.')).toBeInTheDocument()
+    })
+
+    it('keeps the cards and shows an inline row when Load more fails', () => {
+      withMyChannels(oneChannel)
+      const { loadMore } = mockDiscover([card], { hasMore: true, loadMoreError: new Error('down') })
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+      // A failed page must not blank the list that is already on screen.
+      expect(screen.getByText('Dragon Hunt')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't load more/)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(loadMore).toHaveBeenCalledTimes(1)
+    })
   })
 })
