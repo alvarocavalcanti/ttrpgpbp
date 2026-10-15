@@ -10,6 +10,7 @@ export const ROUTES = {
   diceRoller: '/dice-roller',
   gameSystem: '/game-systems/:slug',
   playByPost: '/play-by-post',
+  directory: '/directory',
   howToDnd: '/how-to/play-by-post-dnd',
   howToRun: '/how-to/run-play-by-post',
   vsDiscord: '/vs/discord',
@@ -217,6 +218,15 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.9,
   },
   {
+    path: ROUTES.directory,
+    title: 'Games Looking for Players — Role by Post',
+    description:
+      'Browse tabletop RPG campaigns recruiting players. Each listing is written by its Game Master; sign in to apply and play by post.',
+    waitSelector: 'h1',
+    changeFrequency: 'daily',
+    priority: 0.8,
+  },
+  {
     path: ROUTES.howToDnd,
     title: 'How to Play D&D by Post — Role by Post',
     description:
@@ -308,6 +318,7 @@ const MARKETING_KEYS: RouteKey[] = [
   'features',
   'press',
   'playByPost',
+  'directory',
   'howToDnd',
   'howToRun',
   'vsDiscord',
