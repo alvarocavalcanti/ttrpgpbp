@@ -149,3 +149,28 @@ export const ProfileRowSchema = z.looseObject({
 // RPC scalars (unread counts, GM/admin flags) are equally untrusted.
 export const RpcCountSchema = z.number()
 export const RpcBooleanSchema = z.boolean()
+
+// #674 discovery: the safe projection returned by list_public_channels, and its
+// detail sibling get_public_channel. `description` / `constraints` /
+// `last_message_at` are nullable in practice — the generated RETURNS TABLE types
+// cannot express NULL.
+export const PublicChannelRowSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  gm_display_name: z.string().nullish(),
+  game_system: z.string().nullish(),
+  description: z.string().nullish(),
+  constraints: z.string().nullish(),
+  member_count: z.number().nullish(),
+  last_message_at: z.string().nullish(),
+})
+
+export type PublicChannel = z.infer<typeof PublicChannelRowSchema>
+
+export const PublicChannelDetailRowSchema = PublicChannelRowSchema.extend({
+  application_prompt: z.string().nullish(),
+  is_member: z.boolean().nullish(),
+  pending_request_id: z.string().nullish(),
+})
+
+export type PublicChannelDetail = z.infer<typeof PublicChannelDetailRowSchema>

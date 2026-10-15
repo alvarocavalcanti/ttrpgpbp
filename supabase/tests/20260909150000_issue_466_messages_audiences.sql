@@ -237,8 +237,14 @@ SELECT is(
 
 -- ===== 4. Recipient RPC =====
 SELECT pg_temp.act_as('00000000-0000-0000-0000-000000004661');
+-- Counted over this test's own fixtures: admin_list_message_recipients()
+-- returns every non-suspended profile, so a global count breaks on any other
+-- row in the database (E2E fixtures left by a local Playwright run, for
+-- example).
 SELECT is(
-  (SELECT count(*) FROM admin_list_message_recipients()),
+  (SELECT count(*) FROM admin_list_message_recipients()
+    WHERE id IN ('00000000-0000-0000-0000-000000004661', '00000000-0000-0000-0000-000000004662',
+                 '00000000-0000-0000-0000-000000004663', '00000000-0000-0000-0000-000000004664')),
   4::bigint,
   'admin lists all non-suspended users'
 );
@@ -247,7 +253,9 @@ SELECT is(
 SELECT pg_temp.set_suspended('00000000-0000-0000-0000-000000004664', true);
 SELECT pg_temp.act_as('00000000-0000-0000-0000-000000004661');
 SELECT is(
-  (SELECT count(*) FROM admin_list_message_recipients()),
+  (SELECT count(*) FROM admin_list_message_recipients()
+    WHERE id IN ('00000000-0000-0000-0000-000000004661', '00000000-0000-0000-0000-000000004662',
+                 '00000000-0000-0000-0000-000000004663', '00000000-0000-0000-0000-000000004664')),
   3::bigint,
   'suspended users are excluded from recipients'
 );
