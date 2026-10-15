@@ -118,7 +118,7 @@
 - **Per-room capabilities** — the GM turns dice, Scenes, NPC posts, and whispers on or off per room; the composer and dice button adapt, and a refused action explains why
 - **Private rooms** — audience Everyone / Only the GM / Invited players; non-viewers never see the room, its messages, its rolls, its reactions, or its unread count, and never receive a push for it; restricted rooms show a lock glyph
 - **Rooms are text-first** — image uploads stay in Main
-- **Room-aware polish** — the lobby preview leads with the room name (`[OOC] Hero: …`); push notifications deep-link into the room and clear when the channel opens; search offers a This room / All rooms scope; the roll history tags each roll with its room
+- **Room-aware polish** — the lobby preview leads with the room name (`OOC · Hero: …`); push notifications deep-link into the room and clear when the channel opens; search offers a This room / All rooms scope; the roll history tags each roll with its room. A restricted room's messages never appear in the lobby preview
 
 ## NPCs (GM-only)
 

@@ -32,7 +32,8 @@ A restricted room shows a **lock** in the room bar.
 ## What's shared, what's separate
 
 - **Unread** is counted per room, so a dot on a room means new messages there
-- **Search** and **Rolls** cover the whole channel by default; from inside a room you can switch them to **This room** only
-- A roll made in a room is tagged with that room's name in the roll history
+- **Search** covers the whole channel by default; from inside a room you can switch it to **This room** only
+- **Rolls** always show the whole channel's history, with each roll tagged by the room it was made in
 - Dice, Scenes, NPC posts, and whispers can be turned off per room by the GM
 - **Images** stay in Main — rooms are text-first
+- A private or GM-only room never shows in the lobby preview — only its members see its messages
