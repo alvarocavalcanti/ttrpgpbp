@@ -7,7 +7,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(42);
+SELECT plan(44);
 
 -- ==========================================
 -- Fixtures (owner: bypasses RLS)
@@ -228,6 +228,28 @@ SELECT is(
     LIMIT 1),
   'Aria joined the channel',
   'Approval posts a system join message with the request character name'
+);
+
+-- Consent scoping: an approved request must not authorise a LATER re-add.
+-- Kick the member, then a GM direct insert must still be blocked (the marker
+-- is only set for the duration of decide_join_request).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000067a01', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000067a01","role":"authenticated"}', true);
+
+SELECT lives_ok(
+  $$SELECT moderate_member(
+      '00000000-0000-0000-0000-000000067b01',
+      (SELECT id FROM channel_members
+        WHERE channel_id = '00000000-0000-0000-0000-000000067b01'
+          AND user_id = '00000000-0000-0000-0000-000000067a02'),
+      'kick')$$,
+  'The GM can kick the approved member'
+);
+
+SELECT throws_ok(
+  $$INSERT INTO channel_members (channel_id, user_id, character_name)
+    VALUES ('00000000-0000-0000-0000-000000067b01', '00000000-0000-0000-0000-000000067a02', 'Aria')$$,
+  'You can only join a channel as yourself.'
 );
 
 -- ==========================================
