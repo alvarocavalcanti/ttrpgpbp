@@ -35,6 +35,17 @@ describe('scripts/supabase', () => {
         'case "$*" in',
         '  "status -o env") printf \'%s\\n\' "${STUB_STATUS_ENV:-}"; exit 0 ;;',
         '  status) exit "${STUB_STATUS_EXIT:-0}" ;;',
+        '  "db start")',
+        '    if [ -n "${STUB_DB_START_COUNT_FILE:-}" ]; then',
+        '      n=$(cat "$STUB_DB_START_COUNT_FILE" 2>/dev/null || echo 0)',
+        '      n=$((n + 1))',
+        '      printf \'%s\\n\' "$n" > "$STUB_DB_START_COUNT_FILE"',
+        '      if [ "$n" -le "${STUB_DB_START_FAIL_TIMES:-0}" ]; then',
+        '        echo "failed to bind host port for 0.0.0.0:54322: address already in use" >&2',
+        '        exit 1',
+        '      fi',
+        '    fi',
+        '    exit 0 ;;',
         'esac',
         'exit 0',
       ].join('\n'),
@@ -215,6 +226,64 @@ describe('scripts/supabase', () => {
       expect(result.status).toBe(0)
       expect(calls()).toContain('supabase stop --no-backup')
       expect(calls()).toContain('supabase db reset')
+    })
+  })
+
+  describe('ci-start.sh', () => {
+    function countFile(): string {
+      return join(dir, 'db-start-count')
+    }
+
+    it('cleans up before starting and succeeds on the first attempt', () => {
+      const result = run('ci-start.sh', ['db-start'], { CI_START_RETRY_SLEEP: '0' })
+
+      expect(result.status).toBe(0)
+      expect(calls()).toContain('supabase stop')
+      expect(calls()).toContain('supabase db start')
+      // No retry: exactly one start attempt.
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(1)
+    })
+
+    it('cleans up and retries when the start fails on the port conflict', () => {
+      const result = run('ci-start.sh', ['db-start'], {
+        CI_START_RETRY_SLEEP: '0',
+        STUB_DB_START_COUNT_FILE: countFile(),
+        STUB_DB_START_FAIL_TIMES: '1',
+      })
+
+      expect(result.status).toBe(0)
+      expect(result.stderr).toContain('attempt 1/3')
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(2)
+      // The retry is preceded by another cleanup pass.
+      expect((calls().match(/supabase stop/g) ?? []).length).toBeGreaterThanOrEqual(2)
+      expect(calls()).toContain('docker ps -aq --filter name=supabase_')
+    })
+
+    it('fails after exhausting the attempts', () => {
+      const result = run('ci-start.sh', ['db-start'], {
+        CI_START_RETRY_SLEEP: '0',
+        STUB_DB_START_COUNT_FILE: countFile(),
+        STUB_DB_START_FAIL_TIMES: '99',
+      })
+
+      expect(result.status).toBe(1)
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(3)
+      expect(result.stderr).toContain('failed after 3 attempts')
+    })
+
+    it('starts the full stack in start mode', () => {
+      const result = run('ci-start.sh', ['start'], { CI_START_RETRY_SLEEP: '0' })
+
+      expect(result.status).toBe(0)
+      expect(calls()).toContain('supabase start')
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(0)
+    })
+
+    it('rejects an unknown mode', () => {
+      const result = run('ci-start.sh', ['nope'])
+
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('unknown mode')
     })
   })
 })
