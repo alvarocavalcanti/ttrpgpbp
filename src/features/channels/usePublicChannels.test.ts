@@ -120,6 +120,48 @@ describe('usePublicChannels', () => {
     expect(result.current.loadingMore).toBe(false)
   })
 
+  it('keeps the loaded pages and flags loadMoreError when a page request fails', async () => {
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: fullPage, error: null } as any)
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') } as any)
+
+    const { result } = renderHook(() => usePublicChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.loadMore()
+    })
+
+    // The failure is not fatal: page 1 stays on screen, no fatal error banner.
+    expect(result.current.channels).toHaveLength(20)
+    expect(result.current.error).toBeNull()
+    expect(result.current.loadMoreError).toBeInstanceOf(Error)
+    expect(result.current.hasMore).toBe(true)
+    expect(result.current.loadingMore).toBe(false)
+  })
+
+  it('clears loadMoreError on a successful retry', async () => {
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: fullPage, error: null } as any)
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') } as any)
+      .mockResolvedValueOnce({ data: [row('extra')], error: null } as any)
+
+    const { result } = renderHook(() => usePublicChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.loadMore()
+    })
+    expect(result.current.loadMoreError).toBeInstanceOf(Error)
+
+    await act(async () => {
+      await result.current.loadMore()
+    })
+
+    expect(result.current.loadMoreError).toBeNull()
+    expect(result.current.channels).toHaveLength(21)
+  })
+
   it('skips the query while disabled', () => {
     const { result } = renderHook(() => usePublicChannels({ enabled: false }))
     expect(result.current.loading).toBe(false)

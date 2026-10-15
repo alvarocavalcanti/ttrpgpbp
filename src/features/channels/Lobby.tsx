@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
@@ -165,11 +165,18 @@ export function Lobby() {
 
   const discover = usePublicChannels({ search: qRaw, gameSystem, enabled: activeTab === 'discover' })
 
+  const loggedTabRef = useRef<LobbyTab | null>(null)
+
   useEffect(() => {
+    // Wait for My Games to settle before logging: a channel-less user would
+    // otherwise log 'my' on mount and again as 'discover' the moment the
+    // fallback lands. The ref stops a refetch (loading flips back) re-firing.
+    if (loading || loggedTabRef.current === activeTab) return
+    loggedTabRef.current = activeTab
     // Disambiguates the shared `/` path, whose query string is stripped from the
     // GA page_view (#674).
     trackEvent('lobby_tab_view', { tab: activeTab })
-  }, [activeTab])
+  }, [activeTab, loading])
 
   const selectTab = (tab: LobbyTab) => {
     setSearchParams((prev) => {
@@ -363,7 +370,7 @@ export function Lobby() {
                 </div>
               ) : discover.channels.length === 0 ? (
                 <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">
-                  No games listed yet.
+                  {qRaw ? 'No matching games found.' : 'No games listed yet.'}
                 </div>
               ) : (
                 <>
@@ -407,14 +414,19 @@ export function Lobby() {
                     })}
                   </ul>
                   {discover.hasMore && (
-                    <div className="px-3 py-3 sm:px-6 border-t border-surface-200 dark:border-surface-700">
+                    <div className="px-3 py-3 sm:px-6 border-t border-surface-200 dark:border-surface-700 space-y-2">
+                      {discover.loadMoreError && (
+                        <p role="alert" className="text-center text-sm text-red-700 dark:text-red-400">
+                          Couldn't load more games.
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => void discover.loadMore()}
                         disabled={discover.loadingMore}
                         className="w-full inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                       >
-                        {discover.loadingMore ? 'Loading...' : 'Load more'}
+                        {discover.loadingMore ? 'Loading...' : discover.loadMoreError ? 'Try again' : 'Load more'}
                       </button>
                     </div>
                   )}

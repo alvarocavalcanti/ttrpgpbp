@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useToast } from '../../contexts/ToastContext'
+import { toError } from '../../lib/errors'
 import { trackEvent } from '../../lib/analytics'
 import { channelTimestamp, gameSystemLabel } from './lobbyFormat'
 import { usePublicChannelApply } from './usePublicChannelApply'
@@ -47,7 +48,9 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
       trackEvent('listing_apply_submit', { game_system: gameSystem ?? 'none' })
       addToast('Application sent')
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Could not send your application.', 'error')
+      // rpc() rejects with a plain PostgrestError, not an Error, so normalize
+      // it to read the server's message ("channel is full", cap rejections).
+      addToast(toError(err).message, 'error')
     }
   }
 
@@ -57,7 +60,7 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
       await withdraw(detail.pending_request_id)
       addToast('Application withdrawn')
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Could not withdraw your application.', 'error')
+      addToast(toError(err).message, 'error')
     }
   }
 
@@ -91,15 +94,19 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
             {lastPlayed ? ` · Last played ${lastPlayed}` : ''}
           </p>
 
-          <div>
-            <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">About this game</h4>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">{detail.description}</p>
-          </div>
+          {detail.description && (
+            <div>
+              <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">About this game</h4>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">{detail.description}</p>
+            </div>
+          )}
 
-          <div>
-            <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">What the GM expects</h4>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">{detail.constraints}</p>
-          </div>
+          {detail.constraints && (
+            <div>
+              <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">What the GM expects</h4>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">{detail.constraints}</p>
+            </div>
+          )}
 
           <p className="text-xs text-surface-400 dark:text-surface-400">
             Run by {detail.gm_display_name ?? 'an unknown GM'}

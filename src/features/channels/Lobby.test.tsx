@@ -944,5 +944,59 @@ describe('Lobby', () => {
 
       expect(trackEvent).toHaveBeenCalledWith('lobby_tab_view', { tab: 'discover' })
     })
+
+    it('does not log a phantom My Games view while the channel list is loading', () => {
+      vi.mocked(useChannels).mockReturnValue({ myChannels: [], loading: true, error: null, refetch: vi.fn() } as any)
+      mockDiscover()
+
+      const { rerender } = render(<Lobby />, { wrapper: MemoryRouter })
+      // The tab is undecided until My Games settles, so nothing is logged yet.
+      expect(trackEvent).not.toHaveBeenCalled()
+
+      withMyChannels([])
+      rerender(<Lobby />)
+
+      expect(trackEvent).toHaveBeenCalledWith('lobby_tab_view', { tab: 'discover' })
+      expect(trackEvent).not.toHaveBeenCalledWith('lobby_tab_view', { tab: 'my' })
+    })
+
+    it('distinguishes an empty Discover from a search with no matches', () => {
+      withMyChannels(oneChannel)
+      mockDiscover([])
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/?tab=discover&q=zzz']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
+      )
+      expect(screen.getByText('No matching games found.')).toBeInTheDocument()
+      unmount()
+
+      mockDiscover([])
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
+      )
+      expect(screen.getByText('No games listed yet.')).toBeInTheDocument()
+    })
+
+    it('keeps the cards and shows an inline row when Load more fails', () => {
+      withMyChannels(oneChannel)
+      const { loadMore } = mockDiscover([card], { hasMore: true, loadMoreError: new Error('down') })
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+      // A failed page must not blank the list that is already on screen.
+      expect(screen.getByText('Dragon Hunt')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't load more/)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(loadMore).toHaveBeenCalledTimes(1)
+    })
   })
 })

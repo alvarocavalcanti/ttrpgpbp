@@ -30,6 +30,9 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
   const [loading, setLoading] = useState(enabled)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  // A failed "Load more" is kept separate so the pages already on screen stay
+  // visible; the Lobby renders it as an inline row.
+  const [loadMoreError, setLoadMoreError] = useState<Error | null>(null)
   const [hasMore, setHasMore] = useState(false)
   // Bumped by refetch() to re-run the first-page effect (error-state Retry).
   const [refetchKey, setRefetchKey] = useState(0)
@@ -42,6 +45,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
 
   const refetch = useCallback(() => {
     setError(null)
+    setLoadMoreError(null)
     setLoading(true)
     setRefetchKey((key) => key + 1)
   }, [])
@@ -55,6 +59,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
       setChannels([])
       setLoading(false)
       setError(null)
+      setLoadMoreError(null)
       setHasMore(false)
       return
     }
@@ -62,6 +67,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
     let mounted = true
     setLoading(true)
     setError(null)
+    setLoadMoreError(null)
 
     async function fetchFirstPage() {
       const { data, error: rpcError } = await supabase.rpc('list_public_channels', {
@@ -95,6 +101,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
     const generation = generationRef.current
     loadingMoreRef.current = true
     setLoadingMore(true)
+    setLoadMoreError(null)
     try {
       const { data, error: rpcError } = await supabase.rpc('list_public_channels', {
         p_search: search || undefined,
@@ -106,7 +113,8 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
       // append rows from a result set that no longer matches.
       if (generation !== generationRef.current) return
       if (rpcError) {
-        setError(rpcError)
+        // Not the fatal `error`: the rows already loaded must stay on screen.
+        setLoadMoreError(rpcError)
         return
       }
       const rows = toRows(data)
@@ -118,5 +126,5 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
     }
   }, [channels.length, search, gameSystem])
 
-  return { channels, loading, loadingMore, error, hasMore, refetch, loadMore }
+  return { channels, loading, loadingMore, error, loadMoreError, hasMore, refetch, loadMore }
 }

@@ -137,7 +137,8 @@ describe('PublicChannelDetailSheet', () => {
   it('shows the server message when an application is rejected', async () => {
     const addToast = vi.fn()
     vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
-    const apply = vi.fn().mockRejectedValue(new Error('You already have a pending application for this channel.'))
+    // rpc() rejects with a plain PostgrestError object, not an Error instance.
+    const apply = vi.fn().mockRejectedValue({ message: 'You already have a pending application for this channel.' })
     mockApply({ apply })
 
     renderSheet()
@@ -147,6 +148,26 @@ describe('PublicChannelDetailSheet', () => {
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith('You already have a pending application for this channel.', 'error'),
     )
+  })
+
+  it('shows the server message when a withdrawal is rejected', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    const withdraw = vi.fn().mockRejectedValue({ message: 'That application is no longer pending.' })
+    mockApply({ detail: { ...detail, pending_request_id: 'req-1' }, withdraw })
+
+    renderSheet()
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw application' }))
+
+    await waitFor(() => expect(addToast).toHaveBeenCalledWith('That application is no longer pending.', 'error'))
+  })
+
+  it('omits the copy sections when the GM left them blank', () => {
+    mockApply({ detail: { ...detail, description: null, constraints: null } })
+
+    renderSheet()
+    expect(screen.queryByText('About this game')).not.toBeInTheDocument()
+    expect(screen.queryByText('What the GM expects')).not.toBeInTheDocument()
   })
 
   it('shows a pending state with a Withdraw action', async () => {
