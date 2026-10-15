@@ -32,15 +32,11 @@ jobs:
           version: v2.117.0
 
       - name: Start local Supabase & apply migrations
-        # `supabase stop` clears containers tracked by the CLI, but a stale
-        # container from a previous run on a reused runner can still hold port
-        # 54322 and fail the job with "address already in use" before any test
-        # runs. Force-remove whatever is publishing 54322 before starting. Both
-        # cleanup steps are no-ops on a fresh runner, so failures are ignored.
-        run: |
-          supabase stop || true
-          docker ps -aq --filter publish=54322 | xargs -r docker rm -f || true
-          supabase db start
+        # Starting the stack stops and restarts the tracked containers, which
+        # can race on the published 54322 port when the runner already had
+        # Supabase containers up ("address already in use"). ci-start.sh cleans
+        # up first and retries the start; see the script for details.
+        run: SUPABASE_BIN=supabase sh scripts/supabase/ci-start.sh db-start
 
       - name: Verify migrations apply from scratch
         run: supabase db reset
@@ -76,15 +72,9 @@ jobs:
           version: v2.117.0
 
       - name: Start local Supabase
-        # `supabase stop` clears containers tracked by the CLI, but a stale
-        # container from a previous run on a reused runner can still hold port
-        # 54322 (observed failure: "address already in use"). Force-remove
-        # whatever is publishing 54322 before starting. Both cleanup steps are
-        # no-ops on a fresh runner, so failures are ignored.
-        run: |
-          supabase stop || true
-          docker ps -aq --filter publish=54322 | xargs -r docker rm -f || true
-          supabase db start
+        # See ci-start.sh: starting the stack can race on the published 54322
+        # port when the runner already had Supabase containers up.
+        run: SUPABASE_BIN=supabase sh scripts/supabase/ci-start.sh db-start
 
       - name: Generate .env.local from Supabase config
         run: |
@@ -129,15 +119,9 @@ jobs:
       # specs need the auth API and are skipped (not run) without it, which
       # used to make the Playwright step a no-op in CI (issue #403 ARCH-7).
       - name: Start local Supabase stack
-        # `supabase stop` clears containers tracked by the CLI, but a stale
-        # container from a previous run on a reused runner can still hold a
-        # stack port (54322 for the database) and fail the job before tests run.
-        # Force-remove whatever is publishing 54322 before starting. Both
-        # cleanup steps are no-ops on a fresh runner, so failures are ignored.
-        run: |
-          supabase stop || true
-          docker ps -aq --filter publish=54322 | xargs -r docker rm -f || true
-          supabase start
+        # See ci-start.sh: starting the full stack can race on the published
+        # 54322 port when the runner already had Supabase containers up.
+        run: SUPABASE_BIN=supabase sh scripts/supabase/ci-start.sh start
 
       - name: Apply migrations from scratch
         run: supabase db reset

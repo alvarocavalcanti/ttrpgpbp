@@ -26,3 +26,7 @@ Deterministic start/stop/reset/prune for the local Supabase stack, wired into
   images are removed; the untagged-layer pass is always safe.
 - **Tests** live in `supabaseScripts.test.ts` and run under the normal `npm test`
   suite. They stub the Supabase CLI and Docker, so they need neither.
+- **`ci-start.sh` is CI-only.** The workflows start the stack through it
+  (`SUPABASE_BIN=supabase sh scripts/supabase/ci-start.sh [db-start|start]`), so a
+  stale container still holding the published 54322 port is cleaned up and the
+  start is retried instead of failing the job before any test runs.
