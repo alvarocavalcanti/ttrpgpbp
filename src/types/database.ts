@@ -1547,6 +1547,8 @@ export type Database = {
           result: number
           roller_character_name: string
           roller_id: string
+          sub_channel_id: string
+          sub_channel_name: string
         }[]
       }
       get_channel_room_unread: {

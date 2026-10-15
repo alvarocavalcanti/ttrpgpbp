@@ -27,6 +27,8 @@ export interface PushEvent {
   whisper_target_name?: string | null
   mention_user_ids?: string[]
   gm_id?: string
+  // Room (sub-channel) the message was posted in (#621 Phase 4 deep link).
+  sub_channel_id?: string | null
   // turn events
   user_id?: string
   // admin_message events (announcements / admin DMs / system alerts)
@@ -58,6 +60,9 @@ export interface PushPayload {
 }
 
 const CHANNEL_URL = (channelId: string) => `/channel/${channelId}`
+// A message in a room deep-links straight into that room (#621 Phase 4).
+const CHANNEL_ROOM_URL = (channelId: string, subId: string) =>
+  `/channel/${channelId}/sub/${subId}`
 
 // Push bodies surface on the lock screen, so keep content short and never
 // include whisper text.
@@ -223,7 +228,9 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     targetUserIds,
     title,
     body,
-    url: CHANNEL_URL(event.channel_id)
+    url: event.sub_channel_id
+      ? CHANNEL_ROOM_URL(event.channel_id, event.sub_channel_id)
+      : CHANNEL_URL(event.channel_id),
   }
 }
 

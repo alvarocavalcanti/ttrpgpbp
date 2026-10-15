@@ -828,3 +828,28 @@ describe('filterMembersByRoomVisibility (#621 Phase 3)', () => {
     expect(filterMembersByRoomVisibility(members, 'private', 'gm', ['a']).map((m) => m.user_id)).toEqual(['gm', 'a'])
   })
 })
+
+describe('room deep link (#621 Phase 4)', () => {
+  const members = [
+    { user_id: 'u1', notify_all_messages: true },
+    { user_id: 'u2', notify_all_messages: true },
+  ]
+  const base = {
+    kind: 'message' as const,
+    channel_id: 'c1',
+    channel_name: 'Game',
+    sender_id: 'u1',
+    content: 'hi',
+    type: 'regular',
+    gm_id: 'u1',
+  }
+
+  it('deep-links a room message straight into the room', () => {
+    expect(resolvePushTargets({ ...base, sub_channel_id: 'r1' }, members).url).toBe('/channel/c1/sub/r1')
+  })
+
+  it('deep-links a Main message to the channel', () => {
+    expect(resolvePushTargets({ ...base, sub_channel_id: null }, members).url).toBe('/channel/c1')
+    expect(resolvePushTargets(base, members).url).toBe('/channel/c1')
+  })
+})

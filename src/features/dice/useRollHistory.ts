@@ -22,7 +22,10 @@ const rollHistorySchema = z.object({
   breakdown: rollBreakdownSchema,
   created_at: z.string(),
   roller_id: z.string(),
-  roller_character_name: z.string().nullable()
+  roller_character_name: z.string().nullable(),
+  // Room the roll was made in (#621 Phase 4). Absent on raw realtime rows.
+  sub_channel_id: z.string().nullable().optional(),
+  sub_channel_name: z.string().nullable().optional()
 })
 
 // Realtime INSERTs carry the raw dice_rolls row, which has no
@@ -37,6 +40,8 @@ export type DiceRoll = {
   created_at: string
   roller_id: string
   roller_character_name: string | null
+  sub_channel_id?: string | null
+  sub_channel_name?: string | null
   roller?: { character_name: string | null } | null
 }
 
@@ -113,10 +118,31 @@ export function useRollHistory(channelId: string) {
           characterName = profile?.display_name ?? null
         }
 
+        // Room the roll landed in (#621 Phase 4), for the history badge.
+        let roomId: string | null = null
+        let roomName: string | null = null
+        const rawMessageId = (payload.new as { message_id?: string }).message_id
+        if (rawMessageId) {
+          const { data: msg } = await supabase
+            .from('messages')
+            .select('sub_channel_id, sub_channels(name)')
+            .eq('id', rawMessageId)
+            .single()
+          const row = (msg ?? null) as { sub_channel_id?: string | null; sub_channels?: { name: string | null } | null } | null
+          roomId = row?.sub_channel_id ?? null
+          roomName = row?.sub_channels?.name ?? null
+        }
+
         // The awaits above can outlive this effect (channel switch): a roll
         // from the old channel must not prepend into the new one's state.
         if (!mounted) return
-        const newRoll: DiceRoll = { ...parsed.data, roller_character_name: null, roller: { character_name: characterName } }
+        const newRoll: DiceRoll = {
+          ...parsed.data,
+          roller_character_name: null,
+          sub_channel_id: roomId,
+          sub_channel_name: roomName,
+          roller: { character_name: characterName },
+        }
         setRolls(prev => prev.some(roll => roll.id === newRoll.id)
           ? prev
           : [newRoll, ...prev].slice(0, 50))

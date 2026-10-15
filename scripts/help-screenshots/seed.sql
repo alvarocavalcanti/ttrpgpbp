@@ -107,6 +107,13 @@ begin
     (ch, p2, 'Kess', false, '{"STR":0,"DEX":3,"CON":1,"INT":2,"WIS":0,"CHA":2}', now()),
     (ch, p3, 'Pip', false, '{"STR":-1,"DEX":2,"CON":0,"INT":3,"WIS":1,"CHA":1}', now());
 
+  -- Rooms (#621): an OOC room, a Dice room, and a GM-only room, so the room bar
+  -- and the manager render with real content.
+  insert into public.sub_channels (id, channel_id, name, created_by, visibility) values
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', ch, 'OOC', gm, 'all'),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2', ch, 'Dice', gm, 'all'),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3', ch, 'GM Notes', gm, 'gm');
+
   insert into public.channel_npcs (channel_id, name, avatar_url) values
     (ch, 'Goblin King', 'https://game-icons.net/icons/ffffff/delapouite/originals/svg/delapouite-goblin-head.svg');
 
@@ -136,6 +143,11 @@ begin
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', ch, gm, '2d6', 8, '{"rolls":[3,5],"dropped":[],"modifier":0,"mode":"sum"}'),
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', ch, gm, '1d20+3', 13, '{"rolls":[10],"dropped":[],"modifier":3,"mode":"sum"}'),
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', ch, gm, '5d6>=4', 2, '{"rolls":[2,5,3,6,1],"dropped":[],"modifier":0,"mode":"successes","target":4,"successes":2}');
+
+  -- A room message, inserted last so the lobby preview shows the room prefix
+  -- (#621 Phase 4).
+  insert into public.messages (id, channel_id, sender_id, type, content, created_at, sub_channel_id) values
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', ch, p2, 'regular', 'Should we rest before the shaft? I''m low on rations.', now() - interval '50 minutes', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
 
   insert into public.dice_roll_favorites (user_id, channel_id, notation) values
     (gm, ch, '1d20+3');

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearch } from './useSearch'
 import { Markdown } from '../../components/Markdown'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
@@ -8,10 +8,15 @@ interface SearchModalProps {
   channelId: string
   onClose: () => void
   onJumpToMessage?: (messageId: string) => void
+  // Room scope (#621 Phase 4). When set, the modal offers This room / All rooms.
+  subChannelId?: string | null
+  rooms?: { id: string; name: string | null }[]
 }
 
-export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModalProps) {
-  const { searchTerm, setSearchTerm, results, loading, error, retry } = useSearch(channelId)
+export function SearchModal({ channelId, onClose, onJumpToMessage, subChannelId, rooms = [] }: SearchModalProps) {
+  const [scope, setScope] = useState<'channel' | 'room'>(subChannelId ? 'room' : 'channel')
+  const { searchTerm, setSearchTerm, results, loading, error, retry } = useSearch(channelId, subChannelId, scope)
+  const roomNames = new Map(rooms.map(r => [r.id, r.name]))
   const dialogRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -71,6 +76,27 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+
+            {subChannelId && (
+              <div className="mt-3 inline-flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden" role="group" aria-label="Search scope">
+                <button
+                  type="button"
+                  onClick={() => setScope('room')}
+                  aria-pressed={scope === 'room'}
+                  className={`px-3 py-1.5 text-xs font-medium ${scope === 'room' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                >
+                  This room
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScope('channel')}
+                  aria-pressed={scope === 'channel'}
+                  className={`px-3 py-1.5 text-xs font-medium border-l border-gray-300 dark:border-gray-600 ${scope === 'channel' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                >
+                  All rooms
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4">
@@ -108,6 +134,11 @@ export function SearchModal({ channelId, onClose, onJumpToMessage }: SearchModal
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                         {message.npc_name || message.sender?.display_name || 'Unknown'}
+                        {message.sub_channel_id && roomNames.get(message.sub_channel_id) && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[0.625rem] font-semibold uppercase tracking-wide bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                            {roomNames.get(message.sub_channel_id)}
+                          </span>
+                        )}
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(message.created_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}

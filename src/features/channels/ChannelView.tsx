@@ -890,6 +890,8 @@ export function ChannelView() {
           channelId={channel.id}
           onClose={() => setShowSearch(false)}
           onJumpToMessage={handleJumpToMessage}
+          subChannelId={subId}
+          rooms={subChannels.map(r => ({ id: r.id, name: r.name }))}
         />
       )}
 

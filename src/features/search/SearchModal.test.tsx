@@ -211,4 +211,48 @@ describe('SearchModal', () => {
     expect(mockOnJumpToMessage).not.toHaveBeenCalled()
     expect(mockOnClose).not.toHaveBeenCalled()
   })
+
+  it('offers This room / All rooms when a room is open (#621 Phase 4)', () => {
+    render(<SearchModal channelId="c1" onClose={mockOnClose} subChannelId="r1" rooms={[{ id: 'r1', name: 'OOC' }]} />)
+    expect(screen.getByRole('button', { name: 'This room' })).toBeInTheDocument()
+    expect(useSearch).toHaveBeenCalledWith('c1', 'r1', 'room')
+    fireEvent.click(screen.getByRole('button', { name: 'All rooms' }))
+    expect(useSearch).toHaveBeenLastCalledWith('c1', 'r1', 'channel')
+  })
+
+  it('hides the scope toggle on Main (#621 Phase 4)', () => {
+    render(<SearchModal channelId="c1" onClose={mockOnClose} />)
+    expect(screen.queryByRole('button', { name: 'This room' })).not.toBeInTheDocument()
+    expect(useSearch).toHaveBeenCalledWith('c1', undefined, 'channel')
+  })
+
+  it('badges a result with its room name (#621 Phase 4)', () => {
+    vi.mocked(useSearch).mockReturnValue({
+      searchTerm: 'hello',
+      setSearchTerm: vi.fn(),
+      results: [
+        { id: 'msg-1', content: 'Hello world', created_at: '2023-01-01T12:00:00Z', sub_channel_id: 'r1', sender: { display_name: 'Hero' } } as any,
+      ],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+    render(<SearchModal channelId="c1" onClose={mockOnClose} subChannelId="r1" rooms={[{ id: 'r1', name: 'OOC' }]} />)
+    expect(screen.getByText('OOC')).toBeInTheDocument()
+  })
+
+  it('leaves a Main result without a room badge (#621 Phase 4)', () => {
+    vi.mocked(useSearch).mockReturnValue({
+      searchTerm: 'hello',
+      setSearchTerm: vi.fn(),
+      results: [
+        { id: 'msg-1', content: 'Hello world', created_at: '2023-01-01T12:00:00Z', sub_channel_id: null, sender: { display_name: 'Hero' } } as any,
+      ],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+    render(<SearchModal channelId="c1" onClose={mockOnClose} rooms={[{ id: 'r1', name: 'OOC' }]} />)
+    expect(screen.queryByText('OOC')).not.toBeInTheDocument()
+  })
 })

@@ -110,6 +110,16 @@
 - **Unread badges** — Lobby shows a compact count-only pill per channel for messages since the member's `last_read_at` (capped at 99+); excludes the user's own and deleted messages
 - **New messages divider** — opening a channel marks it read and shows a red "New messages" divider at the first message since last read; the view scrolls straight to it (or to the newest message when you're all caught up), staying put even as images finish loading in. The read mark only advances after your message history has actually loaded, so a failed load never hides the divider for messages you haven't seen; if loading fails, the banner and empty state offer a **Retry** button
 
+## Rooms
+
+- **Sub-conversations inside a channel** — Main plus up to 10 active rooms (an OOC room, a dice room, a rules room, per-player private rooms). Every message, reply, and dice roll is scoped to its room; the room bar across the channel header switches between them, and deep links open a room directly (`/channel/:id/sub/:subId`)
+- **GM room management** — create (name up to 40 characters, "Main" reserved), rename, archive (leaves the room bar but stays readable, and frees a slot), restore, and delete, from the **+ Room** chip or **GM Tools → Rooms**
+- **Per-room unread** — a dot per room, plus per-room read state so opening one room doesn't clear the others
+- **Per-room capabilities** — the GM turns dice, Scenes, NPC posts, and whispers on or off per room; the composer and dice button adapt, and a refused action explains why
+- **Private rooms** — audience Everyone / Only the GM / Invited players; non-viewers never see the room, its messages, its rolls, its reactions, or its unread count, and never receive a push for it; restricted rooms show a lock glyph
+- **Rooms are text-first** — image uploads stay in Main
+- **Room-aware polish** — the lobby preview leads with the room name (`[OOC] Hero: …`); push notifications deep-link into the room and clear when the channel opens; search offers a This room / All rooms scope; the roll history tags each roll with its room
+
 ## NPCs (GM-only)
 
 - **NPC mode** under the composer "+" options — select, type a name (up to 40 characters), and the message is attributed to the NPC

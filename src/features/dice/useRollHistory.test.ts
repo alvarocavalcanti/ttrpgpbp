@@ -313,5 +313,19 @@ describe('useRollHistory', () => {
     // The stale roll must not prepend into the new channel's history.
     expect(result.current.rolls.map(r => r.id)).toEqual(['r-new'])
   })
+
+  it('carries the room a roll was made in (#621 Phase 4)', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [validRoll({ sub_channel_id: 'room-1', sub_channel_name: 'OOC' })],
+      error: null,
+    } as any)
+    mockChannel()
+
+    const { result } = renderHook(() => useRollHistory('c1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.rolls[0].sub_channel_name).toBe('OOC')
+    expect(result.current.rolls[0].sub_channel_id).toBe('room-1')
+  })
 })
 

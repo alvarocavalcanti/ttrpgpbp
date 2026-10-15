@@ -159,6 +159,7 @@ async function buildMessageEvent(
       whisper_target_name: whisperTarget?.display_name,
       mention_user_ids: mentionIds.length > 0 ? mentionIds : undefined,
       gm_id: channel?.gm_id,
+      sub_channel_id: message.sub_channel_id,
     },
   }
 }
