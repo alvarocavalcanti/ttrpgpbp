@@ -7,10 +7,8 @@ import { parseRow, PublicChannelRowSchema, type PublicChannel } from '../validat
 const PAGE_SIZE = 20
 
 interface UsePublicChannelsOptions {
-  /** Free-text search, applied server-side over name + description. */
+  /** Free-text search, applied server-side over name + description + game system. */
   search?: string
-  /** Game-system filter; '' / undefined means "all systems". */
-  gameSystem?: string
   /** Skip the query entirely (e.g. while the My Games tab is showing). */
   enabled?: boolean
 }
@@ -25,7 +23,7 @@ function toRows(data: unknown): PublicChannel[] {
 // Data layer for the Discover tab (#674): the list_public_channels RPC, its
 // search/filter params, and offset pagination. Mirrors useChannels' state shape
 // (loading / error / refetch) so the Lobby can render both tabs the same way.
-export function usePublicChannels({ search = '', gameSystem = '', enabled = true }: UsePublicChannelsOptions = {}) {
+export function usePublicChannels({ search = '', enabled = true }: UsePublicChannelsOptions = {}) {
   const [channels, setChannels] = useState<PublicChannel[]>([])
   const [loading, setLoading] = useState(enabled)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -72,7 +70,6 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
     async function fetchFirstPage() {
       const { data, error: rpcError } = await supabase.rpc('list_public_channels', {
         p_search: search || undefined,
-        p_game_system: gameSystem || undefined,
         p_limit: PAGE_SIZE,
         p_offset: 0,
       })
@@ -93,7 +90,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
     return () => {
       mounted = false
     }
-  }, [enabled, search, gameSystem, refetchKey])
+  }, [enabled, search, refetchKey])
 
   const loadMore = useCallback(async () => {
     // The button only disables after a re-render, so guard reentry here.
@@ -105,7 +102,6 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
     try {
       const { data, error: rpcError } = await supabase.rpc('list_public_channels', {
         p_search: search || undefined,
-        p_game_system: gameSystem || undefined,
         p_limit: PAGE_SIZE,
         p_offset: channels.length,
       })
@@ -124,7 +120,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
       loadingMoreRef.current = false
       setLoadingMore(false)
     }
-  }, [channels.length, search, gameSystem])
+  }, [channels.length, search])
 
   return { channels, loading, loadingMore, error, loadMoreError, hasMore, refetch, loadMore }
 }

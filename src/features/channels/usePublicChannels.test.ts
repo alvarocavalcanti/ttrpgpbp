@@ -48,15 +48,14 @@ describe('usePublicChannels', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('forwards search and game-system filters', async () => {
+  it('forwards the search text as p_search', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
 
-    const { result } = renderHook(() => usePublicChannels({ search: 'dragon', gameSystem: 'shadowdark' }))
+    const { result } = renderHook(() => usePublicChannels({ search: 'dragon' }))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(supabase.rpc).toHaveBeenCalledWith('list_public_channels', {
       p_search: 'dragon',
-      p_game_system: 'shadowdark',
       p_limit: 20,
       p_offset: 0,
     })

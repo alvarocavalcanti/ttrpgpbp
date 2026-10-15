@@ -9,12 +9,12 @@ import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
+import { useDebounce } from '../../hooks/useDebounce'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { SignedImg } from '../../components/SignedImg'
 import { refreshAppBadge } from '../../lib/channelRead'
 import { scrubSpoilers } from '../../lib/spoilerScrub'
 import { trackEvent } from '../../lib/analytics'
-import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
 
 // Invite links point at /join/:channelId; users paste the whole URL.
@@ -138,7 +138,6 @@ export function Lobby() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [inviteInput, setInviteInput] = useState('')
   const [inviteError, setInviteError] = useState<string | null>(null)
-  const [gameSystem, setGameSystem] = useState('')
   const [selectedListing, setSelectedListing] = useState<{ id: string; gameSystem: string | null } | null>(null)
   const navigate = useNavigate()
   const { preferences } = usePushNotifications()
@@ -153,6 +152,23 @@ export function Lobby() {
   const qRaw = searchParams.get('q') ?? ''
   const q = qRaw.toLowerCase()
 
+  // Discover keeps its own search param (`dq`), separate from the header's
+  // My Games search (`q`): the two tabs filter different data (local member
+  // list vs. the server-side listing query), so one box must not drive both.
+  // Typing is local until it settles, so the RPC fires per pause, not per key.
+  const dqRaw = searchParams.get('dq') ?? ''
+  const [discoverInput, setDiscoverInput] = useState(dqRaw)
+  const debouncedDiscover = useDebounce(discoverInput, 300)
+
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (debouncedDiscover) next.set('dq', debouncedDiscover)
+      else next.delete('dq')
+      return next
+    }, { replace: true })
+  }, [debouncedDiscover, setSearchParams])
+
   // My Games is the default; a user who has not picked a tab yet and has no
   // channels lands on Discover instead of an empty list. An explicit ?tab=my
   // always wins, so tapping My Games from that fallback sticks. An in-flight or
@@ -163,7 +179,7 @@ export function Lobby() {
   const activeTab: LobbyTab =
     tabParam === null && !loading && !error && myChannels.length === 0 ? 'discover' : requestedTab
 
-  const discover = usePublicChannels({ search: qRaw, gameSystem, enabled: activeTab === 'discover' })
+  const discover = usePublicChannels({ search: dqRaw, enabled: activeTab === 'discover' })
 
   const loggedTabRef = useRef<LobbyTab | null>(null)
 
@@ -341,20 +357,22 @@ export function Lobby() {
 
             <div className="bg-white dark:bg-surface-800 border-y border-surface-200 dark:border-surface-700 md:border-none md:shadow overflow-hidden md:rounded-md">
               <div className="px-3 py-3 sm:px-6 border-b border-surface-200 dark:border-surface-700">
-                <label htmlFor="discoverSystem" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                  Game system
+                <label htmlFor="discoverSearch" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                  Search games
                 </label>
-                <select
-                  id="discoverSystem"
-                  value={gameSystem}
-                  onChange={(e) => setGameSystem(e.target.value)}
-                  className="mt-1 bg-white dark:bg-surface-800 block w-full sm:max-w-xs border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                >
-                  <option value="">All game systems</option>
-                  {GAME_SYSTEM_OPTIONS.map((system) => (
-                    <option key={system.id} value={system.id}>{system.name}</option>
-                  ))}
-                </select>
+                <div className="relative mt-1 sm:max-w-md">
+                  <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 dark:text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" />
+                  </svg>
+                  <input
+                    id="discoverSearch"
+                    type="text"
+                    value={discoverInput}
+                    onChange={(e) => setDiscoverInput(e.target.value)}
+                    placeholder="Name, description, or game system"
+                    className="bg-white dark:bg-surface-800 block w-full pl-9 pr-3 py-2 border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm border"
+                  />
+                </div>
               </div>
 
               {discover.loading ? (
@@ -370,7 +388,7 @@ export function Lobby() {
                 </div>
               ) : discover.channels.length === 0 ? (
                 <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">
-                  {qRaw ? 'No matching games found.' : 'No games listed yet.'}
+                  {dqRaw ? 'No matching games found.' : 'No games listed yet.'}
                 </div>
               ) : (
                 <>

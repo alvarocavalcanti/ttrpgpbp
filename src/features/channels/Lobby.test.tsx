@@ -905,25 +905,52 @@ describe('Lobby', () => {
       expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
     })
 
-    it('forwards the header search and the game-system filter to the hook', () => {
+    it('renders a Discover search box instead of a game-system filter', () => {
       withMyChannels(oneChannel)
       mockDiscover()
       vi.mocked(usePublicChannels).mockClear()
       render(
-        <MemoryRouter initialEntries={['/?tab=discover&q=dragon']}>
+        <MemoryRouter initialEntries={['/?tab=discover&dq=beam']}>
           <Routes>
             <Route path="/" element={<Lobby />} />
           </Routes>
         </MemoryRouter>
       )
 
+      const input = screen.getByLabelText('Search games')
+      expect(input).toHaveValue('beam')
+      expect(screen.queryByLabelText('Game system')).not.toBeInTheDocument()
       expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
-        expect.objectContaining({ search: 'dragon', enabled: true })
+        expect.objectContaining({ search: 'beam', enabled: true })
+      )
+    })
+
+    it('drives the Discover search from its own box, not the header query', async () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      vi.mocked(usePublicChannels).mockClear()
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover&q=header-only']}>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+          </Routes>
+        </MemoryRouter>
       )
 
-      fireEvent.change(screen.getByLabelText('Game system'), { target: { value: 'shadowdark' } })
+      // The header's My Games query does not search the listings.
       expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
-        expect.objectContaining({ gameSystem: 'shadowdark' })
+        expect.objectContaining({ search: '' })
+      )
+
+      fireEvent.change(screen.getByLabelText('Search games'), { target: { value: 'dragon' } })
+
+      // Debounced: the param (and so the RPC) waits for the typing to settle.
+      await waitFor(
+        () =>
+          expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+            expect.objectContaining({ search: 'dragon' })
+          ),
+        { timeout: 2000 }
       )
     })
 
@@ -964,7 +991,7 @@ describe('Lobby', () => {
       withMyChannels(oneChannel)
       mockDiscover([])
       const { unmount } = render(
-        <MemoryRouter initialEntries={['/?tab=discover&q=zzz']}>
+        <MemoryRouter initialEntries={['/?tab=discover&dq=zzz']}>
           <Routes>
             <Route path="/" element={<Lobby />} />
           </Routes>
