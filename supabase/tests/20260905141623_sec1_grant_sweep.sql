@@ -1,6 +1,10 @@
 -- Issue #402 / SEC-1: grant-sweep verification.
 --   * anon has EXECUTE on no user-defined function in public (blanket sweep;
---     extension-owned functions such as pgtap itself are excluded)
+--     extension-owned functions such as pgtap itself are excluded) — with one
+--     reviewed exception: list_public_channels_anon (#674 Phase 1.5), the
+--     anonymous /directory projection, which returns only GM-authored name +
+--     description. It is allowlisted by name in the sweep below and asserted
+--     separately, so a second anon grant still fails this file.
 --   * server-only helpers are EXECUTE-blocked for authenticated/service_role
 --   * no RETURNS trigger function in public is callable by an API role
 --     (class-level guard — 2026-09-20 #558 P2-1; catches future trigger
@@ -11,7 +15,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(69);
+SELECT plan(70);
 
 SELECT is(
   (SELECT count(*)
@@ -19,9 +23,20 @@ SELECT is(
    JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public'
      AND p.oid NOT IN (SELECT objid FROM pg_depend WHERE deptype = 'e')
+     -- The single reviewed exception: the anonymous /directory projection
+     -- (#674 Phase 1.5). It is SECURITY DEFINER and reads only name +
+     -- description for non-archived listed channels; its own pgTAP file pins
+     -- the return type. Never add a second name here without that review.
+     AND p.proname <> 'list_public_channels_anon'
      AND has_function_privilege('anon', p.oid, 'EXECUTE')),
   0::bigint,
-  'anon has EXECUTE on no user-defined function in public'
+  'anon has EXECUTE on no user-defined function in public except the directory projection'
+);
+
+SELECT is(
+  has_function_privilege('anon', 'public.list_public_channels_anon(integer,integer)', 'EXECUTE'),
+  true,
+  'the directory projection is the one allowlisted anon grant'
 );
 
 SELECT is(

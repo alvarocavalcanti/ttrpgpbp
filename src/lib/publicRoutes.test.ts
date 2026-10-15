@@ -64,6 +64,7 @@ describe('PUBLIC_ROUTES', () => {
       '/dice-roller',
       '/game-systems/shadowdark',
       '/play-by-post',
+      '/directory',
       '/how-to/play-by-post-dnd',
       '/how-to/run-play-by-post',
       '/vs/discord',

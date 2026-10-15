@@ -1726,6 +1726,13 @@ export type Database = {
           name: string
         }[]
       }
+      list_public_channels_anon: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          description: string
+          name: string
+        }[]
+      }
       mark_admin_thread_read: {
         Args: { p_thread_id: string }
         Returns: undefined
