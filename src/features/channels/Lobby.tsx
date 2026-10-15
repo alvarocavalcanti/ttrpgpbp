@@ -159,15 +159,35 @@ export function Lobby() {
   const dqRaw = searchParams.get('dq') ?? ''
   const [discoverInput, setDiscoverInput] = useState(dqRaw)
   const debouncedDiscover = useDebounce(discoverInput, 300)
+  // The value this component last wrote to ?dq. It lets the effect below tell
+  // our own write apart from an external navigation (back/forward, a deep link)
+  // — without it, the echo of our own write would clobber in-flight typing.
+  const writtenDqRef = useRef(dqRaw)
+
+  // Adopt an external ?dq so the box, the query and the empty-state message can
+  // never disagree with the URL. Rewriting the box also restarts the debounce,
+  // so a write still pending for the old text is dropped instead of overwriting
+  // the navigation.
+  useEffect(() => {
+    if (dqRaw === writtenDqRef.current) return
+    writtenDqRef.current = dqRaw
+    setDiscoverInput(dqRaw)
+  }, [dqRaw])
 
   useEffect(() => {
+    // Only the settled input may be written: while a change is still inside the
+    // debounce, `debouncedDiscover` lags `discoverInput`, and writing that lag
+    // here would delete/overwrite ?dq on any unrelated re-render — including one
+    // caused by an external navigation we just adopted.
+    if (debouncedDiscover !== discoverInput) return
+    writtenDqRef.current = debouncedDiscover
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       if (debouncedDiscover) next.set('dq', debouncedDiscover)
       else next.delete('dq')
       return next
     }, { replace: true })
-  }, [debouncedDiscover, setSearchParams])
+  }, [debouncedDiscover, discoverInput, setSearchParams])
 
   // My Games is the default; a user who has not picked a tab yet and has no
   // channels lands on Discover instead of an empty list. An explicit ?tab=my

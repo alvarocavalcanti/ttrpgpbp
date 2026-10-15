@@ -1,9 +1,9 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
@@ -952,6 +952,55 @@ describe('Lobby', () => {
           ),
         { timeout: 2000 }
       )
+    })
+
+    it('adopts an external ?dq change and drops the pending write', async () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      vi.mocked(usePublicChannels).mockClear()
+
+      // A second entry point into the lobby (back/forward, a deep link) that
+      // changes ?dq behind the search box's back.
+      function NavigationHarness() {
+        const navigate = useNavigate()
+        const [params] = useSearchParams()
+        return (
+          <>
+            <button type="button" onClick={() => navigate('/?tab=discover&dq=beam')}>
+              external-nav
+            </button>
+            <span data-testid="dq-param">{params.get('dq') ?? ''}</span>
+            <Lobby />
+          </>
+        )
+      }
+
+      render(
+        <MemoryRouter initialEntries={['/?tab=discover']}>
+          <Routes>
+            <Route path="/" element={<NavigationHarness />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      fireEvent.change(screen.getByLabelText('Search games'), { target: { value: 'drag' } })
+      expect(screen.getByLabelText('Search games')).toHaveValue('drag')
+
+      fireEvent.click(screen.getByRole('button', { name: 'external-nav' }))
+
+      // The box adopts the navigation...
+      await waitFor(() => expect(screen.getByLabelText('Search games')).toHaveValue('beam'))
+      // ...and the query follows it, not the abandoned text.
+      expect(vi.mocked(usePublicChannels)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: 'beam' })
+      )
+
+      // The write still pending for 'drag' must not land after its debounce.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      })
+      expect(screen.getByTestId('dq-param')).toHaveTextContent('beam')
+      expect(screen.getByLabelText('Search games')).toHaveValue('beam')
     })
 
     it('does not query Discover while My Games is active', () => {
