@@ -177,6 +177,16 @@ await page.waitForTimeout(800)
 await page.screenshot({ path: `${OUT}/message-actions.png` })
 console.log('message-actions done')
 
+// ── 11. Rooms manager (#621) ─────────────────────────────────────────────
+await closeSheets()
+await page.click('[aria-label="Toggle sidebar menu"]')
+await page.waitForTimeout(400)
+await page.getByText('Rooms').last().click()
+await page.waitForTimeout(1200)
+await page.screenshot({ path: `${OUT}/rooms.png` })
+console.log('rooms done')
+await closeSheets()
+
 // Thumbs BEFORE ctx.close(): writeThumbs reuses this context when given one.
 // A re-capture always regenerates the thumbs, so they can never go stale.
 await writeThumbs({ out: OUT, context: ctx })

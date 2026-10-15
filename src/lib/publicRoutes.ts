@@ -116,6 +116,12 @@ export const HELP_TOPICS: HelpTopic[] = [
       'Speak as non-player characters in Role by Post with names and portraits that persist in the timeline.',
   },
   {
+    slug: 'rooms',
+    title: 'Rooms — Role by Post Help',
+    description:
+      'Split a Role by Post channel into rooms: keep out-of-character chat, dice, and rules talk out of the main story, and set up private rooms for one player.',
+  },
+  {
     slug: 'safety-tools',
     title: 'Safety Tools — Role by Post Help',
     description:

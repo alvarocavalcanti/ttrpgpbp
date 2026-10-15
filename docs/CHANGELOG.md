@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-15
+
+### Added
+
+- **Split your game into rooms** — give a channel its own rooms so the main story stays clean: an out-of-character room for table chatter, a room just for dice, a room for rules questions, or a private room for one player. Rooms sit beside **Main** in the room bar; tap one to switch, and every message, reply, and roll stays in the room it was posted in. The GM creates and manages rooms from the **+ Room** chip or **GM Tools → Rooms** — name, rename, archive, restore, and delete — and can choose who sees each room: **Everyone**, **Only the GM**, or **Invited players**. A restricted room shows a lock, and players who aren't invited never see it at all.
+- **Tune each room** — the GM can turn dice, Scenes, NPC posts, and whispers on or off per room; the message box and dice button adapt, and anything turned off explains itself.
+- **Rooms stay tidy** — unread is counted per room, so a dot means new messages in that room. The lobby preview now leads with the room name, tapping a room notification opens that room, and search and the roll history can be narrowed to the room you're in.
+
 ## 2026-10-13
 
 ### Added

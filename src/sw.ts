@@ -85,6 +85,18 @@ function matchesPath(url: string, target: string): boolean {
   }
 }
 
+// A channel's notifications cover the channel itself and each of its rooms
+// (/channel/:id/sub/:subId), so opening the channel clears room pings too
+// (#621 Phase 4).
+function matchesChannel(url: string, channelUrl: string): boolean {
+  try {
+    const path = new URL(url, self.location.origin).pathname
+    return path === channelUrl || path.startsWith(`${channelUrl}/sub/`)
+  } catch {
+    return false
+  }
+}
+
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
@@ -190,7 +202,7 @@ self.addEventListener('message', (event) => {
     self.registration.getNotifications().then((notifications) => {
       const channelUrl = `/channel/${data.channelId}`
       notifications
-        .filter(n => typeof n.data?.url === 'string' && matchesPath(n.data.url, channelUrl))
+        .filter(n => typeof n.data?.url === 'string' && matchesChannel(n.data.url, channelUrl))
         .forEach(n => n.close())
     })
   )

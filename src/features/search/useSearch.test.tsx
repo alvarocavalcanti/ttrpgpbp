@@ -185,4 +185,60 @@ describe('useSearch', () => {
       expect(result.current.results).toEqual([])
     })
   })
+
+  it('narrows to a room when the room scope is on (#621 Phase 4)', async () => {
+    const mockAbortSignal = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq = vi.fn()
+    mockEq.mockReturnValue({ eq: mockEq, textSearch: mockTextSearch })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    const { result } = renderHook(() => useSearch('channel-1', 'room-1', 'room'))
+
+    act(() => {
+      result.current.setSearchTerm('hello')
+    })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    vi.useRealTimers()
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(mockEq).toHaveBeenCalledWith('sub_channel_id', 'room-1')
+  })
+
+  it('does not narrow when the channel scope is on (#621 Phase 4)', async () => {
+    const mockAbortSignal = vi.fn().mockResolvedValue({ data: [], error: null })
+    const mockLimit = vi.fn().mockReturnValue({ abortSignal: mockAbortSignal })
+    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockTextSearch = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockEq = vi.fn()
+    mockEq.mockReturnValue({ eq: mockEq, textSearch: mockTextSearch })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    const { result } = renderHook(() => useSearch('channel-1', 'room-1', 'channel'))
+
+    act(() => {
+      result.current.setSearchTerm('hello')
+    })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    vi.useRealTimers()
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(mockEq).not.toHaveBeenCalledWith('sub_channel_id', 'room-1')
+  })
 })

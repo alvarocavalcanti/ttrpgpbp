@@ -9,7 +9,7 @@ type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: { display_name: string | null; avatar_url: string | null } | null
 }
 
-export function useSearch(channelId: string) {
+export function useSearch(channelId: string, subChannelId?: string | null, scope: 'channel' | 'room' = 'channel') {
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedTerm = useDebounce(searchTerm, 300)
   
@@ -37,10 +37,15 @@ export function useSearch(channelId: string) {
       if (mounted) setLoading(true)
       
       try {
-        const { data, error: searchError } = await supabase
+        let query = supabase
           .from('messages')
           .select('*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url)')
           .eq('channel_id', channelId)
+        // Room scope (#621 Phase 4): narrow to the open room when asked.
+        if (scope === 'room' && subChannelId) {
+          query = query.eq('sub_channel_id', subChannelId)
+        }
+        const { data, error: searchError } = await query
           .eq('is_deleted', false)
           .textSearch('search_vector', debouncedTerm, { type: 'websearch', config: 'english' })
           .order('created_at', { ascending: false })
@@ -75,7 +80,7 @@ export function useSearch(channelId: string) {
       mounted = false
       controller.abort()
     }
-  }, [debouncedTerm, channelId, retryKey])
+  }, [debouncedTerm, channelId, subChannelId, scope, retryKey])
 
   return {
     searchTerm,

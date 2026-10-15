@@ -29,6 +29,10 @@ The **NPCs** sidebar item opens the NPC roster for the channel. From there the G
 - **Delete** an NPC — removes it from the roster; past messages keep their portrait snapshot
 - **Add** a new NPC directly, with a chosen or random portrait
 
+## Rooms
+
+The **Rooms** sidebar item opens the room manager. From there the GM can create, rename, archive, restore, and delete rooms, choose who can see each one (**Everyone**, **Only the GM**, or **Invited players**), and turn dice, Scenes, NPC posts, and whispers on or off per room. A channel holds up to 10 active rooms. See [Rooms](/help/rooms) for the full guide.
+
 ## Setting active players
 
 The **Active Player** sidebar item opens a list of the channel's players. Check one or more to name who is up next, then **Save** — the change applies immediately (no message needed) and sends the active player(s) an "It's your turn" notification. Leaving all boxes unchecked clears the active player.

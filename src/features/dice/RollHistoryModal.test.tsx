@@ -202,4 +202,44 @@ describe('RollHistoryModal', () => {
     expect(screen.getByText('1 success (≥10)')).toBeInTheDocument()
     expect(screen.queryByText('Critical Failure')).not.toBeInTheDocument()
   })
+
+  it('badges a roll with its room (#621 Phase 4)', () => {
+    mockHook({
+      rolls: [{
+        id: 'r1',
+        notation: '1d20',
+        result: 10,
+        breakdown: { rolls: [10] },
+        created_at: new Date().toISOString(),
+        roller_id: 'u1',
+        roller_character_name: 'Hero',
+        sub_channel_id: 'c1',
+        sub_channel_name: 'OOC',
+      }]
+    })
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    expect(screen.getByText('OOC')).toBeInTheDocument()
+  })
+
+  it('leaves a Main roll without a room badge (#621 Phase 4)', () => {
+    mockHook({
+      rolls: [{
+        id: 'r1',
+        notation: '1d20',
+        result: 10,
+        breakdown: { rolls: [10] },
+        created_at: new Date().toISOString(),
+        roller_id: 'u1',
+        roller_character_name: 'Hero',
+        sub_channel_id: null,
+        sub_channel_name: null,
+      }]
+    })
+
+    render(<RollHistoryModal channelId="c1" onClose={vi.fn()} />)
+
+    expect(screen.queryByText('OOC')).not.toBeInTheDocument()
+  })
 })
