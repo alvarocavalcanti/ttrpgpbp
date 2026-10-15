@@ -139,4 +139,67 @@ describe('usePublicChannels', () => {
 
     await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(2))
   })
+
+  it('discards a page that resolves after the query changed', async () => {
+    let resolveStale!: (value: { data: unknown; error: null }) => void
+    const stalePage = new Promise<{ data: unknown; error: null }>((resolve) => {
+      resolveStale = resolve
+    })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: fullPage, error: null } as any) // first page, search ''
+      .mockReturnValueOnce(stalePage as any) // loadMore, search ''
+      .mockResolvedValueOnce({ data: [row('fresh')], error: null } as any) // first page, search 'x'
+
+    const { result, rerender } = renderHook(
+      ({ search }: { search: string }) => usePublicChannels({ search }),
+      { initialProps: { search: '' } },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // Start a page for the old query, then change the query before it resolves.
+    let staleCall!: Promise<void>
+    act(() => {
+      staleCall = result.current.loadMore()
+    })
+    rerender({ search: 'x' })
+    await waitFor(() => expect(result.current.channels.map((c) => c.id)).toEqual(['fresh']))
+
+    await act(async () => {
+      resolveStale({ data: [row('stale')], error: null })
+      await staleCall
+    })
+
+    // The stale page must not be appended to the new result set.
+    expect(result.current.channels.map((c) => c.id)).toEqual(['fresh'])
+  })
+
+  it('ignores a second loadMore while one is in flight', async () => {
+    let resolveFirst!: (value: { data: unknown; error: null }) => void
+    const firstPage = new Promise<{ data: unknown; error: null }>((resolve) => {
+      resolveFirst = resolve
+    })
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({ data: fullPage, error: null } as any)
+      .mockReturnValueOnce(firstPage as any)
+      .mockResolvedValueOnce({ data: [row('dup')], error: null } as any)
+
+    const { result } = renderHook(() => usePublicChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let firstCall!: Promise<void>
+    let secondCall!: Promise<void>
+    act(() => {
+      firstCall = result.current.loadMore()
+      secondCall = result.current.loadMore()
+    })
+    await act(async () => {
+      resolveFirst({ data: [row('extra')], error: null })
+      await firstCall
+      await secondCall
+    })
+
+    // Only one page was fetched and appended.
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+    expect(result.current.channels).toHaveLength(21)
+  })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { parseRow, PublicChannelRowSchema, type PublicChannel } from '../validation/rowSchemas'
 
@@ -33,6 +33,12 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
   const [hasMore, setHasMore] = useState(false)
   // Bumped by refetch() to re-run the first-page effect (error-state Retry).
   const [refetchKey, setRefetchKey] = useState(0)
+  // Query generation: bumped whenever the query identity changes (search,
+  // filter, enabled) so a page fetched for an older query can be discarded
+  // instead of appended to a list it no longer belongs to.
+  const generationRef = useRef(0)
+  // loadMore reentry guard — the button only disables after a re-render.
+  const loadingMoreRef = useRef(false)
 
   const refetch = useCallback(() => {
     setError(null)
@@ -41,6 +47,10 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
   }, [])
 
   useEffect(() => {
+    // Invalidate any in-flight page: its rows belong to the previous query.
+    generationRef.current += 1
+    const generation = generationRef.current
+
     if (!enabled) {
       setChannels([])
       setLoading(false)
@@ -60,7 +70,7 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
         p_limit: PAGE_SIZE,
         p_offset: 0,
       })
-      if (!mounted) return
+      if (!mounted || generation !== generationRef.current) return
       if (rpcError) {
         setError(rpcError)
         setLoading(false)
@@ -80,22 +90,32 @@ export function usePublicChannels({ search = '', gameSystem = '', enabled = true
   }, [enabled, search, gameSystem, refetchKey])
 
   const loadMore = useCallback(async () => {
+    // The button only disables after a re-render, so guard reentry here.
+    if (loadingMoreRef.current) return
+    const generation = generationRef.current
+    loadingMoreRef.current = true
     setLoadingMore(true)
-    const { data, error: rpcError } = await supabase.rpc('list_public_channels', {
-      p_search: search || undefined,
-      p_game_system: gameSystem || undefined,
-      p_limit: PAGE_SIZE,
-      p_offset: channels.length,
-    })
-    if (rpcError) {
-      setError(rpcError)
+    try {
+      const { data, error: rpcError } = await supabase.rpc('list_public_channels', {
+        p_search: search || undefined,
+        p_game_system: gameSystem || undefined,
+        p_limit: PAGE_SIZE,
+        p_offset: channels.length,
+      })
+      // A newer query started while this page was in flight: drop it rather than
+      // append rows from a result set that no longer matches.
+      if (generation !== generationRef.current) return
+      if (rpcError) {
+        setError(rpcError)
+        return
+      }
+      const rows = toRows(data)
+      setChannels((prev) => [...prev, ...rows])
+      setHasMore(rows.length === PAGE_SIZE)
+    } finally {
+      loadingMoreRef.current = false
       setLoadingMore(false)
-      return
     }
-    const rows = toRows(data)
-    setChannels((prev) => [...prev, ...rows])
-    setHasMore(rows.length === PAGE_SIZE)
-    setLoadingMore(false)
   }, [channels.length, search, gameSystem])
 
   return { channels, loading, loadingMore, error, hasMore, refetch, loadMore }

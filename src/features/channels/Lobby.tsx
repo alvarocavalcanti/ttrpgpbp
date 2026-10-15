@@ -153,12 +153,15 @@ export function Lobby() {
   const qRaw = searchParams.get('q') ?? ''
   const q = qRaw.toLowerCase()
 
-  // My Games is the default; a user with no channels yet lands on Discover
-  // instead of an empty list. An in-flight or failed My Games load keeps the
-  // user on their own tab so they see the spinner / Retry.
-  const requestedTab: LobbyTab = searchParams.get('tab') === 'discover' ? 'discover' : 'my'
+  // My Games is the default; a user who has not picked a tab yet and has no
+  // channels lands on Discover instead of an empty list. An explicit ?tab=my
+  // always wins, so tapping My Games from that fallback sticks. An in-flight or
+  // failed My Games load keeps the user on their own tab so they see the
+  // spinner / Retry.
+  const tabParam = searchParams.get('tab')
+  const requestedTab: LobbyTab = tabParam === 'discover' ? 'discover' : 'my'
   const activeTab: LobbyTab =
-    requestedTab === 'my' && !loading && !error && myChannels.length === 0 ? 'discover' : requestedTab
+    tabParam === null && !loading && !error && myChannels.length === 0 ? 'discover' : requestedTab
 
   const discover = usePublicChannels({ search: qRaw, gameSystem, enabled: activeTab === 'discover' })
 
@@ -171,8 +174,10 @@ export function Lobby() {
   const selectTab = (tab: LobbyTab) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      if (tab === 'discover') next.set('tab', 'discover')
-      else next.delete('tab')
+      // Both tabs are written explicitly: the empty-channel fallback only
+      // applies while no tab has been chosen, so an explicit ?tab=my keeps a
+      // channel-less user on My Games.
+      next.set('tab', tab)
       return next
     }, { replace: true })
   }

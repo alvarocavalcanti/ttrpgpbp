@@ -803,6 +803,20 @@ describe('Lobby', () => {
       expect(screen.getByTestId('empty-lobby')).toBeInTheDocument()
     })
 
+    it('keeps an explicit My Games choice for a user with no channels', () => {
+      withMyChannels([])
+      mockDiscover()
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      // First load falls back to Discover...
+      expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page')
+
+      // ...but choosing My Games must stick, so its empty state stays reachable.
+      fireEvent.click(screen.getByRole('button', { name: 'My Games' }))
+      expect(screen.getByRole('button', { name: 'My Games' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByTestId('empty-lobby')).toBeInTheDocument()
+    })
+
     it('renders discover cards with GM, description and member count', () => {
       withMyChannels(oneChannel)
       mockDiscover()
