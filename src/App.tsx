@@ -164,6 +164,11 @@ function AppNav() {
     }, { replace: true })
   }, [debouncedSearch, location.pathname, setSearchParams])
 
+  // The Discover tab has its own search box (#674), and the header's My Games
+  // search cannot affect it — a second, inert search box on that screen would
+  // only confuse. Hidden there, unchanged everywhere else.
+  const showLobbySearch = location.pathname === '/' && searchParams.get('tab') !== 'discover'
+
   if (!user || location.pathname.startsWith('/channel/')) return null
 
   return (
@@ -174,7 +179,7 @@ function AppNav() {
       </Link>
       
       <div className="flex items-center flex-shrink-0 gap-2">
-        {location.pathname === '/' && (
+        {showLobbySearch && (
           <form className="relative hidden md:block" onSubmit={(e) => e.preventDefault()}>
             <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 dark:text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" />
@@ -244,7 +249,7 @@ function AppNav() {
             </Link>
             {/* Folded-in header controls on compact screens (issue #382): search + dark
               mode. Search is lobby-only, matching the header search. */}
-            {location.pathname === '/' && (
+            {showLobbySearch && (
               <>
                 <div className="md:hidden border-t border-surface-100 dark:border-surface-700 my-1"></div>
                 <div className="md:hidden px-4 py-2">
