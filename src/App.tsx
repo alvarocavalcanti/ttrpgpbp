@@ -39,6 +39,8 @@ import { HelpPage } from './features/help/HelpPage'
 // Public tool and game-system pages (issue #645) — also prerendered, so eager.
 import { DiceRollerPage } from './features/tools/DiceRollerPage'
 import { GameSystemPage } from './features/game-systems/GameSystemPage'
+// Anonymous public directory (#674) — prerendered and indexable.
+import { DirectoryPage } from './features/directory/DirectoryPage'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
@@ -466,6 +468,7 @@ export default function App() {
                 <Route path={ROUTES.diceRoller} element={<DiceRollerPage />} />
                 <Route path={ROUTES.gameSystem} element={<GameSystemPage />} />
                 <Route path={ROUTES.playByPost} element={<ContentPage />} />
+                <Route path={ROUTES.directory} element={<DirectoryPage />} />
                 <Route path={ROUTES.howToDnd} element={<ContentPage />} />
                 <Route path={ROUTES.howToRun} element={<ContentPage />} />
                 <Route path={ROUTES.vsDiscord} element={<ContentPage />} />

@@ -174,3 +174,14 @@ export const PublicChannelDetailRowSchema = PublicChannelRowSchema.extend({
 })
 
 export type PublicChannelDetail = z.infer<typeof PublicChannelDetailRowSchema>
+
+// The anonymous /directory projection (#674): GM-authored name + description
+// only. The server-side projection is pinned by its own pgTAP assertion; the
+// page renders nothing but these two fields, so a widened server projection
+// cannot surface here.
+export const AnonPublicChannelRowSchema = z.looseObject({
+  name: z.string(),
+  description: z.string().nullish(),
+})
+
+export type AnonPublicChannel = z.infer<typeof AnonPublicChannelRowSchema>
