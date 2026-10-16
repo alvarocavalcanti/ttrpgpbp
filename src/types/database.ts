@@ -1486,7 +1486,9 @@ export type Database = {
       admin_list_channels: {
         Args: never
         Returns: {
+          constraints: string
           created_at: string
+          description: string
           game_system: string
           gm_display_name: string
           gm_id: string
@@ -1495,6 +1497,7 @@ export type Database = {
           id: string
           join_mode: Database["public"]["Enums"]["channel_join_mode"]
           last_message_at: string
+          listing_takedown_at: string
           member_count: number
           name: string
           pending_request_count: number

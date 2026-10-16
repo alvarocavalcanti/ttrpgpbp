@@ -20,6 +20,15 @@ describe('TextPromptSheet', () => {
     expect(screen.getByLabelText('Message')).toHaveAttribute('maxLength', '200')
   })
 
+  it('disables Confirm while the caller\'s request is pending', () => {
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} pending />)
+
+    // The caller owns the request, so the sheet only reflects its state: without
+    // this a double tap fires the action twice.
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+  })
+
   it('shows a character counter', () => {
     render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} initialValue="abc" confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()} />)
 

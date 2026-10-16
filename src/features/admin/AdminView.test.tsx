@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AdminView } from './AdminView'
@@ -62,98 +62,9 @@ const users = [
 ]
 
 const channels = [
-  { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', gm_id: 'u1', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice', human_sender_count: 3, human_message_count: 40 },
-  { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null, human_sender_count: 1, human_message_count: 4 },
+  { id: 'c1', name: 'Curse of Strahd', game_system: 'shadowdark', gm_id: 'u1', member_count: 5, created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z', gm_display_name: 'Alice', human_sender_count: 3, human_message_count: 40, join_mode: 'approval', pending_request_count: 1, listing_takedown_at: null },
+  { id: 'c2', name: 'Empty', game_system: 'none', gm_id: null, member_count: 0, created_at: '2026-03-01T00:00:00Z', last_message_at: null, gm_display_name: null, human_sender_count: 1, human_message_count: 4, join_mode: 'invite', pending_request_count: 0, listing_takedown_at: null },
 ]
-
-const makeReport = (over: Record<string, unknown> = {}) => ({
-  id: 'r1', reporter_id: 'u1', reporter_display_name: 'Alice', reported_user_id: 'u2',
-  reported_display_name: 'Bob', channel_id: 'c1', channel_name: 'Curse of Strahd', message_id: 'm1',
-  reason: 'Inappropriate content', status: 'pending',
-  created_at: '2026-03-03T00:00:00Z', updated_at: '2026-03-03T00:00:00Z',
-  ...over,
-})
-
-const defaultRpc = () => {
-  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-    if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
-    if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
-    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
-    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_get_user_history') return Promise.resolve({ data: [], error: null })
-    return Promise.resolve({ data: null, error: null })
-  }) as any)
-}
-
-// Users-focused mock: supplies the empty arrays the loader requires so a
-// custom users payload doesn't trip the malformed-payload guard.
-const usersRpc = (overrides: Record<string, any>) => {
-  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
-    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
-    if (overrides[fn] !== undefined) {
-      // Allow function overrides so a rejection is created at call time
-      // instead of eagerly (which Vitest flags as an unhandled rejection).
-      const value = overrides[fn]
-      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
-    }
-    return Promise.resolve({ data: null, error: null })
-  }) as any)
-}
-
-// Reports-focused mock: supplies the reports payload under test and empty
-// users/channels so the loader's malformed-payload guard stays happy.
-const reportsRpc = (reportData: any[], overrides: Record<string, any> = {}) => {
-  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reportData, error: null })
-    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
-    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
-    if (overrides[fn] !== undefined) {
-      const value = overrides[fn]
-      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
-    }
-    return Promise.resolve({ data: null, error: null })
-  }) as any)
-}
-
-// Archived-focused mock: supplies the archived payload under test and empty
-// users/channels so the loader's malformed-payload guard stays happy.
-const archivedRpc = (archivedData: any[], overrides: Record<string, any> = {}) => {
-  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
-    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
-    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
-    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
-    if (overrides[fn] !== undefined) {
-      const value = overrides[fn]
-      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
-    }
-    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: archivedData, error: null })
-    return Promise.resolve({ data: null, error: null })
-  }) as any)
-}
-
-const archived = [
-  { id: 'a1', name: 'Winter Archive', game_system: 'dnd5e', gm_id: 'u1', gm_display_name: 'Gina GM', gm_email: 'gina@example.com', member_count: 3, player_characters: ['Tom', 'Cora'], created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z' },
-  { id: 'a2', name: 'Orphaned Archive', game_system: 'none', gm_id: null, gm_display_name: null, gm_email: null, member_count: 0, player_characters: [], created_at: '2026-03-01T00:00:00Z', last_message_at: null },
-  { id: 'a3', name: 'Nameless GM Archive', game_system: 'none', gm_id: 'u9', gm_display_name: null, gm_email: 'noname@example.com', member_count: 1, player_characters: ['Zed'], created_at: '2026-04-01T00:00:00Z', last_message_at: null },
-]
-
-const switchToReportsTab = async () => {
-  await screen.findByRole('navigation', { name: 'Admin sections' })
-  fireEvent.click(
-    within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Reports' })
-  )
-}
 
 describe('AdminView', () => {
   beforeEach(() => {
@@ -349,7 +260,7 @@ describe('AdminView', () => {
     // 2-sender / 15-message rule, so filtering empties the table.
     await screen.findByText('Active Channels')
     fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 0. Show channels with real activity' }))
-    expect(await screen.findByText('No active channels yet.')).toBeInTheDocument()
+    expect(await screen.findByText('No channels match the current filter.')).toBeInTheDocument()
     expect(screen.queryByText('Quiet')).not.toBeInTheDocument()
   })
 
@@ -1275,6 +1186,234 @@ describe('AdminView', () => {
   })
 })
 
+  describe('listing surface (#674)', () => {
+  // Own setup: this block sits outside the main describe whose beforeEach
+  // supplies the auth and app-setting mocks.
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAppSetting).mockImplementation((key: string, fallback: any) => {
+      const map: Record<string, unknown> = {
+        max_channels_per_user: 10,
+        image_uploading_enabled: false,
+        image_max_size_mb: 5,
+        image_retention_days: 0,
+      }
+      return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
+    })
+    vi.mocked(useAuth).mockReturnValue(adminUser as any)
+    defaultRpc()
+  })
+
+  const openChannelsTab = async () => {
+    const nav = await screen.findByRole('navigation', { name: 'Admin sections' })
+    fireEvent.click(within(nav).getByRole('button', { name: 'Channels' }))
+    await screen.findByText('Curse of Strahd')
+  }
+
+  it('splits the total into listed and private', async () => {
+    defaultRpc()
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+
+    expect(await screen.findByText('1 listed · 1 private')).toBeInTheDocument()
+  })
+
+  it('badges each channel with its listing state and pending count', async () => {
+    defaultRpc()
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await openChannelsTab()
+
+    // c1 is a live listing with one pending application.
+    const listedRow = screen.getByText('Curse of Strahd').closest('tr') as HTMLTableRowElement
+    expect(within(listedRow).getByText('Listed')).toBeInTheDocument()
+    expect(within(listedRow).getByText('1')).toBeInTheDocument()
+
+    // c2 is private and orphaned; both are shown so the two states never blur.
+    const privateRow = screen.getByText('Empty').closest('tr') as HTMLTableRowElement
+    expect(within(privateRow).getByText('Private')).toBeInTheDocument()
+    expect(within(privateRow).getByText('Orphaned')).toBeInTheDocument()
+  })
+
+  it('filters the table to listed or private channels', async () => {
+    defaultRpc()
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await openChannelsTab()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Private' }))
+    expect(screen.getByText('Empty')).toBeInTheDocument()
+    expect(screen.queryByText('Curse of Strahd')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listed' }))
+    expect(screen.getByText('Curse of Strahd')).toBeInTheDocument()
+    expect(screen.queryByText('Empty')).not.toBeInTheDocument()
+  })
+
+  it('does not double-submit a takedown while one is in flight', async () => {
+    let resolveTakedown!: (value: { error: null }) => void
+    const pending = new Promise<{ error: null }>((resolve) => {
+      resolveTakedown = resolve
+    })
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_takedown_channel') return pending
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await openChannelsTab()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take down' }))
+    const confirm = screen.getByRole('button', { name: 'Take down listing' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+
+    // The confirm is disabled while the first request is in flight, so a second
+    // tap cannot write a second audit_logs row.
+    await waitFor(() => expect(confirm).toBeDisabled())
+    await act(async () => {
+      resolveTakedown({ error: null })
+      await pending
+    })
+    expect(
+      vi.mocked(supabase.rpc).mock.calls.filter(([fn]) => fn === 'admin_takedown_channel'),
+    ).toHaveLength(1)
+  })
+
+  it('takes a listing down and restores it from the console', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    defaultRpc()
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await openChannelsTab()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take down' }))
+    fireEvent.change(screen.getByLabelText('Why is this listing being removed?'), {
+      target: { value: 'spam listing' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Take down listing' }))
+
+    await waitFor(() =>
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_takedown_channel', {
+        p_channel_id: 'c1',
+        p_reason: 'spam listing',
+      }),
+    )
+    // The row reflects the new state without a refetch — and can be undone.
+    expect(await screen.findByText('Taken down')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Take down' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+    await waitFor(() =>
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_restore_channel_listing', {
+        p_channel_id: 'c1',
+      }),
+    )
+    expect(await screen.findByText('Listed')).toBeInTheDocument()
+  })
+})
+
+const makeReport = (over: Record<string, unknown> = {}) => ({
+  id: 'r1', reporter_id: 'u1', reporter_display_name: 'Alice', reported_user_id: 'u2',
+  reported_display_name: 'Bob', channel_id: 'c1', channel_name: 'Curse of Strahd', message_id: 'm1',
+  reason: 'Inappropriate content', status: 'pending',
+  created_at: '2026-03-03T00:00:00Z', updated_at: '2026-03-03T00:00:00Z',
+  ...over,
+})
+
+const defaultRpc = () => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: users, error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 1048576, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_get_user_history') return Promise.resolve({ data: [], error: null })
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+// Users-focused mock: supplies the empty arrays the loader requires so a
+// custom users payload doesn't trip the malformed-payload guard.
+const usersRpc = (overrides: Record<string, any>) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
+    if (overrides[fn] !== undefined) {
+      // Allow function overrides so a rejection is created at call time
+      // instead of eagerly (which Vitest flags as an unhandled rejection).
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+// Reports-focused mock: supplies the reports payload under test and empty
+// users/channels so the loader's malformed-payload guard stays happy.
+const reportsRpc = (reportData: any[], overrides: Record<string, any> = {}) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reportData, error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
+    if (overrides[fn] !== undefined) {
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+// Admin-channel mock for the #674 listing actions: like reportsRpc but with the
+// channels payload supplied, since the takedown affordance depends on it.
+const takedownRpc = (reportData: any[], channelData: any[] = channels) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: channelData, error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: reportData, error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+// Archived-focused mock: supplies the archived payload under test and empty
+// users/channels so the loader's malformed-payload guard stays happy.
+const archivedRpc = (archivedData: any[], overrides: Record<string, any> = {}) => {
+  vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+    if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+    if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+    if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+    if (overrides[fn] !== undefined) {
+      const value = overrides[fn]
+      return typeof value === 'function' ? Promise.resolve().then(() => value()) : Promise.resolve(value)
+    }
+    if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: archivedData, error: null })
+    return Promise.resolve({ data: null, error: null })
+  }) as any)
+}
+
+const archived = [
+  { id: 'a1', name: 'Winter Archive', game_system: 'dnd5e', gm_id: 'u1', gm_display_name: 'Gina GM', gm_email: 'gina@example.com', member_count: 3, player_characters: ['Tom', 'Cora'], created_at: '2026-01-01T00:00:00Z', last_message_at: '2026-02-01T00:00:00Z' },
+  { id: 'a2', name: 'Orphaned Archive', game_system: 'none', gm_id: null, gm_display_name: null, gm_email: null, member_count: 0, player_characters: [], created_at: '2026-03-01T00:00:00Z', last_message_at: null },
+  { id: 'a3', name: 'Nameless GM Archive', game_system: 'none', gm_id: 'u9', gm_display_name: null, gm_email: 'noname@example.com', member_count: 1, player_characters: ['Zed'], created_at: '2026-04-01T00:00:00Z', last_message_at: null },
+]
+
+const switchToReportsTab = async () => {
+  await screen.findByRole('navigation', { name: 'Admin sections' })
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Reports'   })
+  )
+}
+
 describe('AdminView copy opted-in emails', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -1498,12 +1637,49 @@ describe('AdminView copy opted-in emails', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('admin_read_message', { p_message_id: 'm1' })
   })
 
-  it('disables View message when the report has no linked message', async () => {
-    reportsRpc([makeReport({ message_id: null })])
+  it('treats a report with no message as a listing report', async () => {
+    takedownRpc([makeReport({ message_id: null })])
     render(<MemoryRouter><AdminView /></MemoryRouter>)
     await switchToReportsTab()
 
-    expect(await screen.findByRole('button', { name: 'View message' })).toBeDisabled()
+    // Nothing to open as a message: the channel is the subject instead.
+    expect(screen.queryByRole('button', { name: 'View message' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'View channel' })).toHaveAttribute(
+      'href',
+      '/admin/channels/c1',
+    )
+  })
+
+  it('takes a reported listing down with the reason, and shows the new state', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    takedownRpc([makeReport({ message_id: null })])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Take down' }))
+    fireEvent.change(screen.getByLabelText('Why is this listing being removed?'), {
+      target: { value: 'Recruiting for a paid game' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Take down listing' }))
+
+    await waitFor(() =>
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_takedown_channel', {
+        p_channel_id: 'c1',
+        p_reason: 'Recruiting for a paid game',
+      }),
+    )
+    expect(addToast).toHaveBeenCalledWith('Listing taken down.', 'success')
+  })
+
+  it('does not offer a takedown when the reported listing is already private', async () => {
+    takedownRpc([makeReport({ message_id: null, channel_id: 'c2', channel_name: 'Empty' })])
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await switchToReportsTab()
+
+    // Taking down a private channel is a no-op the RPC reports as success.
+    expect(await screen.findByRole('link', { name: 'View channel' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Take down' })).not.toBeInTheDocument()
   })
 
   it('shows a toast when loading the reported message fails', async () => {

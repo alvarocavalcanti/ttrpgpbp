@@ -18,6 +18,8 @@ const baseChannel = {
   member_count: 2, created_at: '2026-09-18T10:00:00Z',
   last_message_at: null, gm_display_name: 'Alice',
   human_sender_count: 3, human_message_count: 40,
+  join_mode: 'approval', pending_request_count: 0, listing_takedown_at: null,
+  description: 'A weekly Shadowdark game.', constraints: 'Post most days.',
 }
 
 function baseMessage(overrides: Record<string, unknown> = {}) {
@@ -76,6 +78,46 @@ describe('AdminChannelView', () => {
     vi.clearAllMocks()
     vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
     vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook() as any)
+  })
+
+  it('shows the listing copy so a listing report can be judged (#674)', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(
+      baseHook({ channel: { ...baseChannel, pending_request_count: 2 } }) as any,
+    )
+
+    renderView()
+
+    // The copy is the subject of the report; without it an admin would have to
+    // join the channel to judge it.
+    expect(await screen.findByText('A weekly Shadowdark game.')).toBeInTheDocument()
+    expect(screen.getByText('Post most days.')).toBeInTheDocument()
+    expect(screen.getByText('Listed')).toBeInTheDocument()
+    expect(screen.getByText('2 pending')).toBeInTheDocument()
+  })
+
+  it('shows a taken-down listing as taken down, not private (#674)', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(
+      baseHook({
+        channel: { ...baseChannel, join_mode: 'invite', listing_takedown_at: '2026-10-16T10:00:00Z' },
+      }) as any,
+    )
+
+    renderView()
+
+    expect(await screen.findByText('Taken down')).toBeInTheDocument()
+    expect(screen.queryByText('Private')).not.toBeInTheDocument()
+  })
+
+  it('hides the listing panel for a plain private channel (#674)', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(
+      baseHook({ channel: { ...baseChannel, join_mode: 'invite', listing_takedown_at: null } }) as any,
+    )
+
+    renderView()
+
+    expect(await screen.findByText('Strahd')).toBeInTheDocument()
+    expect(screen.queryByText('Listing')).not.toBeInTheDocument()
+    expect(screen.queryByText('A weekly Shadowdark game.')).not.toBeInTheDocument()
   })
 
   it('bounds itself to the viewport so the channel header stays put', () => {

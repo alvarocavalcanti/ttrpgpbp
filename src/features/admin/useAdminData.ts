@@ -82,6 +82,15 @@ export const AdminChannelRowSchema = z.object({
   gm_display_name: z.string().nullable(),
   human_sender_count: z.number(),
   human_message_count: z.number(),
+  // #674: the listing projection. These were returned by admin_list_channels
+  // since Phase A but dropped by this schema until Phase 4b needed them.
+  join_mode: z.string(),
+  pending_request_count: z.number(),
+  listing_takedown_at: z.string().nullable(),
+  // The GM-authored listing copy. Nullish rather than nullable: a private
+  // channel has none, and absent and null mean the same thing here.
+  description: z.string().nullish(),
+  constraints: z.string().nullish(),
 })
 
 export type AdminUser = z.infer<typeof AdminUserRowSchema>
@@ -213,6 +222,52 @@ export function useAdminData(isServerAdmin: boolean) {
     return null
   }
 
+  // Takes a listing down (force-delist) or restores it. Both mutate the row in
+  // place so the console reflects the new state without a refetch; the server
+  // stamps/clears listing_takedown_at, which is what distinguishes a taken-down
+  // listing from an ordinary private channel.
+  const takedownChannel = async (channelId: string, reason: string) => {
+    let rpcError: { message: string } | null = null
+    try {
+      rpcError = (await supabase.rpc('admin_takedown_channel', {
+        p_channel_id: channelId,
+        p_reason: reason
+      })).error
+    } catch (err) {
+      rpcError = err as { message: string }
+    }
+    if (rpcError) return rpcError
+    setChannels(prev => prev.map(c =>
+      c.id === channelId
+        ? {
+            ...c,
+            join_mode: 'invite',
+            listing_takedown_at: new Date().toISOString(),
+            // The server closes the open applications as part of the takedown,
+            // so the count is stale the moment the marker is set.
+            pending_request_count: 0,
+          }
+        : c
+    ))
+    return null
+  }
+
+  const restoreChannelListing = async (channelId: string) => {
+    let rpcError: { message: string } | null = null
+    try {
+      rpcError = (await supabase.rpc('admin_restore_channel_listing', {
+        p_channel_id: channelId
+      })).error
+    } catch (err) {
+      rpcError = err as { message: string }
+    }
+    if (rpcError) return rpcError
+    setChannels(prev => prev.map(c =>
+      c.id === channelId ? { ...c, listing_takedown_at: null } : c
+    ))
+    return null
+  }
+
   // Resolves or dismisses an abuse report; row updated in place. Mirrors
   // suspendUser's error contract so a rejected RPC promise still surfaces.
   const resolveReport = async (reportId: string, status: 'resolved' | 'dismissed') => {
@@ -285,5 +340,5 @@ export function useAdminData(isServerAdmin: boolean) {
     return entries
   }
 
-  return { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages }
+  return { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, takedownChannel, restoreChannelListing, upsertSettings, getUserHistory, readMessage, listUserMessages }
 }

@@ -10,12 +10,14 @@ interface TextPromptSheetProps {
   confirmLabel: string
   onConfirm: (value: string) => void
   onClose: () => void
+  /** Disables Confirm while the caller's request is in flight. */
+  pending?: boolean
 }
 
 // One-field text prompt replacing window.prompt (UX #413): themed bottom
 // sheet with the length cap enforced at input via native maxLength. Confirm
 // returns the trimmed value; Cancel, Escape and backdrop tap all abort.
-export function TextPromptSheet({ title, label, maxLength, initialValue = '', placeholder, confirmLabel, onConfirm, onClose }: TextPromptSheetProps) {
+export function TextPromptSheet({ title, label, maxLength, initialValue = '', placeholder, confirmLabel, onConfirm, onClose, pending = false }: TextPromptSheetProps) {
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
@@ -60,7 +62,8 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
           </button>
           <button
             type="submit"
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
+            disabled={pending}
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
           >
             {confirmLabel}
           </button>
