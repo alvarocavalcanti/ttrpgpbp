@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { PublicChannelDetailSheet } from './PublicChannelDetailSheet'
@@ -257,6 +257,49 @@ describe('PublicChannelDetailSheet', () => {
 
       renderSheet()
       expect(screen.queryByRole('button', { name: 'Report this listing' })).not.toBeInTheDocument()
+    })
+
+    it('ignores a second submit while the first is still in flight', async () => {
+      let resolveReport!: (value: { error: null }) => void
+      const pending = new Promise<{ error: null }>((resolve) => {
+        resolveReport = resolve
+      })
+      vi.mocked(supabase.rpc).mockReturnValue(pending as any)
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+      fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
+        target: { value: 'spam' },
+      })
+      const submit = screen.getByRole('button', { name: 'Submit report' })
+      fireEvent.click(submit)
+      fireEvent.click(submit)
+
+      await act(async () => {
+        resolveReport({ error: null })
+        await pending
+      })
+
+      // One round-trip, not two: the second would come back refused as a
+      // duplicate and confuse the reporter.
+      expect(supabase.rpc).toHaveBeenCalledTimes(1)
+    })
+
+    it('refuses a blank reason without a round-trip', () => {
+      const addToast = vi.fn()
+      vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+      fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
+        target: { value: '   ' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+
+      expect(supabase.rpc).not.toHaveBeenCalled()
+      expect(addToast).toHaveBeenCalledWith('Enter a reason.', 'error')
     })
   })
 })

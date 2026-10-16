@@ -37,6 +37,7 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
   const [characterName, setCharacterName] = useState('')
   const [answer, setAnswer] = useState('')
   const [reportOpen, setReportOpen] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
 
   // One listing_open per opened card. Depends on the id (not the fetched row) so
   // a refetch does not re-fire it.
@@ -75,13 +76,27 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
   // report_channel_listing raises on every refusal (own listing, already open
   // report), so its message is what the reporter needs to see.
   const handleReport = async (reason: string) => {
+    // TextPromptSheet carries no pending state, so guard reentry here: a double
+    // tap on a slow connection would otherwise fire twice and the second call
+    // would come back refused as a duplicate.
+    if (reportBusy) return
+    // The server trims and rejects an empty reason; refuse it here so the
+    // reporter gets the answer immediately instead of after a round-trip.
+    const trimmed = reason.trim()
+    if (!trimmed) {
+      addToast('Enter a reason.', 'error')
+      return
+    }
+    setReportBusy(true)
     try {
-      const reportError = await reportChannelListing(channelId, reason)
+      const reportError = await reportChannelListing(channelId, trimmed)
       if (reportError) throw reportError
       addToast('Thanks — the report is with the moderators.', 'success')
       setReportOpen(false)
     } catch (err) {
       addToast(toError(err).message, 'error')
+    } finally {
+      setReportBusy(false)
     }
   }
 
