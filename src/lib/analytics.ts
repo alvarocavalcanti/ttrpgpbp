@@ -72,7 +72,7 @@ export function trackEvent(name: string, params?: Record<string, unknown>): void
 // (e.g. lobby search) never leave the device — except `utm_*` campaign
 // parameters, which GA4 needs for channel attribution. Read from the live URL,
 // not the passed path: RouteTracker forwards only the pathname.
-export function trackPageView(pagePath: string): void {
+export function trackPageView(pagePath: string, authenticated: boolean): void {
   const url = new URL(pagePath, window.location.origin)
   const utm = new URLSearchParams(window.location.search)
   for (const key of [...utm.keys()]) {
@@ -84,9 +84,10 @@ export function trackPageView(pagePath: string): void {
     page_location: url.origin + url.pathname + (campaign ? `?${campaign}` : ''),
     // GA's Pages report keys on the page title, and leaving it to GA's
     // document.title fallback recorded "(not set)" for hits that landed before
-    // any title existed. document.title is the accurate, auth-aware source here
-    // (the route's <Seo> is in the DOM before this effect runs); the route map
-    // only covers the case where it is somehow empty.
-    page_title: document.title || titleForPath(url.pathname),
+    // any title existed. Resolved from the route map rather than document.title
+    // on purpose: on a lazy route the page view fires before that route's <Seo>
+    // mounts, so document.title still holds the PREVIOUS screen's title and the
+    // hit would be attributed to the wrong page.
+    page_title: titleForPath(url.pathname, authenticated),
   })
 }

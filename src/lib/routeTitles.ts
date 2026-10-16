@@ -27,7 +27,8 @@ const APP_ROUTE_TITLES: { pattern: string; title: string }[] = [
 ]
 
 const SUFFIX = ' — Role by Post'
-const DEFAULT_TITLE = 'Role by Post'
+// An unmatched path renders the not-found screen, which titles itself this way.
+const DEFAULT_TITLE = 'Page not found — Role by Post'
 
 function patternToRegExp(pattern: string): RegExp {
   const escaped = pattern
@@ -45,14 +46,21 @@ const APP_TITLE_MATCHERS = APP_ROUTE_TITLES.map((entry) => ({
 }))
 
 // The document title for a path: the app's own title where it has one, else the
-// public route's title (which already carries the brand suffix), else the brand
-// alone.
+// public route's title, else the not-found title.
 //
-// '/' resolves to 'Lobby' here, which is the signed-in case — the signed-out
-// landing page renders its own <Seo> outside the protected routes and never
-// consults this.
-export function titleForPath(pathname: string): string {
+// `authenticated` only matters for '/', the one path that is two different pages:
+// the signed-out landing page and the signed-in lobby. Resolving it from the path
+// alone would file every signed-out visit under the lobby. This reads the caller's
+// auth state rather than `document.title` on purpose — on a lazy route the page
+// view fires before the route's <Seo> mounts, so document.title still holds the
+// previous screen's title and the hit would be attributed to the wrong page.
+export function titleForPath(pathname: string, authenticated: boolean): string {
   const path = normalizePath(pathname)
+
+  if (path === ROUTES.home && !authenticated) {
+    const landing = PUBLIC_ROUTES.find((entry) => entry.path === ROUTES.home)
+    return landing ? landing.title : DEFAULT_TITLE
+  }
 
   const app = APP_TITLE_MATCHERS.find((entry) => entry.matcher.test(path))
   if (app) return app.title

@@ -7,6 +7,10 @@ import { getAnalyticsConsent } from '../lib/analyticsConsent'
 const mockEnv = vi.hoisted(() => ({ VITE_GA_MEASUREMENT_ID: 'G-TEST' }))
 vi.mock('../env', () => ({ env: mockEnv }))
 
+// The banner reads the auth state only to title the first page view ('/' is both
+// the landing page and the lobby) and does not otherwise depend on auth.
+vi.mock('../features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }))
+
 const initAnalytics = vi.hoisted(() => vi.fn())
 const trackPageView = vi.hoisted(() => vi.fn())
 vi.mock('../lib/analytics', () => ({ initAnalytics, trackPageView }))
@@ -38,7 +42,7 @@ describe('AnalyticsConsentBanner', () => {
     expect(initAnalytics).toHaveBeenCalledTimes(1)
     // The current route is reported now: initAnalytics disables automatic page
     // views and RouteTracker only fires on navigation.
-    expect(trackPageView).toHaveBeenCalledWith(window.location.pathname)
+    expect(trackPageView).toHaveBeenCalledWith(window.location.pathname, true)
     expect(getAnalyticsConsent()).toBe('granted')
     expect(screen.queryByRole('region', { name: 'Usage analytics choice' })).not.toBeInTheDocument()
   })

@@ -124,7 +124,7 @@ export function ProtectedRoute() {
       {/* App/auth routes stay client-rendered; keep them out of the index.
           The title is what reports key on (and the browser tab shows), so each
           screen names itself instead of falling back to the brand. */}
-      <Seo path={location.pathname} title={titleForPath(location.pathname)} noindex />
+      <Seo path={location.pathname} title={titleForPath(location.pathname, true)} noindex />
       <Outlet />
     </>
   )

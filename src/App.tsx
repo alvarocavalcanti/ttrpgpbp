@@ -95,10 +95,14 @@ const NAV_MENU_ITEM =
 function RouteTracker() {
   const location = useLocation()
   const { pathname } = location
+  const { user } = useAuth()
+  // Boolean, not the user object: a token refresh swaps the object and would
+  // re-fire the page view for a path that never changed.
+  const signedIn = Boolean(user)
 
   useEffect(() => {
-    if (hasAnalyticsConsent()) trackPageView(pathname)
-  }, [pathname])
+    if (hasAnalyticsConsent()) trackPageView(pathname, signedIn)
+  }, [pathname, signedIn])
 
   return null
 }
