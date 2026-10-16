@@ -37,10 +37,16 @@ export function usePendingJoinRequests(channelId: string | undefined) {
     if (!channelId) {
       setRequests([])
       setLoading(false)
+      setError(null)
       return
     }
 
+    // Reset before every fetch, keyed on the channel: a previous channel's
+    // failure must not outlive a successful fetch for the next one.
     let mounted = true
+    setRequests([])
+    setLoading(true)
+    setError(null)
     async function fetchRequests() {
       try {
         const { data, error: queryError } = await supabase

@@ -688,6 +688,32 @@ describe('ChannelSettings', () => {
       )
     })
 
+    it('does not ask to confirm when the channel was never listed', () => {
+      renderSettings()
+
+      // Toggle to Listed and back without saving: nothing was ever published,
+      // so there is no delist to confirm.
+      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+
+      expect(screen.queryByRole('dialog', { name: 'Remove this listing?' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('still names the pending applications a delist closes when the queue did not load', () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: null, error: new Error('down') }) as any,
+      )
+      renderSettings(listedChannel)
+
+      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+
+      // The count is unknown, but a destructive action must not understate it.
+      expect(screen.getByRole('dialog', { name: 'Remove this listing?' })).toHaveTextContent(
+        'any pending applications it has are closed',
+      )
+    })
+
     it('lists pending applications and approves one without submitting the form', async () => {
       vi.mocked(supabase.from).mockImplementation(
         () => requestChain({ data: [pendingRequest], error: null }) as any,

@@ -94,8 +94,9 @@ export function ChannelView() {
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
   const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
   // Pending applications (#674): the GM Tools badge below, and the queue inside
-  // ChannelSettings. Both read the same RLS-scoped rows.
-  const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(id)
+  // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
+  // (the hook skips a falsy channel id).
+  const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(isGM ? id : undefined)
   const { counts: roomUnread, markRoomRead } = useSubChannelUnread(id, subId ?? null)
   const [showManageRooms, setShowManageRooms] = useState(false)
   // Active room and its capability flags (#621 Phase 2). Main (no room) and an

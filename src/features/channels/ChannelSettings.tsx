@@ -285,9 +285,15 @@ setIsSubmitting(true)
 
   // Switching back to Private is destructive — it removes the listing from
   // Discover and /directory and closes anything still pending — so it goes
-  // through a confirm instead of applying on tap.
+  // through a confirm instead of applying on tap. A channel that is not
+  // currently listed (the mode was only changed in this unsaved form) has
+  // nothing to remove, so it switches back without the prompt.
   const requestDelist = () => {
     if (joinMode === 'invite') return
+    if (channel.join_mode !== 'approval') {
+      setJoinMode('invite')
+      return
+    }
     setConfirmDelist(true)
   }
 
@@ -770,8 +776,8 @@ setIsSubmitting(true)
           title="Remove this listing?"
           description={
             requests.length > 0
-              ? `The channel leaves Discover and the public directory, and its ${requests.length} pending application${requests.length === 1 ? '' : 's'} ${requests.length === 1 ? 'is' : 'are'} closed. Existing members stay.`
-              : 'The channel leaves Discover and the public directory and stops taking applications. Existing members stay.'
+              ? `The channel leaves Discover and the public directory, its ${requests.length} pending application${requests.length === 1 ? '' : 's'} ${requests.length === 1 ? 'is' : 'are'} closed, and it stops taking new ones. Existing members stay.`
+              : 'The channel leaves Discover and the public directory, stops taking applications, and any pending applications it has are closed. Existing members stay.'
           }
           confirmLabel="Remove listing"
           onConfirm={() => {

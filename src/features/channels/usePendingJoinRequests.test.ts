@@ -85,6 +85,22 @@ describe('usePendingJoinRequests', () => {
     await waitFor(() => expect(supabase.from).toHaveBeenCalledTimes(2))
   })
 
+  it('clears a previous channel\'s failure when the channel changes', async () => {
+    vi.mocked(supabase.from)
+      .mockReturnValueOnce(queryChain({ data: null, error: new Error('down') }) as any)
+      .mockReturnValueOnce(queryChain({ data: [request('r1')], error: null }) as any)
+
+    const { result, rerender } = renderHook(({ id }: { id: string }) => usePendingJoinRequests(id), {
+      initialProps: { id: 'c1' },
+    })
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error))
+
+    rerender({ id: 'c2' })
+
+    await waitFor(() => expect(result.current.requests).toHaveLength(1))
+    expect(result.current.error).toBeNull()
+  })
+
   it('skips the query with no channel', async () => {
     const { result } = renderHook(() => usePendingJoinRequests(undefined))
 

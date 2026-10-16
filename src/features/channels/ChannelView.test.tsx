@@ -956,6 +956,32 @@ describe('ChannelView search functionality', () => {
     expect(screen.queryByRole('img', { name: /pending join request/ })).not.toBeInTheDocument()
   })
 
+  it('does not query join requests for a non-GM', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'someone-else', is_archived: false, game_system: 'generic' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    // The badge and the queue are GM-only, so the fetch is skipped entirely.
+    expect(usePendingJoinRequests).toHaveBeenCalledWith(undefined)
+  })
+
   it('does not crash when the loading render transitions to loaded (stable hook order)', () => {
     const shared = { isLoading: true }
     const channel = {
