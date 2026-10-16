@@ -72,21 +72,28 @@ BEGIN
   IF v_join_mode = 'approval' THEN
     v_description := NULLIF(btrim(p_description), '');
     v_constraints := NULLIF(btrim(p_constraints), '');
+    v_prompt := NULLIF(btrim(p_application_prompt), '');
     IF v_description IS NULL OR v_constraints IS NULL THEN
       RAISE EXCEPTION 'A listed channel needs a description and constraints.';
     END IF;
     IF char_length(v_description) > 600 OR char_length(v_constraints) > 600 THEN
       RAISE EXCEPTION 'Description and constraints must be 600 characters or fewer.';
     END IF;
+    IF v_prompt IS NOT NULL AND char_length(v_prompt) > 300 THEN
+      RAISE EXCEPTION 'The application prompt must be 300 characters or fewer.';
+    END IF;
+
+    -- A listed channel is apply-only (join_channel refuses it for everyone but
+    -- the GM), so a password would be dead weight the GM cannot tell is dead.
+    -- Refused rather than dropped: a caller that sends one has the wrong model.
+    IF p_password_hash IS NOT NULL OR p_password_salt IS NOT NULL THEN
+      RAISE EXCEPTION 'A listed channel cannot have a password. Players apply instead.';
+    END IF;
   ELSE
     -- A private channel carries no listing copy, whatever the caller sent.
     v_description := NULL;
     v_constraints := NULL;
-  END IF;
-
-  v_prompt := NULLIF(btrim(p_application_prompt), '');
-  IF v_prompt IS NOT NULL AND char_length(v_prompt) > 300 THEN
-    RAISE EXCEPTION 'The application prompt must be 300 characters or fewer.';
+    v_prompt := NULL;
   END IF;
 
   INSERT INTO channels (name, gm_id, game_system, invite_code, join_mode, description, constraints, application_prompt)

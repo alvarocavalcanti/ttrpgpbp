@@ -180,7 +180,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   // height of exactly scrollHeight leaves it ~2px short and every browser draws
   // a scrollbar (#722) — add the border back in, and only allow scrolling once
   // the cap binds.
-  useEffect(() => {
+  const resizeComposer = useCallback(() => {
     const textarea = textareaRef.current
     if (!textarea) return
     textarea.style.height = 'auto'
@@ -188,7 +188,28 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     const grown = textarea.scrollHeight > MAX_COMPOSER_HEIGHT
     textarea.style.height = `${(grown ? MAX_COMPOSER_HEIGHT : textarea.scrollHeight) + border}px`
     textarea.style.overflowY = grown ? 'auto' : 'hidden'
-  }, [content])
+  }, [])
+
+  useEffect(() => {
+    resizeComposer()
+  }, [content, resizeComposer])
+
+  // A narrower box wraps the same draft onto more lines without any content
+  // change (window resize, device rotation), and a stale height would clip it
+  // behind overflow-y: hidden. Watch the width only: our own height writes
+  // change the box too, and reacting to those would loop.
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea || typeof ResizeObserver === 'undefined') return
+    let lastWidth = textarea.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (textarea.clientWidth === lastWidth) return
+      lastWidth = textarea.clientWidth
+      resizeComposer()
+    })
+    observer.observe(textarea)
+    return () => observer.disconnect()
+  }, [resizeComposer])
 
   // Sorted A-Z case-insensitively (#521); @all stays first via showAllMention below.
   const matchedMembers = mentionState

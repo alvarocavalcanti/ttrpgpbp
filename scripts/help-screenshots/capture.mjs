@@ -126,7 +126,7 @@ await page.screenshot({ path: `${OUT}/status-bar.png` })
 console.log('status-bar done')
 
 // ── 4. Sidebar ───────────────────────────────────────────────────────────
-await page.click('[aria-label="Toggle sidebar menu"]')
+await page.click('[aria-label^="Toggle sidebar menu"]')
 await page.waitForSelector('[data-testid="sidebar-menu"]')
 await page.waitForTimeout(600)
 await page.screenshot({ path: `${OUT}/sidebar.png` })
@@ -140,7 +140,7 @@ console.log('gm-settings done')
 await closeSheets()
 
 // ── 6. Safety tools ──────────────────────────────────────────────────────
-await page.click('[aria-label="Toggle sidebar menu"]')
+await page.click('[aria-label^="Toggle sidebar menu"]')
 await page.waitForTimeout(400)
 await page.getByText('Safety Tools').last().click()
 await page.waitForTimeout(1200)
@@ -187,7 +187,7 @@ console.log('message-actions done')
 
 // ── 11. Rooms manager (#621) ─────────────────────────────────────────────
 await closeSheets()
-await page.click('[aria-label="Toggle sidebar menu"]')
+await page.click('[aria-label^="Toggle sidebar menu"]')
 await page.waitForTimeout(400)
 await page.getByText('Rooms').last().click()
 await page.waitForTimeout(1200)

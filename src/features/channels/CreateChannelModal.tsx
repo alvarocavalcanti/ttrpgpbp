@@ -162,6 +162,12 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                 </select>
               </div>
 
+              {/* A listed channel is apply-only, so a password could never be
+                  used (join_channel refuses it for everyone but the GM). The
+                  field is hidden and its value cleared, so the GM never sets a
+                  secret that protects nothing — the server refuses the
+                  combination outright (#722 review). */}
+              {!isListed && (
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Password (Optional)
@@ -194,6 +200,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Who can find it (#722). Mirrors Channel Settings → Discovery:
                   the same copy, the same caps, the same server rules. */}
@@ -221,7 +228,11 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                   <button
                     type="button"
                     aria-pressed={isListed}
-                    onClick={() => setJoinMode('approval')}
+                    onClick={() => {
+                      // A listed channel has no password to carry (#722 review).
+                      setPassword('')
+                      setJoinMode('approval')
+                    }}
                     className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
                       isListed
                         ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'

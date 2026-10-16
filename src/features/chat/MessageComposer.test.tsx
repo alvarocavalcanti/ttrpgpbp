@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 import { useImageUpload } from '../../hooks/useImageUpload'
@@ -1514,5 +1514,40 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
 
     expect(textarea.style.height).toBe('152px')
     expect(textarea.style.overflowY).toBe('auto')
+  })
+
+  it('re-measures when the box gets narrower, so a wrapped draft is not clipped', () => {
+    // jsdom has no ResizeObserver; capture the callback the composer installs.
+    let observed: (() => void) | null = null
+    class StubResizeObserver {
+      constructor(cb: () => void) { observed = cb }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', StubResizeObserver)
+
+    try {
+      render(<MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+      const textarea = screen.getByRole('combobox', { name: 'Message' })
+      setBoxMetrics(textarea, { scrollHeight: 48, offsetHeight: 50, clientHeight: 48 })
+      Object.defineProperty(textarea, 'clientWidth', { value: 320, configurable: true })
+
+      fireEvent.change(textarea, { target: { value: 'a wrapped draft' } })
+      expect(textarea.style.height).toBe('50px')
+
+      // Same draft, narrower box: the text now needs more lines.
+      setBoxMetrics(textarea, { scrollHeight: 70, offsetHeight: 50, clientHeight: 48 })
+      Object.defineProperty(textarea, 'clientWidth', { value: 200, configurable: true })
+      act(() => observed?.())
+
+      expect(textarea.style.height).toBe('72px')
+      expect(textarea.style.overflowY).toBe('hidden')
+
+      // A height-only change (our own write) must not re-run the measurement.
+      act(() => observed?.())
+      expect(textarea.style.height).toBe('72px')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

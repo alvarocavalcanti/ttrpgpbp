@@ -229,8 +229,30 @@ describe('CreateChannelModal', () => {
       expect(mockCreateChannel).not.toHaveBeenCalled()
     })
 
-    it('creates the channel listed in one RPC call and logs the publish', async () => {
+    it('hides the password for a listed channel and drops a typed one', async () => {
       renderModal()
+
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+      fireEvent.change(screen.getByLabelText('Password (Optional)'), { target: { value: 'secret' } })
+
+      // Listing refuses a password server-side: a listed channel is apply-only,
+      // so the field goes away and its value is dropped (review of #722).
+      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      expect(screen.queryByLabelText('Password (Optional)')).not.toBeInTheDocument()
+
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly campaign.' } })
+      fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+      await waitFor(() => expect(mockCreateChannel).toHaveBeenCalled())
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({
+        joinMode: 'approval',
+        passwordHash: undefined,
+        passwordSalt: undefined,
+      }))
+    })
+
+    it('creates the channel listed in one RPC call and logs the publish', async () => {      renderModal()
 
       fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
       fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))

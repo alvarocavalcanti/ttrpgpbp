@@ -498,10 +498,16 @@ export function ChannelView() {
             </button>
             {/* Mobile Sidebar Toggle. A GM with pending applications gets the
                 same count badge the Settings row carries, so the queue is
-                visible before the sidebar is opened (#722). */}
+                visible before the sidebar is opened (#722). The count goes in
+                the label too: an aria-label replaces the button's contents, so
+                the badge alone would never be announced. */}
             <button
               type="button"
-              aria-label="Toggle sidebar menu"
+              aria-label={
+                pendingJoinRequests.length > 0
+                  ? `Toggle sidebar menu, ${pendingJoinRequests.length} pending join ${pendingJoinRequests.length === 1 ? 'request' : 'requests'}`
+                  : 'Toggle sidebar menu'
+              }
               aria-expanded={showMobileSidebar}
               onClick={() => (showMobileSidebar ? closeSidebar('toggle') : openSidebar('toggle'))}
               className="relative lg:hidden text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 -mr-2 rounded-md bg-surface-50 dark:bg-surface-900 hover:bg-primary-50 dark:hover:bg-primary-950"

@@ -932,7 +932,9 @@ describe('ChannelView search functionality', () => {
     // One on the channel menu icon, visible before the sidebar is opened (#722),
     // one on the Settings row inside it.
     expect(badges).toHaveLength(2)
-    const toggle = screen.getByRole('button', { name: 'Toggle sidebar menu' })
+    // The count is part of the toggle's accessible name: an aria-label replaces
+    // the button's contents, so the badge alone is not announced.
+    const toggle = screen.getByRole('button', { name: 'Toggle sidebar menu, 2 pending join requests' })
     expect(within(toggle).getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
     expect(within(screen.getByTestId('sidebar-menu')).getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
   })

@@ -3,7 +3,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(13);
+SELECT plan(16);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -85,6 +85,14 @@ SELECT throws_ok(
   'an unknown join mode is refused'
 );
 
+-- A listed channel is apply-only, so a password would protect nothing: the
+-- combination is refused rather than stored (review of #722).
+SELECT throws_ok(
+  $$SELECT create_channel('Locked Listed', 'a7220007', 'GM', NULL, NULL, NULL, 'hash', 'salt', 'approval', 'Weekly.', 'Be kind.', NULL)$$,
+  'P0001', 'A listed channel cannot have a password. Players apply instead.',
+  'a listed channel cannot be created with a password'
+);
+
 -- ==========================================
 -- 3. Private stays private, and takes no copy
 -- ==========================================
@@ -104,6 +112,20 @@ SELECT is(
      FROM channels WHERE invite_code = 'a7220006'),
   true,
   'no listing copy is stored on a private channel'
+);
+
+-- Copy sent for a private channel is dropped, prompt included: a private
+-- channel has no application to prompt (review of #722).
+SELECT lives_ok(
+  $$SELECT create_channel('Private With Copy', 'a7220008', 'GM', 'none', NULL, NULL, NULL, NULL, 'invite', 'Stale description.', 'Stale constraints.', 'Stale prompt?')$$,
+  'a private create tolerates stray listing copy'
+);
+
+SELECT is(
+  (SELECT description IS NULL AND constraints IS NULL AND application_prompt IS NULL
+     FROM channels WHERE invite_code = 'a7220008'),
+  true,
+  'stray copy is not stored on a private channel'
 );
 
 SELECT * FROM finish();
