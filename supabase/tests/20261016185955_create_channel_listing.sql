@@ -3,11 +3,14 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(16);
+SELECT plan(17);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
-  ('00000000-0000-0000-0000-000000072201', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'create722@test.com', '', now(), '{}', '{}', now(), now());
+  ('00000000-0000-0000-0000-000000072201', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'create722@test.com', '', now(), '{}', '{}', now(), now()),
+  ('00000000-0000-0000-0000-000000072202', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'susp722@test.com', '', now(), '{}', '{}', now(), now());
+
+UPDATE profiles SET is_suspended = true WHERE id = '00000000-0000-0000-0000-000000072202';
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
@@ -126,6 +129,19 @@ SELECT is(
      FROM channels WHERE invite_code = 'a7220008'),
   true,
   'stray copy is not stored on a private channel'
+);
+
+-- ==========================================
+-- 4. A suspended caller creates nothing
+-- ==========================================
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000072202', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000072202","role":"authenticated"}', true);
+
+SELECT throws_ok(
+  $$SELECT create_channel('Suspended Listing', 'a7220009', 'GM', 'none', NULL, NULL, NULL, NULL, 'approval', 'Weekly.', 'Be kind.', NULL)$$,
+  'P0001', 'Account suspended.',
+  'a suspended caller cannot publish a listing'
 );
 
 SELECT * FROM finish();

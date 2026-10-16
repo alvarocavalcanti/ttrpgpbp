@@ -843,7 +843,7 @@ describe('Lobby', () => {
     it('announces an approved application and opens the channel', () => {
       const dismiss = vi.fn().mockResolvedValue(undefined)
       vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
-        decisions: [{ id: 'r1', channel_id: 'c9', channel_name: 'Sunless Citadel', status: 'approved', decided_at: '2026-10-15T10:00:00Z' }],
+        decisions: [{ id: 'r1', channel_id: 'c9', channel_name: 'Sunless Citadel', status: 'approved', decided_at: '2026-10-15T10:00:00Z', is_member: true }],
         loading: false,
         error: null,
         refetch: vi.fn(),
@@ -882,6 +882,8 @@ describe('Lobby', () => {
 
     it('keeps the notice up when dismissing fails', async () => {
       const dismiss = vi.fn().mockRejectedValue(new Error('down'))
+      const addToast = vi.fn()
+      vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() })
       vi.spyOn(console, 'error').mockImplementation(() => {})
       vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
         decisions: [{ id: 'r3', channel_id: 'c9', channel_name: 'Sunless Citadel', status: 'rejected', decided_at: '2026-10-15T10:00:00Z' }],
@@ -897,7 +899,28 @@ describe('Lobby', () => {
       fireEvent.click(screen.getByRole('button', { name: /Dismiss the decision for Sunless Citadel/ }))
 
       await waitFor(() => expect(dismiss).toHaveBeenCalledWith('r3'))
+      // A dead button would look like a bug: the failure is reported, and the
+      // notice stays until the server actually stamps it.
+      await waitFor(() => expect(addToast).toHaveBeenCalledWith("Couldn't dismiss that update. Please try again.", 'error'))
       expect(screen.getByText(/was declined/)).toBeInTheDocument()
+    })
+
+    it('offers a Retry when the decisions could not be loaded', () => {
+      const refetch = vi.fn()
+      vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
+        decisions: [],
+        loading: false,
+        error: new Error('down'),
+        refetch,
+        dismiss: vi.fn(),
+      })
+      withMyChannels(oneChannel)
+
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByTestId('join-request-notice-error')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      expect(refetch).toHaveBeenCalled()
     })
 
     it('defaults to My Games when the user has channels', () => {

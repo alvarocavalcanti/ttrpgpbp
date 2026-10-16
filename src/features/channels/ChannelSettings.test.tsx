@@ -789,10 +789,15 @@ describe('ChannelSettings', () => {
       renderSettings(listedChannel)
 
       // A wrapped answer makes the row taller than the buttons; the button
-      // column centres itself instead of sticking to the top (#722).
-      const buttons = (await screen.findByRole('button', { name: 'Approve' })).parentElement
+      // column centres itself instead of sticking to the top (#722). The
+      // buttons must centre their own labels inside the 44px touch target too,
+      // or the text sits at the top of the box.
+      const approve = await screen.findByRole('button', { name: 'Approve' })
+      const buttons = approve.parentElement
       expect(buttons).toHaveClass('self-center')
       expect(buttons).toHaveClass('items-center')
+      expect(approve).toHaveClass('items-center')
+      expect(screen.getByRole('button', { name: 'Reject' })).toHaveClass('items-center')
     })
 
     it('offers Retry when the queue cannot be loaded', async () => {

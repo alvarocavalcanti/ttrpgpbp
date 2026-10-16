@@ -209,7 +209,12 @@ export function Lobby() {
   const pendingJoinRequests = usePendingJoinRequestCounts()
   // Decisions on the user's own applications (#722): the in-app cue for an
   // approved or rejected application.
-  const { decisions: joinRequestDecisions, dismiss: dismissJoinRequestDecision } = useMyJoinRequestDecisions()
+  const {
+    decisions: joinRequestDecisions,
+    error: joinRequestDecisionsError,
+    refetch: refetchJoinRequestDecisions,
+    dismiss: dismissJoinRequestDecision,
+  } = useMyJoinRequestDecisions()
 
   const loggedTabRef = useRef<LobbyTab | null>(null)
 
@@ -283,11 +288,14 @@ export function Lobby() {
             it is seen on whichever tab they land on. */}
         <JoinRequestNotice
           decisions={joinRequestDecisions}
+          error={joinRequestDecisionsError}
+          onRetry={refetchJoinRequestDecisions}
           onDismiss={(id) => {
-            // The notice clears itself only once the server stamped it; a
-            // failure keeps it up and the next load retries.
+            // The notice clears itself only once the server stamped it, so a
+            // failure must say so rather than look like a dead button.
             void dismissJoinRequestDecision(id).catch((err) => {
               console.error('Failed to dismiss join request decision:', err)
+              addToast("Couldn't dismiss that update. Please try again.", 'error')
             })
           }}
         />

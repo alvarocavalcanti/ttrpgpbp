@@ -702,14 +702,17 @@ setIsSubmitting(true)
                                   Applied {channelTimestamp(request.created_at)}
                                 </p>
                               </div>
-                              {/* self-center: a long answer grows the row, and
-                                  the buttons stay level with its middle (#722). */}
+                              {/* self-center: a long answer grows the row, so
+                                  the button column centres itself on it. The
+                                  buttons centre their own labels too: the flex
+                                  default stretches the text to the top of the
+                                  44px touch target (#722). */}
                               <div className="flex flex-shrink-0 items-center gap-2 self-center">
                                 <button
                                   type="button"
                                   onClick={() => void handleDecide(request.id, true)}
                                   disabled={decidingId !== null}
-                                  className="inline-flex min-h-11 justify-center rounded-md border border-transparent bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
+                                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
                                 >
                                   {decidingId === request.id ? 'Working…' : 'Approve'}
                                 </button>
@@ -717,7 +720,7 @@ setIsSubmitting(true)
                                   type="button"
                                   onClick={() => void handleDecide(request.id, false)}
                                   disabled={decidingId !== null}
-                                  className="inline-flex min-h-11 justify-center rounded-md border border-surface-300 px-3 text-sm font-medium text-surface-700 hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-surface-300 px-3 text-sm font-medium text-surface-700 hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
                                 >
                                   Reject
                                 </button>

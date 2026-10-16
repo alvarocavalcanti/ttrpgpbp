@@ -200,13 +200,16 @@ export const JoinRequestRowSchema = z.looseObject({
 
 // The applicant's own decided applications still to be acknowledged (#722), from
 // get_my_join_request_decisions. The channel name is resolved server-side: the
-// applicant is not a member of a channel they were rejected from.
+// applicant is not a member of a channel they were rejected from. `is_member` is
+// the caller's access right now, which an approval does not guarantee (they may
+// have been removed since).
 export const MyJoinRequestDecisionRowSchema = z.looseObject({
   id: z.string(),
   channel_id: z.string(),
   channel_name: z.string(),
   status: z.string(),
   decided_at: z.string(),
+  is_member: z.boolean().nullish(),
 })
 
 export type JoinRequest = z.infer<typeof JoinRequestRowSchema>

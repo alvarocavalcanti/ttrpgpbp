@@ -191,8 +191,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   }, [])
 
   useEffect(() => {
+    // Re-measure on content, and on a mode switch: Scene and NPC mode swap in
+    // the serif face, which re-wraps the same draft onto different lines.
     resizeComposer()
-  }, [content, resizeComposer])
+  }, [content, isScene, isNpc, whisperTo, resizeComposer])
 
   // A narrower box wraps the same draft onto more lines without any content
   // change (window resize, device rotation), and a stale height would clip it

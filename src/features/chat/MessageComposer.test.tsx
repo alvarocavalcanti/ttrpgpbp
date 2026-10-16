@@ -1516,8 +1516,24 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     expect(textarea.style.overflowY).toBe('auto')
   })
 
-  it('re-measures when the box gets narrower, so a wrapped draft is not clipped', () => {
-    // jsdom has no ResizeObserver; capture the callback the composer installs.
+  it('re-measures when the message mode changes the font', () => {
+    const openOptions = () => fireEvent.click(screen.getByRole('button', { name: 'Toggle options' }))
+
+    render(<MessageComposer channelId="c1" isGM members={members} onSendMessage={vi.fn()} />)
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    setBoxMetrics(textarea, { scrollHeight: 48, offsetHeight: 50, clientHeight: 48 })
+    fireEvent.change(textarea, { target: { value: 'a draft in the sans face' } })
+    expect(textarea.style.height).toBe('50px')
+
+    // Scene mode swaps in the serif face, which wraps the same draft wider.
+    setBoxMetrics(textarea, { scrollHeight: 70, offsetHeight: 50, clientHeight: 48 })
+    openOptions()
+    fireEvent.click(screen.getByRole('button', { name: 'Scene Description' }))
+
+    expect(textarea.style.height).toBe('72px')
+  })
+
+  it('re-measures when the box gets narrower, so a wrapped draft is not clipped', () => {    // jsdom has no ResizeObserver; capture the callback the composer installs.
     let observed: (() => void) | null = null
     class StubResizeObserver {
       constructor(cb: () => void) { observed = cb }

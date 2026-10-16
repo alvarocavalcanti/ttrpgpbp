@@ -41,7 +41,8 @@ RETURNS TABLE (
   channel_id UUID,
   channel_name TEXT,
   status public.join_request_status,
-  decided_at TIMESTAMPTZ
+  decided_at TIMESTAMPTZ,
+  is_member BOOLEAN
 )
 LANGUAGE plpgsql
 STABLE
@@ -56,7 +57,14 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  SELECT cjr.id, cjr.channel_id, c.name, cjr.status, cjr.decided_at
+  SELECT cjr.id, cjr.channel_id, c.name, cjr.status, cjr.decided_at,
+    -- An approval is history: a player who was later kicked, blocked, or who
+    -- left keeps the decided row. The notice must not promise a door that is
+    -- shut, so the caller's current access travels with the outcome.
+    EXISTS (
+      SELECT 1 FROM channel_members cm
+      WHERE cm.channel_id = cjr.channel_id AND cm.user_id = v_uid AND NOT cm.is_blocked
+    ) AS is_member
   FROM channel_join_requests cjr
   JOIN channels c ON c.id = cjr.channel_id
   WHERE cjr.user_id = v_uid

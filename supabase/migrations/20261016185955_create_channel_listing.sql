@@ -49,6 +49,14 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
+  -- Every other write RPC refuses a suspended caller, and publishing a listing
+  -- through create would otherwise skip the guard update_channel_settings has:
+  -- the suspension trigger only delists channels suspended at the time, so a
+  -- channel created afterwards would sit listed under a GM who cannot vet it.
+  IF is_suspended(auth.uid()) THEN
+    RAISE EXCEPTION 'Account suspended.';
+  END IF;
+
   -- Enforce the channel cap for non-server-admins, mirroring join_channel. The
   -- count runs inside the transaction so a concurrent create can't slip past it.
   SELECT server_admin INTO v_is_admin FROM profiles WHERE id = auth.uid();

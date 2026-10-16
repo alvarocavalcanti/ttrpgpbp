@@ -2,7 +2,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(10);
+SELECT plan(12);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -26,6 +26,11 @@ VALUES
   ('00000000-0000-0000-0000-000000072252', '00000000-0000-0000-0000-000000072242', '00000000-0000-0000-0000-000000072232', 'Aria', 'approved', now()),
   ('00000000-0000-0000-0000-000000072253', '00000000-0000-0000-0000-000000072241', '00000000-0000-0000-0000-000000072232', 'Aria', 'pending', NULL),
   ('00000000-0000-0000-0000-000000072254', '00000000-0000-0000-0000-000000072241', '00000000-0000-0000-0000-000000072233', 'Borin', 'rejected', now());
+
+-- r251's applicant was rejected once and is a member now (an invite followed).
+-- r252's approval is history only: they were never added, or were removed since.
+INSERT INTO channel_members (channel_id, user_id, character_name)
+VALUES ('00000000-0000-0000-0000-000000072241', '00000000-0000-0000-0000-000000072232', 'Aria');
 
 -- The GM delists and archives the approved channel: the applicant is not a
 -- member, and the channels table is not readable to them.
@@ -75,6 +80,22 @@ SELECT is(
      WHERE id = '00000000-0000-0000-0000-000000072254'),
   0::bigint,
   'another player''s decision is not returned'
+);
+
+-- The notice must not promise a door that is shut: an approved row whose
+-- membership is gone reports is_member false, and a stale rejection where the
+-- player is a member now reports true.
+SELECT is(
+  (SELECT is_member FROM get_my_join_request_decisions()
+     WHERE id = '00000000-0000-0000-0000-000000072251'),
+  true,
+  'a decision reports current access for a member'
+);
+SELECT is(
+  (SELECT is_member FROM get_my_join_request_decisions()
+     WHERE id = '00000000-0000-0000-0000-000000072252'),
+  false,
+  'a historical approval reports no access once the membership is gone'
 );
 
 -- ==========================================

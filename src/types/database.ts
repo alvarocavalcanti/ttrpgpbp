@@ -1683,6 +1683,7 @@ export type Database = {
           channel_name: string
           decided_at: string
           id: string
+          is_member: boolean
           status: Database["public"]["Enums"]["join_request_status"]
         }[]
       }
