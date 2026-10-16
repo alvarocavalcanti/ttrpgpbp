@@ -4,6 +4,7 @@ import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { Markdown } from '../../components/Markdown'
 import { SignedImg } from '../../components/SignedImg'
 import { useAdminChannelMessages, type AdminChannelMessage } from './useAdminChannelMessages'
+import { ListingBadge } from './ListingBadge'
 import { sortMembers } from '../../lib/memberOrder'
 
 // Pure link sanitizer; hoisted so ReactMarkdown gets a stable reference.
@@ -144,6 +145,31 @@ export function AdminChannelView() {
         <div role="status" className="mt-3 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 rounded px-3 py-2">
           Read-only admin view. You can review messages here, but you can't send any.
         </div>
+        {/* #674: the listing behind a listing report. Without the copy an admin
+            would have to join the channel to judge the report. */}
+        {channel.join_mode === 'approval' || channel.listing_takedown_at ? (
+          <div className="mt-3 rounded border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-400">
+                Listing
+              </span>
+              <ListingBadge channel={channel} />
+              <span className="text-xs text-surface-500 dark:text-surface-400">
+                {channel.pending_request_count} pending
+              </span>
+            </div>
+            <dl className="mt-2 space-y-2 text-sm">
+              <div>
+                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">Description</dt>
+                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">{channel.description || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">What the GM expects</dt>
+                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">{channel.constraints || '—'}</dd>
+              </div>
+            </dl>
+          </div>
+        ) : null}
         {/* Channel roster (issue #556): collapsed by default so the messages
         keep the viewport; the count comes from the channel header so it is
         stable while the roster loads. Blocked members stay listed (badged)

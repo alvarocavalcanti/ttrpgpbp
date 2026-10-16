@@ -38,6 +38,9 @@ function makeChannel(overrides: Record<string, unknown> = {}) {
     gm_display_name: 'Alice',
     human_sender_count: 3,
     human_message_count: 40,
+    join_mode: 'approval',
+    pending_request_count: 0,
+    listing_takedown_at: null,
     ...overrides,
   }
 }

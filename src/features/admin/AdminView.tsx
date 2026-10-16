@@ -7,6 +7,7 @@ import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { BottomSheet } from '../../components/BottomSheet'
 import { MAX_ADMIN_SUSPEND_REASON_LENGTH } from '../../constants'
 import { copyToClipboard } from '../../lib/clipboard'
+import { ListingBadge } from './ListingBadge'
 import { useAdminData, type AdminChannel, type AdminUser, type AdminAbuseReport, type AdminMessageDetail } from './useAdminData'
 import { useAdminArchivedChannels } from './useAdminArchivedChannels'
 import { UserDetailModal } from './UserDetailModal'
@@ -14,6 +15,9 @@ import { UserDetailModal } from './UserDetailModal'
 type Tab = 'users' | 'channels' | 'archived' | 'reports' | 'settings'
 type SortDir = 'asc' | 'desc'
 type UserFilter = 'all' | 'active' | 'inactive' | 'suspended'
+// #674: a channel is listed, private, or in the taken-down state (an admin removed its listing,
+// which is what the marker distinguishes from an ordinary private one).
+type ChannelListingFilter = 'all' | 'listed' | 'private'
 
 const INACTIVE_DAYS = 30
 
@@ -104,6 +108,7 @@ function isActiveChannel(c: AdminChannel): boolean {
   return c.human_sender_count >= ACTIVE_CHANNEL_MIN_SENDERS && c.human_message_count >= ACTIVE_CHANNEL_MIN_MESSAGES
 }
 
+
 export function AdminView() {
   const navigate = useNavigate()
   const { addToast } = useToast()
@@ -125,6 +130,11 @@ export function AdminView() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<UserFilter>('all')
   const [activeOnly, setActiveOnly] = useState(false)
+  // #674: All / Listed / Private, mirroring the users-tab status filter.
+  const [channelListingFilter, setChannelListingFilter] = useState<ChannelListingFilter>('all')
+  // One prompt serves both the channels tab and a listing report: the target is
+  // whichever channel is being taken down.
+  const [takedownTarget, setTakedownTarget] = useState<{ id: string; name: string } | null>(null)
   // ?user=<id> deep link from system alerts (#562 P1): opens that user's
   // detail modal once the list is loaded.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -136,7 +146,7 @@ export function AdminView() {
 
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
 
-  const { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
+  const { users, channels, reports, newUsers, newChannels, storageBytes, loading, error, suspendUser, claimChannel, resolveReport, takedownChannel, restoreChannelListing, upsertSettings, getUserHistory, readMessage, listUserMessages } = useAdminData(isServerAdmin)
   // Issue #611: archived channels have their own fetch state so a
   // broken/late RPC degrades only this tab, never the whole console.
   const { archivedChannels, loading: archivedLoading, error: archivedError, refetch: refetchArchived } = useAdminArchivedChannels(isServerAdmin)
@@ -250,6 +260,30 @@ export function AdminView() {
     addToast('Channel claimed. You are now the GM.', 'success')
   }
 
+  // #674: take a listing down (force-delist, audited) or put it back, so a
+  // mistaken takedown is recoverable from the console.
+  const handleTakedown = async (reason: string) => {
+    if (!takedownTarget) return
+    const rpcError = await takedownChannel(takedownTarget.id, reason.trim() || 'No reason provided')
+    if (rpcError) {
+      console.error('Error taking down listing:', rpcError)
+      addToast('Failed to take down the listing.', 'error')
+      return
+    }
+    addToast('Listing taken down.', 'success')
+    setTakedownTarget(null)
+  }
+
+  const handleRestoreListing = async (channelId: string) => {
+    const rpcError = await restoreChannelListing(channelId)
+    if (rpcError) {
+      console.error('Error restoring listing:', rpcError)
+      addToast('Failed to restore the listing.', 'error')
+      return
+    }
+    addToast('Listing restored. The GM can list it again.', 'success')
+  }
+
   // Suspend the reported user, then mark the report actioned. A resolve
   // failure must not hide the successful suspension, so it only warns.
   const handleSuspendReport = async (report: AdminAbuseReport, reason: string): Promise<boolean> => {
@@ -357,8 +391,19 @@ export function AdminView() {
     { id: 'suspended', label: 'Suspended' },
   ]
 
-  const visibleChannels = channelSort.sorted.filter(c => !activeOnly || isActiveChannel(c))
+  const visibleChannels = channelSort.sorted.filter(c => {
+    if (activeOnly && !isActiveChannel(c)) return false
+    if (channelListingFilter === 'listed') return c.join_mode === 'approval'
+    if (channelListingFilter === 'private') return c.join_mode !== 'approval'
+    return true
+  })
   const activeCount = channels.filter(isActiveChannel).length
+  const listedCount = channels.filter(c => c.join_mode === 'approval').length
+  const channelFilterOptions: { id: ChannelListingFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'listed', label: 'Listed' },
+    { id: 'private', label: 'Private' },
+  ]
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8">
@@ -386,6 +431,11 @@ export function AdminView() {
               <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 md:mt-2 lg:mt-0">
                 +{newChannels} this week
               </div>
+            </dd>
+            {/* #674: the listed/private split, so the console shows how much of
+                the directory is public without opening the channels tab. */}
+            <dd className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+              {listedCount} listed · {channels.length - listedCount} private
             </dd>
           </div>
           <div className="overflow-hidden rounded-lg bg-white dark:bg-surface-800 shadow px-4 py-5 sm:p-6">
@@ -563,11 +613,29 @@ export function AdminView() {
                   </button>
                 </div>
               )}
+              {/* #674: mirrors the users-tab status filter. */}
+              <div className="mb-4 flex items-center gap-1" role="group" aria-label="Filter channels by listing">
+                {channelFilterOptions.map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setChannelListingFilter(f.id)}
+                    aria-pressed={channelListingFilter === f.id}
+                    className={`inline-flex min-h-11 items-center justify-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      channelListingFilter === f.id
+                        ? 'bg-primary-600 text-white'
+                        : 'text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             <div className="bg-white dark:bg-surface-800 shadow overflow-hidden rounded-md">
               {channels.length === 0 ? (
                 <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No channels found.</div>
               ) : visibleChannels.length === 0 ? (
-                <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No active channels yet.</div>
+                <div className="p-6 text-center text-surface-500 dark:text-surface-400 text-sm">No channels match the current filter.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
@@ -577,6 +645,8 @@ export function AdminView() {
                         <SortHeader label="System" sortKey="game_system" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="GM" sortKey="gm_display_name" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="Members" sortKey="member_count" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <SortHeader label="Listing" sortKey="join_mode" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Pending</th>
                         <SortHeader label="Created" sortKey="created_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                         <SortHeader label="Last Active" sortKey="last_message_at" activeKey={channelSort.sortKey} sortDir={channelSort.sortDir} onSort={channelSort.handleSort} />
                       </tr>
@@ -605,6 +675,32 @@ export function AdminView() {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{channel.member_count}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-2">
+                              <ListingBadge channel={channel} />
+                              {channel.join_mode === 'approval' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setTakedownTarget({ id: channel.id, name: channel.name })}
+                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                >
+                                  Take down
+                                </button>
+                              )}
+                              {channel.listing_takedown_at && (
+                                <button
+                                  type="button"
+                                  onClick={() => { void handleRestoreListing(channel.id) }}
+                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                >
+                                  Restore
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
+                            {channel.pending_request_count > 0 ? channel.pending_request_count : '—'}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                             {new Date(channel.created_at).toLocaleString()}
                           </td>
@@ -711,6 +807,7 @@ export function AdminView() {
                     <thead className="bg-surface-50 dark:bg-surface-900">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Reporter</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Type</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Reported user</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Reason</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Status</th>
@@ -722,6 +819,13 @@ export function AdminView() {
                       {reports.map(report => (
                         <tr key={report.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">{report.reporter_display_name || '—'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {/* #674: a listing report has no message; its channel is
+                                the subject, so it gets the channel actions. */}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${report.message_id ? 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300' : 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'}`}>
+                              {report.message_id ? 'Message' : 'Listing'}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100">{report.reported_display_name || '—'}</td>
                           <td className="px-6 py-4 text-sm text-surface-500 dark:text-surface-400 max-w-md whitespace-pre-wrap break-words">{report.reason}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -734,15 +838,39 @@ export function AdminView() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => { void handleViewMessage(report) }}
-                                disabled={!report.message_id || viewMessageLoading}
-                                title={report.message_id ? undefined : 'This report has no linked message.'}
-                                className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                View message
-                              </button>
+                              {report.message_id ? (
+                                <button
+                                  type="button"
+                                  onClick={() => { void handleViewMessage(report) }}
+                                  disabled={viewMessageLoading}
+                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  View message
+                                </button>
+                              ) : report.channel_id ? (
+                                <>
+                                  <Link
+                                    to={`/admin/channels/${report.channel_id}`}
+                                    className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                  >
+                                    View channel
+                                  </Link>
+                                  {/* Only offered while the listing is actually up:
+                                      taking down a private channel is a no-op the
+                                      RPC would report as success. */}
+                                  {report.status === 'pending' && channels.find(c => c.id === report.channel_id)?.join_mode === 'approval' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setTakedownTarget({ id: report.channel_id as string, name: report.channel_name || 'this listing' })}
+                                      className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    >
+                                      Take down
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-xs text-surface-400 dark:text-surface-400">No target</span>
+                              )}
                               {report.status === 'pending' && (
                                 <>
                                   <button
@@ -890,6 +1018,18 @@ export function AdminView() {
             })
           }}
           onClose={() => setSuspendReport(null)}
+        />
+      )}
+
+      {takedownTarget && (
+        <TextPromptSheet
+          title={`Take down ${takedownTarget.name}?`}
+          label="Why is this listing being removed?"
+          placeholder="Reason"
+          maxLength={MAX_ADMIN_SUSPEND_REASON_LENGTH}
+          confirmLabel="Take down listing"
+          onConfirm={(reason) => { void handleTakedown(reason) }}
+          onClose={() => setTakedownTarget(null)}
         />
       )}
 

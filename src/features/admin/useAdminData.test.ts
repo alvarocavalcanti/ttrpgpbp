@@ -20,7 +20,7 @@ const baseUser = {
   last_login_at: null, last_message_at: null, message_count: 0, created_at: '',
   is_suspended: false, avatar_url: null, server_admin: false, email_verified: false, provider: null,
 }
-const baseChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice', human_sender_count: 3, human_message_count: 40 }
+const baseChannel = { id: 'c1', name: 'Strahd', game_system: 'none', gm_id: 'u1', member_count: 2, created_at: '', last_message_at: null, gm_display_name: 'Alice', human_sender_count: 3, human_message_count: 40, join_mode: 'invite', pending_request_count: 0, listing_takedown_at: null }
 const baseReport = {
   id: 'r1', reporter_id: 'u1', reporter_display_name: 'Alice', reported_user_id: 'u2',
   reported_display_name: 'Bob', channel_id: 'c1', channel_name: 'Strahd', message_id: null,
@@ -424,6 +424,68 @@ describe('useAdminData', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('admin_claim_channel', { p_channel_id: 'c1' })
     expect(result.current.channels[0].gm_id).toBe('admin1')
     expect(result.current.channels[0].gm_display_name).toBe('Admin')
+  })
+
+  it('takedownChannel calls the RPC with the reason and marks the row', async () => {
+    const channels = [{ ...baseChannel, join_mode: 'approval', pending_request_count: 2 }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_takedown_channel') return Promise.resolve({ data: null, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.channels).toHaveLength(1))
+
+    await act(async () => {
+      await expect(result.current.takedownChannel('c1', 'spam')).resolves.toBeNull()
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_takedown_channel', {
+      p_channel_id: 'c1',
+      p_reason: 'spam',
+    })
+    // The row reflects the takedown without a refetch: unlisted AND marked, so
+    // the console can tell it apart from an ordinary private channel.
+    expect(result.current.channels[0].join_mode).toBe('invite')
+    expect(result.current.channels[0].listing_takedown_at).not.toBeNull()
+  })
+
+  it('restoreChannelListing clears the marker', async () => {
+    const channels = [{ ...baseChannel, listing_takedown_at: '2026-10-16T10:00:00Z' }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_restore_channel_listing') return Promise.resolve({ data: null, error: null })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.channels).toHaveLength(1))
+
+    await act(async () => {
+      await expect(result.current.restoreChannelListing('c1')).resolves.toBeNull()
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_restore_channel_listing', {
+      p_channel_id: 'c1',
+    })
+    expect(result.current.channels[0].listing_takedown_at).toBeNull()
+  })
+
+  it('takedownChannel surfaces the RPC error and leaves the row alone', async () => {
+    const channels = [{ ...baseChannel, join_mode: 'approval' }]
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_takedown_channel') return Promise.resolve({ data: null, error: { message: 'Not authorized' } })
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useAdminData(true))
+    await waitFor(() => expect(result.current.channels).toHaveLength(1))
+
+    await act(async () => {
+      await expect(result.current.takedownChannel('c1', 'spam')).resolves.toEqual({ message: 'Not authorized' })
+    })
+    expect(result.current.channels[0].join_mode).toBe('approval')
+    expect(result.current.channels[0].listing_takedown_at).toBeNull()
   })
 
   it('claimChannel surfaces the RPC error', async () => {
