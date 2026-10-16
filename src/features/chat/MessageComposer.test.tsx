@@ -1480,4 +1480,39 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Send/i }))
     await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ type: 'regular' })))
   })
+
+  // jsdom does no layout, so the box metrics the auto-resize effect reads are
+  // pinned per element (#722).
+  const setBoxMetrics = (
+    textarea: HTMLElement,
+    metrics: { scrollHeight: number; offsetHeight: number; clientHeight: number },
+  ) => {
+    Object.defineProperty(textarea, 'scrollHeight', { value: metrics.scrollHeight, configurable: true })
+    Object.defineProperty(textarea, 'offsetHeight', { value: metrics.offsetHeight, configurable: true })
+    Object.defineProperty(textarea, 'clientHeight', { value: metrics.clientHeight, configurable: true })
+  }
+
+  it('grows to fit short content without a scrollbar', () => {
+    render(<MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    // 48px of content + 2px of border: an exact-height box still overflowed
+    // before #722, which is what drew the scrollbar.
+    setBoxMetrics(textarea, { scrollHeight: 48, offsetHeight: 50, clientHeight: 48 })
+
+    fireEvent.change(textarea, { target: { value: 'hi' } })
+
+    expect(textarea.style.height).toBe('50px')
+    expect(textarea.style.overflowY).toBe('hidden')
+  })
+
+  it('caps the height and scrolls once the content exceeds it', () => {
+    render(<MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    setBoxMetrics(textarea, { scrollHeight: 400, offsetHeight: 50, clientHeight: 48 })
+
+    fireEvent.change(textarea, { target: { value: 'a'.repeat(400) } })
+
+    expect(textarea.style.height).toBe('152px')
+    expect(textarea.style.overflowY).toBe('auto')
+  })
 })

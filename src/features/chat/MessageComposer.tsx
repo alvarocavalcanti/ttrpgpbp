@@ -32,6 +32,9 @@ export interface ReplyTarget {
 // Main (and any caller that omits capabilities) allows everything.
 const ALL_CAPABILITIES = { allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true }
 
+// How tall the message box grows before it starts scrolling (#722).
+const MAX_COMPOSER_HEIGHT = 150
+
 interface MessageComposerProps {
   channelId?: string
   // Active room (#621), null for Main. Drives the draft key, the placeholder
@@ -173,12 +176,18 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     setNpcSuggestionsDismissed(true)
   }
 
-  // Auto-resize textarea
+  // Auto-resize textarea. The element is border-box with a 1px border, so a
+  // height of exactly scrollHeight leaves it ~2px short and every browser draws
+  // a scrollbar (#722) — add the border back in, and only allow scrolling once
+  // the cap binds.
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`
-    }
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    const border = textarea.offsetHeight - textarea.clientHeight
+    const grown = textarea.scrollHeight > MAX_COMPOSER_HEIGHT
+    textarea.style.height = `${(grown ? MAX_COMPOSER_HEIGHT : textarea.scrollHeight) + border}px`
+    textarea.style.overflowY = grown ? 'auto' : 'hidden'
   }, [content])
 
   // Sorted A-Z case-insensitively (#521); @all stays first via showAllMention below.
@@ -901,7 +910,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 aria-activedescendant={mentionOpen ? `${listboxId}-option-${Math.min(activeMentionIndex, mentionOptions.length - 1)}` : undefined}
                 aria-label="Message"
                 placeholder={subChannelId ? `Message #${roomName ?? 'room'}` : undefined}
-                className={`block w-full text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 max-h-[150px] ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
+                className={`block w-full text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />
             </div>

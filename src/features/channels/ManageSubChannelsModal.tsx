@@ -13,7 +13,7 @@ interface ManageSubChannelsModalProps {
   loading: boolean
   error: Error | null
   onClose: () => void
-  onCreate: (name: string) => Promise<string>
+  onCreate: (name: string, caps: RoomCapabilities) => Promise<string>
   onRename: (roomId: string, name: string) => Promise<void>
   onSetArchived: (roomId: string, archived: boolean) => Promise<void>
   onSetCapabilities: (roomId: string, caps: Partial<RoomCapabilities>) => Promise<void>
@@ -73,6 +73,14 @@ export function ManageSubChannelsModal({
   const { addToast } = useToast()
 
   const [newName, setNewName] = useState('')
+  // Feature flags for the room being created (#722): the GM picks them up
+  // front instead of creating the room and then hunting for the toggles.
+  const [newCaps, setNewCaps] = useState<RoomCapabilities>({
+    allow_dice: true,
+    allow_scenes: true,
+    allow_npc: true,
+    allow_whispers: true,
+  })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -91,9 +99,10 @@ export function ManageSubChannelsModal({
     setCreating(true)
     setCreateError(null)
     try {
-      const roomId = await onCreate(name)
+      const roomId = await onCreate(name, newCaps)
       addToast(`Room ${name} created. Everyone in the channel can see it.`, 'success')
       setNewName('')
+      setNewCaps({ allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true })
       onOpenRoom(roomId)
     } catch (err) {
       setCreateError(friendlyRoomError(err))
@@ -341,6 +350,25 @@ export function ManageSubChannelsModal({
                 </button>
               </div>
               {createError && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">{createError}</p>}
+              {/* The room's features, chosen up front (#722). A GM creating
+                  their first room otherwise never learns these exist. The
+                  legend names the group, so each checkbox is labelled by its
+                  own visible text and no aria-label can shadow the "New room"
+                  field above. */}
+              <fieldset className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-600 dark:text-surface-300">
+                <legend className="text-xs text-surface-500 dark:text-surface-400">Features</legend>
+                {CAPABILITY_FLAGS.map(flag => (
+                  <label key={flag.key} className="inline-flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={newCaps[flag.key]}
+                      onChange={() => setNewCaps(prev => ({ ...prev, [flag.key]: !prev[flag.key] }))}
+                      className="h-4 w-4 rounded border border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500"
+                    />
+                    {flag.label}
+                  </label>
+                ))}
+              </fieldset>
               <p className="mt-2 text-xs text-surface-500 dark:text-surface-400">
                 {subChannels.length >= MAX_ROOMS_PER_CHANNEL
                   ? `Room limit reached (${MAX_ROOMS_PER_CHANNEL}). Archive or delete a room first.`

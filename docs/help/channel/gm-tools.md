@@ -32,7 +32,7 @@ The **NPCs** sidebar item opens the NPC roster for the channel. From there the G
 
 ## Rooms
 
-The **Rooms** sidebar item opens the room manager. From there the GM can create, rename, archive, restore, and delete rooms, choose who can see each one (**Everyone**, **Only the GM**, or **Invited players**), and turn dice, Scenes, NPC posts, and whispers on or off per room. A channel holds up to 10 active rooms. See [Rooms](/help/rooms) for the full guide.
+The **Rooms** sidebar item opens the room manager. From there the GM can create, rename, archive, restore, and delete rooms, choose who can see each one (**Everyone**, **Only the GM**, or **Invited players**), and turn dice, Scenes, NPC posts, and whispers on or off per room — either while creating the room or on one that already exists. A channel holds up to 10 active rooms. See [Rooms](/help/rooms) for the full guide.
 
 ## Setting active players
 

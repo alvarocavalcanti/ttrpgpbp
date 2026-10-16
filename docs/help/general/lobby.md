@@ -30,13 +30,20 @@ Listed games are **application-only** — there's no instant join, and every app
 2. Enter your **character name** (up to 20 characters) and answer the GM's question if they asked one.
 3. The GM reviews it and **approves** or **rejects** it.
 
-While it's pending, the listing shows *Your application is waiting for the GM to review it* with a **Withdraw application** button, in case you change your mind. You'll get a notification when the GM decides. Once approved you're a member and the game appears in **My Games**.
+While it's pending, the listing shows *Your application is waiting for the GM to review it* with a **Withdraw application** button, in case you change your mind. Once the GM decides, a notice appears at the top of the lobby: **You're in — (game)** with a button straight into the channel, or that the game declined. Either one has a **Dismiss** button, and it stays until you clear it. You'll also get a notification if you have them turned on.
 
 If a listing doesn't look right, **Report this listing** at the bottom of it sends it to the server admins.
 
 ## Creating a channel
 
 Tap **Create a channel** (+) to start your own game. You'll be the Game Master. There's a limit to how many active channels each player can have — when you reach it, the create button explains why.
+
+Choose how the channel starts:
+
+- **Private — invite link only** — the default. Only people you send the invite link to can join.
+- **Listed — apply to join** — the game appears in Discover and on the public directory, with the **Description** and **What you expect** you write there, plus an optional question applicants answer. You approve or reject every application.
+
+You can move a channel between the two later from **Channel Settings → Discovery**.
 
 ## Joining a private channel
 

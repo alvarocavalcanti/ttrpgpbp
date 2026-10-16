@@ -702,7 +702,9 @@ setIsSubmitting(true)
                                   Applied {channelTimestamp(request.created_at)}
                                 </p>
                               </div>
-                              <div className="flex flex-shrink-0 gap-2">
+                              {/* self-center: a long answer grows the row, and
+                                  the buttons stay level with its middle (#722). */}
+                              <div className="flex flex-shrink-0 items-center gap-2 self-center">
                                 <button
                                   type="button"
                                   onClick={() => void handleDecide(request.id, true)}

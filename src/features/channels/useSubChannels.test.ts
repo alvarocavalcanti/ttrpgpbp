@@ -129,9 +129,22 @@ describe('useSubChannels', () => {
     const { result } = renderHook(() => useSubChannels('c1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    const id = await result.current.create('OOC')
+    const id = await result.current.create('OOC', {
+      allow_dice: false,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    })
     expect(id).toBe('new-id')
-    expect(supabase.rpc).toHaveBeenCalledWith('create_sub_channel', { p_channel_id: 'c1', p_name: 'OOC' })
+    // The room's features are set at creation, not only afterwards (#722).
+    expect(supabase.rpc).toHaveBeenCalledWith('create_sub_channel', {
+      p_channel_id: 'c1',
+      p_name: 'OOC',
+      p_allow_dice: false,
+      p_allow_scenes: true,
+      p_allow_npc: true,
+      p_allow_whispers: true,
+    })
   })
 
   it('rename / setArchived / remove call the room RPCs and rethrow errors', async () => {
@@ -158,7 +171,12 @@ describe('useSubChannels', () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     const { result } = renderHook(() => useSubChannels(undefined))
     await waitFor(() => expect(result.current.loading).toBe(false))
-    await expect(result.current.create('x')).rejects.toThrow('No channel.')
+    await expect(result.current.create('x', {
+      allow_dice: true,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    })).rejects.toThrow('No channel.')
   })
 
   it('setCapabilities sends only the supplied flag to update_sub_channel', async () => {

@@ -928,7 +928,13 @@ describe('ChannelView search functionality', () => {
       </ToastProvider>
     )
 
-    expect(screen.getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
+    const badges = screen.getAllByRole('img', { name: '2 pending join requests' })
+    // One on the channel menu icon, visible before the sidebar is opened (#722),
+    // one on the Settings row inside it.
+    expect(badges).toHaveLength(2)
+    const toggle = screen.getByRole('button', { name: 'Toggle sidebar menu' })
+    expect(within(toggle).getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
+    expect(within(screen.getByTestId('sidebar-menu')).getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
   })
 
   it('shows no join request badge without pending applications', () => {
@@ -954,6 +960,8 @@ describe('ChannelView search functionality', () => {
     )
 
     expect(screen.queryByRole('img', { name: /pending join request/ })).not.toBeInTheDocument()
+    // Neither the menu icon nor the Settings row carries a count.
+    expect(within(screen.getByRole('button', { name: 'Toggle sidebar menu' })).queryByRole('img')).not.toBeInTheDocument()
   })
 
   it('does not query join requests for a non-GM', () => {

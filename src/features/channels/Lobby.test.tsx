@@ -4,6 +4,7 @@ import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
 import { usePendingJoinRequestCounts } from './usePendingJoinRequestCounts'
+import { useMyJoinRequestDecisions } from './useMyJoinRequestDecisions'
 import { MemoryRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
@@ -26,6 +27,10 @@ vi.mock('./usePublicChannels', () => ({
 
 vi.mock('./usePendingJoinRequestCounts', () => ({
   usePendingJoinRequestCounts: vi.fn()
+}))
+
+vi.mock('./useMyJoinRequestDecisions', () => ({
+  useMyJoinRequestDecisions: vi.fn()
 }))
 
 vi.mock('./PublicChannelDetailSheet', () => ({
@@ -98,6 +103,14 @@ describe('Lobby', () => {
     } as any)
     // No pending applications unless a test says otherwise (#674).
     vi.mocked(usePendingJoinRequestCounts).mockReturnValue({})
+    // No decided applications unless a test says otherwise (#722).
+    vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
+      decisions: [],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+      dismiss: vi.fn().mockResolvedValue(undefined),
+    })
   })
 
   it('renders loading state', () => {
@@ -825,6 +838,66 @@ describe('Lobby', () => {
       render(<Lobby />, { wrapper: MemoryRouter })
 
       expect(screen.queryByRole('img', { name: /pending join request/ })).not.toBeInTheDocument()
+    })
+
+    it('announces an approved application and opens the channel', () => {
+      const dismiss = vi.fn().mockResolvedValue(undefined)
+      vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
+        decisions: [{ id: 'r1', channel_id: 'c9', channel_name: 'Sunless Citadel', status: 'approved', decided_at: '2026-10-15T10:00:00Z' }],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+        dismiss,
+      })
+      withMyChannels(oneChannel)
+
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByText(/You're in/)).toBeInTheDocument()
+      expect(screen.getByText('Sunless Citadel')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('link', { name: 'Open channel' }))
+      expect(dismiss).toHaveBeenCalledWith('r1')
+    })
+
+    it('announces a rejection and dismisses it', () => {
+      const dismiss = vi.fn().mockResolvedValue(undefined)
+      vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
+        decisions: [{ id: 'r2', channel_id: 'c9', channel_name: 'Sunless Citadel', status: 'rejected', decided_at: '2026-10-15T10:00:00Z' }],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+        dismiss,
+      })
+      withMyChannels(oneChannel)
+
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByText(/was declined/)).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Open channel' })).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Dismiss the decision for Sunless Citadel/ }))
+      expect(dismiss).toHaveBeenCalledWith('r2')
+    })
+
+    it('keeps the notice up when dismissing fails', async () => {
+      const dismiss = vi.fn().mockRejectedValue(new Error('down'))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(useMyJoinRequestDecisions).mockReturnValue({
+        decisions: [{ id: 'r3', channel_id: 'c9', channel_name: 'Sunless Citadel', status: 'rejected', decided_at: '2026-10-15T10:00:00Z' }],
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+        dismiss,
+      })
+      withMyChannels(oneChannel)
+
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: /Dismiss the decision for Sunless Citadel/ }))
+
+      await waitFor(() => expect(dismiss).toHaveBeenCalledWith('r3'))
+      expect(screen.getByText(/was declined/)).toBeInTheDocument()
     })
 
     it('defaults to My Games when the user has channels', () => {

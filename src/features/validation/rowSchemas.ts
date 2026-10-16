@@ -198,4 +198,15 @@ export const JoinRequestRowSchema = z.looseObject({
   created_at: z.string(),
 })
 
+// The applicant's own decided applications still to be acknowledged (#722), from
+// get_my_join_request_decisions. The channel name is resolved server-side: the
+// applicant is not a member of a channel they were rejected from.
+export const MyJoinRequestDecisionRowSchema = z.looseObject({
+  id: z.string(),
+  channel_id: z.string(),
+  channel_name: z.string(),
+  status: z.string(),
+  decided_at: z.string(),
+})
+
 export type JoinRequest = z.infer<typeof JoinRequestRowSchema>

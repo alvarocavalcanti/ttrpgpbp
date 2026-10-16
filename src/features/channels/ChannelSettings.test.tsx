@@ -782,6 +782,19 @@ describe('ChannelSettings', () => {
       expect(screen.getByText('No pending requests.')).toBeInTheDocument()
     })
 
+    it('aligns the decision buttons with the middle of a long answer', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: [pendingRequest], error: null }) as any,
+      )
+      renderSettings(listedChannel)
+
+      // A wrapped answer makes the row taller than the buttons; the button
+      // column centres itself instead of sticking to the top (#722).
+      const buttons = (await screen.findByRole('button', { name: 'Approve' })).parentElement
+      expect(buttons).toHaveClass('self-center')
+      expect(buttons).toHaveClass('items-center')
+    })
+
     it('offers Retry when the queue cannot be loaded', async () => {
       vi.mocked(supabase.from).mockImplementation(
         () => requestChain({ data: null, error: new Error('down') }) as any,

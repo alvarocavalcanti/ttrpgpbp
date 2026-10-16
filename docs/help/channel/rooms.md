@@ -13,13 +13,15 @@ The **GM** creates rooms from the **+ Room** chip in the room bar, or from the c
 
 From **GM Tools → Rooms** the GM can:
 
-- **Create** a room — name up to 40 characters ("Main" is reserved)
+- **Create** a room — name up to 40 characters ("Main" is reserved), with its features already chosen (see below)
 - **Rename** a room
 - **Archive** a room — it leaves the room bar but stays readable, and frees a slot for a new one
 - **Restore** an archived room
 - **Delete** a room and its messages
 - **Choose who can see it** — Everyone, Only the GM, or Invited players
 - **Turn features on or off** for that room — dice, Scenes, NPC posts, and whispers
+
+The features are on by default. Pick them in the **New room** form and the room starts that way, or change them on a room you already have.
 
 ## Who can see a room
 
