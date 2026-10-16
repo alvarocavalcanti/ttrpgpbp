@@ -14,6 +14,12 @@ export const MAX_AWAY_MESSAGE_LENGTH = 200
 export const MAX_ADMIN_SUSPEND_REASON_LENGTH = 200
 export const MAX_NPC_NAME_LENGTH = 40
 
+// Listing copy caps (#674). update_channel_settings and the channels CHECK
+// constraints enforce the same numbers server-side; these mirror them so the
+// GM sees the limit while typing instead of on save.
+export const MAX_LISTING_TEXT_LENGTH = 600
+export const MAX_APPLICATION_PROMPT_LENGTH = 300
+
 // Rooms (sub-channels) per channel (#621). create_sub_channel enforces the same
 // hardcoded cap server-side; this mirrors it for client-side validation copy.
 export const MAX_ROOMS_PER_CHANNEL = 10

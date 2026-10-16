@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChannelSettings } from './ChannelSettings'
 import { supabase } from '../../lib/supabase'
+import { trackEvent } from '../../lib/analytics'
 import { useChannelAvatar } from './useChannelAvatar'
 import { useImageUpload } from '../../hooks/useImageUpload'
 
@@ -30,6 +31,10 @@ vi.mock('../../hooks/useImageUpload', () => ({
 
 vi.mock('../../lib/crypto', () => ({
   hashPassword: vi.fn().mockResolvedValue({ hash: 'hashed_password', salt: 'salt_value' })
+}))
+
+vi.mock('../../lib/analytics', () => ({
+  trackEvent: vi.fn(),
 }))
 
 const mockAddToast = vi.fn()
@@ -82,6 +87,18 @@ describe('ChannelSettings', () => {
       value: true
     })
     document.execCommand = vi.fn()
+    // The join-request queue reads channel_join_requests; default to none so the
+    // tests that do not care about the queue see the empty state.
+    vi.mocked(supabase.from).mockImplementation((() => {
+      const chain: Record<string, unknown> = {}
+      chain.select = () => chain
+      chain.eq = () => chain
+      chain.order = () => Promise.resolve({ data: [], error: null })
+      // eslint-disable-next-line unicorn/no-thenable
+      chain.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve)
+      return chain
+    }) as any)
   })
 
   afterEach(() => {
@@ -524,5 +541,210 @@ describe('ChannelSettings', () => {
     })
 
     expect(await screen.findByText('Image uploads are disabled by the server admin')).toBeInTheDocument()
+  })
+
+  describe('Discovery and join requests (#674)', () => {
+    const listedChannel = {
+      ...mockChannel,
+      join_mode: 'approval',
+      description: 'A weekly Shadowdark game.',
+      constraints: 'Post most days.',
+      application_prompt: 'Why do you want to join?',
+    }
+
+    const pendingRequest = {
+      id: 'r1',
+      channel_id: 'c1',
+      user_id: 'u1',
+      character_name: 'Aria',
+      message: 'I have been looking for a weekly game.',
+      status: 'pending',
+      created_at: '2026-10-15T10:00:00Z',
+    }
+
+    // The join-request queue reads channel_join_requests directly.
+    function requestChain(result: { data: unknown; error: unknown }) {
+      const chain: Record<string, unknown> = {}
+      chain.select = () => chain
+      chain.eq = () => chain
+      chain.order = () => Promise.resolve(result)
+      // eslint-disable-next-line unicorn/no-thenable
+      chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)
+      return chain
+    }
+
+    function renderSettings(channel: any = { ...mockChannel, join_mode: 'invite' }) {
+      const onClose = vi.fn()
+      const onUpdate = vi.fn()
+      render(<ChannelSettings channel={channel} onClose={onClose} onUpdate={onUpdate} />, { wrapper: MemoryRouter })
+      return { onClose, onUpdate }
+    }
+
+    it('starts private and reveals the listing copy only when listed', () => {
+      renderSettings()
+
+      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+
+      expect(screen.getByLabelText('Description')).toBeInTheDocument()
+      expect(screen.getByLabelText('What you expect')).toBeInTheDocument()
+      expect(screen.getByLabelText('Application prompt (optional)')).toBeInTheDocument()
+      expect(screen.getByText(/Publicly listed and search-engine indexable/)).toBeInTheDocument()
+    })
+
+    it('caps the listing copy at input, matching the server', () => {
+      renderSettings(listedChannel)
+
+      expect(screen.getByLabelText('Description')).toHaveAttribute('maxlength', '600')
+      expect(screen.getByLabelText('What you expect')).toHaveAttribute('maxlength', '600')
+      expect(screen.getByLabelText('Application prompt (optional)')).toHaveAttribute('maxlength', '300')
+    })
+
+    it('rejects a publish with blank copy inline, without calling the server', () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      renderSettings()
+
+      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      expect(screen.getByRole('alert')).toHaveTextContent('A listed channel needs both a description and constraints.')
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('publishes the listing fields and fires listing_publish on the transition', async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      renderSettings()
+
+      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
+      fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
+      fireEvent.change(screen.getByLabelText('Application prompt (optional)'), { target: { value: 'Why?' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      await waitFor(() =>
+        expect(mockRpc).toHaveBeenCalledWith(
+          'update_channel_settings',
+          expect.objectContaining({
+            p_channel_id: 'c1',
+            p_join_mode: 'approval',
+            p_description: 'A weekly game.',
+            p_constraints: 'Be kind.',
+            p_application_prompt: 'Why?',
+          }),
+        ),
+      )
+      expect(trackEvent).toHaveBeenCalledWith('listing_publish', { game_system: 'none' })
+    })
+
+    it('does not re-fire listing_publish when an already-listed channel is edited', async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      renderSettings(listedChannel)
+
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A renamed weekly game.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      await waitFor(() => expect(mockRpc).toHaveBeenCalled())
+      expect(trackEvent).not.toHaveBeenCalled()
+    })
+
+    it('confirms before removing the listing, and keeps it when cancelled', () => {
+      renderSettings(listedChannel)
+
+      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      const dialog = screen.getByRole('dialog', { name: 'Remove this listing?' })
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      expect(screen.getByRole('button', { name: /Listed — apply to join/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByRole('dialog', { name: 'Remove this listing?' })).not.toBeInTheDocument()
+    })
+
+    it('removes the listing when the confirm is accepted', () => {
+      renderSettings(listedChannel)
+
+      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Remove listing' }))
+
+      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
+    })
+
+    it('warns about the pending applications a delist will close', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: [pendingRequest], error: null }) as any,
+      )
+      renderSettings(listedChannel)
+
+      // Wait for the queue so the confirm knows how many applications it closes.
+      await screen.findByText('Join requests (1)')
+      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+
+      expect(screen.getByRole('dialog', { name: 'Remove this listing?' })).toHaveTextContent(
+        'its 1 pending application is closed',
+      )
+    })
+
+    it('lists pending applications and approves one without submitting the form', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: [pendingRequest], error: null }) as any,
+      )
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      const { onUpdate } = renderSettings(listedChannel)
+
+      expect(await screen.findByText('Join requests (1)')).toBeInTheDocument()
+      expect(screen.getByText('Aria')).toBeInTheDocument()
+      expect(screen.getByText('I have been looking for a weekly game.')).toBeInTheDocument()
+      expect(screen.getByText(/^Applied /)).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+      await waitFor(() =>
+        expect(mockRpc).toHaveBeenCalledWith('decide_join_request', {
+          p_request_id: 'r1',
+          p_approve: true,
+        }),
+      )
+      // The queue buttons must not submit the enclosing settings form.
+      expect(mockRpc).not.toHaveBeenCalledWith('update_channel_settings', expect.anything())
+      expect(mockAddToast).toHaveBeenCalledWith('Application approved', 'success')
+      expect(onUpdate).toHaveBeenCalled()
+    })
+
+    it('surfaces the server message when a decision fails', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: [pendingRequest], error: null }) as any,
+      )
+      vi.mocked(supabase.rpc).mockResolvedValue({ error: { message: 'This channel is archived.' } } as any)
+      renderSettings(listedChannel)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+
+      await waitFor(() =>
+        expect(mockAddToast).toHaveBeenCalledWith('This channel is archived.', 'error'),
+      )
+    })
+
+    it('shows the empty queue state', async () => {
+      renderSettings(listedChannel)
+
+      expect(await screen.findByText('Join requests (0)')).toBeInTheDocument()
+      expect(screen.getByText('No pending requests.')).toBeInTheDocument()
+    })
+
+    it('offers Retry when the queue cannot be loaded', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: null, error: new Error('down') }) as any,
+      )
+      renderSettings(listedChannel)
+
+      expect(await screen.findByText("Couldn't load requests.")).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+      await waitFor(() => expect(supabase.from).toHaveBeenCalledTimes(2))
+    })
   })
 })

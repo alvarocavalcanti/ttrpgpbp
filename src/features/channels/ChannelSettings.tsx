@@ -7,6 +7,8 @@ import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { useToast } from '../../contexts/ToastContext'
 import { useSafetyTools } from './useSafetyTools'
 import { useUpdateChannelSettings } from './useUpdateChannelSettings'
+import { usePendingJoinRequests } from './usePendingJoinRequests'
+import { channelTimestamp } from './lobbyFormat'
 import { useChannelMaintenance } from './useChannelMaintenance'
 import { useChannelAvatar } from './useChannelAvatar'
 import { useImageUpload } from '../../hooks/useImageUpload'
@@ -14,10 +16,14 @@ import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { toError } from '../../lib/errors'
+import { trackEvent } from '../../lib/analytics'
 import {
   MAX_CHANNEL_NAME_LENGTH,
   MAX_SAFETY_TEXT_LENGTH,
   MAX_URL_LENGTH,
+  MAX_LISTING_TEXT_LENGTH,
+  MAX_APPLICATION_PROMPT_LENGTH,
 } from '../../constants'
 
 type Channel = Database['public']['Tables']['channels']['Row']
@@ -49,6 +55,20 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const { safetyTools } = useSafetyTools(channel.id, showSafetyTools)
   const [safetyLines, setSafetyLines] = useState('')
   const [safetyVeils, setSafetyVeils] = useState('')
+
+  // Discovery / listing state (#674). The GM publishes the channel by switching
+  // join mode to 'approval' with a description + constraints; that is what makes
+  // it apply-only, discoverable in the Lobby and listed on the public
+  // /directory.
+  const [joinMode, setJoinMode] = useState<'invite' | 'approval'>(channel.join_mode)
+  const [description, setDescription] = useState(channel.description ?? '')
+  const [constraints, setConstraints] = useState(channel.constraints ?? '')
+  const [applicationPrompt, setApplicationPrompt] = useState(channel.application_prompt ?? '')
+  const [listingError, setListingError] = useState<string | null>(null)
+  const [confirmDelist, setConfirmDelist] = useState(false)
+  const [decidingId, setDecidingId] = useState<string | null>(null)
+  const { requests, loading: requestsLoading, error: requestsError, refetch: refetchRequests, decide } =
+    usePendingJoinRequests(channel.id)
 
   useEffect(() => {
     if (safetyTools) {
@@ -148,6 +168,14 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     }
     if (urlError) return
 
+    // Publishing requires both copy fields — the server raises the same rule and
+    // the cap is enforced at input, so this is the point-of-save guard.
+    if (joinMode === 'approval' && (description.trim() === '' || constraints.trim() === '')) {
+      setListingError('A listed channel needs both a description and constraints.')
+      return
+    }
+    setListingError(null)
+
     setIsSubmitting(true)
 
     try {
@@ -168,9 +196,18 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
         p_clear_password: changePassword && !newPassword,
         p_safety_lines: showSafetyTools ? safetyLines : undefined,
         p_safety_veils: showSafetyTools ? safetyVeils : undefined,
+        p_join_mode: joinMode,
+        p_description: description || undefined,
+        p_constraints: constraints || undefined,
+        p_application_prompt: applicationPrompt || undefined,
       })
 
       if (updateError) throw updateError
+
+      // The funnel event fires on the transition, not on every later edit.
+      if (joinMode === 'approval' && channel.join_mode !== 'approval') {
+        trackEvent('listing_publish', { game_system: gameSystem })
+      }
 
       addToast('Channel settings saved successfully', 'success')
       onUpdate()
@@ -228,6 +265,49 @@ setIsSubmitting(true)
       setIsSubmitting(false)
     }
   }
+
+  const handleDecide = async (requestId: string, approve: boolean) => {
+    setDecidingId(requestId)
+    try {
+      await decide(requestId, approve)
+      addToast(approve ? 'Application approved' : 'Application rejected', 'success')
+      // The queue and the caller's pending badge both refresh.
+      refetchRequests()
+      onUpdate()
+    } catch (err) {
+      // decide_join_request raises player-facing copy (channel archived, applicant
+      // blocked); surface it rather than a generic message.
+      addToast(toError(err).message, 'error')
+    } finally {
+      setDecidingId(null)
+    }
+  }
+
+  // Switching back to Private is destructive — it removes the listing from
+  // Discover and /directory and closes anything still pending — so it goes
+  // through a confirm instead of applying on tap.
+  const requestDelist = () => {
+    if (joinMode === 'invite') return
+    setConfirmDelist(true)
+  }
+
+  const modeButton = (mode: 'invite' | 'approval', label: string) => (
+    <button
+      type="button"
+      aria-pressed={joinMode === mode}
+      onClick={() => {
+        if (mode === 'invite') requestDelist()
+        else setJoinMode('approval')
+      }}
+      className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
+        joinMode === mode
+          ? 'bg-white font-medium text-surface-900 shadow-sm dark:bg-surface-700 dark:text-surface-100'
+          : 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
+      }`}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <div ref={dialogRef} className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -503,6 +583,144 @@ setIsSubmitting(true)
                 </div>
 
 
+              {/* Discovery / listing (#674). */}
+              <div className="mt-5 border-t border-surface-200 pt-5 dark:border-surface-700">
+                <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Discovery</h4>
+                <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                  A listed channel appears in the Lobby's Discover tab and on the public directory,
+                  where anyone can read its description. Players apply and you approve; messages and
+                  player details always stay inside the channel.
+                </p>
+
+                <div className="mt-3 flex items-center rounded-md bg-surface-100 p-1 dark:bg-surface-900">
+                  {modeButton('invite', 'Private — invite link only')}
+                  {modeButton('approval', 'Listed — apply to join')}
+                </div>
+
+                {joinMode === 'approval' && (
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <label htmlFor="listingDescription" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Description
+                      </label>
+                      <textarea
+                        id="listingDescription"
+                        rows={4}
+                        maxLength={MAX_LISTING_TEXT_LENGTH}
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                      />
+                      <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                        What the game is about. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="listingConstraints" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        What you expect
+                      </label>
+                      <textarea
+                        id="listingConstraints"
+                        rows={4}
+                        maxLength={MAX_LISTING_TEXT_LENGTH}
+                        value={constraints}
+                        onChange={(e) => setConstraints(e.target.value)}
+                        className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                      />
+                      <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                        Posting pace, tone, safety expectations. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="listingPrompt" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Application prompt (optional)
+                      </label>
+                      <input
+                        id="listingPrompt"
+                        type="text"
+                        maxLength={MAX_APPLICATION_PROMPT_LENGTH}
+                        value={applicationPrompt}
+                        onChange={(e) => setApplicationPrompt(e.target.value)}
+                        placeholder="Why do you want to join?"
+                        className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                      />
+                    </div>
+
+                    <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400">
+                      Publicly listed and search-engine indexable. Only your description and expectations
+                      are shown publicly — never messages or player details.
+                    </p>
+                  </div>
+                )}
+
+                {listingError && (
+                  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{listingError}</p>
+                )}
+
+                {joinMode === 'approval' && (
+                  <div className="mt-5">
+                    <h5 className="text-sm font-medium text-surface-900 dark:text-surface-100">
+                      Join requests ({requests.length})
+                    </h5>
+
+                    {requestsLoading ? (
+                      <p className="mt-2 text-sm text-surface-500 dark:text-surface-400" role="status">Loading requests…</p>
+                    ) : requestsError ? (
+                      <div className="mt-2 flex items-center gap-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                        <span>Couldn't load requests.</span>
+                        <button type="button" onClick={refetchRequests} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">
+                          Retry
+                        </button>
+                      </div>
+                    ) : requests.length === 0 ? (
+                      <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">No pending requests.</p>
+                    ) : (
+                      <ul className="mt-2 divide-y divide-surface-200 dark:divide-surface-700">
+                        {requests.map((request) => (
+                          <li key={request.id} className="py-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-surface-900 dark:text-surface-100">
+                                  {request.character_name}
+                                </p>
+                                {request.message && (
+                                  <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">
+                                    {request.message}
+                                  </p>
+                                )}
+                                <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                                  Applied {channelTimestamp(request.created_at)}
+                                </p>
+                              </div>
+                              <div className="flex flex-shrink-0 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDecide(request.id, true)}
+                                  disabled={decidingId !== null}
+                                  className="inline-flex min-h-11 justify-center rounded-md border border-transparent bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
+                                >
+                                  {decidingId === request.id ? 'Working…' : 'Approve'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDecide(request.id, false)}
+                                  disabled={decidingId !== null}
+                                  className="inline-flex min-h-11 justify-center rounded-md border border-surface-300 px-3 text-sm font-medium text-surface-700 hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
                 <button
                   type="submit"
@@ -546,6 +764,23 @@ setIsSubmitting(true)
           </div>
         </div>
       </div>
+
+      {confirmDelist && (
+        <ConfirmDialog
+          title="Remove this listing?"
+          description={
+            requests.length > 0
+              ? `The channel leaves Discover and the public directory, and its ${requests.length} pending application${requests.length === 1 ? '' : 's'} ${requests.length === 1 ? 'is' : 'are'} closed. Existing members stay.`
+              : 'The channel leaves Discover and the public directory and stops taking applications. Existing members stay.'
+          }
+          confirmLabel="Remove listing"
+          onConfirm={() => {
+            setConfirmDelist(false)
+            setJoinMode('invite')
+          }}
+          onClose={() => setConfirmDelist(false)}
+        />
+      )}
 
       {confirmArchive && (
         <ConfirmDialog

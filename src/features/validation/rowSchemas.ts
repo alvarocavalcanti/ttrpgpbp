@@ -185,3 +185,17 @@ export const AnonPublicChannelRowSchema = z.looseObject({
 })
 
 export type AnonPublicChannel = z.infer<typeof AnonPublicChannelRowSchema>
+
+// A join application on a listed channel (#674). Read straight from
+// channel_join_requests, which RLS scopes to the applicant and the channel's GM.
+export const JoinRequestRowSchema = z.looseObject({
+  id: z.string(),
+  channel_id: z.string(),
+  user_id: z.string(),
+  character_name: z.string(),
+  message: z.string().nullish(),
+  status: z.string(),
+  created_at: z.string(),
+})
+
+export type JoinRequest = z.infer<typeof JoinRequestRowSchema>
