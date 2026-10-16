@@ -383,12 +383,6 @@ export function Lobby() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {myChannels.length === 0 && (
-              <div className="bg-white dark:bg-surface-800 border-y border-surface-200 dark:border-surface-700 md:border-none md:shadow overflow-hidden md:rounded-md">
-                {firstRunPrompt}
-              </div>
-            )}
-
             <div className="bg-white dark:bg-surface-800 border-y border-surface-200 dark:border-surface-700 md:border-none md:shadow overflow-hidden md:rounded-md">
               <div className="px-3 py-3 sm:px-6 border-b border-surface-200 dark:border-surface-700">
                 <label htmlFor="discoverSearch" className="block text-sm font-medium text-surface-700 dark:text-surface-300">

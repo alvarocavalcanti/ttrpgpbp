@@ -66,6 +66,19 @@ vi.mock('../../contexts/ToastContext', () => ({
   useToast: vi.fn().mockReturnValue({ addToast: vi.fn(), removeToast: vi.fn() })
 }))
 
+// A channel-less user now lands on Discover (where the My Games first-run prompt
+// deliberately does not appear), so the empty-state tests ask for the My Games
+// tab explicitly.
+function renderEmptyMyGames() {
+  return render(
+    <MemoryRouter initialEntries={['/?tab=my']}>
+      <Routes>
+        <Route path="/" element={<Lobby />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
 describe('Lobby', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -107,7 +120,7 @@ describe('Lobby', () => {
       refetch: vi.fn(),
     })
 
-    render(<Lobby />, { wrapper: MemoryRouter })
+    renderEmptyMyGames()
     expect(screen.getByText("You haven't joined any channels yet.")).toBeInTheDocument()
   })
 
@@ -166,7 +179,7 @@ describe('Lobby', () => {
       refetch: vi.fn(),
     })
 
-    render(<Lobby />, { wrapper: MemoryRouter })
+    renderEmptyMyGames()
     expect(screen.getByTestId('empty-lobby-create')).toBeInTheDocument()
     expect(screen.getByLabelText('Paste an invite link')).toBeInTheDocument()
 
@@ -182,7 +195,7 @@ describe('Lobby', () => {
       refetch: vi.fn(),
     })
 
-    render(<Lobby />, { wrapper: MemoryRouter })
+    renderEmptyMyGames()
     fireEvent.change(screen.getByLabelText('Paste an invite link'), { target: { value: 'not-a-link' } })
     fireEvent.submit(screen.getByLabelText('Paste an invite link').closest('form')!)
 
@@ -198,12 +211,12 @@ describe('Lobby', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={['/?tab=my']}>
         <Routes>
           <Route path="/" element={<Lobby />} />
           <Route path="/join/:id" element={<div data-testid="join-page" />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     )
 
     fireEvent.change(
@@ -826,8 +839,9 @@ describe('Lobby', () => {
       render(<Lobby />, { wrapper: MemoryRouter })
 
       expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page')
-      // The first-run prompt still rides along, so onboarding is not lost.
-      expect(screen.getByTestId('empty-lobby')).toBeInTheDocument()
+      // The My Games first-run prompt stays on My Games: on Discover it sat above
+      // the listings and pushed them below the fold. Onboarding is one tap away.
+      expect(screen.queryByTestId('empty-lobby')).not.toBeInTheDocument()
     })
 
     it('keeps an explicit My Games choice for a user with no channels', () => {
