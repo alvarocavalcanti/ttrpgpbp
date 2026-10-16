@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Lobby } from './Lobby'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
+import { usePendingJoinRequestCounts } from './usePendingJoinRequestCounts'
 import { MemoryRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { useAuth } from '../auth/useAuth'
@@ -21,6 +22,10 @@ vi.mock('./useChannels', () => ({
 
 vi.mock('./usePublicChannels', () => ({
   usePublicChannels: vi.fn()
+}))
+
+vi.mock('./usePendingJoinRequestCounts', () => ({
+  usePendingJoinRequestCounts: vi.fn()
 }))
 
 vi.mock('./PublicChannelDetailSheet', () => ({
@@ -78,6 +83,8 @@ describe('Lobby', () => {
       refetch: vi.fn(),
       loadMore: vi.fn(),
     } as any)
+    // No pending applications unless a test says otherwise (#674).
+    vi.mocked(usePendingJoinRequestCounts).mockReturnValue({})
   })
 
   it('renders loading state', () => {
@@ -785,6 +792,26 @@ describe('Lobby', () => {
 
       expect(screen.getByRole('button', { name: 'My Games' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Discover' })).toBeInTheDocument()
+    })
+
+    it('badges a channel this user GMs with its pending join requests', () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      withMyChannels([{ id: '1', name: 'Mine', gm_id: 'u1', member: { character_name: 'Hero' } }])
+      vi.mocked(usePendingJoinRequestCounts).mockReturnValue({ 1: 2 })
+
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
+    })
+
+    it('shows no join request badge on a channel someone else GMs', () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      withMyChannels([{ id: '1', name: 'Mine', gm_id: 'someone-else', member: { character_name: 'Hero' } }])
+      vi.mocked(usePendingJoinRequestCounts).mockReturnValue({ 1: 2 })
+
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(screen.queryByRole('img', { name: /pending join request/ })).not.toBeInTheDocument()
     })
 
     it('defaults to My Games when the user has channels', () => {

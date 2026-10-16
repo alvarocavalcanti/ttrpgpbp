@@ -7,6 +7,7 @@ import { useMessages } from '../chat/useMessages'
 import { useMessageFavorites } from '../chat/useMessageFavorites'
 import { useSubChannels } from './useSubChannels'
 import { useSubChannelUnread } from './useSubChannelUnread'
+import { usePendingJoinRequests } from './usePendingJoinRequests'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
@@ -33,6 +34,10 @@ vi.mock('./useSubChannels', () => ({
 
 vi.mock('./useSubChannelUnread', () => ({
   useSubChannelUnread: vi.fn()
+}))
+
+vi.mock('./usePendingJoinRequests', () => ({
+  usePendingJoinRequests: vi.fn()
 }))
 
 vi.mock('../auth/useAuth', () => ({
@@ -82,6 +87,14 @@ beforeEach(() => {
     refetch: vi.fn(),
   } as any)
   vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), refetch: vi.fn() } as any)
+  // No pending applications unless a test says otherwise (#674).
+  vi.mocked(usePendingJoinRequests).mockReturnValue({
+    requests: [],
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    decide: vi.fn(),
+  } as any)
 })
 
 describe('ChannelView search functionality', () => {
@@ -881,6 +894,92 @@ describe('ChannelView search functionality', () => {
     expect(menu).toHaveTextContent('NPCs')
     expect(menu).toHaveTextContent('Active Player')
     expect(menu).toHaveTextContent('Settings')
+  })
+
+  it('badges the Settings button with the pending join request count', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'user1', is_archived: false, game_system: 'generic' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+    vi.mocked(usePendingJoinRequests).mockReturnValue({
+      requests: [
+        { id: 'r1', channel_id: 'c1', user_id: 'u1', character_name: 'Aria', status: 'pending', created_at: '2026-10-15T09:00:00Z' },
+        { id: 'r2', channel_id: 'c1', user_id: 'u2', character_name: 'Hero', status: 'pending', created_at: '2026-10-15T10:00:00Z' },
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+      decide: vi.fn(),
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.getByRole('img', { name: '2 pending join requests' })).toHaveTextContent('2')
+  })
+
+  it('shows no join request badge without pending applications', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'user1', is_archived: false, game_system: 'generic' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    expect(screen.queryByRole('img', { name: /pending join request/ })).not.toBeInTheDocument()
+  })
+
+  it('does not query join requests for a non-GM', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'someone-else', is_archived: false, game_system: 'generic' },
+      members: [],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    // The badge and the queue are GM-only, so the fetch is skipped entirely.
+    expect(usePendingJoinRequests).toHaveBeenCalledWith(undefined)
   })
 
   it('does not crash when the loading render transitions to loaded (stable hook order)', () => {

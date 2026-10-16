@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
+import { usePendingJoinRequestCounts } from './usePendingJoinRequestCounts'
 import { CreateChannelModal } from './CreateChannelModal'
 import { PublicChannelDetailSheet } from './PublicChannelDetailSheet'
 import { gameSystemLabel, channelTimestamp } from './lobbyFormat'
@@ -201,6 +202,10 @@ export function Lobby() {
 
   const discover = usePublicChannels({ search: dqRaw, enabled: activeTab === 'discover' })
 
+  // Pending applications on the channels this user GMs (#674), so a new
+  // application is visible without opening the channel.
+  const pendingJoinRequests = usePendingJoinRequestCounts()
+
   const loggedTabRef = useRef<LobbyTab | null>(null)
 
   useEffect(() => {
@@ -338,6 +343,15 @@ export function Lobby() {
                               {channel.gm_id === user?.id && (
                                 <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded text-[0.625rem] leading-4 font-semibold uppercase bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-300">
                                   GM
+                                </span>
+                              )}
+                              {channel.gm_id === user?.id && (pendingJoinRequests[channel.id] ?? 0) > 0 && (
+                                <span
+                                  role="img"
+                                  aria-label={`${pendingJoinRequests[channel.id]} pending join ${pendingJoinRequests[channel.id] === 1 ? 'request' : 'requests'}`}
+                                  className="inline-flex flex-shrink-0 items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold bg-primary-600 text-white"
+                                >
+                                  {pendingJoinRequests[channel.id]}
                                 </span>
                               )}
                             </span>
