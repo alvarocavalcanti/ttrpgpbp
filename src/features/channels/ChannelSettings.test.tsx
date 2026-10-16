@@ -738,7 +738,27 @@ describe('ChannelSettings', () => {
       // The queue buttons must not submit the enclosing settings form.
       expect(mockRpc).not.toHaveBeenCalledWith('update_channel_settings', expect.anything())
       expect(mockAddToast).toHaveBeenCalledWith('Application approved', 'success')
+      expect(trackEvent).toHaveBeenCalledWith('join_request_decide', { decision: 'approve' })
       expect(onUpdate).toHaveBeenCalled()
+    })
+
+    it('fires the decision event for a rejection too', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: [pendingRequest], error: null }) as any,
+      )
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      renderSettings(listedChannel)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Reject' }))
+
+      await waitFor(() =>
+        expect(mockRpc).toHaveBeenCalledWith('decide_join_request', {
+          p_request_id: 'r1',
+          p_approve: false,
+        }),
+      )
+      expect(trackEvent).toHaveBeenCalledWith('join_request_decide', { decision: 'reject' })
     })
 
     it('surfaces the server message when a decision fails', async () => {

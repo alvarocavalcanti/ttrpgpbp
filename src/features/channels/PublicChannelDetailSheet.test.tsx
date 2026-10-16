@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { PublicChannelDetailSheet } from './PublicChannelDetailSheet'
 import { usePublicChannelApply } from './usePublicChannelApply'
 import { useToast } from '../../contexts/ToastContext'
+import { supabase } from '../../lib/supabase'
 import { trackEvent } from '../../lib/analytics'
 
 vi.mock('./usePublicChannelApply', () => ({
@@ -16,6 +17,12 @@ vi.mock('../../contexts/ToastContext', () => ({
 
 vi.mock('../../lib/analytics', () => ({
   trackEvent: vi.fn(),
+}))
+
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    rpc: vi.fn(),
+  },
 }))
 
 const detail = {
@@ -187,5 +194,69 @@ describe('PublicChannelDetailSheet', () => {
     expect(link).toHaveAttribute('href', '/channel/c1')
     // A member gets no apply form.
     expect(screen.queryByLabelText('Character name')).not.toBeInTheDocument()
+  })
+
+  describe('report a listing (#674)', () => {
+    it('offers reporting to a non-member and submits the reason', async () => {
+      const addToast = vi.fn()
+      vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+      vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+      fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
+        target: { value: 'Recruiting for a paid game' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+
+      await waitFor(() =>
+        expect(supabase.rpc).toHaveBeenCalledWith('report_channel_listing', {
+          p_channel_id: 'c1',
+          p_reason: 'Recruiting for a paid game',
+        }),
+      )
+      expect(addToast).toHaveBeenCalledWith('Thanks — the report is with the moderators.', 'success')
+      // The prompt closes on success.
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Why are you reporting this listing?')).not.toBeInTheDocument(),
+      )
+    })
+
+    it('caps the reason at input, matching the server', () => {
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+
+      expect(screen.getByLabelText('Why are you reporting this listing?')).toHaveAttribute('maxlength', '500')
+    })
+
+    it('surfaces the server message when the report is refused', async () => {
+      const addToast = vi.fn()
+      vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        error: { message: 'A report for this listing is already open.' },
+      } as any)
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+      fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
+        target: { value: 'again' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
+
+      await waitFor(() =>
+        expect(addToast).toHaveBeenCalledWith('A report for this listing is already open.', 'error'),
+      )
+    })
+
+    it('does not offer reporting to a member', () => {
+      mockApply({ detail: { ...detail, is_member: true } })
+
+      renderSheet()
+      expect(screen.queryByRole('button', { name: 'Report this listing' })).not.toBeInTheDocument()
+    })
   })
 })
