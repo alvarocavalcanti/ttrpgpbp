@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useChannels } from './useChannels'
 import { usePublicChannels } from './usePublicChannels'
 import { usePendingJoinRequestCounts } from './usePendingJoinRequestCounts'
+import { useMyJoinRequestDecisions } from './useMyJoinRequestDecisions'
+import { JoinRequestNotice } from './JoinRequestNotice'
 import { CreateChannelModal } from './CreateChannelModal'
 import { PublicChannelDetailSheet } from './PublicChannelDetailSheet'
 import { gameSystemLabel, channelTimestamp } from './lobbyFormat'
@@ -205,6 +207,14 @@ export function Lobby() {
   // Pending applications on the channels this user GMs (#674), so a new
   // application is visible without opening the channel.
   const pendingJoinRequests = usePendingJoinRequestCounts()
+  // Decisions on the user's own applications (#722): the in-app cue for an
+  // approved or rejected application.
+  const {
+    decisions: joinRequestDecisions,
+    error: joinRequestDecisionsError,
+    refetch: refetchJoinRequestDecisions,
+    dismiss: dismissJoinRequestDecision,
+  } = useMyJoinRequestDecisions()
 
   const loggedTabRef = useRef<LobbyTab | null>(null)
 
@@ -274,6 +284,22 @@ export function Lobby() {
   return (
     <div className="w-full max-w-7xl mx-auto pt-0 pb-8 md:px-6 lg:px-8 relative flex-1">
       <div className="flex flex-col gap-6">
+        {/* Decisions on the user's own applications (#722): above the tabs, so
+            it is seen on whichever tab they land on. */}
+        <JoinRequestNotice
+          decisions={joinRequestDecisions}
+          error={joinRequestDecisionsError}
+          onRetry={refetchJoinRequestDecisions}
+          onDismiss={(id) => {
+            // The notice clears itself only once the server stamped it, so a
+            // failure must say so rather than look like a dead button.
+            void dismissJoinRequestDecision(id).catch((err) => {
+              console.error('Failed to dismiss join request decision:', err)
+              addToast("Couldn't dismiss that update. Please try again.", 'error')
+            })
+          }}
+        />
+
         <div className="border-b border-surface-200 dark:border-surface-700 px-4 md:px-0">
           <nav className="-mb-px flex space-x-8" aria-label="Lobby sections">
             {TABS.map((tab) => (

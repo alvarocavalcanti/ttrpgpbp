@@ -402,9 +402,9 @@ SELECT is(
 -- #621 rooms: the client-facing room RPCs keep authenticated EXECUTE; the
 -- anon=0 sweep above covers their anon revoke.
 SELECT is(
-  has_function_privilege('authenticated', 'public.create_sub_channel(uuid,text)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean)', 'EXECUTE'),
   true,
-  'authenticated keeps create_sub_channel (client RPC)'
+  'authenticated keeps create_sub_channel (client RPC; #722 added the feature flags)'
 );
 SELECT is(
   has_function_privilege('authenticated', 'public.update_sub_channel(uuid,text,boolean,boolean,boolean,boolean,boolean)', 'EXECUTE'),

@@ -67,7 +67,7 @@ test.describe('Header icon alignment (#642)', () => {
     const { leadingInset, trailingInset } = await measure(
       page,
       'a[aria-label="Back to Lobby"] svg',
-      'button[aria-label="Toggle sidebar menu"]',
+      'button[aria-label^="Toggle sidebar menu"]',
     )
     // The main column's 1px right border makes the trailing inset exactly 1px
     // larger than the leading one; the pre-fix bug was 8px.

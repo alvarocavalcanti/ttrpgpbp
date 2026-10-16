@@ -338,6 +338,7 @@ export type Database = {
       }
       channel_join_requests: {
         Row: {
+          applicant_acknowledged_at: string | null
           channel_id: string
           character_name: string
           created_at: string
@@ -349,6 +350,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          applicant_acknowledged_at?: string | null
           channel_id: string
           character_name: string
           created_at?: string
@@ -360,6 +362,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          applicant_acknowledged_at?: string | null
           channel_id?: string
           character_name?: string
           created_at?: string
@@ -1401,6 +1404,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acknowledge_join_request_decision: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       add_sub_channel_member: {
         Args: { p_sub_channel_id: string; p_user_id: string }
         Returns: undefined
@@ -1595,11 +1602,15 @@ export type Database = {
       confirm_terms: { Args: { p_version: string }; Returns: undefined }
       create_channel: {
         Args: {
+          p_application_prompt?: string
           p_character_avatar_url?: string
           p_character_name: string
           p_character_sheet_url?: string
+          p_constraints?: string
+          p_description?: string
           p_game_system?: string
           p_invite_code: string
+          p_join_mode?: string
           p_name: string
           p_password_hash?: string
           p_password_salt?: string
@@ -1607,7 +1618,14 @@ export type Database = {
         Returns: string
       }
       create_sub_channel: {
-        Args: { p_channel_id: string; p_name: string }
+        Args: {
+          p_allow_dice?: boolean
+          p_allow_npc?: boolean
+          p_allow_scenes?: boolean
+          p_allow_whispers?: boolean
+          p_channel_id: string
+          p_name: string
+        }
         Returns: string
       }
       decide_join_request: {
@@ -1656,6 +1674,17 @@ export type Database = {
           has_password: boolean
           id: string
           name: string
+        }[]
+      }
+      get_my_join_request_decisions: {
+        Args: never
+        Returns: {
+          channel_id: string
+          channel_name: string
+          decided_at: string
+          id: string
+          is_member: boolean
+          status: Database["public"]["Enums"]["join_request_status"]
         }[]
       }
       get_or_create_system_thread: { Args: never; Returns: string }

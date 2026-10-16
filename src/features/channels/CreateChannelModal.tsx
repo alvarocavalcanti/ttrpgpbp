@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
-import { MAX_CHANNELS_PER_USER, MAX_CHANNEL_NAME_LENGTH } from '../../constants'
+import { MAX_CHANNELS_PER_USER, MAX_CHANNEL_NAME_LENGTH, MAX_LISTING_TEXT_LENGTH, MAX_APPLICATION_PROMPT_LENGTH } from '../../constants'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { trackEvent } from '../../lib/analytics'
 import { useCreateChannel } from './useCreateChannel'
 
 interface CreateChannelModalProps {
@@ -28,15 +29,31 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [characterName, setCharacterName] = useState(profile?.display_name || '')
+  // Listing at creation (#722): the GM picks Private or Listed up front instead
+  // of creating the channel and walking to Settings → Discovery.
+  const [joinMode, setJoinMode] = useState<'invite' | 'approval'>('invite')
+  const [description, setDescription] = useState('')
+  const [constraints, setConstraints] = useState('')
+  const [applicationPrompt, setApplicationPrompt] = useState('')
+  const [listingError, setListingError] = useState<string | null>(null)
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { countMyChannels, createChannel } = useCreateChannel()
+  const isListed = joinMode === 'approval'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+
+    // Publishing requires both copy fields — the server raises the same rule and
+    // the DB CHECK backs it up (#674), so this is the point-of-save guard.
+    if (isListed && (description.trim() === '' || constraints.trim() === '')) {
+      setListingError('A listed channel needs both a description and constraints.')
+      return
+    }
+    setListingError(null)
     
     setIsSubmitting(true)
     setError(null)
@@ -60,8 +77,23 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
         inviteCode,
         characterName,
         passwordHash: hashedPassword?.hash ?? undefined,
-        passwordSalt: hashedPassword?.salt ?? undefined
+        passwordSalt: hashedPassword?.salt ?? undefined,
+        // A private channel never sends listing copy: only the listed path
+        // carries a join mode, and the server requires the copy with it.
+        ...(isListed
+          ? {
+              joinMode: 'approval' as const,
+              description,
+              constraints,
+              applicationPrompt: applicationPrompt || undefined,
+            }
+          : {})
       })
+
+      if (isListed) {
+        // Funnel parity with the Settings transition (#674).
+        trackEvent('listing_publish', { game_system: gameSystem })
+      }
 
       onClose()
       navigate(`/channel/${channelId}`)
@@ -130,6 +162,12 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                 </select>
               </div>
 
+              {/* A listed channel is apply-only, so a password could never be
+                  used (join_channel refuses it for everyone but the GM). The
+                  field is hidden and its value cleared, so the GM never sets a
+                  secret that protects nothing — the server refuses the
+                  combination outright (#722 review). */}
+              {!isListed && (
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Password (Optional)
@@ -161,6 +199,111 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                     )}
                   </button>
                 </div>
+              </div>
+              )}
+
+              {/* Who can find it (#722). Mirrors Channel Settings → Discovery:
+                  the same copy, the same caps, the same server rules. */}
+              <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Discovery</h4>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  A listed channel appears in the Lobby's Discover tab and on the public directory,
+                  where anyone can read its description. Players apply and you approve; messages and
+                  player details always stay inside the channel.
+                </p>
+
+                <div className="mt-3 flex items-center rounded-md bg-gray-100 p-1 dark:bg-gray-900">
+                  <button
+                    type="button"
+                    aria-pressed={joinMode === 'invite'}
+                    onClick={() => setJoinMode('invite')}
+                    className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
+                      joinMode === 'invite'
+                        ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Private — invite link only
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={isListed}
+                    onClick={() => {
+                      // A listed channel has no password to carry (#722 review).
+                      setPassword('')
+                      setJoinMode('approval')
+                    }}
+                    className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
+                      isListed
+                        ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Listed — apply to join
+                  </button>
+                </div>
+
+                {isListed && (
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <label htmlFor="createListingDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Description
+                      </label>
+                      <textarea
+                        id="createListingDescription"
+                        rows={4}
+                        maxLength={MAX_LISTING_TEXT_LENGTH}
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                      />
+                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
+                        What the game is about. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="createListingConstraints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        What you expect
+                      </label>
+                      <textarea
+                        id="createListingConstraints"
+                        rows={4}
+                        maxLength={MAX_LISTING_TEXT_LENGTH}
+                        value={constraints}
+                        onChange={(e) => setConstraints(e.target.value)}
+                        className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                      />
+                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
+                        Posting pace, tone, safety expectations. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="createListingPrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Application prompt (optional)
+                      </label>
+                      <input
+                        id="createListingPrompt"
+                        type="text"
+                        maxLength={MAX_APPLICATION_PROMPT_LENGTH}
+                        value={applicationPrompt}
+                        onChange={(e) => setApplicationPrompt(e.target.value)}
+                        placeholder="Why do you want to join?"
+                        className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                      />
+                    </div>
+
+                    <p className="rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                      Publicly listed and search-engine indexable. Only your description and expectations
+                      are shown publicly — never messages or player details.
+                    </p>
+                  </div>
+                )}
+
+                {listingError && (
+                  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{listingError}</p>
+                )}
               </div>
 
               {error && (

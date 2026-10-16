@@ -134,11 +134,15 @@ export function useSubChannels(channelId: string | undefined) {
   }, [channelId, user?.id, refetchTrigger])
 
   const create = useCallback(
-    async (name: string) => {
+    async (name: string, caps: RoomCapabilities) => {
       if (!channelId) throw new Error('No channel.')
       const { data, error } = await supabase.rpc('create_sub_channel', {
         p_channel_id: channelId,
         p_name: name,
+        p_allow_dice: caps.allow_dice,
+        p_allow_scenes: caps.allow_scenes,
+        p_allow_npc: caps.allow_npc,
+        p_allow_whispers: caps.allow_whispers,
       })
       if (error) throw error
       return data as string

@@ -496,17 +496,34 @@ export function ChannelView() {
               </svg>
               <span className="hidden sm:inline">Favorites</span>
             </button>
-            {/* Mobile Sidebar Toggle */}
+            {/* Mobile Sidebar Toggle. A GM with pending applications gets the
+                same count badge the Settings row carries, so the queue is
+                visible before the sidebar is opened (#722). The count goes in
+                the label too: an aria-label replaces the button's contents, so
+                the badge alone would never be announced. */}
             <button
               type="button"
-              aria-label="Toggle sidebar menu"
+              aria-label={
+                pendingJoinRequests.length > 0
+                  ? `Toggle sidebar menu, ${pendingJoinRequests.length} pending join ${pendingJoinRequests.length === 1 ? 'request' : 'requests'}`
+                  : 'Toggle sidebar menu'
+              }
               aria-expanded={showMobileSidebar}
               onClick={() => (showMobileSidebar ? closeSidebar('toggle') : openSidebar('toggle'))}
-              className="lg:hidden text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 -mr-2 rounded-md bg-surface-50 dark:bg-surface-900 hover:bg-primary-50 dark:hover:bg-primary-950"
+              className="relative lg:hidden text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 -mr-2 rounded-md bg-surface-50 dark:bg-surface-900 hover:bg-primary-50 dark:hover:bg-primary-950"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
+              {pendingJoinRequests.length > 0 && (
+                <span
+                  role="img"
+                  aria-label={`${pendingJoinRequests.length} pending join ${pendingJoinRequests.length === 1 ? 'request' : 'requests'}`}
+                  className="absolute top-0 right-0 -mr-1 -mt-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold bg-primary-600 text-white"
+                >
+                  {pendingJoinRequests.length}
+                </span>
+              )}
             </button>
           </div>
         </div>

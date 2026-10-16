@@ -67,8 +67,37 @@ describe('ManageSubChannelsModal', () => {
     fireEvent.change(screen.getByLabelText('New room'), { target: { value: '  OOC  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
 
-    await waitFor(() => expect(h.onCreate).toHaveBeenCalledWith('OOC'))
+    await waitFor(() => expect(h.onCreate).toHaveBeenCalledWith('OOC', {
+      allow_dice: true,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }))
     expect(h.onOpenRoom).toHaveBeenCalledWith('new-room')
+  })
+
+  it('creates the room with the features picked in the form (#722)', async () => {
+    const h = renderModal()
+    fireEvent.change(screen.getByLabelText('New room'), { target: { value: 'Dice Only' } })
+    fireEvent.click(screen.getByLabelText('Dice'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    await waitFor(() => expect(h.onCreate).toHaveBeenCalledWith('Dice Only', {
+      allow_dice: false,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }))
+  })
+
+  it('resets the picked features after a create', async () => {
+    const h = renderModal()
+    fireEvent.click(screen.getByLabelText('Scenes'))
+    fireEvent.change(screen.getByLabelText('New room'), { target: { value: 'OOC' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    await waitFor(() => expect(h.onCreate).toHaveBeenCalled())
+    expect(screen.getByLabelText('Scenes')).toBeChecked()
   })
 
   it('rejects an empty name inline without calling the RPC', async () => {

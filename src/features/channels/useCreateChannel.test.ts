@@ -43,7 +43,39 @@ describe('useCreateChannel', () => {
       p_invite_code: '12345678',
       p_character_name: 'GM',
       p_password_hash: undefined,
-      p_password_salt: undefined
+      p_password_salt: undefined,
+      p_join_mode: undefined,
+      p_description: undefined,
+      p_constraints: undefined,
+      p_application_prompt: undefined
+    })
+  })
+
+  it('createChannel forwards the listing copy for a channel created listed (#722)', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'c1', error: null } as any)
+
+    await expect(useCreateChannel().createChannel({
+      name: 'Listed Game',
+      gameSystem: 'shadowdark',
+      inviteCode: '12345678',
+      characterName: 'GM',
+      joinMode: 'approval',
+      description: 'A weekly campaign.',
+      constraints: 'Be kind.',
+      applicationPrompt: 'Why join?',
+    })).resolves.toBe('c1')
+
+    expect(supabase.rpc).toHaveBeenCalledWith('create_channel', {
+      p_name: 'Listed Game',
+      p_game_system: 'shadowdark',
+      p_invite_code: '12345678',
+      p_character_name: 'GM',
+      p_password_hash: undefined,
+      p_password_salt: undefined,
+      p_join_mode: 'approval',
+      p_description: 'A weekly campaign.',
+      p_constraints: 'Be kind.',
+      p_application_prompt: 'Why join?'
     })
   })
 

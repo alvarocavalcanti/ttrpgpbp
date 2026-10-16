@@ -15,7 +15,8 @@ export function useCreateChannel() {
   }
 
   // Single transactional RPC: channel + secrets + GM membership either all
-  // commit or all roll back, so a partial failure can't orphan a channel.
+  // commit or all roll back, so a partial failure can't orphan a channel. A
+  // listing published at creation rides the same transaction (#722).
   const createChannel = async (params: {
     name: string
     gameSystem: string
@@ -23,6 +24,10 @@ export function useCreateChannel() {
     characterName: string
     passwordHash?: string
     passwordSalt?: string
+    joinMode?: 'invite' | 'approval'
+    description?: string
+    constraints?: string
+    applicationPrompt?: string
   }): Promise<string> => {
     const { data: channelId, error: rpcError } = await supabase.rpc('create_channel', {
       p_name: params.name,
@@ -30,7 +35,11 @@ export function useCreateChannel() {
       p_invite_code: params.inviteCode,
       p_character_name: params.characterName,
       p_password_hash: params.passwordHash,
-      p_password_salt: params.passwordSalt
+      p_password_salt: params.passwordSalt,
+      p_join_mode: params.joinMode,
+      p_description: params.description,
+      p_constraints: params.constraints,
+      p_application_prompt: params.applicationPrompt
     })
     if (rpcError) throw rpcError
     if (!channelId) throw new Error('Failed to create channel')
