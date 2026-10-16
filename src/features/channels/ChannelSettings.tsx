@@ -270,6 +270,8 @@ setIsSubmitting(true)
     setDecidingId(requestId)
     try {
       await decide(requestId, approve)
+      // Funnel event: non-identifying, so only the decision (Phase 4).
+      trackEvent('join_request_decide', { decision: approve ? 'approve' : 'reject' })
       addToast(approve ? 'Application approved' : 'Application rejected', 'success')
       // The queue and the caller's pending badge both refresh.
       refetchRequests()

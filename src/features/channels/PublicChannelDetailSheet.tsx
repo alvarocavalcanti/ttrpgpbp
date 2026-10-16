@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BottomSheet } from '../../components/BottomSheet'
+import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { useToast } from '../../contexts/ToastContext'
 import { toError } from '../../lib/errors'
 import { trackEvent } from '../../lib/analytics'
+import { MAX_LISTING_REPORT_REASON_LENGTH } from '../../constants'
 import { channelTimestamp, gameSystemLabel } from './lobbyFormat'
 import { usePublicChannelApply } from './usePublicChannelApply'
+import { useReportChannelListing } from './useReportChannelListing'
 
 // Mirrors the server caps: request_to_join_channel truncates the name at 20 and
 // rejects an answer over 1000 characters.
@@ -30,8 +33,11 @@ interface PublicChannelDetailSheetProps {
 export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: PublicChannelDetailSheetProps) {
   const { detail, loading, error, busy, refetch, apply, withdraw } = usePublicChannelApply(channelId)
   const { addToast } = useToast()
+  const { reportChannelListing } = useReportChannelListing()
   const [characterName, setCharacterName] = useState('')
   const [answer, setAnswer] = useState('')
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
 
   // One listing_open per opened card. Depends on the id (not the fetched row) so
   // a refetch does not re-fire it.
@@ -66,6 +72,33 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
 
   const lastPlayed = channelTimestamp(detail?.last_message_at)
   const memberCount = detail?.member_count ?? 0
+
+  // report_channel_listing raises on every refusal (own listing, already open
+  // report), so its message is what the reporter needs to see.
+  const handleReport = async (reason: string) => {
+    // TextPromptSheet carries no pending state, so guard reentry here: a double
+    // tap on a slow connection would otherwise fire twice and the second call
+    // would come back refused as a duplicate.
+    if (reportBusy) return
+    // The server trims and rejects an empty reason; refuse it here so the
+    // reporter gets the answer immediately instead of after a round-trip.
+    const trimmed = reason.trim()
+    if (!trimmed) {
+      addToast('Enter a reason.', 'error')
+      return
+    }
+    setReportBusy(true)
+    try {
+      const reportError = await reportChannelListing(channelId, trimmed)
+      if (reportError) throw reportError
+      addToast('Thanks — the report is with the moderators.', 'success')
+      setReportOpen(false)
+    } catch (err) {
+      addToast(toError(err).message, 'error')
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   return (
     <BottomSheet title={detail?.name ?? 'Game listing'} onClose={onClose}>
@@ -175,7 +208,31 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
               </button>
             </form>
           )}
+
+          {/* Members (including the GM) have nothing to report here, and the
+              RPC refuses a self-report anyway. */}
+          {!detail.is_member && (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              className="w-full min-h-11 text-center text-xs font-medium text-surface-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-surface-400 dark:hover:text-red-400"
+            >
+              Report this listing
+            </button>
+          )}
         </div>
+      )}
+
+      {reportOpen && (
+        <TextPromptSheet
+          title="Report this listing"
+          label="Why are you reporting this listing?"
+          placeholder="Describe the problem"
+          maxLength={MAX_LISTING_REPORT_REASON_LENGTH}
+          confirmLabel="Submit report"
+          onConfirm={handleReport}
+          onClose={() => setReportOpen(false)}
+        />
       )}
     </BottomSheet>
   )

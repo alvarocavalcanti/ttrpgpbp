@@ -11,6 +11,12 @@ import { dismissWhatsNew, seedAndSignIn } from './helpers'
 test.use({ viewport: { width: 393, height: 851 }, hasTouch: true, isMobile: true })
 
 async function measure(page: Page, leadingSelector: string, trailingButtonSelector: string) {
+  // Wait for both glyphs before reading geometry. `querySelector` returns null
+  // while the header is still mounting, which surfaced in CI as a bare
+  // "header glyphs not found" instead of a useful assertion failure — the
+  // measurement is a race even though the markup is static.
+  await expect(page.locator(leadingSelector)).toBeVisible()
+  await expect(page.locator(`${trailingButtonSelector} svg`)).toBeVisible()
   return page.evaluate(
     ({ leadingSelector: leadingSel, trailingButtonSelector: buttonSel }) => {
       const leading = document.querySelector(leadingSel)

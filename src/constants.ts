@@ -3,6 +3,10 @@
 // useAppSetting; this constant is only the default when the setting is absent.
 export const MAX_CHANNELS_PER_USER = 10
 
+// report_channel_listing rejects a longer reason server-side; mirror it so the
+// reporter sees the limit while typing.
+export const MAX_LISTING_REPORT_REASON_LENGTH = 500
+
 export const MAX_MESSAGE_LENGTH = 4000
 export const MAX_ROLL_WARNING_LENGTH = 500
 export const MAX_DISPLAY_NAME_LENGTH = 40
