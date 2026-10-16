@@ -169,7 +169,10 @@ describe('App', () => {
     render(<App />)
     
     expect(await screen.findByRole('link', { name: 'Role by Post' })).toBeInTheDocument()
-    expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
+    // A channel-less user lands on Discover, so the lobby proves itself by its
+    // tabs rather than the My Games empty state (which stays on My Games).
+    expect(await screen.findByRole('button', { name: 'Discover' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'My Games' })).toBeInTheDocument()
     // #642: the trailing menu icon cancels its own p-2 so its glyph lines up
     // with the leading logo instead of sitting 8px further in.
     expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('-mr-2')
@@ -730,7 +733,7 @@ describe('App', () => {
     await screen.findByText('Help Topics')
 
     fireEvent.click(screen.getByRole('link', { name: 'Role by Post' }))
-    expect(await screen.findByText("You haven't joined any channels yet.")).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Discover' })).toBeInTheDocument()
 
     window.history.back()
     await waitFor(() => {

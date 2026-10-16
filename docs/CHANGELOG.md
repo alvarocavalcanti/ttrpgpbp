@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-16
+
+### Added
+
+- **Find a game to play** — the lobby now has two tabs. **My Games** is what you already know; **Discover** lists games whose GMs are looking for players, with the system, who runs it, how many players it has, when it was last active, and the description they wrote. Search by name, description, or game system, and tap a card to read the whole listing. Anyone can browse the public directory at [/directory](/directory) too — even signed out — though the games there show only the name and description the GM wrote; messages and player details stay inside the campaign.
+- **Apply to join a game** — games in Discover take **applications**, so the GM can meet you first. Send your character name and answer the GM's question if they asked one, and the GM approves or rejects it. You'll get a notification when they decide, and you can withdraw while it's waiting. There's no instant join, which keeps tables free of drive-by strangers.
+- **List your game for new players** *(for GMs)* — **Channel Settings** now has a **Discovery** section: switch a channel from **Private** to **Listed**, write a **Description** and **What you expect** (pace, tone, safety expectations), and optionally add the question applicants answer. A notice spells out what becomes public before you save. Only the description and expectations are ever shown publicly.
+- **Approve who joins** *(for GMs)* — below Discovery, **Join requests** shows everyone waiting: their character name, their answer, and when they applied, with **Approve** and **Reject**. A count badge on the channel's Settings button and on its row in the lobby means you'll notice a new application without having to go looking. Approving adds them straight away; switching back to **Private** removes the listing and closes anything still open.
+- **Report a listing** — a listing that looks wrong can be sent to the server admins straight from the listing itself.
+- **A push when there's an application, and one when you're accepted** — GMs are notified when someone applies; applicants are notified when the GM decides. <!-- admin-only -->
+- **Server Admin: see and moderate listings** — the channels table gains a **Listing** column (Listed / Private / Taken down, plus Orphaned when a GM's account is gone), a pending-applications count, and an **All / Listed / Private** filter; the **Total Channels** card splits its count into listed and private. A listed channel can be **taken down** with a reason — it leaves Discover and the public directory and its open applications close, while members and history stay intact — and a taken-down listing can be **restored** so the GM can list it again; both are written to the audit log. The Reports tab now separates a message report from a listing report, and a listing report offers **View channel** (with the listing copy, so it can be judged without joining) and a takedown. <!-- admin-only -->
+
 ## 2026-10-15
 
 ### Added

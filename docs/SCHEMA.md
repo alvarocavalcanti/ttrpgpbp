@@ -31,8 +31,36 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `resources_url` | text, nullable | External link; maximum 500 characters |
 | `status_text` | text, nullable | Free-form markdown (initiative, timers, etc.); maximum 2,000 characters |
 | `last_message_at` | timestamptz, nullable | Set on message insert via trigger; used for lobby ordering |
+| `join_mode` | `channel_join_mode`, default `invite` | `invite` = today's private/invite-only channel; `approval` = **listed** (apply-only, discoverable) |
+| `description` | text, nullable | Listing copy, required non-blank when `join_mode = 'approval'`; maximum 600 characters |
+| `constraints` | text, nullable | What the GM expects from players; required non-blank when `join_mode = 'approval'`; maximum 600 characters |
+| `application_prompt` | text, nullable | Optional question shown on the apply form; maximum 300 characters |
+| `listing_takedown_at` | timestamptz, nullable | Set by `admin_takedown_channel`, cleared by `admin_restore_channel_listing`; while set the GM cannot re-list. Distinguishes an admin takedown from an ordinary private channel |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
+
+### `channel_join_requests`
+
+Applications to a **listed** channel (`join_mode = 'approval'`). Written only
+through the SECURITY DEFINER RPCs — `request_to_join_channel`,
+`withdraw_join_request`, `decide_join_request` — so a client can never set
+`status = 'approved'` directly. Applicants read their own rows; the channel's GM
+reads theirs.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID, PK | |
+| `channel_id` | UUID, FK → channels | `ON DELETE CASCADE` |
+| `user_id` | UUID, FK → profiles | `ON DELETE CASCADE` |
+| `character_name` | text | Name the applicant supplied; becomes their member name on approval |
+| `message` | text, nullable | Their answer to the GM's prompt; maximum 1,000 characters |
+| `status` | `join_request_status`, default `pending` | `pending` / `approved` / `rejected` / `withdrawn` |
+| `created_at` | timestamptz | |
+| `decided_at` | timestamptz, nullable | |
+| `decided_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
+
+One open application per user per channel (partial unique index on
+`(channel_id, user_id) WHERE status = 'pending'`).
 
 ### `channel_secrets`
 
@@ -168,7 +196,7 @@ Linked to a `dice_roll`-type message. Stores structured data for roll history qu
 Automatic RLS is enabled for all tables, defaulting to deny-all. The following policies control access:
 
 - **profiles**: Any authenticated user can read. Users can only update their own row.
-- **channels**: Readable only by their members (`channel_members`) since #81. For channels carrying an invite code, a non-member can read only the join-relevant projection via `get_join_channel_preview` (name, game system, whether a password is set); `invite_code` and GM-only URLs are never exposed.
+- **channels**: Readable only by their members (`channel_members`) since #81. Non-members read only through safe projections, never the table: `get_join_channel_preview` (name, game system, whether a password is set) for the join form; `list_public_channels` / `get_public_channel` for **listed** channels (id, name, GM display name, game system, description, constraints, member count, last activity, plus the caller's own pending-request state); and `list_public_channels_anon` for signed-out visitors (name and description only). `invite_code`, `channel_secrets`, message content, member identities, and `last_message_preview` are never exposed to non-members.
 - **channel_members**: Readable by members of the same channel. GM can insert, update, and delete. Users can update their own row (character name, avatar, sheet URL).
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. A message in a restricted room is visible only to those who can view that room (`can_view_sub_channel`). Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, NPC snapshot fields (`npc_name` / `npc_avatar_url`) from non-GMs, cross-channel reply targets, and non-member whisper targets.
 - **dice_rolls**: Readable by channel members. **Insert is revoked from clients** — rolls are only created by the `roll_dice` command, so a fabricated result can never be persisted. Realtime INSERT events are published (`ALTER PUBLICATION`), and the roll history RPC excludes rolls from soft-deleted messages.

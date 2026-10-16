@@ -100,8 +100,16 @@ async function openChannel() {
   await dismissOverlays()
 }
 
-// ── 1. Empty lobby (fresh user, no channels) ─────────────────────────────
+// ── 1. Discover tab (fresh user, no channels — lands here) ───────────────
 await loginAs('shot.new@local.test')
+await page.getByText('The Ashen Vault').first().waitFor()
+await page.waitForTimeout(600)
+await page.screenshot({ path: `${OUT}/lobby-discover.png` })
+console.log('lobby-discover done')
+
+// ── 1b. Empty lobby (fresh user, My Games tab) ───────────────────────────
+await page.getByRole('button', { name: 'My Games' }).click()
+await page.waitForTimeout(500)
 await page.screenshot({ path: `${OUT}/lobby-empty.png` })
 console.log('lobby-empty done')
 
