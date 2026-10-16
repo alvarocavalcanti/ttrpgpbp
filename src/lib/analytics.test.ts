@@ -11,6 +11,8 @@ describe('analytics', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     document.head.innerHTML = ''
+    // document-level state, not part of the head: reset so a title never leaks.
+    document.title = ''
     delete (window as unknown as Record<string, unknown>).dataLayer
     delete (window as unknown as Record<string, unknown>).gtag
     localStorage.clear()
@@ -71,7 +73,7 @@ describe('analytics', () => {
   describe('trackPageView', () => {
     it('no-ops when gtag is not loaded', () => {
       mockEnv.VITE_GA_MEASUREMENT_ID = ''
-      expect(() => trackPageView('/lobby')).not.toThrow()
+      expect(() => trackPageView('/lobby', true)).not.toThrow()
     })
 
     it('fires a page_view event with a clean absolute location', () => {
@@ -80,12 +82,12 @@ describe('analytics', () => {
       const gtag = vi.fn()
       window.gtag = gtag
 
-      trackPageView('/channel/abc?q=1')
+      trackPageView('/channel/abc?q=1', true)
 
-      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
         page_path: '/channel/abc',
         page_location: `${window.location.origin}/channel/abc`,
-      })
+      }))
     })
 
     it('strips query string and fragment so search terms never leave the device', () => {
@@ -94,17 +96,17 @@ describe('analytics', () => {
       const gtag = vi.fn()
       window.gtag = gtag
 
-      trackPageView('/lobby?search=secret%20dragon')
-      trackPageView('/channel/abc?x=1&y=2#frag')
+      trackPageView('/lobby?search=secret%20dragon', true)
+      trackPageView('/channel/abc?x=1&y=2#frag', true)
 
-      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', expect.objectContaining({
         page_path: '/lobby',
         page_location: `${window.location.origin}/lobby`,
-      })
-      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
+      }))
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', expect.objectContaining({
         page_path: '/channel/abc',
         page_location: `${window.location.origin}/channel/abc`,
-      })
+      }))
     })
 
     it('keeps only utm_* campaign parameters so channel attribution survives', () => {
@@ -118,12 +120,12 @@ describe('analytics', () => {
       const gtag = vi.fn()
       window.gtag = gtag
 
-      trackPageView('/')
+      trackPageView('/', true)
 
-      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
         page_path: '/',
         page_location: `${window.location.origin}/?utm_source=reddit&utm_medium=social&utm_campaign=r-shadowdark`,
-      })
+      }))
     })
 
     it('drops utm params on later route changes once the URL no longer carries them', () => {
@@ -133,18 +135,65 @@ describe('analytics', () => {
       const gtag = vi.fn()
       window.gtag = gtag
 
-      trackPageView('/')
+      trackPageView('/', true)
       window.history.replaceState({}, '', '/features')
-      trackPageView('/features')
+      trackPageView('/features', true)
 
-      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', expect.objectContaining({
         page_path: '/',
         page_location: `${window.location.origin}/?utm_source=reddit&utm_campaign=r-shadowdark`,
-      })
-      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
+      }))
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', expect.objectContaining({
         page_path: '/features',
         page_location: `${window.location.origin}/features`,
-      })
+      }))
+    })
+
+    it('titles a lazy route from its path, not from a stale document.title', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+      // /login is lazily loaded: on navigation its <Seo> has not mounted yet, so
+      // document.title still holds the previous screen's title. Trusting it filed
+      // those views under whatever screen the visitor came from.
+      document.title = 'Features — Role by Post'
+
+      trackPageView('/login', false)
+
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
+        page_title: 'Sign in — Role by Post',
+      }))
+    })
+
+    it('names the signed-in lobby and the signed-out landing page apart at /', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      trackPageView('/', false)
+      trackPageView('/', true)
+
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', expect.objectContaining({
+        page_title: 'Role by Post — Play-by-Post RPG Chat',
+      }))
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', expect.objectContaining({
+        page_title: 'Lobby — Role by Post',
+      }))
+    })
+
+    it('falls back to the not-found title for an unmatched path', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      trackPageView('/nothing-here', false)
+
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
+        page_title: 'Page not found — Role by Post',
+      }))
     })
   })
 
@@ -176,7 +225,7 @@ describe('analytics', () => {
 
       setAnalyticsConsent('denied')
       trackEvent('menu_close', { method: 'button' })
-      trackPageView('/lobby')
+      trackPageView('/lobby', true)
 
       expect(gtag).not.toHaveBeenCalled()
     })

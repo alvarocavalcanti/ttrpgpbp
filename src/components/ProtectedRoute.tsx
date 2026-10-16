@@ -7,6 +7,7 @@ import { ReConsentGate } from '../features/auth/ReConsentGate'
 import { Seo } from './Seo'
 import { LandingPage } from '../features/marketing/LandingPage'
 import { hasPersistedSession } from '../lib/authSessionHint'
+import { titleForPath } from '../lib/routeTitles'
 
 export function ProtectedRoute() {
   const { user, profile, loading, error, refreshProfile, termsConfirmState, retryTermsConfirm } = useAuth()
@@ -120,8 +121,10 @@ export function ProtectedRoute() {
 
   return (
     <>
-      {/* App/auth routes stay client-rendered; keep them out of the index. */}
-      <Seo path={location.pathname} noindex />
+      {/* App/auth routes stay client-rendered; keep them out of the index.
+          The title is what reports key on (and the browser tab shows), so each
+          screen names itself instead of falling back to the brand. */}
+      <Seo path={location.pathname} title={titleForPath(location.pathname, true)} noindex />
       <Outlet />
     </>
   )

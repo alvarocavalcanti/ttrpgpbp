@@ -76,7 +76,7 @@ export function ProfileSettings() {
     if (allowed) {
       setAnalyticsConsent('granted')
       initAnalytics()
-      trackPageView(window.location.pathname)
+      trackPageView(window.location.pathname, Boolean(user))
     } else {
       setAnalyticsConsent('denied')
       disableAnalytics()

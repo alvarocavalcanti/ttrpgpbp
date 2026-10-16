@@ -69,7 +69,7 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 
 | Event | Origin | UX path it represents | Emitted from |
 | --- | --- | --- | --- |
-| `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). Fires on each route: sign-in, lobby, archived, admin, join, channel, settings, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query) | `App.tsx:97`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
+| `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). Fires on each route: sign-in, lobby, archived, admin, join, channel, settings, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query), and `page_title` — sent explicitly because the Pages report keys on it and leaving it to GA's `document.title` fallback recorded `(not set)` for hits that landed before a title existed. Titles are resolved from the route (`src/lib/routeTitles.ts`): the signed-in screens name themselves (Lobby, Channel, Server Admin, …) rather than sharing the bare brand, and '/' is split by sign-in state | `App.tsx:99`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
 | `menu_open` | App | A nav drawer opened. Param `menu` = `main` (top hamburger) or `sidebar` (in-channel); `method` = `toggle`, `swipe`, or `action` | `App.tsx:131`, `ChannelView.tsx:110` |
 | `menu_close` | App | Same drawer closed. `method` = `button`, `backdrop`, `swipe`, `escape`, `modal`, `toggle`, or `action` (sidebar auto-closed when an overlay opens) | `App.tsx:136`, `ChannelView.tsx:115,157` |
 | `marketing_track_toggle` | App | On `/features`: visitor switched the GM vs Player feature track. Param `track` | `FeaturesPage.tsx:149` |
@@ -122,9 +122,12 @@ Two quirks worth knowing:
 
 - Each channel has its own id, so `/channel/<id>` shows as many separate rows.
   Group or filter rather than expecting one "channel" line.
-- The app sends no `page_title`, so GA4 falls back to `document.title`; title
-  dimensions are usually populated. On a lazy route (e.g. `/login`) the event
-  can fire before the page sets its title, so it may carry the previous title.
+- The app sends `page_title` explicitly and resolves it from the route, **not**
+  from `document.title`. That matters for lazy routes: on navigation to `/login`
+  the page view fires before that route's `<Seo>` mounts, so `document.title`
+  still holds the previous screen's title — relying on it filed those views under
+  whatever page the visitor came from. Titles are therefore attributed by path,
+  never by whichever title happened to be in the document.
 
 ### Breaking custom events down by parameter
 

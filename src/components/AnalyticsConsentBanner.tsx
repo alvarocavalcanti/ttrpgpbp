@@ -4,11 +4,15 @@ import { env } from '../env'
 import { initAnalytics, trackPageView } from '../lib/analytics'
 import { getAnalyticsConsent, setAnalyticsConsent } from '../lib/analyticsConsent'
 import { isPrerender } from '../lib/automation'
+import { useAuth } from '../features/auth/useAuth'
 
 // Prior-consent banner for Google Analytics. Rendered only when the operator
 // configured a measurement ID and the visitor has not chosen yet; GA does not
 // load until they allow it. The choice is remembered per device.
 export function AnalyticsConsentBanner() {
+  // Only used to title the first page view (the signed-in lobby and the
+  // signed-out landing page share '/').
+  const { user } = useAuth()
   // Start hidden regardless of stored consent so the client's first hydration
   // render matches the prerendered snapshot (which omits this banner), then
   // reveal it after the effect reads the stored choice. Otherwise a returning
@@ -24,7 +28,7 @@ export function AnalyticsConsentBanner() {
     initAnalytics()
     // initAnalytics disables automatic page views and RouteTracker only fires
     // on pathname change, so report the current route now or it is never sent.
-    trackPageView(window.location.pathname)
+    trackPageView(window.location.pathname, Boolean(user))
     setDecided(true)
   }
   const deny = () => {
