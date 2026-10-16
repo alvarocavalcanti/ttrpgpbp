@@ -60,7 +60,7 @@ reads theirs.
 | `decided_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
 
 One open application per user per channel (partial unique index on
-`(channel_id, user_id) WHERE status = 'pending'`). <span />
+`(channel_id, user_id) WHERE status = 'pending'`).
 
 ### `channel_secrets`
 
