@@ -239,7 +239,14 @@ export function useAdminData(isServerAdmin: boolean) {
     if (rpcError) return rpcError
     setChannels(prev => prev.map(c =>
       c.id === channelId
-        ? { ...c, join_mode: 'invite', listing_takedown_at: new Date().toISOString() }
+        ? {
+            ...c,
+            join_mode: 'invite',
+            listing_takedown_at: new Date().toISOString(),
+            // The server closes the open applications as part of the takedown,
+            // so the count is stale the moment the marker is set.
+            pending_request_count: 0,
+          }
         : c
     ))
     return null

@@ -448,6 +448,9 @@ describe('useAdminData', () => {
     // the console can tell it apart from an ordinary private channel.
     expect(result.current.channels[0].join_mode).toBe('invite')
     expect(result.current.channels[0].listing_takedown_at).not.toBeNull()
+    // The server closes the open applications with the takedown, so the row must
+    // not keep showing a count that no longer exists.
+    expect(result.current.channels[0].pending_request_count).toBe(0)
   })
 
   it('restoreChannelListing clears the marker', async () => {

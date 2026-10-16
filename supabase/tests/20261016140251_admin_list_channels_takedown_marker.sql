@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(6);
+SELECT plan(7);
 
 -- ==========================================
 -- Fixtures (owner: bypasses RLS)
@@ -67,6 +67,12 @@ SELECT is(
 SELECT lives_ok(
   $$SELECT admin_restore_channel_listing('00000000-0000-0000-0000-000000070b01')$$,
   'An admin can restore a taken-down listing'
+);
+
+SELECT is(
+  (SELECT listing_takedown_at FROM admin_list_channels() WHERE id = '00000000-0000-0000-0000-000000070b01'),
+  NULL,
+  'Restore clears the marker, so the listing reads as private again'
 );
 
 SELECT * FROM finish();

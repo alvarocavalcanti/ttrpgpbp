@@ -135,6 +135,9 @@ export function AdminView() {
   // One prompt serves both the channels tab and a listing report: the target is
   // whichever channel is being taken down.
   const [takedownTarget, setTakedownTarget] = useState<{ id: string; name: string } | null>(null)
+  // Guards the takedown/restore round-trips: a double click would otherwise fire
+  // two RPCs, and each one writes its own audit_logs row.
+  const [channelActionPending, setChannelActionPending] = useState(false)
   // ?user=<id> deep link from system alerts (#562 P1): opens that user's
   // detail modal once the list is loaded.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -263,25 +266,36 @@ export function AdminView() {
   // #674: take a listing down (force-delist, audited) or put it back, so a
   // mistaken takedown is recoverable from the console.
   const handleTakedown = async (reason: string) => {
-    if (!takedownTarget) return
-    const rpcError = await takedownChannel(takedownTarget.id, reason.trim() || 'No reason provided')
-    if (rpcError) {
-      console.error('Error taking down listing:', rpcError)
-      addToast('Failed to take down the listing.', 'error')
-      return
+    if (!takedownTarget || channelActionPending) return
+    setChannelActionPending(true)
+    try {
+      const rpcError = await takedownChannel(takedownTarget.id, reason.trim() || 'No reason provided')
+      if (rpcError) {
+        console.error('Error taking down listing:', rpcError)
+        addToast('Failed to take down the listing.', 'error')
+        return
+      }
+      addToast('Listing taken down.', 'success')
+      setTakedownTarget(null)
+    } finally {
+      setChannelActionPending(false)
     }
-    addToast('Listing taken down.', 'success')
-    setTakedownTarget(null)
   }
 
   const handleRestoreListing = async (channelId: string) => {
-    const rpcError = await restoreChannelListing(channelId)
-    if (rpcError) {
-      console.error('Error restoring listing:', rpcError)
-      addToast('Failed to restore the listing.', 'error')
-      return
+    if (channelActionPending) return
+    setChannelActionPending(true)
+    try {
+      const rpcError = await restoreChannelListing(channelId)
+      if (rpcError) {
+        console.error('Error restoring listing:', rpcError)
+        addToast('Failed to restore the listing.', 'error')
+        return
+      }
+      addToast('Listing restored. The GM can list it again.', 'success')
+    } finally {
+      setChannelActionPending(false)
     }
-    addToast('Listing restored. The GM can list it again.', 'success')
   }
 
   // Suspend the reported user, then mark the report actioned. A resolve
@@ -682,7 +696,8 @@ export function AdminView() {
                                 <button
                                   type="button"
                                   onClick={() => setTakedownTarget({ id: channel.id, name: channel.name })}
-                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                  disabled={channelActionPending}
+                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                 >
                                   Take down
                                 </button>
@@ -691,7 +706,8 @@ export function AdminView() {
                                 <button
                                   type="button"
                                   onClick={() => { void handleRestoreListing(channel.id) }}
-                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                  disabled={channelActionPending}
+                                  className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                                 >
                                   Restore
                                 </button>
@@ -862,7 +878,8 @@ export function AdminView() {
                                     <button
                                       type="button"
                                       onClick={() => setTakedownTarget({ id: report.channel_id as string, name: report.channel_name || 'this listing' })}
-                                      className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                      disabled={channelActionPending}
+                                      className="inline-flex min-h-11 items-center px-2 py-1 border border-transparent rounded-md bg-red-600 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                     >
                                       Take down
                                     </button>
@@ -1028,6 +1045,7 @@ export function AdminView() {
           placeholder="Reason"
           maxLength={MAX_ADMIN_SUSPEND_REASON_LENGTH}
           confirmLabel="Take down listing"
+          pending={channelActionPending}
           onConfirm={(reason) => { void handleTakedown(reason) }}
           onClose={() => setTakedownTarget(null)}
         />

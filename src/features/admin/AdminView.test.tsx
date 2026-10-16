@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AdminView } from './AdminView'
@@ -1245,6 +1245,37 @@ describe('AdminView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Listed' }))
     expect(screen.getByText('Curse of Strahd')).toBeInTheDocument()
     expect(screen.queryByText('Empty')).not.toBeInTheDocument()
+  })
+
+  it('does not double-submit a takedown while one is in flight', async () => {
+    let resolveTakedown!: (value: { error: null }) => void
+    const pending = new Promise<{ error: null }>((resolve) => {
+      resolveTakedown = resolve
+    })
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({ data: channels, error: null })
+      if (fn === 'admin_takedown_channel') return pending
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await openChannelsTab()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take down' }))
+    const confirm = screen.getByRole('button', { name: 'Take down listing' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+
+    // The confirm is disabled while the first request is in flight, so a second
+    // tap cannot write a second audit_logs row.
+    await waitFor(() => expect(confirm).toBeDisabled())
+    await act(async () => {
+      resolveTakedown({ error: null })
+      await pending
+    })
+    expect(
+      vi.mocked(supabase.rpc).mock.calls.filter(([fn]) => fn === 'admin_takedown_channel'),
+    ).toHaveLength(1)
   })
 
   it('takes a listing down and restores it from the console', async () => {
