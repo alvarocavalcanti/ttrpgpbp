@@ -10,7 +10,7 @@
 -- channels — for the empty lobby shot).
 do $$
 declare
-  gm uuid; p1 uuid; p2 uuid; p3 uuid; fresh uuid; ch uuid;
+  gm uuid; p1 uuid; p2 uuid; p3 uuid; fresh uuid; ch uuid; ch2 uuid;
 begin
   -- Create any missing auth.users with a known password (idempotent).
   select id into gm from auth.users where email = 'shot.gm@local.test';
@@ -151,4 +151,24 @@ begin
 
   insert into public.dice_roll_favorites (user_id, channel_id, notation) values
     (gm, ch, '1d20+3');
+
+  -- #674: a *listed* channel, so the lobby's Discover tab has a card for a game
+  -- shot.new has not joined and the GM's Settings button carries the pending-request
+  -- badge. Owned by shot.gm (any listed game shows in Discover, including your own).
+  -- Idempotent like the rest: recreated by name + code.
+  delete from public.channels where name = 'The Ashen Vault' and invite_code = 'E5F6A7B8';
+
+  insert into public.channels (id, name, gm_id, invite_code, game_system, join_mode, description, constraints, application_prompt)
+  values (gen_random_uuid(), 'The Ashen Vault', gm, 'E5F6A7B8', 'shadowdark', 'approval',
+    'A weekly Shadowdark campaign digging into a vault that should have stayed sealed. We play Wednesday evenings, two scenes a week, and we keep the horror grounded.',
+    'Post most weekdays, keep the tone collaborative, and use the safety tools without hesitation. New and first-time players very welcome.',
+    'What are you hoping to get out of this campaign?')
+  returning id into ch2;
+
+  insert into public.channel_members (channel_id, user_id, character_name, attributes) values
+    (ch2, gm, 'Vault GM', '{}'::jsonb);
+
+  -- One application waiting on the GM, so the queue and its badge have content.
+  insert into public.channel_join_requests (channel_id, user_id, character_name, message, status) values
+    (ch2, p3, 'Pip', 'I love a slow-burn dungeon crawl and I can post most days.', 'pending');
 end $$;

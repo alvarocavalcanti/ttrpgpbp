@@ -80,6 +80,18 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 | `user_engagement` | GA4 automatic | Page stayed foregrounded / engaged-session heartbeat | — |
 | `form_start` | GA4 automatic (Enhanced Measurement) | Visitor touched the first field of a form. Carries `form_id`, `form_name`, and `form_destination` — register them as event-scoped custom dimensions to report them. The app's forms set none of those attributes, so the values are blank | — |
 | `click` | GA4 automatic (Enhanced Measurement) | Outbound link click (leaving for another domain) | — |
+| `lobby_tab_view` | App | Lobby tab settled on. Param `tab` = `my` or `discover`. Disambiguates the shared `/` path, whose query string is stripped from `page_view`. Logged once the tab is decided, so a channel-less visit logs `discover` only | `Lobby.tsx:219` |
+| `listing_open` | App | A Discover card was opened. Param `game_system`. Fires once per opened card, not on refetch | `PublicChannelDetailSheet.tsx:45` |
+| `listing_apply_submit` | App | An application to a listed game was submitted. Param `game_system` | `PublicChannelDetailSheet.tsx:54` |
+| `listing_publish` | App | A GM listed a channel (the private → listed transition, not later edits). Param `game_system` | `ChannelSettings.tsx:209` |
+| `join_request_decide` | App | A GM approved or rejected an application. Param `decision` = `approve` or `reject` | `ChannelSettings.tsx:274` |
+| `directory_signin_click` | App | On the public `/directory`, a visitor tapped a listing to sign in | `DirectoryPage.tsx:26` |
+
+The six `lobby_tab_view` → `join_request_decide` / `directory_signin_click` events form
+the discovery funnel. **Register their params as event-scoped custom dimensions** in
+GA4 (**Admin → Custom definitions → Create custom dimension**) or they are visible
+only in Explorations, not in the standard reports: `tab`, `game_system`, `decision`.
+The values are deliberately non-identifying — no user ids, no channel ids.
 
 ### Seeing `page_view` with more detail
 

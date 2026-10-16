@@ -10,6 +10,7 @@ Everything the **GM** can do to run and manage a channel.
 Open **Settings** from the channel sidebar to configure:
 
 - Channel name (up to 80 characters) and game system
+- **Discovery** — list the channel so players can find it and apply (see below)
 - **Channel avatar** — upload an image shown in the channel list and header (requires the server admin to enable image uploads)
 - Status bar text and active player(s)
 - Map, resources, and GM resources URLs (up to 500 characters) — the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
@@ -43,9 +44,30 @@ Shortcut: open a player's **⋯** menu in the member list and choose **Set as Ac
 
 The GM can **archive** a channel, removing it from the main lobby. Archived channels are still viewable and restorable from the **Archived Channels** item in the app menu.
 
+## Listing your game for new players
+
+Channel **Settings** has a **Discovery** section. A channel is either:
+
+- **Private — invite link only** (the default), or
+- **Listed — apply to join**, which puts it in the lobby's **Discover** tab and on the public [/directory](/directory) page, where anyone can read its description.
+
+To list a game you must write a **Description** (what the game is about) and **What you expect** (posting pace, tone, safety expectations) — both up to 600 characters — and you can add an optional **application prompt** (up to 300 characters), the question applicants answer.
+
+Listing a channel is public: the description and what you expect are shown to anyone, and search engines can index them. Messages and player details never are. Once a channel is listed, players apply and you decide.
+
+## Join requests
+
+Below the Discovery section, **Join requests (N)** lists everyone waiting on you — their character name, their answer, and when they applied. **Approve** adds them as a member straight away (the name they gave becomes their character name) and **Reject** closes the application; either way they're notified. There's a count badge on the channel's **Settings** button and on the channel's row in the lobby, so a new application is visible without opening the channel.
+
+Applications are one at a time: a player can't apply twice while a decision is pending, and the same applicant can't be approved twice.
+
+## Removing a listing
+
+Switch back to **Private** to remove a listing. That closes any applications still open, and the game disappears from Discover and [/directory](/directory) — existing members keep playing normally. A server admin can also remove a listing; you can't re-list until they restore it.
+
 ## Invites & privacy
 
-Channels are private and joined via **invite link**. The GM can set an optional **password** to join.
+A **private** channel is joined via **invite link**, with an optional **password**. A **listed** channel is joined by GM approval instead — no invite or password needed, and every application is vetted by you. Either way, messages and player details stay inside the channel.
 
 Uploaded images (message images, channel avatars, NPC portraits, and map/resource uploads) are also private: only people in the channel can view them, and a player who is kicked or blocked loses access. The server admin's image-upload setting and size limit apply to every upload.
 
