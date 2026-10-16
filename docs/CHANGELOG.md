@@ -14,6 +14,10 @@ All notable changes to this project are documented in this file.
 - **A push when there's an application, and one when you're accepted** — GMs are notified when someone applies; applicants are notified when the GM decides. <!-- admin-only -->
 - **Server Admin: see and moderate listings** — the channels table gains a **Listing** column (Listed / Private / Taken down, plus Orphaned when a GM's account is gone), a pending-applications count, and an **All / Listed / Private** filter; the **Total Channels** card splits its count into listed and private. A listed channel can be **taken down** with a reason — it leaves Discover and the public directory and its open applications close, while members and history stay intact — and a taken-down listing can be **restored** so the GM can list it again; both are written to the audit log. The Reports tab now separates a message report from a listing report, and a listing report offers **View channel** (with the listing copy, so it can be judged without joining) and a takedown. <!-- admin-only -->
 
+### Fixed
+
+- **Every screen says where you are** — the browser tab used to read "Role by Post" everywhere, so open tabs, history and bookmarks were indistinguishable. It now names the screen: **Lobby**, **Channel**, **Settings**, **Server Admin**, **Archived Channels**, and the rest.
+
 ## 2026-10-15
 
 ### Added

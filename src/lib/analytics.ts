@@ -1,5 +1,6 @@
 import { env } from '../env'
 import { hasAnalyticsConsent } from './analyticsConsent'
+import { titleForPath } from './routeTitles'
 
 declare global {
   interface Window {
@@ -81,5 +82,11 @@ export function trackPageView(pagePath: string): void {
   push('event', 'page_view', {
     page_path: url.pathname,
     page_location: url.origin + url.pathname + (campaign ? `?${campaign}` : ''),
+    // GA's Pages report keys on the page title, and leaving it to GA's
+    // document.title fallback recorded "(not set)" for hits that landed before
+    // any title existed. document.title is the accurate, auth-aware source here
+    // (the route's <Seo> is in the DOM before this effect runs); the route map
+    // only covers the case where it is somehow empty.
+    page_title: document.title || titleForPath(url.pathname),
   })
 }

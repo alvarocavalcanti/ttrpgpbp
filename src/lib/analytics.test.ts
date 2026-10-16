@@ -11,6 +11,8 @@ describe('analytics', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     document.head.innerHTML = ''
+    // document-level state, not part of the head: reset so a title never leaks.
+    document.title = ''
     delete (window as unknown as Record<string, unknown>).dataLayer
     delete (window as unknown as Record<string, unknown>).gtag
     localStorage.clear()
@@ -82,10 +84,10 @@ describe('analytics', () => {
 
       trackPageView('/channel/abc?q=1')
 
-      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
         page_path: '/channel/abc',
         page_location: `${window.location.origin}/channel/abc`,
-      })
+      }))
     })
 
     it('strips query string and fragment so search terms never leave the device', () => {
@@ -97,14 +99,14 @@ describe('analytics', () => {
       trackPageView('/lobby?search=secret%20dragon')
       trackPageView('/channel/abc?x=1&y=2#frag')
 
-      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', expect.objectContaining({
         page_path: '/lobby',
         page_location: `${window.location.origin}/lobby`,
-      })
-      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
+      }))
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', expect.objectContaining({
         page_path: '/channel/abc',
         page_location: `${window.location.origin}/channel/abc`,
-      })
+      }))
     })
 
     it('keeps only utm_* campaign parameters so channel attribution survives', () => {
@@ -120,10 +122,10 @@ describe('analytics', () => {
 
       trackPageView('/')
 
-      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
         page_path: '/',
         page_location: `${window.location.origin}/?utm_source=reddit&utm_medium=social&utm_campaign=r-shadowdark`,
-      })
+      }))
     })
 
     it('drops utm params on later route changes once the URL no longer carries them', () => {
@@ -137,14 +139,45 @@ describe('analytics', () => {
       window.history.replaceState({}, '', '/features')
       trackPageView('/features')
 
-      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', {
+      expect(gtag).toHaveBeenNthCalledWith(1, 'event', 'page_view', expect.objectContaining({
         page_path: '/',
         page_location: `${window.location.origin}/?utm_source=reddit&utm_campaign=r-shadowdark`,
-      })
-      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', {
+      }))
+      expect(gtag).toHaveBeenNthCalledWith(2, 'event', 'page_view', expect.objectContaining({
         page_path: '/features',
         page_location: `${window.location.origin}/features`,
+      }))
+    })
+
+    it('sends the page title so the Pages report never records "(not set)"', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+      document.title = 'Channel — Role by Post'
+
+      trackPageView('/channel/abc')
+
+      // document.title wins where a route rendered one: it is auth-aware, so the
+      // signed-in lobby and the signed-out landing page stay distinct at '/'.
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', {
+        page_path: '/channel/abc',
+        page_location: `${window.location.origin}/channel/abc`,
+        page_title: 'Channel — Role by Post',
       })
+    })
+
+    it('falls back to the route title when no title has been set', () => {
+      mockEnv.VITE_GA_MEASUREMENT_ID = 'G-TEST123'
+      initAnalytics()
+      const gtag = vi.fn()
+      window.gtag = gtag
+
+      trackPageView('/settings')
+
+      expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
+        page_title: 'Settings — Role by Post',
+      }))
     })
   })
 
