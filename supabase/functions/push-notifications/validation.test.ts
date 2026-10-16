@@ -27,6 +27,24 @@ describe('TriggerPayloadSchema', () => {
   it('rejects a non-string id', () => {
     expect(TriggerPayloadSchema.safeParse({ table: 'messages', message_id: 42 }).success).toBe(false)
   })
+
+  it('accepts a join request trigger for both phases', () => {
+    expect(
+      TriggerPayloadSchema.safeParse({ table: 'channel_join_requests', request_id: 'abc', phase: 'received' }).success,
+    ).toBe(true)
+    expect(
+      TriggerPayloadSchema.safeParse({ table: 'channel_join_requests', request_id: 'abc', phase: 'decided' }).success,
+    ).toBe(true)
+  })
+
+  it('rejects a join request trigger without a phase', () => {
+    // The phase decides the recipient, so it is not optional: inferred from the
+    // row status, a retry could notify the wrong person.
+    expect(TriggerPayloadSchema.safeParse({ table: 'channel_join_requests', request_id: 'abc' }).success).toBe(false)
+    expect(
+      TriggerPayloadSchema.safeParse({ table: 'channel_join_requests', request_id: 'abc', phase: 'later' }).success,
+    ).toBe(false)
+  })
 })
 
 describe('PushSubscriptionSchema', () => {

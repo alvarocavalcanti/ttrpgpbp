@@ -860,3 +860,82 @@ describe('room deep link (#621 Phase 4)', () => {
     expect(r.url).toBe('/channel/c1')
   })
 })
+
+describe('join request events (#674)', () => {
+  const received = {
+    kind: 'join_request' as const,
+    channel_id: 'c1',
+    channel_name: 'The Den',
+    gm_id: 'u9',
+    applicant_id: 'u1',
+    applicant_name: 'Aria',
+    application_message: 'I would love to join.',
+  }
+
+  it('notifies the channel GM, with the applicant and their answer', () => {
+    const result = resolvePushTargets(received, MEMBERS)
+
+    expect(result.targetUserIds).toEqual(['u9'])
+    expect(result.title).toBe('New applicant for The Den')
+    expect(result.body).toBe('Aria: I would love to join.')
+    expect(result.url).toBe('/channel/c1')
+  })
+
+  it('falls back to a plain sentence when the applicant left no answer', () => {
+    const result = resolvePushTargets({ ...received, application_message: undefined }, MEMBERS)
+
+    expect(result.body).toBe('Aria applied to join.')
+  })
+
+  it('keeps a long answer off the lock screen', () => {
+    const result = resolvePushTargets({ ...received, application_message: 'x'.repeat(300) }, MEMBERS)
+
+    // The answer is capped like a message body (100 chars + ellipsis); the
+    // applicant's name prefixes it.
+    const answer = result.body.slice('Aria: '.length)
+    expect(answer.length).toBe(101)
+    expect(answer.endsWith('…')).toBe(true)
+  })
+
+  it('never targets the applicant, even if they somehow run the channel', () => {
+    const result = resolvePushTargets({ ...received, gm_id: 'u1' }, MEMBERS)
+
+    expect(result.targetUserIds).toEqual([])
+  })
+
+  it('drops a received event without a channel or a GM', () => {
+    expect(resolvePushTargets({ ...received, gm_id: undefined }, MEMBERS).targetUserIds).toEqual([])
+    expect(resolvePushTargets({ ...received, channel_id: undefined }, MEMBERS).targetUserIds).toEqual([])
+  })
+
+  it('notifies the applicant when their application is approved', () => {
+    const result = resolvePushTargets(
+      { kind: 'join_request_decided', channel_id: 'c1', channel_name: 'The Den', applicant_id: 'u1', decision: 'approved' },
+      MEMBERS,
+    )
+
+    expect(result.targetUserIds).toEqual(['u1'])
+    expect(result.title).toBe("You're in: The Den")
+    expect(result.url).toBe('/channel/c1')
+  })
+
+  it('notifies the applicant and points away from the channel when rejected', () => {
+    const result = resolvePushTargets(
+      { kind: 'join_request_decided', channel_id: 'c1', channel_name: 'The Den', applicant_id: 'u1', decision: 'rejected' },
+      MEMBERS,
+    )
+
+    expect(result.targetUserIds).toEqual(['u1'])
+    // They are not a member, so the lobby is where they can act on it.
+    expect(result.url).toBe('/')
+  })
+
+  it('drops a decided event without an applicant', () => {
+    const result = resolvePushTargets(
+      { kind: 'join_request_decided', channel_id: 'c1', decision: 'approved' },
+      MEMBERS,
+    )
+
+    expect(result.targetUserIds).toEqual([])
+  })
+})

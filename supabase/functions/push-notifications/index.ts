@@ -5,7 +5,7 @@ import webPush from "npm:web-push@3.6.7"
 import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals, filterMembersByRoomVisibility } from "./filter.ts"
 import { sendWithRetry } from "./deliver.ts"
 import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
-import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription } from "./validation.ts"
+import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription, JoinRequestTrigger } from "./validation.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
 
 // Origin allowlist for CORS. Reads the ALLOWED_ORIGINS secret (comma separated)
@@ -312,6 +312,51 @@ async function buildAdminMessageEvent(
   }
 }
 
+// Join request events (#674): the trigger supplies a request id and the phase.
+// 'received' targets the channel's GM, 'decided' the applicant. Both read the
+// same row; only the decided copy depends on the row's status, which is terminal
+// once decided.
+async function buildJoinRequestEvent(
+  payload: JoinRequestTrigger,
+  serviceClient: ReturnType<typeof createClient>
+): Promise<BuiltEvent> {
+  const { data: request, error } = await serviceClient
+    .from("channel_join_requests")
+    .select("id, channel_id, user_id, character_name, message, status")
+    .eq("id", payload.request_id)
+    .maybeSingle()
+
+  if (error || !request) {
+    throw new HttpError(404, "Join request not found")
+  }
+
+  const { data: channel, error: channelError } = await serviceClient
+    .from("channels")
+    .select("id, name, gm_id")
+    .eq("id", request.channel_id)
+    .maybeSingle()
+
+  if (channelError || !channel) {
+    throw new HttpError(404, "Channel not found")
+  }
+
+  return {
+    members: [],
+    event: {
+      kind: payload.phase === "received" ? "join_request" : "join_request_decided",
+      channel_id: channel.id,
+      channel_name: channel.name,
+      gm_id: channel.gm_id ?? undefined,
+      applicant_id: request.user_id,
+      // The character name is what the GM approves, and what the membership will
+      // be created with — not the player's display name.
+      applicant_name: request.character_name,
+      application_message: request.message ?? undefined,
+      decision: request.status === "approved" ? "approved" : "rejected",
+    },
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) })
@@ -361,6 +406,10 @@ serve(async (req) => {
       }
       event = built.event
       members = built.members
+    } else if (payload.table === "channel_join_requests") {
+      const built = await buildJoinRequestEvent(payload, serviceClient)
+      event = built.event
+      members = built.members
     } else {
       const built = await buildAdminMessageEvent(payload, serviceClient)
       event = built.event
@@ -372,7 +421,11 @@ serve(async (req) => {
     // sourceEntityId is the trigger's source row (message / member) so delivery
     // rows can be grouped per announcement (or per any other push source).
     const eventId = crypto.randomUUID()
-    const sourceEntityId = payload.table === "channel_members" ? payload.member_id : payload.message_id
+    const sourceEntityId = payload.table === "channel_members"
+      ? payload.member_id
+      : payload.table === "channel_join_requests"
+        ? payload.request_id
+        : payload.message_id
     await logDelivery(serviceClient, { event_id: eventId, event_kind: event.kind, status: "invocation", source_entity_id: sourceEntityId })
 
     const { targetUserIds, title, body, url } = resolvePushTargets(event, members)
