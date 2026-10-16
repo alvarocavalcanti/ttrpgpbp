@@ -11,7 +11,7 @@ export interface PushMember {
   is_away?: boolean
 }
 
-export type PushEventKind = 'message' | 'turn' | 'admin_message'
+export type PushEventKind = 'message' | 'turn' | 'admin_message' | 'join_request' | 'join_request_decided'
 
 export interface PushEvent {
   kind: PushEventKind
@@ -35,6 +35,11 @@ export interface PushEvent {
   admin_type?: 'announcement' | 'dm' | 'system'
   subject?: string
   admin_target_user_ids?: string[]
+  // join request events (#674): the applicant, and the outcome for a decision.
+  applicant_id?: string
+  applicant_name?: string
+  application_message?: string
+  decision?: 'approved' | 'rejected'
 }
 
 export interface PushTargetResult {
@@ -173,6 +178,39 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
       title: "It's your turn!",
       body: `It is now your turn in ${channelName}.`,
       url: CHANNEL_URL(event.channel_id)
+    }
+  }
+
+  if (event.kind === 'join_request') {
+    // The GM's work queue: an application arrived. The recipient is fixed by the
+    // channel, not by the request's status, so a retry cannot re-route it.
+    if (!event.channel_id || !event.gm_id) {
+      return { targetUserIds: [], title: '', body: '', url: '' }
+    }
+    const applicant = event.applicant_name || 'A player'
+    const summary = event.application_message ? plainBody(event.application_message) : ''
+    return {
+      targetUserIds: [event.gm_id].filter(uid => uid !== event.applicant_id),
+      title: `New applicant for ${channelName}`,
+      body: summary ? `${applicant}: ${summary}` : `${applicant} applied to join.`,
+      url: CHANNEL_URL(event.channel_id),
+    }
+  }
+
+  if (event.kind === 'join_request_decided') {
+    // The applicant. A rejection points at the lobby rather than the channel
+    // they were not admitted to.
+    if (!event.channel_id || !event.applicant_id) {
+      return { targetUserIds: [], title: '', body: '', url: '' }
+    }
+    const approved = event.decision === 'approved'
+    return {
+      targetUserIds: [event.applicant_id],
+      title: approved ? `You're in: ${channelName}` : `Your application to ${channelName}`,
+      body: approved
+        ? 'Your application was approved. Welcome aboard.'
+        : 'The GM did not accept your application this time.',
+      url: approved ? CHANNEL_URL(event.channel_id) : '/',
     }
   }
 

@@ -23,10 +23,22 @@ export const AdminTriggerSchema = z.object({
 })
 export type AdminTrigger = z.infer<typeof AdminTriggerSchema>
 
+export const JoinRequestTriggerSchema = z.object({
+  table: z.literal('channel_join_requests'),
+  request_id: z.string(),
+  // 'received' notifies the channel's GM about a new application; 'decided'
+  // notifies the applicant of the outcome. Explicit rather than inferred from
+  // the row's status, so a retry of a failed 'received' push cannot be
+  // re-routed to the applicant after the GM has already decided.
+  phase: z.enum(['received', 'decided']),
+})
+export type JoinRequestTrigger = z.infer<typeof JoinRequestTriggerSchema>
+
 export const TriggerPayloadSchema = z.discriminatedUnion('table', [
   MessageTriggerSchema,
   TurnTriggerSchema,
   AdminTriggerSchema,
+  JoinRequestTriggerSchema,
 ])
 export type TriggerPayload = z.infer<typeof TriggerPayloadSchema>
 
