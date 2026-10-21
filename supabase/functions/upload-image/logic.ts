@@ -53,9 +53,11 @@ export function isValidUploadPath(path: string, channelId: string): boolean {
   return match !== null && match[1] === channelId
 }
 
-// Character portraits are member-owned: the path shape is the same
-// (`{channelId}/character/{uuid}.jpg`), but the writer only has to be a member
-// of that channel, not its GM. Every other folder stays GM-only.
+/**
+ * Character portraits are member-owned: the path shape is the same
+ * (`{channelId}/character/{uuid}.jpg`), but the writer only has to be a
+ * member of that channel, not its GM. Every other folder stays GM-only.
+ */
 export function isMemberPortraitPath(path: string, channelId: string): boolean {
   return isValidUploadPath(path, channelId) && path.split('/')[1] === 'character'
 }

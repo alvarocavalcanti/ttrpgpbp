@@ -229,7 +229,8 @@ describe('EditCharacterModal', () => {
       <EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />
     )
     expect(withInitial.querySelector('img')).toBeNull()
-    expect(withInitial.textContent).toContain('H')
+    // The initial sits in the portrait box, not anywhere in the dialog text.
+    expect(withInitial.querySelector('div.h-20.w-20')?.textContent).toBe('H')
     // No portrait yet: nothing to remove.
     expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
   })
@@ -297,6 +298,27 @@ describe('EditCharacterModal', () => {
       expect(container.querySelector('img[src="https://example.com/hero.png"]')).toBeNull()
     })
     expect(container.querySelector('img[src="https://example.com/me.png"]')).not.toBeNull()
+  })
+
+  it('refreshes the roster on its own after a portrait write, not the whole channel', () => {
+    const onUpdate = vi.fn()
+    const onPortraitUpdate = vi.fn()
+
+    render(
+      <EditCharacterModal
+        member={mockMember}
+        gameSystem="none"
+        onClose={vi.fn()}
+        onUpdate={onUpdate}
+        onPortraitUpdate={onPortraitUpdate}
+      />
+    )
+
+    // The portrait hook gets the roster-only refresh. A full refetch would
+    // clear the channel, swap the view for a skeleton and unmount this dialog
+    // with the player's unsaved edits still in it.
+    expect(vi.mocked(useCharacterAvatar).mock.calls[0][2]).toBe(onPortraitUpdate)
+    expect(vi.mocked(useCharacterAvatar).mock.calls[0][2]).not.toBe(onUpdate)
   })
 
   it('never writes the portrait when the character form is saved', async () => {

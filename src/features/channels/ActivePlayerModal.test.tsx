@@ -130,7 +130,9 @@ describe('ActivePlayerModal', () => {
       <ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={vi.fn()} onSaved={vi.fn()} />
     )
     expect(initial.querySelector('img')).toBeNull()
-    expect(initial.textContent).toContain('H')
+    // The initials sit in the avatar boxes, not anywhere in the picker text
+    // (the picker lists Archer before Hero).
+    expect(Array.from(initial.querySelectorAll('div.h-8.w-8')).map(el => el.textContent)).toEqual(['A', 'H'])
   })
 
   it('closes on Escape', () => {

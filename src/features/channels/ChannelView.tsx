@@ -87,7 +87,7 @@ export function ChannelView() {
     setMessagesLoaded(false)
   }, [id, subId])
 
-  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead)
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, subId ?? null, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
@@ -727,6 +727,7 @@ export function ChannelView() {
           myUserId={myMemberInfo?.user_id}
           channelId={channel.id}
           onUpdate={refetch}
+          onPortraitUpdate={refreshMembers}
           gameSystem={channel.game_system}
           editingMemberId={editingMemberId}
           onEditMember={setEditingMemberId}

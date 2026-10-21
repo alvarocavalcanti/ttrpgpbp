@@ -392,7 +392,8 @@ describe('MessageItem', () => {
       />
     )
     expect(container.querySelector('img')).toBeNull()
-    expect(container.textContent).toContain('H')
+    // The initial sits in the avatar box, not anywhere in the message text.
+    expect(container.querySelector('div.h-10.w-10')?.textContent).toBe('H')
   })
 
   it('keeps the NPC portrait even when the sender has a channel portrait', () => {

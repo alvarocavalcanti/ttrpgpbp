@@ -370,7 +370,8 @@ describe('MessageComposer', () => {
     const { container } = render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
     expect(container.querySelector('img')).toBeNull()
-    expect(screen.getByRole('option', { name: /Hero/ }).textContent).toContain('H')
+    // The initial sits in the avatar box, not anywhere in the option text.
+    expect(container.querySelector('span.h-5.w-5')?.textContent).toBe('H')
   })
 
   it('shows mention autocomplete and inserts selected mention', async () => {

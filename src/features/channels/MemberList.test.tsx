@@ -46,7 +46,7 @@ const mockSetActivePlayers = vi.fn()
 // wrapper so "Edit Character" still opens the modal.
 function StatefulMemberList(props: any) {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
-  return <MemberList {...props} editingMemberId={editingMemberId} onEditMember={setEditingMemberId} />
+  return <MemberList {...props} editingMemberId={editingMemberId} onEditMember={setEditingMemberId} onPortraitUpdate={props.onPortraitUpdate ?? vi.fn()} />
 }
 
 describe('MemberList', () => {
@@ -199,9 +199,10 @@ describe('MemberList', () => {
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: successInsert() } as any)
     const mockOnUpdate = vi.fn()
+    const mockOnPortraitUpdate = vi.fn()
     const withPortrait = mockMembers.map(m => m.id === 'm2' ? { ...m, character_avatar_url: 'https://example.com/portrait.png' } : m)
 
-    render(<StatefulMemberList members={withPortrait} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+    render(<StatefulMemberList members={withPortrait} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} onPortraitUpdate={mockOnPortraitUpdate} />, { wrapper: MemoryRouter })
 
     fireEvent.click(screen.getByTestId('menu-btn-m2'))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove Portrait' }))
@@ -209,7 +210,10 @@ describe('MemberList', () => {
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalledWith({ character_avatar_url: null })
       expect(mockEq).toHaveBeenCalledWith('id', 'm2')
-      expect(mockOnUpdate).toHaveBeenCalled()
+      // The roster refreshes on its own: a full refetch would swap the whole
+      // view for a skeleton.
+      expect(mockOnPortraitUpdate).toHaveBeenCalled()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
     })
   })
 

@@ -25,6 +25,10 @@ interface MemberListProps {
   gameSystem?: string
   channelId: string
   onUpdate: () => void
+  // Refreshes the member roster only. A portrait write must not run the full
+  // refetch: that clears the channel and swaps the view for a skeleton, which
+  // would unmount the open Edit Character dialog and drop unsaved edits.
+  onPortraitUpdate: () => void
   // Editing state is owned by ChannelView so other views (e.g. the check
   // sheet in chat) can deep-link straight into Edit Character.
   editingMemberId: string | null
@@ -35,7 +39,7 @@ interface MemberListProps {
  * Sidebar member roster: players and GMs with character names, active/
  * away status, and GM moderation actions (kick, block, edit character).
  */
-export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, editingMemberId, onEditMember }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, onPortraitUpdate, editingMemberId, onEditMember }: MemberListProps) {
   const navigate = useNavigate()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -144,14 +148,16 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
     }
   }
 
-  // GM moderation lever for player-uploaded portraits (#743): the GM can
-  // remove another member's portrait but never upload one for them.
+  /**
+   * GM moderation lever for player-uploaded portraits (#743): the GM can
+   * remove another member's portrait but never upload one for them.
+   */
   const handleRemovePortrait = async (member: ChannelMember) => {
     setError(null)
     try {
       const updateError = await updateCharacterAvatar(member.id, null)
       if (updateError) throw updateError
-      onUpdate()
+      onPortraitUpdate()
     } catch (err) {
       console.error('Error removing character portrait:', err)
       setError('Failed to remove the portrait.')
@@ -408,6 +414,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           gameSystem={gameSystem}
           onClose={() => onEditMember(null)}
           onUpdate={onUpdate}
+          onPortraitUpdate={onPortraitUpdate}
         />
       )}
 

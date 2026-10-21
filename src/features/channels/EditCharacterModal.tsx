@@ -19,19 +19,23 @@ interface EditCharacterModalProps {
   gameSystem: string
   onClose: () => void
   onUpdate: () => void
+  // Refreshes the roster after a portrait write. Separate from onUpdate: the
+  // full refetch swaps the view for a skeleton and would unmount this dialog
+  // and drop the player's unsaved character edits.
+  onPortraitUpdate?: () => void
   // Render as a mobile bottom sheet (composer avatar entry point) instead of
   // a centered dialog.
   asSheet?: boolean
 }
 
-export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSheet = false }: EditCharacterModalProps) {
+export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPortraitUpdate, asSheet = false }: EditCharacterModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   const { updateCharacter } = useCharacter()
   const { uploadEnabled, settingsLoading, uploading, uploadPortrait, removePortrait } =
-    useCharacterAvatar(member.channel_id, member.id, onUpdate)
+    useCharacterAvatar(member.channel_id, member.id, onPortraitUpdate)
   const [characterName, setCharacterName] = useState(member.character_name)
   const [characterSheetUrl, setCharacterSheetUrl] = useState(member.character_sheet_url || '')
   const [characterNotes, setCharacterNotes] = useState(member.character_notes || '')

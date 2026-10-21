@@ -77,19 +77,23 @@ describe('useCharacterAvatar', () => {
     expect(onUpdated).not.toHaveBeenCalled()
   })
 
-  it('propagates the row update failure without reporting success', async () => {
+  it('reports a failed write with a player-safe message, never the database error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     updateCharacterAvatar.mockResolvedValue(new Error('Database down'))
     const { result } = renderHook(() => useCharacterAvatar(CHANNEL, MEMBER, onUpdated))
 
-    await expect(result.current.uploadPortrait(makeFile())).rejects.toThrow('Database down')
+    await expect(result.current.uploadPortrait(makeFile())).rejects.toThrow('Could not save the portrait. Please try again.')
+    // The raw error must never reach the player-facing copy.
+    await expect(result.current.uploadPortrait(makeFile())).rejects.not.toThrow('Database down')
     expect(onUpdated).not.toHaveBeenCalled()
   })
 
-  it('propagates a removal failure', async () => {
+  it('propagates a removal failure with a player-safe message', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     updateCharacterAvatar.mockResolvedValue(new Error('Database down'))
     const { result } = renderHook(() => useCharacterAvatar(CHANNEL, MEMBER, onUpdated))
 
-    await expect(result.current.removePortrait()).rejects.toThrow('Database down')
+    await expect(result.current.removePortrait()).rejects.toThrow('Could not remove the portrait. Please try again.')
     expect(onUpdated).not.toHaveBeenCalled()
   })
 })
