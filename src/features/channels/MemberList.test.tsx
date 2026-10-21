@@ -24,6 +24,18 @@ vi.mock('./useActivePlayers', () => ({
   useActivePlayers: vi.fn()
 }))
 
+// The portrait upload lives in its own hook; the modal that embeds it is
+// covered by its own test.
+vi.mock('./useCharacterAvatar', () => ({
+  useCharacterAvatar: vi.fn(() => ({
+    uploadEnabled: true,
+    settingsLoading: false,
+    uploading: false,
+    uploadPortrait: vi.fn(),
+    removePortrait: vi.fn(),
+  }))
+}))
+
 const successInsert = () => vi.fn().mockResolvedValue({ error: null })
 
 const mockModerateMember = vi.fn()
@@ -179,6 +191,42 @@ describe('MemberList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByDisplayValue('Sidekick')).not.toBeInTheDocument()
+  })
+
+  // #743: the GM can remove another member's portrait, but never upload one.
+  it('lets the GM remove another member’s portrait', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate, insert: successInsert() } as any)
+    const mockOnUpdate = vi.fn()
+    const withPortrait = mockMembers.map(m => m.id === 'm2' ? { ...m, character_avatar_url: 'https://example.com/portrait.png' } : m)
+
+    render(<StatefulMemberList members={withPortrait} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove Portrait' }))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({ character_avatar_url: null })
+      expect(mockEq).toHaveBeenCalledWith('id', 'm2')
+      expect(mockOnUpdate).toHaveBeenCalled()
+    })
+  })
+
+  it('never offers Remove Portrait to a plain member', () => {
+    const withPortrait = mockMembers.map(m => m.id === 'm2' ? { ...m, character_avatar_url: 'https://example.com/portrait.png' } : m)
+
+    render(<StatefulMemberList members={withPortrait} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    expect(screen.queryByRole('menuitem', { name: 'Remove Portrait' })).not.toBeInTheDocument()
+  })
+
+  it('offers Remove Portrait to the GM only when the member has a portrait', () => {
+    render(<StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    expect(screen.queryByRole('menuitem', { name: 'Remove Portrait' })).not.toBeInTheDocument()
   })
 
   it('allows GM to block player', async () => {

@@ -106,6 +106,33 @@ describe('ActivePlayerModal', () => {
     ])
   })
 
+  // #743: the picker shows the channel portrait, then the account picture,
+  // then the character initial.
+  it('shows the channel portrait, then the account picture, then the initial', () => {
+    const withPortrait: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', character_avatar_url: 'https://example.com/portrait.png', profile: { display_name: 'P1', avatar_url: 'https://example.com/account.png' } },
+    ]
+    const { container: portrait } = render(
+      <ActivePlayerModal channelId="c1" members={withPortrait} currentActiveIds={[]} onClose={vi.fn()} onSaved={vi.fn()} />
+    )
+    expect(portrait.querySelector('img[src="https://example.com/portrait.png"]')).not.toBeNull()
+    expect(portrait.querySelector('img[src="https://example.com/account.png"]')).toBeNull()
+
+    const withAccount: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1', avatar_url: 'https://example.com/account.png' } },
+    ]
+    const { container: account } = render(
+      <ActivePlayerModal channelId="c1" members={withAccount} currentActiveIds={[]} onClose={vi.fn()} onSaved={vi.fn()} />
+    )
+    expect(account.querySelector('img[src="https://example.com/account.png"]')).not.toBeNull()
+
+    const { container: initial } = render(
+      <ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={vi.fn()} onSaved={vi.fn()} />
+    )
+    expect(initial.querySelector('img')).toBeNull()
+    expect(initial.textContent).toContain('H')
+  })
+
   it('closes on Escape', () => {
     const onClose = vi.fn()
     render(<ActivePlayerModal channelId="c1" members={members} currentActiveIds={[]} onClose={onClose} onSaved={vi.fn()} />)

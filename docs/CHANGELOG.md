@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-21
+
+### Added
+
+- **A different face for every character** — you can now give each game its own character portrait. Open **Edit Character** from your entry in the channel's member list, pick **Change**, and choose a picture: it then shows instead of your account picture in that game — in your messages, in the member list, when the GM picks the active player, and in the mention list. Nothing else changes: your account picture and your portrait in your other games stay exactly as they were. **Remove** clears the portrait and puts your account picture back. Uploads need the server admin to have turned image uploads on, and the picture is scaled down before it is stored.
+- **Remove a player's portrait** *(for GMs)* — a member's **⋯** menu in the member list now has **Remove Portrait**, so you can clear a portrait that does not belong in your game. You can remove one, but you cannot upload a portrait for someone else.
+
 ## 2026-10-16
 
 ### Added

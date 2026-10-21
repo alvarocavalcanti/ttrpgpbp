@@ -3,12 +3,16 @@ import type { Database } from '../../types/database'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useCharacter } from './useCharacter'
+import { useCharacterAvatar } from './useCharacterAvatar'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from '../../game-systems'
 import { ModifierInput } from '../../components/ModifierInput'
 import { BottomSheet } from '../../components/BottomSheet'
+import { Avatar } from '../../components/Avatar'
 import { MAX_URL_LENGTH } from '../../constants'
 
-type ChannelMember = Database['public']['Tables']['channel_members']['Row']
+type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
+  profile?: { display_name: string | null; avatar_url: string | null } | null
+}
 
 interface EditCharacterModalProps {
   member: ChannelMember
@@ -22,12 +26,21 @@ interface EditCharacterModalProps {
 
 export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSheet = false }: EditCharacterModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   const { updateCharacter } = useCharacter()
+  const { uploadEnabled, settingsLoading, uploading, uploadPortrait, removePortrait } =
+    useCharacterAvatar(member.channel_id, member.id, onUpdate)
   const [characterName, setCharacterName] = useState(member.character_name)
   const [characterSheetUrl, setCharacterSheetUrl] = useState(member.character_sheet_url || '')
   const [characterNotes, setCharacterNotes] = useState(member.character_notes || '')
+  // Portrait state lives here: the upload persists immediately (the roster
+  // and the messages follow on their own), so the preview is local until the
+  // parent's member row catches up.
+  const [portrait, setPortrait] = useState<string | null>(member.character_avatar_url || null)
+  const [portraitError, setPortraitError] = useState<string | null>(null)
+  const [removingPortrait, setRemovingPortrait] = useState(false)
   const systemAttributes = getSystemAttributes(gameSystem)
   const modifierLimits = getModifierLimits(gameSystem)
   const sectionCopy = getModifierSectionCopy(gameSystem)
@@ -49,6 +62,9 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSh
     return num < modifierLimits.min || num > modifierLimits.max
   }
   const hasInvalidInput = systemAttributes.some(attr => isOutOfRange(attributeInputs[attr] ?? ''))
+
+  // Portrait → account picture → initial.
+  const portraitSrc = portrait || member.profile?.avatar_url || ''
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,8 +113,99 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, asSh
     setAttributeInputs(prev => ({ ...prev, [attr]: value }))
   }
 
+  const handlePortraitChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // Clear the input so picking the same file again still fires a change.
+    e.target.value = ''
+    if (!file) return
+    setPortraitError(null)
+    try {
+      const path = await uploadPortrait(file)
+      if (path) setPortrait(path)
+    } catch (err) {
+      console.error('Error uploading character portrait:', err)
+      setPortraitError(err instanceof Error ? err.message : 'Image upload failed. Please try again.')
+    }
+  }
+
+  const handlePortraitRemove = async () => {
+    setPortraitError(null)
+    setRemovingPortrait(true)
+    try {
+      await removePortrait()
+      setPortrait(null)
+    } catch (err) {
+      console.error('Error removing character portrait:', err)
+      setPortraitError(err instanceof Error ? err.message : 'Failed to remove the portrait.')
+    } finally {
+      setRemovingPortrait(false)
+    }
+  }
+
   const form = (
     <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label htmlFor="characterPortrait" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Character Portrait</label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Shown instead of your account picture in this game.</p>
+                <div className="mt-2 flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    {portraitSrc ? (
+                      <Avatar
+                        className="h-20 w-20 rounded-full object-cover"
+                        src={portraitSrc}
+                        alt={`${characterName || 'Character'} portrait`}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="h-20 w-20 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 text-2xl font-medium">
+                        {(characterName[0] || '?').toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      id="characterPortrait"
+                      accept="image/*"
+                      className="sr-only"
+                      aria-label="Character portrait"
+                      onChange={handlePortraitChange}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading || removingPortrait || isSubmitting || !uploadEnabled || settingsLoading}
+                        aria-busy={uploading}
+                        className="inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-3 py-1.5 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                      >
+                        {uploading ? 'Uploading...' : 'Change'}
+                      </button>
+                      {portrait && (
+                        <button
+                          type="button"
+                          onClick={handlePortraitRemove}
+                          disabled={uploading || removingPortrait || isSubmitting}
+                          className="inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-3 py-1.5 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                          {removingPortrait ? 'Removing...' : 'Remove'}
+                        </button>
+                      )}
+                    </div>
+                    {settingsLoading && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Checking upload availability.</p>
+                    )}
+                    {!uploadEnabled && !settingsLoading && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Image uploads are disabled by the server admin.</p>
+                    )}
+                    {portraitError && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1" role="alert">{portraitError}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label htmlFor="charName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Character Name</label>
                 <input

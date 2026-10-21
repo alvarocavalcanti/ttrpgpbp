@@ -16,5 +16,16 @@ export function useCharacter() {
     return error
   }
 
-  return { updateCharacter }
+  // Portrait writes are separate from the character form save: the form never
+  // carries the avatar, so a save with a stale preview cannot clobber a
+  // freshly uploaded portrait. A null url clears it.
+  const updateCharacterAvatar = async (memberId: string, avatarUrl: string | null) => {
+    const { error } = await supabase
+      .from('channel_members')
+      .update({ character_avatar_url: avatarUrl })
+      .eq('id', memberId)
+    return error
+  }
+
+  return { updateCharacter, updateCharacterAvatar }
 }

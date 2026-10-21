@@ -5,6 +5,7 @@ import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 import { sortMembers } from '../../lib/memberOrder'
 
 import { EditCharacterModal } from './EditCharacterModal'
+import { useCharacter } from './useCharacter'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
@@ -62,6 +63,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   
   const { moderateMember, setAway } = useMemberModeration()
   const { setActivePlayers } = useActivePlayers()
+  const { updateCharacterAvatar } = useCharacter()
 
   const startEditing = (member: ChannelMember) => {
     onEditMember(member.id)
@@ -139,6 +141,20 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       setError('Failed to set active player.')
     } finally {
       setIsSettingActive(false)
+    }
+  }
+
+  // GM moderation lever for player-uploaded portraits (#743): the GM can
+  // remove another member's portrait but never upload one for them.
+  const handleRemovePortrait = async (member: ChannelMember) => {
+    setError(null)
+    try {
+      const updateError = await updateCharacterAvatar(member.id, null)
+      if (updateError) throw updateError
+      onUpdate()
+    } catch (err) {
+      console.error('Error removing character portrait:', err)
+      setError('Failed to remove the portrait.')
     }
   }
 
@@ -290,6 +306,16 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           )}
                           {isGM && !isMe && member.user_id !== gmId && (
                             <>
+                              {member.character_avatar_url && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => { setOpenMenuId(null); void handleRemovePortrait(member) }}
+                                  className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-surface-100 dark:hover:bg-surface-700"
+                                >
+                                  Remove Portrait
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 role="menuitem"

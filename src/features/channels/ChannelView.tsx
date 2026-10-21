@@ -311,15 +311,17 @@ export function ChannelView() {
     patchFavoriteMessage(id, { is_deleted: true })
   }, [deleteMessage, patchFavoriteMessage])
 
-  // Dice-roll mentions only need user_id/character_name plus per-ability
-  // modifiers; channel_members.attributes is a JSON object, so adapt the
+  // Dice-roll mentions need user_id/character_name plus per-ability modifiers;
+  // the message list also needs the avatar sources (#743).
+  // channel_members.attributes is a JSON object, so adapt the
   // narrow Member shape for MessageList. Declared above the early returns so
   // the hook count stays identical between the loading and loaded renders
   // (Rules of Hooks — a mismatch here crashes ChannelView on every cold load).
   const chatMembers = useMemo<Member[]>(() => members.map(m => ({
     user_id: m.user_id,
     character_name: m.character_name,
-    attributes: (m.attributes as Record<string, number> | null) ?? undefined
+    attributes: (m.attributes as Record<string, number> | null) ?? undefined,
+    character_avatar_url: m.character_avatar_url
   })), [members])
 
   // Favorites view (#672): favorites outside the loaded timeline window come

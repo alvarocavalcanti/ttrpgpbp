@@ -16,9 +16,11 @@ Select the pencil badge on the avatar to upload a replacement picture. Uploads a
 
 A **sun/moon toggle** in the app header (and on the login page) switches between light and dark theme. Your choice is remembered; by default the app follows your device's light/dark preference.
 
-## Per-channel character name
+## Per-channel character name and portrait
 
-Each channel has its own **character name** (max 20 characters) and avatar, so you can play a different character in each campaign.
+Each channel has its own **character name** (max 20 characters) and **portrait**, so you can play a different character in each campaign. Open **Edit Character** from your entry in the channel's member list to change either one.
+
+Your portrait replaces your account picture for that game only — in the messages, the member list, the active-player picker and the mention list. If you have no portrait, your account picture is used instead, and failing that the first letter of your character name. Uploads need the server admin to have turned image uploads on. **Remove** clears the portrait and puts your account picture back.
 
 ## Character sheet
 

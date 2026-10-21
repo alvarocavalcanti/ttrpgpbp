@@ -326,6 +326,99 @@ describe('MessageItem', () => {
     expect(screen.getByText('Hero')).toBeInTheDocument()
   })
 
+  // #743: the per-channel character portrait wins over the account picture.
+  it('shows the channel portrait instead of the account picture', () => {
+    const msg: any = {
+      id: 'm-avatar',
+      type: 'regular',
+      content: 'Hello',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero', avatar_url: 'https://example.com/account.png' }
+    }
+    const { container } = render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        members={[{ user_id: 'u2', character_name: 'Hero', character_avatar_url: 'https://example.com/portrait.png' }]}
+      />
+    )
+    expect(container.querySelector('img[src="https://example.com/portrait.png"]')).not.toBeNull()
+    expect(container.querySelector('img[src="https://example.com/account.png"]')).toBeNull()
+  })
+
+  it('falls back to the account picture when there is no channel portrait', () => {
+    const msg: any = {
+      id: 'm-avatar-2',
+      type: 'regular',
+      content: 'Hello',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero', avatar_url: 'https://example.com/account.png' }
+    }
+    const { container } = render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        members={[{ user_id: 'u2', character_name: 'Hero' }]}
+      />
+    )
+    expect(container.querySelector('img[src="https://example.com/account.png"]')).not.toBeNull()
+  })
+
+  it('falls back to the character initial when there is no picture at all', () => {
+    const msg: any = {
+      id: 'm-avatar-3',
+      type: 'regular',
+      content: 'Hello',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    const { container } = render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        members={[{ user_id: 'u2', character_name: 'Hero' }]}
+      />
+    )
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toContain('H')
+  })
+
+  it('keeps the NPC portrait even when the sender has a channel portrait', () => {
+    const msg: any = {
+      id: 'm-avatar-4',
+      type: 'npc',
+      content: 'Trespassers!',
+      npc_name: 'Goblin King',
+      npc_avatar_url: 'https://example.com/king.png',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2'
+    }
+    const { container } = render(
+      <MessageItem
+        message={msg}
+        currentUserId="u1"
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        members={[{ user_id: 'u2', character_name: 'Hero', character_avatar_url: 'https://example.com/portrait.png' }]}
+      />
+    )
+    expect(container.querySelector('img[src="https://example.com/king.png"]')).not.toBeNull()
+    expect(container.querySelector('img[src="https://example.com/portrait.png"]')).toBeNull()
+  })
+
   it('renders ||spoilers|| hidden and reveals them on click (#709)', async () => {
     const msg: any = {
       id: 'm-spoiler',
