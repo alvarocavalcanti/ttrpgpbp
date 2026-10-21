@@ -90,6 +90,8 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
           <ul className="space-y-2 mb-4">
             {orderedMembers.map(m => {
               const checked = selected.includes(m.user_id)
+              // Channel portrait → account picture → initial (#743).
+              const avatarSrc = m.character_avatar_url || m.profile?.avatar_url || ''
               return (
                 <li key={m.id}>
                   <label className="flex items-center space-x-3 p-2 rounded-md bg-gray-50 dark:bg-gray-900 cursor-pointer">
@@ -99,8 +101,8 @@ export function ActivePlayerModal({ channelId, members, currentActiveIds, onClos
                       onChange={() => toggle(m.user_id)}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded"
                     />
-                    {m.character_avatar_url ? (
-                      <Avatar className="h-8 w-8 rounded-full flex-shrink-0" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
+                    {avatarSrc ? (
+                      <Avatar className="h-8 w-8 rounded-full flex-shrink-0" src={avatarSrc} alt="" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-400 flex-shrink-0">
                         {(m.character_name[0] || '?').toUpperCase()}

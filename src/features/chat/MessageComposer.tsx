@@ -899,6 +899,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                   )}
                   {matchedMembers.map((m, i) => {
                     const active = activeMentionIndex === memberStartIndex + i
+                    // Channel portrait → account picture → initial (#743).
+                    const avatarSrc = m.character_avatar_url || m.profile?.avatar_url || ''
                     return (
                       <button
                         key={m.id}
@@ -909,8 +911,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                         onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
                         className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
                       >
-                        {m.character_avatar_url && (
-                          <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={m.character_avatar_url} alt="" referrerPolicy="no-referrer" />
+                        {avatarSrc ? (
+                          <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={avatarSrc} alt="" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="h-5 w-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[0.6rem] font-medium text-indigo-500 dark:text-indigo-400 flex-shrink-0">
+                            {(m.character_name[0] || '?').toUpperCase()}
+                          </span>
                         )}
                         <span className="font-medium text-gray-900 dark:text-gray-100">{m.character_name}</span>
                         {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-400">({m.profile.display_name})</span>}

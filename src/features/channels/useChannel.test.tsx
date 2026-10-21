@@ -88,6 +88,45 @@ describe('useChannel', () => {
     expect(result.current.gmOnlyResourcesUrl).toBeNull()
   })
 
+  it('refreshes the roster alone, leaving the channel and the loading state alone', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    let memberRows: any[] = [{ id: 'm1', user_id: 'u1', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockImplementation(() => Promise.resolve({ data: memberRows, error: null }))
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const { result } = renderHook(() => useChannel('c1'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    // The portrait changed on the server (a portrait write).
+    memberRows = [{ id: 'm1', user_id: 'u1', character_avatar_url: 'c1/character/a.jpg', profile: { display_name: 'Hero' } }]
+    act(() => { result.current.refreshMembers() })
+
+    await waitFor(() => {
+      expect(result.current.members[0].character_avatar_url).toBe('c1/character/a.jpg')
+    })
+    // A full refetch would clear the channel and flip loading, which swaps the
+    // view for a skeleton and unmounts the open Edit Character dialog.
+    expect(result.current.channel).toEqual(mockChannel)
+    expect(result.current.loading).toBe(false)
+  })
+
   it('exposes gm_only_resources_url from channel_secrets for the GM', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
 

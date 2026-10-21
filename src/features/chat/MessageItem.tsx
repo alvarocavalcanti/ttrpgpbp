@@ -251,7 +251,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     members?.find(m => m.user_id === userId)?.character_name
     || (userId === currentUserId ? 'You' : 'Someone')
 
-  const senderName = message.npc_name || members?.find(m => m.user_id === message.sender_id)?.character_name || message.sender?.display_name
+  const senderMember = members?.find(m => m.user_id === message.sender_id)
+  const senderName = message.npc_name || senderMember?.character_name || message.sender?.display_name
   const replySenderName = message.reply?.sender_id ? members?.find(m => m.user_id === message.reply?.sender_id)?.character_name : undefined
 
   const systemAttributes = useMemo(() => getSystemAttributes(gameSystem), [gameSystem])
@@ -846,6 +847,10 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
               {message.npc_name?.[0]?.toUpperCase() || '?'}
             </div>
           )
+        ) : senderMember?.character_avatar_url ? (
+          // Per-channel character portrait (#743): it replaces the account
+          // picture for this channel only.
+          <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={senderMember.character_avatar_url} alt="" referrerPolicy="no-referrer" />
         ) : message.sender?.avatar_url ? (
           <Avatar className="h-10 w-10 rounded-full flex-shrink-0" src={message.sender.avatar_url} alt="" referrerPolicy="no-referrer" />
         ) : (

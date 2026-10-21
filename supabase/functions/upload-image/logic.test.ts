@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isRoomUpload, isValidProfileUploadPath, isValidUploadPath } from './logic'
+import { buildCorsHeaders, buildImageMetadata, evaluateUploadGuards, isAllowedOrigin, isJpegSignature, isMemberPortraitPath, isRoomUpload, isValidProfileUploadPath, isValidUploadPath } from './logic'
 
 const CHANNEL = '11111111-2222-3333-4444-555555555555'
 const OTHER_CHANNEL = '99999999-2222-3333-4444-555555555555'
@@ -29,6 +29,30 @@ describe('isValidUploadPath', () => {
 
   it('rejects the profile folder for channel-scoped uploads', () => {
     expect(isValidUploadPath(`${CHANNEL}/profile/${FILE}.jpg`, CHANNEL)).toBe(false)
+  })
+})
+
+describe('isMemberPortraitPath', () => {
+  it('accepts a character portrait in the claimed channel', () => {
+    expect(isMemberPortraitPath(`${CHANNEL}/character/${FILE}.jpg`, CHANNEL)).toBe(true)
+  })
+
+  it('rejects every other channel folder (those stay GM-only)', () => {
+    expect(isMemberPortraitPath(`${CHANNEL}/avatar/${FILE}.jpg`, CHANNEL)).toBe(false)
+    expect(isMemberPortraitPath(`${CHANNEL}/message/${FILE}.jpg`, CHANNEL)).toBe(false)
+    expect(isMemberPortraitPath(`${CHANNEL}/map/${FILE}.jpg`, CHANNEL)).toBe(false)
+    expect(isMemberPortraitPath(`${CHANNEL}/resources/${FILE}.jpg`, CHANNEL)).toBe(false)
+    expect(isMemberPortraitPath(`${CHANNEL}/npc/${FILE}.jpg`, CHANNEL)).toBe(false)
+  })
+
+  it('rejects a portrait path whose channel does not match the claimed channel', () => {
+    expect(isMemberPortraitPath(`${OTHER_CHANNEL}/character/${FILE}.jpg`, CHANNEL)).toBe(false)
+  })
+
+  it('rejects traversal and malformed paths', () => {
+    expect(isMemberPortraitPath(`${CHANNEL}/../character/${FILE}.jpg`, CHANNEL)).toBe(false)
+    expect(isMemberPortraitPath(`${CHANNEL}/character/not-a-uuid.jpg`, CHANNEL)).toBe(false)
+    expect(isMemberPortraitPath(`${CHANNEL}/character/${FILE}.png`, CHANNEL)).toBe(false)
   })
 })
 

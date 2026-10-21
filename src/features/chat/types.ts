@@ -38,6 +38,10 @@ export interface Member {
   user_id: string
   character_name: string
   attributes?: Record<string, number>
+  // The per-channel character portrait (#743). It comes from the roster, so a
+  // portrait change repaints the messages already in the channel. The account
+  // picture is not carried here: the message row already joins it.
+  character_avatar_url?: string | null
 }
 
 // Optimistic payload stashed on a pending message so a retry can replay the

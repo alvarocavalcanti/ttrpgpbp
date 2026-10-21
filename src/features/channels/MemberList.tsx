@@ -5,6 +5,7 @@ import { MAX_AWAY_MESSAGE_LENGTH } from '../../constants'
 import { sortMembers } from '../../lib/memberOrder'
 
 import { EditCharacterModal } from './EditCharacterModal'
+import { useCharacter } from './useCharacter'
 import { SignedImg } from '../../components/SignedImg'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
@@ -24,6 +25,10 @@ interface MemberListProps {
   gameSystem?: string
   channelId: string
   onUpdate: () => void
+  // Refreshes the member roster only. A portrait write must not run the full
+  // refetch: that clears the channel and swaps the view for a skeleton, which
+  // would unmount the open Edit Character dialog and drop unsaved edits.
+  onPortraitUpdate: () => void
   // Editing state is owned by ChannelView so other views (e.g. the check
   // sheet in chat) can deep-link straight into Edit Character.
   editingMemberId: string | null
@@ -34,7 +39,7 @@ interface MemberListProps {
  * Sidebar member roster: players and GMs with character names, active/
  * away status, and GM moderation actions (kick, block, edit character).
  */
-export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, editingMemberId, onEditMember }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, onPortraitUpdate, editingMemberId, onEditMember }: MemberListProps) {
   const navigate = useNavigate()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +67,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
   
   const { moderateMember, setAway } = useMemberModeration()
   const { setActivePlayers } = useActivePlayers()
+  const { updateCharacterAvatar } = useCharacter()
 
   const startEditing = (member: ChannelMember) => {
     onEditMember(member.id)
@@ -139,6 +145,22 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
       setError('Failed to set active player.')
     } finally {
       setIsSettingActive(false)
+    }
+  }
+
+  /**
+   * GM moderation lever for player-uploaded portraits (#743): the GM can
+   * remove another member's portrait but never upload one for them.
+   */
+  const handleRemovePortrait = async (member: ChannelMember) => {
+    setError(null)
+    try {
+      const updateError = await updateCharacterAvatar(member.id, null)
+      if (updateError) throw updateError
+      onPortraitUpdate()
+    } catch (err) {
+      console.error('Error removing character portrait:', err)
+      setError('Failed to remove the portrait.')
     }
   }
 
@@ -290,6 +312,16 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                           )}
                           {isGM && !isMe && member.user_id !== gmId && (
                             <>
+                              {member.character_avatar_url && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => { setOpenMenuId(null); void handleRemovePortrait(member) }}
+                                  className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-surface-100 dark:hover:bg-surface-700"
+                                >
+                                  Remove Portrait
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 role="menuitem"
@@ -382,6 +414,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
           gameSystem={gameSystem}
           onClose={() => onEditMember(null)}
           onUpdate={onUpdate}
+          onPortraitUpdate={onPortraitUpdate}
         />
       )}
 

@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EditCharacterModal } from './EditCharacterModal'
+import { useCharacterAvatar } from './useCharacterAvatar'
 import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
@@ -9,8 +10,30 @@ vi.mock('../../lib/supabase', () => ({
   }
 }))
 
+vi.mock('./useCharacterAvatar', () => ({
+  useCharacterAvatar: vi.fn(),
+}))
+
+const CHANNEL_ID = '11111111-2222-3333-4444-555555555555'
+
 describe('EditCharacterModal', () => {
-  const mockMember = { id: 'm1', character_name: 'Hero', character_sheet_url: '', attributes: {} } as any
+  const mockMember = { id: 'm1', channel_id: CHANNEL_ID, character_name: 'Hero', character_sheet_url: '', attributes: {} } as any
+
+  const uploadPortrait = vi.fn()
+  const removePortrait = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    uploadPortrait.mockResolvedValue('chan/character/new.jpg')
+    removePortrait.mockResolvedValue(undefined)
+    vi.mocked(useCharacterAvatar).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadPortrait,
+      removePortrait,
+    })
+  })
 
   it('renders generic modal', () => {
     render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
@@ -174,5 +197,147 @@ describe('EditCharacterModal', () => {
         character_sheet_url: 'https://example.com/sheet'
       }))
     })
+  })
+
+  // #743: per-channel character portrait.
+  it('shows the channel portrait when there is one', () => {
+    const { container } = render(
+      <EditCharacterModal
+        member={{ ...mockMember, character_avatar_url: 'https://example.com/hero.png' }}
+        gameSystem="none"
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    )
+    expect(container.querySelector('img[src="https://example.com/hero.png"]')).not.toBeNull()
+    // A portrait hides the Remove button only until one exists; here it does.
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument()
+  })
+
+  it('falls back to the account picture, then to the character initial', () => {
+    const { container: withProfile } = render(
+      <EditCharacterModal
+        member={{ ...mockMember, profile: { display_name: 'Player', avatar_url: 'https://example.com/me.png' } }}
+        gameSystem="none"
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    )
+    expect(withProfile.querySelector('img[src="https://example.com/me.png"]')).not.toBeNull()
+
+    const { container: withInitial } = render(
+      <EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />
+    )
+    expect(withInitial.querySelector('img')).toBeNull()
+    // The initial sits in the portrait box, not anywhere in the dialog text.
+    expect(withInitial.querySelector('div.h-20.w-20')?.textContent).toBe('H')
+    // No portrait yet: nothing to remove.
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+  })
+
+  it('uploads a new portrait and keeps the dialog open', async () => {
+    const { container } = render(
+      <EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />
+    )
+
+    const file = new File([new Uint8Array(10)], 'portrait.png', { type: 'image/png' })
+    fireEvent.change(screen.getByLabelText('Character portrait'), { target: { files: [file] } })
+
+    await waitFor(() => expect(uploadPortrait).toHaveBeenCalledWith(file))
+    expect(screen.getByText('Character Name')).toBeInTheDocument()
+    expect(container.querySelector('img[src="chan/character/new.jpg"]')).not.toBeNull()
+  })
+
+  it('shows an inline error and stores nothing when the upload fails', async () => {
+    uploadPortrait.mockRejectedValue(new Error('Image is too large (max 5 MB)'))
+    const mockUpdate = vi.fn()
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
+
+    const file = new File([new Uint8Array(10)], 'portrait.png', { type: 'image/png' })
+    fireEvent.change(screen.getByLabelText('Character portrait'), { target: { files: [file] } })
+
+    expect(await screen.findByText('Image is too large (max 5 MB)')).toBeInTheDocument()
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('disables the upload control when the server admin turned uploads off', () => {
+    vi.mocked(useCharacterAvatar).mockReturnValue({
+      uploadEnabled: false,
+      settingsLoading: false,
+      uploading: false,
+      uploadPortrait,
+      removePortrait,
+    })
+
+    render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={vi.fn()} onUpdate={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Change' })).toBeDisabled()
+    expect(screen.getByText('Image uploads are disabled by the server admin.')).toBeInTheDocument()
+  })
+
+  it('removes the portrait and falls back to the account picture', async () => {
+    const { container } = render(
+      <EditCharacterModal
+        member={{
+          ...mockMember,
+          character_avatar_url: 'https://example.com/hero.png',
+          profile: { display_name: 'Player', avatar_url: 'https://example.com/me.png' },
+        }}
+        gameSystem="none"
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+
+    await waitFor(() => expect(removePortrait).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(container.querySelector('img[src="https://example.com/hero.png"]')).toBeNull()
+    })
+    expect(container.querySelector('img[src="https://example.com/me.png"]')).not.toBeNull()
+  })
+
+  it('refreshes the roster on its own after a portrait write, not the whole channel', () => {
+    const onUpdate = vi.fn()
+    const onPortraitUpdate = vi.fn()
+
+    render(
+      <EditCharacterModal
+        member={mockMember}
+        gameSystem="none"
+        onClose={vi.fn()}
+        onUpdate={onUpdate}
+        onPortraitUpdate={onPortraitUpdate}
+      />
+    )
+
+    // The portrait hook gets the roster-only refresh. A full refetch would
+    // clear the channel, swap the view for a skeleton and unmount this dialog
+    // with the player's unsaved edits still in it.
+    expect(vi.mocked(useCharacterAvatar).mock.calls[0][2]).toBe(onPortraitUpdate)
+    expect(vi.mocked(useCharacterAvatar).mock.calls[0][2]).not.toBe(onUpdate)
+  })
+
+  it('never writes the portrait when the character form is saved', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    render(
+      <EditCharacterModal
+        member={{ ...mockMember, character_avatar_url: 'https://example.com/hero.png' }}
+        gameSystem="none"
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByText('Save'))
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled())
+    expect(Object.keys(mockUpdate.mock.calls[0][0])).not.toContain('character_avatar_url')
   })
 })

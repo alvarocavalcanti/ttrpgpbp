@@ -345,6 +345,35 @@ describe('MessageComposer', () => {
     })
   })
 
+  // #743: the mention list shows the channel portrait, then the account
+  // picture, then the character initial.
+  it('shows the channel portrait in the mention list', () => {
+    const withPortrait: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', character_avatar_url: 'https://example.com/portrait.png', profile: { display_name: 'P1', avatar_url: 'https://example.com/account.png' } },
+    ]
+    const { container } = render(<MessageComposer isGM={false} members={withPortrait} onSendMessage={vi.fn()} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
+    expect(container.querySelector('img[src="https://example.com/portrait.png"]')).not.toBeNull()
+    expect(container.querySelector('img[src="https://example.com/account.png"]')).toBeNull()
+  })
+
+  it('falls back to the account picture in the mention list', () => {
+    const withAccount: any[] = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1', avatar_url: 'https://example.com/account.png' } },
+    ]
+    const { container } = render(<MessageComposer isGM={false} members={withAccount} onSendMessage={vi.fn()} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
+    expect(container.querySelector('img[src="https://example.com/account.png"]')).not.toBeNull()
+  })
+
+  it('falls back to the character initial in the mention list', () => {
+    const { container } = render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Hi @H', selectionStart: 5 } })
+    expect(container.querySelector('img')).toBeNull()
+    // The initial sits in the avatar box, not anywhere in the option text.
+    expect(container.querySelector('span.h-5.w-5')?.textContent).toBe('H')
+  })
+
   it('shows mention autocomplete and inserts selected mention', async () => {
     const mockOnSend = vi.fn().mockResolvedValue(undefined)
     render(<MessageComposer isGM={false} members={members} onSendMessage={mockOnSend} />)

@@ -52,6 +52,13 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
   // is anchored here so messages that arrived while away are flagged even
   // though the live read mark kept advancing (#502).
   const hiddenReadBoundaryRef = useRef<string | null>(null)
+  // Whether the current effect run is still mounted. Shared by the members
+  // loader (hoisted out of the effect so a portrait write can refresh the
+  // roster alone) — a stale run must not write state.
+  const mountedRef = useRef(false)
+  // The signed-in user the current run belongs to. A fetch that started
+  // under a different user must not write state (its RLS view differs).
+  const userIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     membersRef.current = members
@@ -83,8 +90,65 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
+  /**
+   * Members + GM secrets. Extracted so a realtime INSERT can refetch with the
+   * profile join intact, and so a portrait write can refresh the roster alone
+   * (a full refetch clears the channel and swaps the view for a skeleton,
+   * which would unmount the open Edit Character dialog and drop the player's
+   * unsaved edits).
+   */
+  const loadMembers = useCallback(async (): Promise<ChannelMember[]> => {
+    if (!channelId || !user?.id) return []
+    const [membersResponse, secretsResponse, passwordResponse] = await Promise.all([
+      supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId),
+      supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId).maybeSingle(),
+      // Count rows rather than projecting password_hash: the browser only
+      // needs to know whether a password is set, never the stored hash (which
+      // plus the exposed salt would allow offline guessing). RLS keeps this 0
+      // for non-GMs.
+      supabase.from('channel_secrets').select('channel_id', { count: 'exact', head: true })
+        .eq('channel_id', channelId).not('password_hash', 'is', null)
+    ])
+    if (membersResponse.error) throw membersResponse.error
+
+    // The join to profiles might return an array if not configured correctly,
+    // but our schema links user_id to profiles(id) uniquely.
+    const formattedMembers = (membersResponse.data ?? []).flatMap(m => {
+      const member = parseRow(ChannelMemberRowSchema, m)
+      if (!member) return [] // malformed row — drop it, keep the rest usable
+      return [{
+        ...m,
+        ...member,
+        profile: normalizeProfileRef(m.profile)
+      } as ChannelMember]
+    })
+
+    // mountedRef drops a stale run; channelIdRef and userIdRef drop a channel
+    // switch and a user switch.
+    if (mountedRef.current && channelIdRef.current === channelId && userIdRef.current === user?.id) {
+      // channel_secrets is GM-only (RLS); non-GMs get no row.
+      setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
+      setHasPassword((passwordResponse.count ?? 0) > 0)
+      setMembers(formattedMembers)
+      if (!boundaryCapturedRef.current) {
+        boundaryCapturedRef.current = true
+        setLastReadAt(formattedMembers.find(m => m.user_id === user?.id)?.last_read_at ?? null)
+      }
+    }
+    return formattedMembers
+  }, [channelId, user?.id])
+
+  /**
+   * Refreshes the member roster only. Leaves the channel row, the loading
+   * state and the read boundary alone, so the view stays put while a member
+   * row changes (portrait upload or removal).
+   */
+  const refreshMembers = useCallback(() => {
+    void loadMembers().catch(err => console.error('Error refreshing members:', err))
+  }, [loadMembers])
+
   useEffect(() => {
-    let mounted = true
+    mountedRef.current = true
     // Drop any state from a previous channel (route change keeps this hook
     // mounted), so we never render another channel's members/secrets or reuse
     // its read boundary.
@@ -99,50 +163,11 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     hiddenReadBoundaryRef.current = null
     myMemberIdRef.current = null
     channelIdRef.current = channelId ?? null
+    userIdRef.current = user?.id ?? null
 
     if (!channelId || !user?.id) {
       setLoading(false)
-      return
-    }
-
-    // Members + GM secrets. Extracted so a realtime INSERT can refetch with the
-    // profile join intact.
-    async function loadMembers(): Promise<ChannelMember[]> {
-      const [membersResponse, secretsResponse, passwordResponse] = await Promise.all([
-        supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId as string),
-        supabase.from('channel_secrets').select('gm_only_resources_url').eq('channel_id', channelId as string).maybeSingle(),
-        // Count rows rather than projecting password_hash: the browser only
-        // needs to know whether a password is set, never the stored hash (which
-        // plus the exposed salt would allow offline guessing). RLS keeps this 0
-        // for non-GMs.
-        supabase.from('channel_secrets').select('channel_id', { count: 'exact', head: true })
-          .eq('channel_id', channelId as string).not('password_hash', 'is', null)
-      ])
-      if (membersResponse.error) throw membersResponse.error
-
-      // The join to profiles might return an array if not configured correctly,
-      // but our schema links user_id to profiles(id) uniquely.
-      const formattedMembers = (membersResponse.data ?? []).flatMap(m => {
-        const member = parseRow(ChannelMemberRowSchema, m)
-        if (!member) return [] // malformed row — drop it, keep the rest usable
-        return [{
-          ...m,
-          ...member,
-          profile: normalizeProfileRef(m.profile)
-        } as ChannelMember]
-      })
-
-      if (mounted) {
-        // channel_secrets is GM-only (RLS); non-GMs get no row.
-        setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
-        setHasPassword((passwordResponse.count ?? 0) > 0)
-        setMembers(formattedMembers)
-        if (!boundaryCapturedRef.current) {
-          boundaryCapturedRef.current = true
-          setLastReadAt(formattedMembers.find(m => m.user_id === user?.id)?.last_read_at ?? null)
-        }
-      }
-      return formattedMembers
+      return () => { mountedRef.current = false }
     }
 
     async function fetchChannelData() {
@@ -151,10 +176,10 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         if (channelResponse.error) throw channelResponse.error
         const parsedChannel = parseRow(ChannelRowSchema, channelResponse.data)
         if (!parsedChannel) throw new Error('Channel data failed validation.')
-        if (mounted) setChannel(parsedChannel as Channel)
+        if (mountedRef.current) setChannel(parsedChannel as Channel)
 
         const formattedMembers = await loadMembers()
-        if (!mounted) return
+        if (!mountedRef.current) return
 
         // Mark read in background if we are a member. Only while the tab is
         // visible: a reconnect completing in a hidden tab must not mark
@@ -166,9 +191,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
-        if (mounted) setError(toError(err))
+        if (mountedRef.current) setError(toError(err))
       } finally {
-        if (mounted) setLoading(false)
+        if (mountedRef.current) setLoading(false)
       }
     }
 
@@ -183,7 +208,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         table: 'channels',
         filter: `id=eq.${channelId}`
       }, (payload) => {
-        if (mounted) {
+        if (mountedRef.current) {
           const next = parseRow(ChannelRowSchema, payload.new)
           if (next) setChannel(prev => prev ? { ...prev, ...next } as Channel : prev)
         }
@@ -200,7 +225,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         table: 'messages',
         filter: `channel_id=eq.${channelId}`
       }, () => {
-        if (!mounted || document.visibilityState !== 'visible' || !myMemberIdRef.current) return
+        if (!mountedRef.current || document.visibilityState !== 'visible' || !myMemberIdRef.current) return
         markRead(true)
       })
       .on('postgres_changes', {
@@ -212,7 +237,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         table: 'channel_members',
         filter: `channel_id=eq.${channelId}`
       }, (payload) => {
-        if (!mounted) return
+        if (!mountedRef.current) return
         if (payload.eventType === 'INSERT') {
           // Refetch to pick up the profile join for the new member.
           void loadMembers().catch(err => console.error('Error refreshing members:', err))
@@ -225,7 +250,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         }
       })
     const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}`, (status) => {
-      if (mounted && status === 'SUBSCRIBED') {
+      if (mountedRef.current && status === 'SUBSCRIBED') {
         if (firstSubscribe) {
           firstSubscribe = false
         } else {
@@ -254,7 +279,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      mounted = false
+      mountedRef.current = false
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       stopRealtime()
       void supabase.removeChannel(realtimeChannel)
@@ -266,5 +291,5 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   // markRead is exposed so the owner (ChannelView) can fire the deferred
   // history-first read-mark once the messages-loaded gate opens (#412).
-  return { channel, members, gmOnlyResourcesUrl, hasPassword, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch }
+  return { channel, members, gmOnlyResourcesUrl, hasPassword, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, refreshMembers }
 }

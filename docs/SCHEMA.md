@@ -85,7 +85,7 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `channel_id` | UUID, FK → channels | |
 | `user_id` | UUID, FK → profiles | |
 | `character_name` | text | |
-| `character_avatar_url` | text, nullable | |
+| `character_avatar_url` | text, nullable | Per-channel character portrait. A bare object path into the `images` bucket (`{channel_id}/character/{uuid}.jpg`) or an http(s) URL; max 500 characters. A member may set or clear their own row; the channel's GM may clear another member's row. Replaces the account picture in that channel only |
 | `character_notes` | text, nullable | Plain-text notes (no markdown), maximum 500 characters, shown in the member list |
 | `character_sheet_url` | text, nullable | Maximum 500 characters |
 | `away_message` | text, nullable | Maximum 200 characters |
@@ -204,7 +204,7 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **sub_channel_members**: Readable by the room's GM and by the member themselves. **No client write policy** — `set_sub_channel_audience` is the only writer.
 - **sub_channel_reads**: Own-row only (read, insert, update a user's own read mark).
 - **notification_preferences**: Users can only read/write their own row.
-- **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`upload-image`, which enforces the admin toggle, the size cap, the path shape, and GM-of-channel) may INSERT/UPDATE. Adding an INSERT/UPDATE policy on this bucket re-opens a bypass of those server-side gates. `images_delete` remains GM-gated. Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`. Uploads are stored unscanned; abusive uploads are handled through player reports.
+- **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`upload-image`, which enforces the admin toggle, the size cap, the path shape, and GM-of-channel — except for the `character` folder, where any active member of that channel may upload their own character portrait) may INSERT/UPDATE. Adding an INSERT/UPDATE policy on this bucket re-opens a bypass of those server-side gates. `images_delete` remains GM-gated. Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`. Uploads are stored unscanned; abusive uploads are handled through player reports.
 
 ### `app_settings`
 
@@ -221,7 +221,7 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 
 - **`admin_read_message(message_id)`** (SECURITY DEFINER, server admin only): returns one message with its sender and channel for report investigation, or no rows if the message no longer exists. Writes a `read_message` row to `audit_logs` on every call.
 - **`admin_list_user_messages(user_id, before, before_id, limit)`** (SECURITY DEFINER, server admin only): paged message history for a user, newest first, including soft-deleted rows (served by `messages_sender_created_idx`). Records a `list_user_messages` audit row. The cursor is `(created_at, id)` — `before_id` breaks ties between rows sharing a timestamp — and the admin modal pages with a "Load older messages" control.
-- **`upload-image` edge function**: the only writer of stored objects. Verifies the caller's JWT, checks the path shape and that the caller is the channel's GM, enforces the admin toggle (`image_uploading_enabled`) and the size cap (`image_max_size_mb`), then stores the object with the service role. Uploads are stored unscanned.
+- **`upload-image` edge function**: the only writer of stored objects. Verifies the caller's JWT, checks the path shape and that the caller may write it — the channel's GM for every folder, or any active member of that channel for the `character` folder (per-channel portraits) — enforces the admin toggle (`image_uploading_enabled`) and the size cap (`image_max_size_mb`), then stores the object with the service role. Uploads are stored unscanned.
 - **Admin image access**: there is no admin RPC for images. The `images_select` storage policy admits the server admin, so a reported image can be inspected through the Storage API or the dashboard.
 - **`admin_claim_channel(channel_id)`** (SECURITY DEFINER, server admin only): sets `channels.gm_id` to the caller for an orphaned (`gm_id IS NULL`) channel — no-op otherwise. Lets admins reclaim channels left behind by deleted GMs.
 - **`delete-account` edge function**: verifies the caller's JWT, rejects the sole server admin (would leave the app headless), then calls `auth.admin.deleteUser`. Cascades erase the user's profiles, memberships, dice rolls, reactions, preferences, and push subscriptions; their sent messages are anonymized (`sender_id SET NULL`) and whispers addressed to them are deleted (`whisper_to CASCADE`).
