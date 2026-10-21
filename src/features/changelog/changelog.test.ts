@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseChangelog, fnv1a, getRecentItems, getChangelogHash, getChangelogMarkdown, getPlayerChangelogMarkdown, stripAdminEntries } from './changelog'
+import { parseChangelog, fnv1a, getRecentItems, getChangelogHash, getChangelogMarkdown, getPlayerChangelogMarkdown, stripAdminEntries, CHANGELOG_RAW } from './changelog'
 
 const sample = `# Changelog
 
@@ -43,6 +43,14 @@ describe('parseChangelog', () => {
     const items = parseChangelog('- plain bullet without title')
     expect(items[0].title).toBe('plain bullet without title')
     expect(items[0].body).toBe('')
+  })
+
+  it('splits an entry that carries an italic marker between the title and the dash', () => {
+    // The marker belongs to the entry, not the title: the whole line used to
+    // land in the title, and the What's New modal printed the asterisks.
+    const items = parseChangelog('- **Remove a player\'s portrait** *(for GMs)* — the **⋯** menu has **Remove Portrait**.')
+    expect(items[0].title).toBe("Remove a player's portrait")
+    expect(items[0].body).toBe('*(for GMs)* the **⋯** menu has **Remove Portrait**.')
   })
 
   it('ignores non-bullet lines', () => {
@@ -103,6 +111,15 @@ describe('fnv1a', () => {
 })
 
 describe('changelog module', () => {
+  it('splits every entry in the real changelog into a title and a body', () => {
+    // The What's New modal renders the title as a heading and the body as
+    // markdown. An entry the parser cannot split ends up as one raw line with
+    // its asterisks visible, so every entry has to carry both parts.
+    const items = parseChangelog(CHANGELOG_RAW)
+    const broken = items.filter(item => !item.body || item.title.includes('*'))
+    expect(broken.map(item => item.title.slice(0, 60))).toEqual([])
+  })
+
   it('getRecentItems returns the 5 most recent items from the real changelog', () => {
     const items = getRecentItems(5)
     expect(items).toHaveLength(5)

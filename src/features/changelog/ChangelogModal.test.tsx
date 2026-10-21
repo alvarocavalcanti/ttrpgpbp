@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { ChangelogModal } from './ChangelogModal'
+import { getRecentItems } from './changelog'
 import type { ChangelogItem } from './changelog'
 
 const items: ChangelogItem[] = [
@@ -34,6 +35,22 @@ describe('ChangelogModal', () => {
     const code = screen.getByText('Rolled 1d20+3: 10 + 3 = **13**', { selector: 'code' })
     expect(code).toBeInTheDocument()
     expect(code.textContent).toContain('**13**')
+  })
+
+  it('renders the real changelog without leaking markdown into the headings', () => {
+    const realItems = getRecentItems(20)
+    render(
+      <MemoryRouter>
+        <ChangelogModal items={realItems} onDismiss={vi.fn()} onDismissForever={vi.fn()} onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+    const headings = screen.getAllByRole('heading', { level: 4 })
+    expect(headings.length).toBeGreaterThan(0)
+    // An entry the parser cannot split lands in the heading as one raw line,
+    // and the asterisks show up on screen.
+    for (const heading of headings) {
+      expect(heading.textContent).not.toContain('*')
+    }
   })
 
   it('links to the full changelog page', () => {
