@@ -64,6 +64,14 @@ export function getPlayerChangelogMarkdown(): string {
   return stripAdminEntries(CHANGELOG_RAW)
 }
 
+// A changelog entry is `**Title** — body`, optionally with an italic marker
+// between the title and the dash (`**Title** *(for GMs)* — body`). The marker
+// is part of the entry, not the title, so the split has to allow it: without
+// it the whole line (markdown and all) ends up in the title and the What's
+// New modal prints the asterisks. The marker stays in the body, so the reader
+// still sees who the entry is for.
+const CHANGELOG_ENTRY = /^\*\*(.+?)\*\*\s*((?:\*[^*]+\*\s*)?)—\s*(.*)$/
+
 export function parseChangelog(raw: string): ChangelogItem[] {
   const items: ChangelogItem[] = []
   let version = ''
@@ -76,12 +84,12 @@ export function parseChangelog(raw: string): ChangelogItem[] {
       section = ''
     } else if (line.startsWith('- ')) {
       const text = line.slice(2).trim()
-      const match = /^\*\*(.+?)\*\*\s*—\s*(.*)$/.exec(text)
+      const match = CHANGELOG_ENTRY.exec(text)
       items.push({
         version,
         section,
         title: match ? match[1] : text,
-        body: match ? match[2] : ''
+        body: match ? `${match[2]}${match[3]}` : ''
       })
     }
   }
