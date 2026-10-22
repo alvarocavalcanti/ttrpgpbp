@@ -127,6 +127,17 @@ describe('GameDetailPage', () => {
     expect(screen.getByRole('status', { name: 'Loading game' })).toBeInTheDocument()
   })
 
+  it('treats the pre-fetch frame after auth resolves as loading, not not-found', () => {
+    // The anon hook is disabled while auth resolves, then enables with an empty
+    // state for one render; the not-listed card must not flash.
+    mockDetail({ detail: null, loading: false, notFound: false, error: null })
+
+    renderPage()
+
+    expect(screen.getByRole('status', { name: 'Loading game' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: "This game isn't listed." })).not.toBeInTheDocument()
+  })
+
   it('marks the page noindex so /directory stays the indexed surface', () => {
     renderPage()
 

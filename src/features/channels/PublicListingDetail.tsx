@@ -7,6 +7,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { copyToClipboard } from '../../lib/clipboard'
 import { toError } from '../../lib/errors'
 import { trackEvent } from '../../lib/analytics'
+import { ROUTES } from '../../lib/publicRoutes'
 import { MAX_LISTING_REPORT_REASON_LENGTH } from '../../constants'
 import { channelTimestamp, gameSystemLabel } from './lobbyFormat'
 import { usePublicChannelApply } from './usePublicChannelApply'
@@ -123,7 +124,7 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
     <div className="flex justify-center items-center h-32" role="status" aria-label="Loading listing">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-500"></div>
     </div>
-  ) : error || !detail ? (
+  ) : error ? (
     <div
       role="alert"
       className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-3"
@@ -136,6 +137,20 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
       >
         Retry
       </button>
+    </div>
+  ) : !detail ? (
+    // No row is not a failure: the game stopped being listed, was archived or
+    // taken down, or the link is wrong. Retry cannot help.
+    <div className="rounded-md border border-surface-200 bg-white p-6 text-center dark:border-surface-700 dark:bg-surface-800">
+      <p className="text-sm text-surface-600 dark:text-surface-300">This game isn&apos;t listed.</p>
+      {!onClose && (
+        <Link
+          to={ROUTES.directory}
+          className="mt-2 inline-flex items-center min-h-11 text-sm font-semibold text-primary-700 dark:text-primary-300 hover:underline"
+        >
+          Browse games looking for players
+        </Link>
+      )}
     </div>
   ) : (
     <div className="space-y-4">

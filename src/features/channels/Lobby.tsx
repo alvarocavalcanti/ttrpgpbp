@@ -269,7 +269,7 @@ export function Lobby() {
       navigate(`/game/${gameMatch[1]}`)
       return
     }
-    setInviteError("That doesn't look like an invite link. Ask your GM for a link that contains /join/.")
+    setInviteError("That doesn't look like a game or invite link. Ask your GM for a link that contains /join/ or /game/.")
   }
 
   useEffect(() => {

@@ -168,6 +168,24 @@ describe('ChannelSettings', () => {
     })
   })
 
+  it('does not offer the public link until the listing is saved (#755)', () => {
+    render(
+      <ChannelSettings
+        channel={{ ...mockChannel, join_mode: 'invite' }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+      { wrapper: MemoryRouter },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listed — apply to join' }))
+
+    // The draft toggle shows the field, but the link only works once saved.
+    expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Copy' })[1]).toBeDisabled()
+    expect(screen.getByText('Save the listing to publish this link.')).toBeInTheDocument()
+  })
+
   it('hides the public game link for a private channel', () => {
     render(
       <ChannelSettings

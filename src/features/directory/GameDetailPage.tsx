@@ -45,6 +45,11 @@ export function GameDetailPage() {
     </div>
   )
 
+  // While auth resolves, the anon hook is disabled and reports no result. After
+  // it enables, the fetch has not started yet on the first render — treat that
+  // empty state as loading, so the not-listed card never flashes.
+  const pendingAnon = loading || (!detail && !error && !notFound)
+
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col">
       <Seo path={`/game/${channelId}`} title="Game looking for players — Role by Post" noindex />
@@ -65,7 +70,7 @@ export function GameDetailPage() {
               <PublicListingDetail channelId={channelId} gameSystem={null} />
             </div>
           </div>
-        ) : loading ? (
+        ) : loading || pendingAnon ? (
           <div className="pt-8">{spinner}</div>
         ) : error ? (
           <div

@@ -65,6 +65,8 @@
   Cache-Control: no-cache
 /join/:id
   Cache-Control: no-cache
+/game/:id
+  Cache-Control: no-cache
 /channel/:id
   Cache-Control: no-cache
 /help/*

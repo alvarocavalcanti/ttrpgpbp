@@ -212,7 +212,7 @@ describe('Lobby', () => {
     fireEvent.change(screen.getByLabelText('Paste an invite link'), { target: { value: 'not-a-link' } })
     fireEvent.submit(screen.getByLabelText('Paste an invite link').closest('form')!)
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/invite link/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/game or invite link/i)
   })
 
   it('empty state navigates to the join page from a pasted invite link', () => {

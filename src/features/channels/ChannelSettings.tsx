@@ -140,6 +140,9 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
   const publicGameLink = `${window.location.origin}/game/${channel.id}`
+  // Only a saved listing has a working public page: selecting "Listed" in the
+  // form does not publish until Save.
+  const listingPublished = channel.join_mode === 'approval'
 
   const handleCopy = async () => {
     try {
@@ -635,13 +638,16 @@ setIsSubmitting(true)
                         <button
                           type="button"
                           onClick={handleCopyPublicLink}
-                          className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700"
+                          disabled={!listingPublished}
+                          className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50 disabled:hover:bg-surface-50 dark:disabled:hover:bg-surface-900"
                         >
                           Copy
                         </button>
                       </div>
                       <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                        Share this anywhere — anyone can open it, read your listing, and sign in to apply.
+                        {listingPublished
+                          ? 'Share this anywhere — anyone can open it, read your listing, and sign in to apply.'
+                          : 'Save the listing to publish this link.'}
                       </p>
                     </div>
 

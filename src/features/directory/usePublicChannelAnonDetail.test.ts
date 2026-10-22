@@ -66,6 +66,42 @@ describe('usePublicChannelAnonDetail', () => {
     expect(result.current.notFound).toBe(true)
   })
 
+  it('treats a malformed channel id as notFound, not a fetch error', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: null,
+      error: { code: '22P02', message: 'invalid input syntax for type uuid: "abc"' },
+    } as never)
+
+    const { result } = renderHook(() => usePublicChannelAnonDetail('abc'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.notFound).toBe(true)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('ignores a stale response after the id changes', async () => {
+    let resolveFirst: (value: unknown) => void = () => {}
+    let resolveSecond: (value: unknown) => void = () => {}
+    vi.mocked(supabase.rpc)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }) as never)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve }) as never)
+
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => usePublicChannelAnonDetail(id),
+      { initialProps: { id: 'first' } },
+    )
+    rerender({ id: 'second' })
+
+    resolveSecond({ data: [{ ...anonRow, name: 'Second Game' }], error: null })
+    await waitFor(() => expect(result.current.detail?.name).toBe('Second Game'))
+
+    // The first game's response settles last; it must not overwrite the newer.
+    resolveFirst({ data: [{ ...anonRow, name: 'First Game' }], error: null })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(result.current.detail?.name).toBe('Second Game')
+  })
+
   it('skips the query without a channel id', () => {
     const { result } = renderHook(() => usePublicChannelAnonDetail(null))
     expect(result.current.loading).toBe(false)

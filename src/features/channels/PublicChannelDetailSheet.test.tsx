@@ -328,6 +328,15 @@ describe('PublicChannelDetailSheet', () => {
     })
   })
 
+  it('shows the not-listed state when the listing is gone', () => {
+    mockApply({ detail: null })
+
+    renderSheet()
+
+    expect(screen.getByText("This game isn't listed.")).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+  })
+
   it('copies the shareable public game link (#755)', async () => {
     const addToast = vi.fn()
     vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
