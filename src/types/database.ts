@@ -1351,6 +1351,7 @@ export type Database = {
           id: string
           is_archived: boolean
           name: string
+          status_text: string | null
           updated_at: string
           visibility: string
         }
@@ -1365,6 +1366,7 @@ export type Database = {
           id?: string
           is_archived?: boolean
           name: string
+          status_text?: string | null
           updated_at?: string
           visibility?: string
         }
@@ -1379,6 +1381,7 @@ export type Database = {
           id?: string
           is_archived?: boolean
           name?: string
+          status_text?: string | null
           updated_at?: string
           visibility?: string
         }
@@ -1929,7 +1932,11 @@ export type Database = {
         Returns: undefined
       }
       update_channel_status: {
-        Args: { p_channel_id: string; p_status_text: string }
+        Args: {
+          p_channel_id: string
+          p_status_text: string
+          p_sub_channel_id?: string
+        }
         Returns: undefined
       }
       update_sub_channel: {

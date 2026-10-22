@@ -29,7 +29,7 @@ Extends Supabase `auth.users`. Created automatically on first sign-in.
 | `invite_code` | text, unique | For invite link sharing |
 | `map_url` | text, nullable | External link; maximum 500 characters |
 | `resources_url` | text, nullable | External link; maximum 500 characters |
-| `status_text` | text, nullable | Free-form markdown (initiative, timers, etc.); maximum 2,000 characters |
+| `status_text` | text, nullable | Free-form markdown (initiative, timers, etc.) for **Main** (the room-less timeline); maximum 2,000 characters. A named room's status lives on `sub_channels.status_text` (#752) |
 | `last_message_at` | timestamptz, nullable | Set on message insert via trigger; used for lobby ordering |
 | `join_mode` | `channel_join_mode`, default `invite` | `invite` = today's private/invite-only channel; `approval` = **listed** (apply-only, discoverable) |
 | `description` | text, nullable | Listing copy, required non-blank when `join_mode = 'approval'`; maximum 600 characters |
@@ -130,6 +130,7 @@ parent `channel_id`; only the message room is new.
 | `name` | text | 1–40 characters after trim; unique per channel case-insensitively |
 | `is_archived` | boolean | Default `false`. Archived rooms leave the tab bar but stay readable. |
 | `visibility` | text | `all` (every member), `gm` (only the GM), or `private` (the GM + invited players). Default `all`. |
+| `status_text` | text, nullable | Free-form markdown status for this room (initiative, timers, etc.); maximum 2,000 characters. Main has no row here and uses `channels.status_text` (#752) |
 | `allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers` | boolean | Default `true`. Per-room capability flags (#621 Phase 2); Main is unrestricted. |
 | `created_by` | UUID, FK → profiles, nullable | `ON DELETE SET NULL` |
 | `created_at` / `updated_at` | timestamptz | |
@@ -256,7 +257,7 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, warning maximum 500 characters, modifier clamped to game-system bounds, DC success (meets beats), archived, membership, room belongs to channel, reply target same room, idempotency |
 | `moderate_member` | Block / unblock / kick / leave + system message | GM-only (block/unblock/kick), self-only (leave), GM is never removable |
 | `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field length limits |
-| `update_channel_status` | Update `channels.status_text` + system message | GM-only, suspended blocked, no-op (unchanged text) skipped, archived allowed (matches settings) |
+| `update_channel_status` | Update a room's status (`channels.status_text` for Main, `sub_channels.status_text` for a named room) + system message in that room | GM-only, suspended blocked, room must belong to the channel, no-op (unchanged text) skipped, archived allowed (matches settings) |
 | `join_channel` | Join + attributes + join system message | password/invite, archived, channel cap, attribute bounds |
 | `create_sub_channel` | Create a room | GM-only, suspended, archived channel, trimmed name 1–40 chars, unique per channel, not `Main` (reserved), hardcoded cap of 10 active rooms (server admins bypass) |
 | `update_sub_channel` | Rename, archive/restore, and set per-room capability flags (`allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers`) | GM-only, same name validation (reserved `Main` included); restoring at the active cap is rejected |

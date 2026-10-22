@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Links in your game listing** — paste a link into a listing's **Description** or **What you expect** and it becomes tappable for players: in the Discover tab, in the listing sheet, and on the public games page. Plain addresses keep working as text, and nothing else about the listing changes.
+- **Every room keeps its own status** — Main and each room now have their own status bar, so an initiative order or a timer in one room no longer shows up in another. Switch rooms and the bar switches with you, and when the GM changes a room's status the little system note appears in that room's chat. Active players stay shared across the channel.
 
 ## 2026-10-21
 

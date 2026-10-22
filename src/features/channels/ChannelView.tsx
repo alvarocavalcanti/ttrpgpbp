@@ -92,7 +92,7 @@ export function ChannelView() {
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
-  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, refetch: refetchRooms } = useSubChannels(id)
+  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
   // Pending applications (#674): the GM Tools badge below, and the queue inside
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
@@ -549,12 +549,16 @@ export function ChannelView() {
           onRetry={refetchRooms}
         />
 
+        {/* Remount per room: an unsaved draft (or a save error) must never
+            carry over and land on another room's status (#752). */}
         <ChannelStatusBar
+          key={subId ?? 'main'}
           channelId={channel.id}
-          statusText={channel.status_text}
+          subChannelId={subId ?? null}
+          statusText={subId ? (activeRoom?.status_text ?? null) : channel.status_text}
           activePlayers={members.filter(m => m.is_active_player && !m.is_blocked)}
           isGM={isGM}
-          onUpdate={refetch}
+          onUpdate={text => (subId ? patchRoomStatus(subId, text) : refetch())}
         />
 
         {messagesError && (

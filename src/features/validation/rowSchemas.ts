@@ -121,6 +121,7 @@ export const SubChannelRowSchema = z.looseObject({
   channel_id: z.string().nullish(),
   name: z.string().nullish(),
   is_archived: z.boolean().nullish(),
+  status_text: z.string().nullish(),
   visibility: z.string().nullish(),
   allow_dice: z.boolean().nullish(),
   allow_scenes: z.boolean().nullish(),

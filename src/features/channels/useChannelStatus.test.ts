@@ -13,13 +13,25 @@ describe('useChannelStatus', () => {
     vi.clearAllMocks()
   })
 
-  it('updates the status through the update_channel_status RPC', async () => {
+  it('updates the Main status through the update_channel_status RPC', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
 
     await expect(useChannelStatus().updateStatus('c1', 'On the road')).resolves.toBeNull()
     expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
       p_channel_id: 'c1',
-      p_status_text: 'On the road'
+      p_status_text: 'On the road',
+      p_sub_channel_id: undefined
+    })
+  })
+
+  it('scopes the update to a room when a room id is given', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    await expect(useChannelStatus().updateStatus('c1', 'Room status', 'r1')).resolves.toBeNull()
+    expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
+      p_channel_id: 'c1',
+      p_status_text: 'Room status',
+      p_sub_channel_id: 'r1'
     })
   })
 
@@ -29,7 +41,8 @@ describe('useChannelStatus', () => {
     await useChannelStatus().updateStatus('c1', '')
     expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
       p_channel_id: 'c1',
-      p_status_text: ''
+      p_status_text: '',
+      p_sub_channel_id: undefined
     })
   })
 

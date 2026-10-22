@@ -70,6 +70,12 @@ vi.mock('./useSafetyCardEvents', () => ({
   useSafetyCardEvents: vi.fn()
 }))
 
+const updateStatusMock = vi.hoisted(() => vi.fn())
+
+vi.mock('./useChannelStatus', () => ({
+  useChannelStatus: () => ({ updateStatus: updateStatusMock })
+}))
+
 const useMessagesMock = () => (useMessages as unknown as () => any)()
 
 // Room hooks default to "no rooms" so ChannelView renders the legacy layout;
@@ -84,6 +90,7 @@ beforeEach(() => {
     rename: vi.fn(),
     setArchived: vi.fn(),
     remove: vi.fn(),
+    patchRoomStatus: vi.fn(),
     refetch: vi.fn(),
   } as any)
   vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), refetch: vi.fn() } as any)
@@ -2781,7 +2788,7 @@ describe('ChannelView viewport scroll lock (#620)', () => {
 
 describe('ChannelView rooms (#621)', () => {
   const room = (over: Record<string, unknown> = {}) => ({
-    id: 'r1', channel_id: 'c1', name: 'OOC', is_archived: false,
+    id: 'r1', channel_id: 'c1', name: 'OOC', is_archived: false, status_text: null,
     allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true,
     created_by: 'u1', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z', ...over,
   })
@@ -2872,5 +2879,89 @@ describe('ChannelView rooms (#621)', () => {
     renderAt('/channel/c1/sub/r1')
 
     expect(screen.queryByRole('button', { name: 'Open dice roller' })).not.toBeInTheDocument()
+  })
+
+  it('shows the active room status, never the Main one', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1', status_text: 'Room status' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), patchRoomStatus: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', status_text: 'Main status' },
+      members: [], loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    expect(screen.getByText('Room status')).toBeInTheDocument()
+    expect(screen.queryByText('Main status')).not.toBeInTheDocument()
+  })
+
+  it('shows the Main status when no room is open', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1', status_text: 'Room status' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), patchRoomStatus: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', status_text: 'Main status' },
+      members: [], loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    expect(screen.getByText('Main status')).toBeInTheDocument()
+    expect(screen.queryByText('Room status')).not.toBeInTheDocument()
+  })
+
+  it('patches the open room on save instead of refetching the channel', async () => {
+    updateStatusMock.mockResolvedValue(null)
+    const patchRoomStatus = vi.fn()
+    const refetch = vi.fn()
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1', status_text: 'Room status' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), patchRoomStatus, refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', status_text: 'Main status' },
+      members: [], loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, gmOnlyResourcesUrl: null, refetch,
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByDisplayValue('Room status'), { target: { value: 'Updated room status' } })
+    fireEvent.click(screen.getByText('Save Status'))
+
+    await waitFor(() => expect(patchRoomStatus).toHaveBeenCalledWith('r1', 'Updated room status'))
+    expect(refetch).not.toHaveBeenCalled()
+  })
+
+  it('drops an unsaved draft when the GM switches rooms', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [
+        room({ id: 'r1', name: 'OOC', status_text: 'Room one' }),
+        room({ id: 'r2', name: 'Dice', status_text: 'Room two' }),
+      ],
+      archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), patchRoomStatus: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', status_text: 'Main status' },
+      members: [], loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByDisplayValue('Room one'), { target: { value: 'Half-written draft' } })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dice' }))
+
+    // The editor must not survive the switch: saving it would overwrite the
+    // other room's status.
+    expect(screen.queryByText('Save Status')).not.toBeInTheDocument()
+    expect(screen.getByText('Room two')).toBeInTheDocument()
   })
 })

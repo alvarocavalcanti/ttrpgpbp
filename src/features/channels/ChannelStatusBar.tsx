@@ -13,13 +13,15 @@ interface ActivePlayer {
 
 interface ChannelStatusBarProps {
   channelId: string
+  // Room whose status this bar shows (#752). Null/omitted = Main.
+  subChannelId?: string | null
   statusText: string | null
   activePlayers: ActivePlayer[]
   isGM: boolean
-  onUpdate: () => void
+  onUpdate: (savedText: string) => void
 }
 
-export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, onUpdate }: ChannelStatusBarProps) {
+export function ChannelStatusBar({ channelId, subChannelId = null, statusText, activePlayers, isGM, onUpdate }: ChannelStatusBarProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(statusText || '')
@@ -35,12 +37,12 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
     setIsSubmitting(true)
     setError(null)
     try {
-      const updateError = await updateStatus(channelId, editContent)
+      const updateError = await updateStatus(channelId, editContent, subChannelId)
 
       if (updateError) throw updateError
       
       setIsEditing(false)
-      onUpdate()
+      onUpdate(editContent)
     } catch (err) {
       console.error('Error saving status:', err)
       setError('Failed to save status.')
@@ -128,7 +130,13 @@ export function ChannelStatusBar({ channelId, statusText, activePlayers, isGM, o
           {isGM && !isEditing && (
             <button
               type="button"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                // Seed from the current room's status: the component stays
+                // mounted across room switches, so a leftover draft would
+                // overwrite the newly opened room's status (#752).
+                setEditContent(statusText || '')
+                setIsEditing(true)
+              }}
               className="inline-flex items-center min-h-11 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 text-xs font-medium px-2 py-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors"
             >
               Edit
