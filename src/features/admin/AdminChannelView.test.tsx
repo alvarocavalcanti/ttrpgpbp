@@ -95,6 +95,29 @@ describe('AdminChannelView', () => {
     expect(screen.getByText('2 pending')).toBeInTheDocument()
   })
 
+  it('makes links in the listing copy tappable so a report can be judged (#674)', async () => {
+    vi.mocked(useAdminChannelMessages).mockReturnValue(
+      baseHook({
+        channel: {
+          ...baseChannel,
+          pending_request_count: 2,
+          description: 'Recruiting at https://example.com/recruit.',
+          constraints: 'Notes: www.example.com/notes',
+        },
+      }) as any,
+    )
+
+    renderView()
+
+    const descriptionLink = await screen.findByRole('link', { name: 'https://example.com/recruit' })
+    expect(descriptionLink).toHaveAttribute('href', 'https://example.com/recruit')
+    expect(descriptionLink).toHaveAttribute('rel', 'noopener noreferrer nofollow ugc')
+    expect(screen.getByRole('link', { name: 'www.example.com/notes' })).toHaveAttribute(
+      'href',
+      'https://www.example.com/notes',
+    )
+  })
+
   it('shows a taken-down listing as taken down, not private (#674)', async () => {
     vi.mocked(useAdminChannelMessages).mockReturnValue(
       baseHook({

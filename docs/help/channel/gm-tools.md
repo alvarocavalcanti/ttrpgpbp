@@ -55,6 +55,8 @@ To list a game you must write a **Description** (what the game is about) and **W
 
 Listing a channel is public: the description and what you expect are shown to anyone, and search engines can index them. Messages and player details never are. Once a channel is listed, players apply and you decide.
 
+Web links you paste into the description or what you expect become tappable wherever the listing appears — players can open them in a new tab. Use full addresses (`https://example.com` or `www.example.com`); plain words are left alone.
+
 ## Join requests
 
 Below the Discovery section, **Join requests (N)** lists everyone waiting on you — their character name, their answer, and when they applied. **Approve** adds them as a member straight away (the name they gave becomes their character name) and **Reject** closes the application; either way they're notified. There's a count badge on the channel's **Settings** button and on the channel's row in the lobby, so a new application is visible without opening the channel.

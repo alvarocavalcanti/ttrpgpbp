@@ -105,6 +105,26 @@ describe('PublicChannelDetailSheet', () => {
     expect(container.querySelector('b')).toBeNull()
   })
 
+  it('makes links in the description and expectations tappable', () => {
+    mockApply({
+      detail: {
+        ...detail,
+        description: 'Recruiting at https://example.com/recruit.',
+        constraints: 'Session notes: www.example.com/notes',
+      },
+    })
+
+    renderSheet()
+
+    const descriptionLink = screen.getByRole('link', { name: 'https://example.com/recruit' })
+    expect(descriptionLink).toHaveAttribute('href', 'https://example.com/recruit')
+    expect(descriptionLink).toHaveAttribute('target', '_blank')
+    expect(descriptionLink).toHaveAttribute('rel', 'noopener noreferrer nofollow ugc')
+
+    const constraintsLink = screen.getByRole('link', { name: 'www.example.com/notes' })
+    expect(constraintsLink).toHaveAttribute('href', 'https://www.example.com/notes')
+  })
+
   it('fires listing_open once on open', () => {
     mockApply()
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LinkifiedText } from '../../components/LinkifiedText'
 import { Seo } from '../../components/Seo'
 import { isPrerender } from '../../lib/automation'
 import { ROUTES } from '../../lib/publicRoutes'
@@ -90,20 +91,24 @@ export function DirectoryPage() {
                   // The projection carries no id by design, and this list only
                   // ever appends, so the index is a stable key here.
                   <li key={index}>
-                    <Link
-                      to={ROUTES.login}
-                      onClick={handleSignInClick}
-                      className="block rounded-md border border-surface-200 bg-white p-4 shadow-sm transition-colors hover:border-primary-300 hover:bg-surface-50 dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-700 dark:hover:bg-surface-700"
-                    >
+                    {/* The description sits outside the sign-in anchor: a
+                        GM-authored link inside it would nest anchors. */}
+                    <div className="rounded-md border border-surface-200 bg-white p-4 shadow-sm transition-colors hover:border-primary-300 hover:bg-surface-50 dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-700 dark:hover:bg-surface-700">
                       <h2 className="text-base font-semibold text-surface-900 dark:text-surface-100">
-                        {channel.name}
+                        <Link
+                          to={ROUTES.login}
+                          onClick={handleSignInClick}
+                          className="hover:underline focus-visible:ring-2 focus-visible:ring-primary-500"
+                        >
+                          {channel.name}
+                        </Link>
                       </h2>
                       {channel.description && (
                         <p className="mt-1 line-clamp-3 text-sm text-surface-600 dark:text-surface-400">
-                          {channel.description}
+                          <LinkifiedText text={channel.description} />
                         </p>
                       )}
-                    </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

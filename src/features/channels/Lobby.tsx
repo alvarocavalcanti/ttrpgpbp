@@ -15,6 +15,7 @@ import { useAppSetting } from '../../hooks/useAppSetting'
 import { useDebounce } from '../../hooks/useDebounce'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { SignedImg } from '../../components/SignedImg'
+import { LinkifiedText } from '../../components/LinkifiedText'
 import { refreshAppBadge } from '../../lib/channelRead'
 import { scrubSpoilers } from '../../lib/spoilerScrub'
 import { trackEvent } from '../../lib/analytics'
@@ -450,37 +451,44 @@ export function Lobby() {
                     {discover.channels.map((channel) => {
                       const memberCount = channel.member_count ?? 0
                       const activity = channelTimestamp(channel.last_message_at)
+                      // The card body is a div, not the button: only a div may
+                      // contain the description's links. The button stays as an
+                      // overlay so the whole card is still tappable.
                       return (
-                        <li key={channel.id}>
+                        <li key={channel.id} className="relative">
                           <button
                             type="button"
                             data-testid="discover-card"
+                            aria-label={`Open ${channel.name}`}
                             onClick={() => setSelectedListing({ id: channel.id, gameSystem: channel.game_system ?? null })}
-                            className="block w-full text-left hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
-                          >
-                            <div className="flex items-start px-3 py-3 sm:px-6 gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 flex-shrink-0">
-                                {(channel.name[0] || '#').toUpperCase()}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-base font-medium text-primary-600 dark:text-primary-400 truncate">
-                                    {channel.name}
-                                  </span>
-                                  <span className="flex-shrink-0 text-xs text-surface-400 dark:text-surface-400 truncate">
-                                    GM {channel.gm_display_name ?? 'unknown'}
-                                  </span>
-                                </div>
-                                <p className="mt-0.5 text-sm text-surface-500 dark:text-surface-400 line-clamp-2">
-                                  {channel.description}
-                                </p>
-                                <p className="mt-0.5 text-xs text-surface-400 dark:text-surface-400">
-                                  {gameSystemLabel(channel.game_system)} · {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                                  {activity ? ` · ${activity}` : ''}
-                                </p>
-                              </div>
+                            className="absolute inset-0 z-0 w-full text-left hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500"
+                          />
+                          <div className="relative z-10 pointer-events-none flex items-start px-3 py-3 sm:px-6 gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 flex-shrink-0">
+                              {(channel.name[0] || '#').toUpperCase()}
                             </div>
-                          </button>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-base font-medium text-primary-600 dark:text-primary-400 truncate">
+                                  {channel.name}
+                                </span>
+                                <span className="flex-shrink-0 text-xs text-surface-400 dark:text-surface-400 truncate">
+                                  GM {channel.gm_display_name ?? 'unknown'}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-sm text-surface-500 dark:text-surface-400 line-clamp-2">
+                                {channel.description && (
+                                  <span className="pointer-events-auto">
+                                    <LinkifiedText text={channel.description} />
+                                  </span>
+                                )}
+                              </p>
+                              <p className="mt-0.5 text-xs text-surface-400 dark:text-surface-400">
+                                {gameSystemLabel(channel.game_system)} · {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                                {activity ? ` · ${activity}` : ''}
+                              </p>
+                            </div>
+                          </div>
                         </li>
                       )
                     })}
