@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-22
+
+### Added
+
+- **Links in your game listing** — paste a link into a listing's **Description** or **What you expect** and it becomes tappable for players: in the Discover tab, in the listing sheet, and on the public games page. Plain addresses keep working as text, and nothing else about the listing changes.
+
 ## 2026-10-21
 
 ### Added

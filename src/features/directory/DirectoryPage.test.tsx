@@ -55,7 +55,7 @@ describe('DirectoryPage', () => {
     expect(screen.getByText(/Messages and player details always stay inside the campaign/)).toBeInTheDocument()
   })
 
-  it('never offers anything but sign-in: every card links to /login', () => {
+  it('never offers anything but sign-in: every card heading links to /login', () => {
     renderPage()
 
     const links = screen.getAllByRole('link', { name: /Weekly Delves|Dungeon Crawl/ })
@@ -63,6 +63,36 @@ describe('DirectoryPage', () => {
     for (const link of links) {
       expect(link).toHaveAttribute('href', '/login')
     }
+  })
+
+  it('makes links in a listing description tappable without nesting anchors', () => {
+    mockChannels({
+      channels: [
+        {
+          name: 'Weekly Delves',
+          description: 'Recruiting at https://example.com/recruit — post most days.',
+        },
+      ],
+    })
+
+    const { container } = renderPage()
+
+    const external = screen.getByRole('link', { name: 'https://example.com/recruit' })
+    expect(external).toHaveAttribute('href', 'https://example.com/recruit')
+    expect(external).toHaveAttribute('target', '_blank')
+    expect(external).toHaveAttribute('rel', 'noopener noreferrer nofollow ugc')
+    // The sign-in anchor must not wrap the description link.
+    expect(container.querySelector('a a')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Weekly Delves' })).toHaveAttribute('href', '/login')
+  })
+
+  it('renders HTML-shaped description text as text, never HTML', () => {
+    mockChannels({ channels: [{ name: 'Weekly Delves', description: '<b>not bold</b>' }] })
+
+    const { container } = renderPage()
+
+    expect(screen.getByText('<b>not bold</b>')).toBeInTheDocument()
+    expect(container.querySelector('b')).toBeNull()
   })
 
   it('fires directory_signin_click when a card is clicked', () => {

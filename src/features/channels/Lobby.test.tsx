@@ -978,6 +978,36 @@ describe('Lobby', () => {
       expect(screen.getByTestId('detail-sheet')).toHaveTextContent('c1')
     })
 
+    it('makes description links tappable without opening the sheet', () => {
+      withMyChannels(oneChannel)
+      mockDiscover([{ ...card, description: 'Recruiting at https://example.com/recruit.' }])
+      render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+      const link = screen.getByRole('link', { name: 'https://example.com/recruit' })
+      expect(link).toHaveAttribute('href', 'https://example.com/recruit')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer nofollow ugc')
+
+      // jsdom cannot navigate: cancel the default so the click is observable
+      // without a "Not implemented: navigation" leak.
+      link.addEventListener('click', (event) => event.preventDefault(), { once: true })
+      fireEvent.click(link)
+
+      expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument()
+      // The rest of the card still opens the listing.
+      expect(screen.getByTestId('discover-card')).toHaveAccessibleName('Open Dragon Hunt')
+
+      // Only the anchors opt back into pointer events; plain description text
+      // must stay transparent to clicks so the card button under it opens.
+      const paragraph = link.closest('p')!
+      expect(paragraph.className).toContain('[&_a]:pointer-events-auto')
+      for (let element = link.parentElement; element && element !== paragraph; element = element.parentElement) {
+        expect(element.className).not.toContain('pointer-events-auto')
+      }
+    })
+
     it('reads and writes the ?tab=discover URL param', () => {
       withMyChannels(oneChannel)
       render(
