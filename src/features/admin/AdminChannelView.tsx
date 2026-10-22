@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { LinkifiedText } from '../../components/LinkifiedText'
 import { Markdown } from '../../components/Markdown'
 import { SignedImg } from '../../components/SignedImg'
 import { useAdminChannelMessages, type AdminChannelMessage } from './useAdminChannelMessages'
@@ -161,11 +162,15 @@ export function AdminChannelView() {
             <dl className="mt-2 space-y-2 text-sm">
               <div>
                 <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">Description</dt>
-                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">{channel.description || '—'}</dd>
+                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">
+                  {channel.description ? <LinkifiedText text={channel.description} /> : '—'}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">What the GM expects</dt>
-                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">{channel.constraints || '—'}</dd>
+                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">
+                  {channel.constraints ? <LinkifiedText text={channel.constraints} /> : '—'}
+                </dd>
               </div>
             </dl>
           </div>

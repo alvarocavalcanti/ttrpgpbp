@@ -32,7 +32,7 @@ test.describe('Listed channel created up front, and the decision lands in the lo
     // It is listed: the Lobby's Discover tab finds it without a settings trip.
     await gmPage.goto('/?tab=discover');
     await gmPage.getByLabel('Search games').fill(channelName);
-    await expect(gmPage.getByTestId('discover-card').filter({ hasText: channelName })).toBeVisible();
+    await expect(gmPage.getByRole('button', { name: `Open ${channelName}` })).toBeVisible();
 
     // ── Applicant: apply ──────────────────────────────────────────────────
     const applicantContext = await browser.newContext();
@@ -42,7 +42,7 @@ test.describe('Listed channel created up front, and the decision lands in the lo
 
     await applicantPage.goto('/?tab=discover');
     await applicantPage.getByLabel('Search games').fill(channelName);
-    await applicantPage.getByTestId('discover-card').filter({ hasText: channelName }).click();
+    await applicantPage.getByRole('button', { name: `Open ${channelName}` }).click();
     await applicantPage.getByLabel('Character name').fill('Aria');
     await applicantPage.getByRole('button', { name: 'Apply to join' }).click();
     await expect(applicantPage.getByText('Your application is waiting')).toBeVisible();
@@ -96,7 +96,7 @@ test.describe('Listed channel created up front, and the decision lands in the lo
     await dismissWhatsNew(applicantPage);
     await applicantPage.goto('/?tab=discover');
     await applicantPage.getByLabel('Search games').fill(channelName);
-    await applicantPage.getByTestId('discover-card').filter({ hasText: channelName }).click();
+    await applicantPage.getByRole('button', { name: `Open ${channelName}` }).click();
     await applicantPage.getByLabel('Character name').fill('Borin');
     await applicantPage.getByRole('button', { name: 'Apply to join' }).click();
     await expect(applicantPage.getByText('Your application is waiting')).toBeVisible();

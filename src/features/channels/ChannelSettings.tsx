@@ -620,7 +620,7 @@ setIsSubmitting(true)
                         className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                       />
                       <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                        What the game is about. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
+                        What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
                       </p>
                     </div>
 
@@ -637,7 +637,7 @@ setIsSubmitting(true)
                         className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                       />
                       <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                        Posting pace, tone, safety expectations. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
+                        Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
                       </p>
                     </div>
 

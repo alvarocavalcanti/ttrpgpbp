@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BottomSheet } from '../../components/BottomSheet'
+import { LinkifiedText } from '../../components/LinkifiedText'
 import { TextPromptSheet } from '../../components/TextPromptSheet'
 import { useToast } from '../../contexts/ToastContext'
 import { toError } from '../../lib/errors'
@@ -130,14 +131,14 @@ export function PublicChannelDetailSheet({ channelId, gameSystem, onClose }: Pub
           {detail.description && (
             <div>
               <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">About this game</h4>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">{detail.description}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300"><LinkifiedText text={detail.description} /></p>
             </div>
           )}
 
           {detail.constraints && (
             <div>
               <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">What the GM expects</h4>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">{detail.constraints}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300"><LinkifiedText text={detail.constraints} /></p>
             </div>
           )}
 
