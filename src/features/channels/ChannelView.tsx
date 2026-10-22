@@ -557,7 +557,10 @@ export function ChannelView() {
           subChannelId={subId ?? null}
           statusText={subId ? (activeRoom?.status_text ?? null) : channel.status_text}
           activePlayers={members.filter(m => m.is_active_player && !m.is_blocked)}
-          isGM={isGM}
+          // A deep-linked room that has not resolved yet has no status to show;
+          // editing would save an empty draft over the real one, so keep the
+          // bar read-only until the room row is available (#752).
+          isGM={isGM && (!subId || !!activeRoom)}
           onUpdate={text => (subId ? patchRoomStatus(subId, text) : refetch())}
         />
 

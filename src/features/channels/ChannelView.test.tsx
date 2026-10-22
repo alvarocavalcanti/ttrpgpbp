@@ -2938,6 +2938,24 @@ describe('ChannelView rooms (#621)', () => {
     expect(refetch).not.toHaveBeenCalled()
   })
 
+  it('keeps the bar read-only while a deep-linked room is unresolved', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [], archivedRooms: [], loading: true, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), patchRoomStatus: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', status_text: 'Main status' },
+      members: [], loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    // Saving here would write an empty draft over the room's real status.
+    expect(screen.queryByText('Edit')).not.toBeInTheDocument()
+    expect(screen.queryByText('No status set.')).not.toBeInTheDocument()
+  })
+
   it('drops an unsaved draft when the GM switches rooms', () => {
     vi.mocked(useSubChannels).mockReturnValue({
       subChannels: [
