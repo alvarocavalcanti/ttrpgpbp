@@ -107,6 +107,25 @@ describe('splitLinks', () => {
     expect(links('example.com/recruit')).toEqual([])
   })
 
+  it('refuses candidates embedded in a word, email, or another URI', () => {
+    // Email local part: the domain is not a link of its own.
+    expect(links('gm@www.example.com')).toEqual([])
+    expect(flat('gm@www.example.com')).toBe('gm@www.example.com')
+    // Inside another scheme's path.
+    expect(links('ftp://www.example.com/file')).toEqual([])
+    // Right after an opaque scheme, with no space.
+    expect(links('javascript:https://example.com')).toEqual([])
+    // Glued to the end of a word.
+    expect(links('42https://example.com')).toEqual([])
+    // Still fine at a real boundary.
+    expect(links('(https://example.com)')).toEqual([
+      { text: 'https://example.com', href: 'https://example.com' },
+    ])
+    expect(links('Links, https://example.com')).toEqual([
+      { text: 'https://example.com', href: 'https://example.com' },
+    ])
+  })
+
   it('leaves a malformed candidate inert instead of dropping it', () => {
     expect(flat('https:// then https://example.com')).toBe('https:// then https://example.com')
     expect(links('https:// then https://example.com')).toEqual([

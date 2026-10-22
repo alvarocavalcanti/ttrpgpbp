@@ -998,6 +998,14 @@ describe('Lobby', () => {
       expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument()
       // The rest of the card still opens the listing.
       expect(screen.getByTestId('discover-card')).toHaveAccessibleName('Open Dragon Hunt')
+
+      // Only the anchors opt back into pointer events; plain description text
+      // must stay transparent to clicks so the card button under it opens.
+      const paragraph = link.closest('p')!
+      expect(paragraph.className).toContain('[&_a]:pointer-events-auto')
+      for (let element = link.parentElement; element && element !== paragraph; element = element.parentElement) {
+        expect(element.className).not.toContain('pointer-events-auto')
+      }
     })
 
     it('reads and writes the ?tab=discover URL param', () => {

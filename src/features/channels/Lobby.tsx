@@ -476,12 +476,8 @@ export function Lobby() {
                                   GM {channel.gm_display_name ?? 'unknown'}
                                 </span>
                               </div>
-                              <p className="mt-0.5 text-sm text-surface-500 dark:text-surface-400 line-clamp-2">
-                                {channel.description && (
-                                  <span className="pointer-events-auto">
-                                    <LinkifiedText text={channel.description} />
-                                  </span>
-                                )}
+                              <p className="mt-0.5 text-sm text-surface-500 dark:text-surface-400 line-clamp-2 [&_a]:pointer-events-auto">
+                                {channel.description && <LinkifiedText text={channel.description} />}
                               </p>
                               <p className="mt-0.5 text-xs text-surface-400 dark:text-surface-400">
                                 {gameSystemLabel(channel.game_system)} · {memberCount} {memberCount === 1 ? 'member' : 'members'}

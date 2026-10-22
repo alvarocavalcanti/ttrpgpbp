@@ -13,6 +13,11 @@ export interface TextPart {
 // markup around it.
 const CANDIDATE = /(?:https?:\/\/|www\.)[^\s<>"']+/gi
 
+// A candidate must start a word: not inside an email local part
+// (`gm@www.example.com`) or the path/body of a longer URI
+// (`ftp://www.example.com`, `javascript:https://example.com`).
+const BLOCKING_BEFORE = /[\w@/:%-]/
+
 const TRAILING_PUNCTUATION = /[.,;:!?]+$/
 
 const CLOSER_OPENER: Record<string, string> = { ')': '(', ']': '[', '}': '{' }
@@ -66,6 +71,8 @@ export function splitLinks(text: string): TextPart[] {
   for (const match of text.matchAll(CANDIDATE)) {
     const start = match.index
     const raw = match[0]
+    // Embedded in a word, an email address, or another URI: leave it as text.
+    if (start > 0 && BLOCKING_BEFORE.test(text[start - 1])) continue
     const display = trimTrailing(raw)
     const href = toHref(display)
     // An unusable candidate is left in the surrounding text run below.
