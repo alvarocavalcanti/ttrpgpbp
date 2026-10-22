@@ -23,6 +23,9 @@ import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
 
 // Invite links point at /join/:channelId; users paste the whole URL.
 const INVITE_LINK_PATTERN = /\/join\/([0-9a-fA-F-]{8,64})/
+// #755: a GM's public game link. Opens the shareable /game/:id page instead of
+// joining directly, so the player reads the listing and applies.
+const PUBLIC_GAME_LINK_PATTERN = /\/game\/([0-9a-fA-F-]{8,64})/
 
 type LobbyTab = 'my' | 'discover'
 
@@ -251,13 +254,22 @@ export function Lobby() {
 
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const match = inviteInput.trim().match(INVITE_LINK_PATTERN)
-    if (!match) {
-      setInviteError("That doesn't look like an invite link. Ask your GM for a link that contains /join/.")
+    const trimmed = inviteInput.trim()
+    // Invite links join directly; public game links open the listing page
+    // (#755). Check /join first so a link carrying both still joins.
+    const inviteMatch = trimmed.match(INVITE_LINK_PATTERN)
+    if (inviteMatch) {
+      setInviteError(null)
+      navigate(`/join/${inviteMatch[1]}`)
       return
     }
-    setInviteError(null)
-    navigate(`/join/${match[1]}`)
+    const gameMatch = trimmed.match(PUBLIC_GAME_LINK_PATTERN)
+    if (gameMatch) {
+      setInviteError(null)
+      navigate(`/game/${gameMatch[1]}`)
+      return
+    }
+    setInviteError("That doesn't look like a game or invite link. Ask your GM for a link that contains /join/ or /game/.")
   }
 
   useEffect(() => {

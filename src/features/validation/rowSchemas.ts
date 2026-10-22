@@ -187,6 +187,22 @@ export const AnonPublicChannelRowSchema = z.looseObject({
 
 export type AnonPublicChannel = z.infer<typeof AnonPublicChannelRowSchema>
 
+// The anonymous /game/:id page projection (#755): the GM-authored listing copy
+// a signed-out visitor can read before signing in. Smaller than the signed-in
+// get_public_channel detail by design — no member count, activity, or
+// membership state. The server-side projection is pinned by its own pgTAP
+// assertion.
+export const AnonPublicChannelDetailRowSchema = z.looseObject({
+  name: z.string(),
+  game_system: z.string().nullish(),
+  description: z.string().nullish(),
+  constraints: z.string().nullish(),
+  application_prompt: z.string().nullish(),
+  gm_display_name: z.string().nullish(),
+})
+
+export type AnonPublicChannelDetail = z.infer<typeof AnonPublicChannelDetailRowSchema>
+
 // A join application on a listed channel (#674). Read straight from
 // channel_join_requests, which RLS scopes to the applicant and the channel's GM.
 export const JoinRequestRowSchema = z.looseObject({

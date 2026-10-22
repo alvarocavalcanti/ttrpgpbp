@@ -139,6 +139,10 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   }
 
   const inviteLink = `${window.location.origin}/join/${channel.id}?code=${channel.invite_code}`
+  const publicGameLink = `${window.location.origin}/game/${channel.id}`
+  // Only a saved listing has a working public page: selecting "Listed" in the
+  // form does not publish until Save.
+  const listingPublished = channel.join_mode === 'approval'
 
   const handleCopy = async () => {
     try {
@@ -147,6 +151,18 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     } catch (err) {
       console.error('Failed to copy', err)
       addToast('Failed to copy invite link', 'error')
+    }
+  }
+
+  // #755: the link a GM posts on Reddit or a forum. It resolves to the public
+  // game page, where anyone can read the listing and sign in to apply.
+  const handleCopyPublicLink = async () => {
+    try {
+      await copyToClipboard(publicGameLink)
+      addToast('Public game link copied!', 'success')
+    } catch (err) {
+      console.error('Failed to copy', err)
+      addToast('Failed to copy public game link', 'error')
     }
   }
 
@@ -607,6 +623,34 @@ setIsSubmitting(true)
 
                 {joinMode === 'approval' && (
                   <div className="mt-4 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Public game link
+                      </label>
+                      <div className="mt-1 flex rounded-md shadow-sm">
+                        <input
+                          type="text"
+                          readOnly
+                          aria-label="Public game link"
+                          value={publicGameLink}
+                          className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCopyPublicLink}
+                          disabled={!listingPublished}
+                          className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50 disabled:hover:bg-surface-50 dark:disabled:hover:bg-surface-900"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                        {listingPublished
+                          ? 'Share this anywhere — anyone can open it, read your listing, and sign in to apply.'
+                          : 'Save the listing to publish this link.'}
+                      </p>
+                    </div>
+
                     <div>
                       <label htmlFor="listingDescription" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
                         Description

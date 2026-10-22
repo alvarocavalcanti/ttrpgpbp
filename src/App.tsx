@@ -47,6 +47,7 @@ const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').the
 const AboutPage = lazy(() => import('./features/auth/AboutPage').then(m => ({ default: m.AboutPage })))
 const Lobby = lazy(() => import('./features/channels/Lobby').then(m => ({ default: m.Lobby })))
 const JoinChannel = lazy(() => import('./features/channels/JoinChannel').then(m => ({ default: m.JoinChannel })))
+const GameDetailPage = lazy(() => import('./features/directory/GameDetailPage').then(m => ({ default: m.GameDetailPage })))
 const ChannelView = lazy(() => import('./features/channels/ChannelView').then(m => ({ default: m.ChannelView })))
 const ArchivedChannels = lazy(() => import('./features/channels/ArchivedChannels').then(m => ({ default: m.ArchivedChannels })))
 const AdminView = lazy(() => import('./features/admin/AdminView').then(m => ({ default: m.AdminView })))
@@ -473,6 +474,9 @@ export default function App() {
                 <Route path={ROUTES.gameSystem} element={<GameSystemPage />} />
                 <Route path={ROUTES.playByPost} element={<ContentPage />} />
                 <Route path={ROUTES.directory} element={<DirectoryPage />} />
+                {/* Shareable public game page (#755): outside ProtectedRoute so a
+                    signed-out visitor from an external link sees the listing. */}
+                <Route path={ROUTES.game} element={<Lazy><GameDetailPage /></Lazy>} />
                 <Route path={ROUTES.howToDnd} element={<ContentPage />} />
                 <Route path={ROUTES.howToRun} element={<ContentPage />} />
                 <Route path={ROUTES.vsDiscord} element={<ContentPage />} />

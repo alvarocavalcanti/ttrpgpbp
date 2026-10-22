@@ -148,6 +148,57 @@ describe('ChannelSettings', () => {
     })
   })
 
+  it('shows and copies the public game link for a listed channel (#755)', async () => {
+    render(
+      <ChannelSettings
+        channel={{ ...mockChannel, join_mode: 'approval' }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+      { wrapper: MemoryRouter },
+    )
+
+    expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
+    // The invite-link Copy comes first in the DOM; the public-link Copy is next.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[1])
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost/game/c1')
+      expect(mockAddToast).toHaveBeenCalledWith('Public game link copied!', 'success')
+    })
+  })
+
+  it('does not offer the public link until the listing is saved (#755)', () => {
+    render(
+      <ChannelSettings
+        channel={{ ...mockChannel, join_mode: 'invite' }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+      { wrapper: MemoryRouter },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listed — apply to join' }))
+
+    // The draft toggle shows the field, but the link only works once saved.
+    expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Copy' })[1]).toBeDisabled()
+    expect(screen.getByText('Save the listing to publish this link.')).toBeInTheDocument()
+  })
+
+  it('hides the public game link for a private channel', () => {
+    render(
+      <ChannelSettings
+        channel={{ ...mockChannel, join_mode: 'invite' }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+      { wrapper: MemoryRouter },
+    )
+
+    expect(screen.queryByDisplayValue('http://localhost/game/c1')).not.toBeInTheDocument()
+  })
+
   it('saves changes through update_channel_settings', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)

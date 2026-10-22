@@ -104,4 +104,10 @@ describe('Cache-Control (public/_headers)', () => {
     expect(content).toMatch(/\n\/\n\s+Cache-Control: no-cache/)
     expect(content).toMatch(/\/app-shell\n\s+Cache-Control: no-cache/)
   })
+
+  it('never caches an app deep link, including the shared game page (#755)', () => {
+    const content = fs.readFileSync(HEADERS_PATH, 'utf-8')
+    expect(content).toMatch(/\/join\/:id\n\s+Cache-Control: no-cache/)
+    expect(content).toMatch(/\/game\/:id\n\s+Cache-Control: no-cache/)
+  })
 })
