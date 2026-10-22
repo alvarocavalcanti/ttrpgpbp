@@ -34,6 +34,7 @@ A restricted room shows a **lock** in the room bar.
 ## What's shared, what's separate
 
 - **Unread** is counted per room, so a dot on a room means new messages there
+- **Status** is per room too — Main and each room keep their own status bar, so an initiative order in one room never shows up in another
 - **Search** covers the whole channel by default; from inside a room you can switch it to **This room** only
 - **Rolls** always show the whole channel's history, with each roll tagged by the room it was made in
 - Dice, Scenes, NPC posts, and whispers can be turned off per room by the GM

@@ -79,12 +79,12 @@
 - **Export Chat** allows downloading the full message history to a Markdown file
 - GM can **Archive** a channel, removing it from the main lobby (viewable/restorable via side menu)
 
-## Channel Status (persistent, collapsible)
+## Channel Status (persistent, collapsible, per room)
 
-- **Free-form text** (markdown, emoji; up to 2,000 characters) — initiative order, timers, NPCs, etc.
-- **Active player(s)** — structured field, one or more players, drives notifications
-- Editable by GM at any time
-- Editing or clearing the status posts a short system notice in the timeline so players know it changed
+- **One status per room** — Main and every room keep their own free-form status (markdown, emoji; up to 2,000 characters): initiative order, timers, NPCs, etc.
+- **Active player(s)** — structured field, one or more players, drives notifications (shared across the channel's rooms)
+- Editable by GM at any time; the bar always shows the room you are in
+- Editing or clearing the status posts a short system notice in that room's timeline so players know it changed
 - When collapsed, first line remains visible
 - A GM can set one active player from that player's **⋯** menu in the member list; the sidebar's multi-select **Active Player** modal handles several at once or clearing all
 
@@ -122,6 +122,7 @@
 - **GM room management** — create (name up to 40 characters, "Main" reserved), rename, archive (leaves the room bar but stays readable, and frees a slot), restore, and delete, from the **+ Room** chip or **GM Tools → Rooms**
 - **Per-room capabilities at creation** — the New room form carries the same Dice / Scenes / NPCs / Whispers toggles as an existing room, all on by default, so a GM can pick a room's features while creating it as well as afterwards
 - **Per-room unread** — a dot per room, plus per-room read state so opening one room doesn't clear the others
+- **Per-room status** — Main and every room keep their own status bar (initiative, timers, active scene), and editing it posts the system notice inside that room
 - **Per-room capabilities** — the GM turns dice, Scenes, NPC posts, and whispers on or off per room; the composer and dice button adapt, and a refused action explains why
 - **Private rooms** — audience Everyone / Only the GM / Invited players; non-viewers never see the room, its messages, its rolls, its reactions, or its unread count, and never receive a push for it; restricted rooms show a lock glyph
 - **Rooms are text-first** — image uploads stay in Main

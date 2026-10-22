@@ -212,8 +212,17 @@ export function useSubChannels(channelId: string | undefined) {
     setRoomMembers(prev => ({ ...prev, [roomId]: (prev[roomId] ?? []).filter(id => id !== userId) }))
   }, [])
 
+  // Per-room status (#752). The RPC is authoritative; patching the local row
+  // avoids a refetch, which would clear the room list (tabs + status bar
+  // flicker) and resubscribe realtime. A blank draft is stored as NULL by the
+  // RPC, so mirror that here.
+  const patchRoomStatus = useCallback((roomId: string, statusText: string) => {
+    const next = statusText.trim() || null
+    setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, status_text: next } : r)))
+  }, [])
+
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
 }

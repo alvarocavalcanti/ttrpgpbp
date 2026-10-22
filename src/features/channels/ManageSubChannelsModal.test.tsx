@@ -9,6 +9,7 @@ const room = (over: Partial<SubChannel> = {}): SubChannel => ({
   channel_id: 'c1',
   name: 'OOC',
   is_archived: false,
+  status_text: null,
   visibility: 'all',
   allow_dice: true,
   allow_scenes: true,

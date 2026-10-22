@@ -121,6 +121,29 @@ describe('useSubChannels', () => {
     expect(result.current.subChannels).toEqual([])
   })
 
+  it('patchRoomStatus updates only that room and mirrors the RPC blank handling', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    const list = mockList([
+      room({ id: 'r1', status_text: 'Old' }),
+      room({ id: 'r2', status_text: 'Kept' }),
+    ])
+    vi.mocked(supabase.from).mockReturnValue({ select: list.select } as never)
+
+    const { result } = renderHook(() => useSubChannels('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    act(() => result.current.patchRoomStatus('r1', 'New room status'))
+    expect(result.current.subChannels.find(r => r.id === 'r1')?.status_text).toBe('New room status')
+    expect(result.current.subChannels.find(r => r.id === 'r2')?.status_text).toBe('Kept')
+
+    act(() => result.current.patchRoomStatus('r1', '   '))
+    expect(result.current.subChannels.find(r => r.id === 'r1')?.status_text).toBeNull()
+    expect(result.current.subChannels.find(r => r.id === 'r2')?.status_text).toBe('Kept')
+
+    act(() => result.current.patchRoomStatus('missing', 'ignored'))
+    expect(result.current.subChannels.map(r => r.id)).toEqual(['r1', 'r2'])
+  })
+
   it('create calls create_sub_channel and returns the new id', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     vi.mocked(supabase.from).mockReturnValue({ select: mockList([]).select } as never)

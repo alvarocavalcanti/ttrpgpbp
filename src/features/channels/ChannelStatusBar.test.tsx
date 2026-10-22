@@ -155,10 +155,47 @@ describe('ChannelStatusBar', () => {
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
         p_channel_id: 'c1',
-        p_status_text: 'New status'
+        p_status_text: 'New status',
+        p_sub_channel_id: undefined
       })
       expect(mockOnUpdate).toHaveBeenCalled()
     })
+  })
+
+  it('saves a room status against that room and reports the saved text', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+    const mockOnUpdate = vi.fn()
+
+    render(<ChannelStatusBar channelId="c1" subChannelId="r1" statusText="Room status" activePlayers={[]} isGM={true} onUpdate={mockOnUpdate} />)
+
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByDisplayValue('Room status'), { target: { value: 'New room status' } })
+    fireEvent.click(screen.getByText('Save Status'))
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('update_channel_status', {
+        p_channel_id: 'c1',
+        p_status_text: 'New room status',
+        p_sub_channel_id: 'r1'
+      })
+      expect(mockOnUpdate).toHaveBeenCalledWith('New room status')
+    })
+  })
+
+  it('seeds the editor from the active room, not a draft left over from a previous room', () => {
+    const { rerender } = render(
+      <ChannelStatusBar channelId="c1" subChannelId="r1" statusText="Old room status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByDisplayValue('Old room status'), { target: { value: 'Unsaved draft' } })
+    fireEvent.click(screen.getByText('Cancel'))
+
+    // Room switch keeps the component mounted; the draft must not leak.
+    rerender(<ChannelStatusBar channelId="c1" subChannelId="r2" statusText="Other room status" activePlayers={[]} isGM={true} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getByText('Edit'))
+
+    expect(screen.getByDisplayValue('Other room status')).toBeInTheDocument()
   })
 
   it('keeps the status editor text visible on dark backgrounds', () => {
