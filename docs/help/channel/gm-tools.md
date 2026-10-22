@@ -54,6 +54,10 @@ To list a game you must write a **Description** (what the game is about) and **W
 
 Listing a channel is public: the description and what you expect are shown to anyone, and search engines can index them. Messages and player details never are. Once a channel is listed, players apply and you decide.
 
+### Sharing your game
+
+A listed channel has a **public game link** you can post anywhere — Reddit, a forum, Discord. Copy it from the **Public game link** field in **Channel Settings → Discovery**, or with **Copy public link** on the listing itself. Anyone who opens it, signed in or not, reads the game's name, system, description, what you expect, and your application question, plus who runs it; a signed-out visitor is invited to sign in and apply, and a signed-in player gets the usual **Apply to join** form. Messages and player details never appear on it, and the page is not search-engine indexed — the [/directory](/directory) page is the public, searchable list. If you switch back to **Private** or a server admin takes the listing down, the link stops working and shows a plain "this game isn't listed" page.
+
 Web links you paste into the description or what you expect become tappable wherever the listing appears — players can open them in a new tab. Use full addresses (`https://example.com` or `www.example.com`); plain words are left alone.
 
 ## Join requests

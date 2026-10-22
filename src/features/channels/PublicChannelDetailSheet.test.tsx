@@ -6,6 +6,7 @@ import { usePublicChannelApply } from './usePublicChannelApply'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
 import { trackEvent } from '../../lib/analytics'
+import { copyToClipboard } from '../../lib/clipboard'
 
 vi.mock('./usePublicChannelApply', () => ({
   usePublicChannelApply: vi.fn(),
@@ -17,6 +18,10 @@ vi.mock('../../contexts/ToastContext', () => ({
 
 vi.mock('../../lib/analytics', () => ({
   trackEvent: vi.fn(),
+}))
+
+vi.mock('../../lib/clipboard', () => ({
+  copyToClipboard: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../../lib/supabase', () => ({
@@ -320,6 +325,20 @@ describe('PublicChannelDetailSheet', () => {
 
       expect(supabase.rpc).not.toHaveBeenCalled()
       expect(addToast).toHaveBeenCalledWith('Enter a reason.', 'error')
+    })
+  })
+
+  it('copies the shareable public game link (#755)', async () => {
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    mockApply()
+
+    renderSheet()
+    fireEvent.click(screen.getByRole('button', { name: 'Copy public link' }))
+
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith(`${window.location.origin}/game/c1`)
+      expect(addToast).toHaveBeenCalledWith('Public game link copied!', 'success')
     })
   })
 })

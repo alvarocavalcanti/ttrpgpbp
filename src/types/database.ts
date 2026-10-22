@@ -1707,6 +1707,17 @@ export type Database = {
           pending_request_id: string
         }[]
       }
+      get_public_channel_anon: {
+        Args: { p_channel_id: string }
+        Returns: {
+          application_prompt: string
+          constraints: string
+          description: string
+          game_system: string
+          gm_display_name: string
+          name: string
+        }[]
+      }
       get_unread_totals: {
         Args: { p_user_ids: string[] }
         Returns: {

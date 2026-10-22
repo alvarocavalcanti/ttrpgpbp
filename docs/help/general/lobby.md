@@ -54,6 +54,10 @@ Private channels are **invite-only**. Ask your GM for an invite link and either:
 
 Some channels also require a **password** — your GM will share it with the invite.
 
+## Opening a shared game link
+
+A GM recruiting players shares a **public game link** (it looks like `…/game/…`). Open it and you'll see the game's name, system, description, what the GM expects, and their application question — no account needed. **Sign in to apply** takes you to sign-in and brings you straight back to the game, where you fill in your character name and answer.
+
 ## Finding things
 
 Use the **Search** box in the header to filter **My Games**. On the Discover tab, use that tab's own **Search games** box instead. On smaller screens the header search and the dark-mode toggle tuck into the app menu, so they never crowd the app's title.

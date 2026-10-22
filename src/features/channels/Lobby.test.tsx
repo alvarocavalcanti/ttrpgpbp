@@ -241,6 +241,32 @@ describe('Lobby', () => {
     expect(screen.getByTestId('join-page')).toBeInTheDocument()
   })
 
+  it('empty state navigates to the public game page from a pasted game link (#755)', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/?tab=my']}>
+        <Routes>
+          <Route path="/" element={<Lobby />} />
+          <Route path="/game/:id" element={<div data-testid="game-page" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(
+      screen.getByLabelText('Paste an invite link'),
+      { target: { value: 'https://rolebypost.app/game/123e4567-e89b-12d3-a456-426614174000' } }
+    )
+    fireEvent.submit(screen.getByLabelText('Paste an invite link').closest('form')!)
+
+    expect(screen.getByTestId('game-page')).toBeInTheDocument()
+  })
+
   it('renders error state with an in-place Retry that refetches', () => {
     const refetch = vi.fn()
     vi.mocked(useChannels).mockReturnValue({

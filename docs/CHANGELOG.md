@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Share your game with a link** — every listed game now has its own page you can post anywhere. **Channel Settings → Discovery** and the listing itself have a **Copy public link** button; anyone who opens the link sees the game's name, system, your description, what you expect, and your application question — even before signing in — and is invited to sign in and apply. The lobby's "paste a link" field accepts these game links too. Messages and player details never appear on it. *(for GMs)*
 - **Links in your game listing** — paste a link into a listing's **Description** or **What you expect** and it becomes tappable for players: in the Discover tab, in the listing sheet, and on the public games page. Plain addresses keep working as text, and nothing else about the listing changes.
 - **Every room keeps its own status** — Main and each room now have their own status bar, so an initiative order or a timer in one room no longer shows up in another. Switch rooms and the bar switches with you, and when the GM changes a room's status the little system note appears in that room's chat. Active players stay shared across the channel.
 
