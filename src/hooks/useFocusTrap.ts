@@ -72,7 +72,10 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, enable
     window.addEventListener('keydown', handler)
     return () => {
       window.removeEventListener('keydown', handler)
-      previouslyFocused?.focus()
+      // preventScroll matches the open path above: a trigger inside an
+      // off-screen drawer (closed for a modal) would otherwise scroll the
+      // overflow-hidden root into view, making the drawer look re-opened (#731).
+      previouslyFocused?.focus({ preventScroll: true })
     }
   }, [containerRef, enabled])
 }

@@ -121,6 +121,35 @@ describe('useFocusTrap', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('restores focus without scrolling ancestors (#731)', () => {
+    function Drawer({ open }: { open: boolean }) {
+      const ref = useRef<HTMLDivElement>(null)
+      useFocusTrap(ref, open)
+      return (
+        <div>
+          <button type="button">Trigger</button>
+          <div ref={ref}>
+            <button type="button">First</button>
+          </div>
+        </div>
+      )
+    }
+    const { getByRole, rerender } = render(<Drawer open={false} />)
+    const trigger = getByRole('button', { name: 'Trigger' })
+    trigger.focus()
+    rerender(<Drawer open />)
+    // Regression test for #731: a modal's teardown hands focus back with a
+    // bare focus(), so a trigger that now sits in a closed, translated
+    // drawer scrolls the overflow-hidden root into view — the drawer looked
+    // re-opened even though its open state was false. Matches the open path
+    // (#436).
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus')
+    rerender(<Drawer open={false} />)
+    expect(spy).toHaveBeenCalledWith({ preventScroll: true })
+    expect(trigger).toHaveFocus()
+    spy.mockRestore()
+  })
+
   it('skips elements hidden or inside aria-hidden subtrees', () => {
     function DialogWithHidden() {
       const ref = useRef<HTMLDivElement>(null)
