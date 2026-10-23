@@ -154,22 +154,40 @@ function AppNav() {
   useFocusTrap(menuRef, menuOpen)
   // Local input state so URL search params only update once the query settles
   // (M10), instead of on every keystroke.
-  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
+  const qParam = searchParams.get('q') ?? ''
+  const [searchInput, setSearchInput] = useState(qParam)
   const debouncedSearch = useDebounce(searchInput, 300)
+  // The value ?q was last known to hold — our own write or an adopted
+  // navigation. The URL is the source of truth; this ref tells our own writes
+  // apart from an external change (back/forward, a deep link).
+  const knownQRef = useRef(qParam)
 
-  // Only the lobby owns the `q` search param. Never blanket-replace the query
-  // string here: deep links carry their own params (invite `?code=`, magic-link
-  // `?redirect=`) that this effect used to wipe before their screens read them.
-  // Even on the lobby, edit only `q` so unrelated params survive.
+  // One effect, so an external ?q always wins over a write. Adoption comes
+  // first and returns: rewriting the box restarts the debounce, dropping the
+  // write still pending for the abandoned text, and nothing is written on that
+  // pass. Only the settled input is ever written, so a `debouncedSearch` that
+  // lags `searchInput` can never delete or overwrite ?q.
+  //
+  // Only the lobby owns `q`. Never blanket-replace the query string: deep links
+  // carry their own params (invite `?code=`, magic-link `?redirect=`) that this
+  // effect used to wipe before their screens read them. Even on the lobby, edit
+  // only `q` so unrelated params survive.
   useEffect(() => {
+    if (qParam !== knownQRef.current) {
+      knownQRef.current = qParam
+      setSearchInput(qParam)
+      return
+    }
     if (location.pathname !== ROUTES.home) return
+    if (debouncedSearch !== searchInput) return
+    knownQRef.current = debouncedSearch
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
       if (debouncedSearch) next.set('q', debouncedSearch)
       else next.delete('q')
       return next
     }, { replace: true })
-  }, [debouncedSearch, location.pathname, setSearchParams])
+  }, [qParam, debouncedSearch, searchInput, location.pathname, setSearchParams])
 
   // The Discover tab has its own search box (#674), and the header's My Games
   // search cannot affect it — a second, inert search box on that screen would

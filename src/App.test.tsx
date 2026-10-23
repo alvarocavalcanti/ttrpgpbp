@@ -402,6 +402,128 @@ describe('App', () => {
     window.history.replaceState({}, '', '/')
   })
 
+  it('adopts an external ?q change and drops the pending write', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    window.history.pushState({}, '', '/?foo=bar')
+    render(<App />)
+
+    const input = await screen.findByLabelText('Search channels')
+    // Still inside the 300ms debounce when the navigation lands below.
+    fireEvent.change(input, { target: { value: 'drag' } })
+
+    // A back/forward navigation that changes ?q behind the box's back. pushState
+    // alone does not notify the router; popstate is the event it listens to.
+    act(() => {
+      window.history.pushState({}, '', '/?foo=bar&q=beam')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    // The box adopts the navigation...
+    await waitFor(() => expect(input).toHaveValue('beam'))
+
+    // ...and the abandoned text does not overwrite ?q in the meantime: the
+    // effect that ran for this navigation must not write the lagging 'drag'.
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('beam')
+
+    // Nor after its debounce elapses.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    })
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('q')).toBe('beam')
+    expect(params.get('foo')).toBe('bar')
+    expect(input).toHaveValue('beam')
+
+    window.history.replaceState({}, '', '/')
+  })
+
+  it('adopts an external ?q change after the input has settled', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    window.history.pushState({}, '', '/?q=dragon')
+    render(<App />)
+
+    const input = await screen.findByLabelText('Search channels')
+    expect(input).toHaveValue('dragon')
+
+    // Let the mount-time write settle, so `debouncedSearch === searchInput`.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    })
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('dragon')
+
+    act(() => {
+      window.history.pushState({}, '', '/?q=beam')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    await waitFor(() => expect(input).toHaveValue('beam'))
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('beam')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    })
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('beam')
+    expect(input).toHaveValue('beam')
+
+    window.history.replaceState({}, '', '/')
+  })
+
   it('hides the lobby search on the Discover tab, which carries its own box', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },
