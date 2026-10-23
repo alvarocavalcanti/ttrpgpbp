@@ -18,6 +18,7 @@ export const ROUTES = {
   altMythWeavers: '/alternatives/myth-weavers',
   privacy: '/privacy',
   terms: '/terms',
+  aiDisclaimer: '/ai-disclaimer',
   archived: '/archived',
   messages: '/messages',
   admin: '/admin',
@@ -309,6 +310,15 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     changeFrequency: 'yearly',
     priority: 0.3,
   },
+  {
+    path: ROUTES.aiDisclaimer,
+    title: 'AI Disclaimer — Role by Post',
+    description:
+      'How AI agents are used to build Role by Post: the audits, requests, and code reviews behind every change, and why the app is not AI slop.',
+    waitSelector: 'h1',
+    changeFrequency: 'yearly',
+    priority: 0.3,
+  },
 ]
 
 // Routes that are marketing/content for everyone. `/` is deliberately excluded:
@@ -328,6 +338,7 @@ const MARKETING_KEYS: RouteKey[] = [
   'help',
   'privacy',
   'terms',
+  'aiDisclaimer',
 ]
 
 // Strips a single trailing slash (except on the root) so route-registry

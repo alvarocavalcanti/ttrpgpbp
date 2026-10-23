@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-10-23
 
+### Added
+
+- **How Role by Post is built** — there's a new page at [/ai-disclaimer](/ai-disclaimer) that says it plainly: AI agents are used to develop Role by Post, every change is reviewed before it lands, and the repository is public if you want to check. It's linked from the footer and the menu, so you can point anyone asking about it straight there.
+
 ### Fixed
 
 - **The member menu stays closed after settings** — on a phone or a narrow window, closing a menu from the channel sidebar (settings, rolls, search, and the rest) no longer made the member list slide back open by itself. Dismiss the menu and the game is back where it was, with the sidebar properly closed and the menu button working as usual.

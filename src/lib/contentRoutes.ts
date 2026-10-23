@@ -55,4 +55,9 @@ export const CONTENT_ROUTES: ContentRoute[] = [
       { label: 'Role by Post vs Myth-Weavers' },
     ],
   },
+  {
+    path: ROUTES.aiDisclaimer,
+    docSlug: 'ai-disclaimer',
+    breadcrumbs: [{ label: 'Home', to: '/' }, { label: 'AI Disclaimer' }],
+  },
 ]

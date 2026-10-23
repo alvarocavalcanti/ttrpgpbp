@@ -28,6 +28,7 @@ describe('isMarketingPath', () => {
     expect(isMarketingPath('/press/')).toBe(true)
     expect(isMarketingPath('/privacy')).toBe(true)
     expect(isMarketingPath('/terms')).toBe(true)
+    expect(isMarketingPath('/ai-disclaimer')).toBe(true)
   })
 
   it('matches the content pages and every help topic', () => {
@@ -74,6 +75,7 @@ describe('PUBLIC_ROUTES', () => {
       ...HELP_TOPICS.map((topic) => `/help/${topic.slug}`),
       '/privacy',
       '/terms',
+      '/ai-disclaimer',
     ])
   })
 

@@ -52,6 +52,7 @@ const FOOTER_GROUPS: FooterGroup[] = [
     label: 'Company',
     links: [
       { label: 'Press Kit', to: '/press' },
+      { label: 'AI Disclaimer', to: '/ai-disclaimer' },
       { label: 'Privacy Policy', to: '/privacy' },
       { label: 'Terms of Service', to: '/terms' },
     ],

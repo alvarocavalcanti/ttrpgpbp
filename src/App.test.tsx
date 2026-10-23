@@ -892,6 +892,10 @@ describe('App main menu drawer', () => {
     expect(screen.getByRole('button', { name: 'Dark mode' })).toBeInTheDocument()
     // The menu also lists the profile as a plain labeled item now.
     expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'AI Disclaimer' })).toHaveAttribute(
+      'href',
+      '/ai-disclaimer',
+    )
   })
 
   it('does not open on swipes that start mid-screen', async () => {

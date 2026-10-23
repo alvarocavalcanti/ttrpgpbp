@@ -16,6 +16,7 @@ function renderAt(path: string) {
       <Routes>
         <Route path="/play-by-post" element={<ContentPage />} />
         <Route path="/how-to/run-play-by-post" element={<ContentPage />} />
+        <Route path="/ai-disclaimer" element={<ContentPage />} />
         <Route path="/not-content" element={<ContentPage />} />
       </Routes>
     </MemoryRouter>,
@@ -63,6 +64,17 @@ describe('ContentPage', () => {
       screen.getByRole('heading', { level: 1, name: 'Play-by-Post Tabletop RPGs' }),
     ).toBeInTheDocument()
     expect(document.title).toBe('Play-by-Post Tabletop RPGs — Role by Post')
+  })
+
+  it('renders the AI disclaimer with its GitHub evidence links', () => {
+    mockAuth(null)
+    renderAt('/ai-disclaimer')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'AI Disclaimer' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'reviewed every change' }),
+    ).toHaveAttribute('href', 'https://github.com/alvarocavalcanti/ttrpgpbp/pulls?q=is%3Apr+is%3Amerged')
+    expect(document.title).toBe('AI Disclaimer — Role by Post')
   })
 
   it('renders nothing for an unregistered path', () => {
