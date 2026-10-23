@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-23
+
+### Fixed
+
+- **The member menu stays closed after settings** — on a phone or a narrow window, closing a menu from the channel sidebar (settings, rolls, search, and the rest) no longer made the member list slide back open by itself. Dismiss the menu and the game is back where it was, with the sidebar properly closed and the menu button working as usual.
+
 ## 2026-10-22
 
 ### Added
