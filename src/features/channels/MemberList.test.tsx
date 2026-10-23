@@ -648,4 +648,63 @@ describe('MemberList', () => {
     const names = Array.from(blockedHeading.querySelectorAll('ul p')).map(p => p.textContent)
     expect(names.filter(n => n === 'arden' || n === 'Zara')).toEqual(['arden', 'Zara'])
   })
+
+  describe('whisper shortcut (#632)', () => {
+    it('offers Whisper to the GM on another member row and reports the target user id', () => {
+      const onWhisperTo = vi.fn()
+      render(
+        <StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} canWhisper={true} onWhisperTo={onWhisperTo} />,
+        { wrapper: MemoryRouter },
+      )
+
+      fireEvent.click(screen.getByTestId('menu-btn-m2'))
+      const menu = screen.getByRole('menu', { name: 'Member options for Sidekick' })
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Whisper' }))
+
+      expect(onWhisperTo).toHaveBeenCalledWith('u2')
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    })
+
+    it('offers Whisper to a player on another member row', () => {
+      const onWhisperTo = vi.fn()
+      render(
+        <StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} canWhisper={true} onWhisperTo={onWhisperTo} />,
+        { wrapper: MemoryRouter },
+      )
+
+      fireEvent.click(screen.getByTestId('menu-btn-m1'))
+      fireEvent.click(within(screen.getByRole('menu', { name: 'Member options for Hero' })).getByRole('menuitem', { name: 'Whisper' }))
+
+      expect(onWhisperTo).toHaveBeenCalledWith('u1')
+    })
+
+    it('hides Whisper when the room turns whispers off', () => {
+      render(
+        <StatefulMemberList members={mockMembers} isGM={true} gmId="u1" myUserId="u1" channelId="c1" onUpdate={vi.fn()} canWhisper={false} onWhisperTo={vi.fn()} />,
+        { wrapper: MemoryRouter },
+      )
+
+      fireEvent.click(screen.getByTestId('menu-btn-m2'))
+      expect(screen.queryByRole('menuitem', { name: 'Whisper' })).not.toBeInTheDocument()
+    })
+
+    it('does not offer Whisper on your own row', () => {
+      render(
+        <StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} canWhisper={true} onWhisperTo={vi.fn()} />,
+        { wrapper: MemoryRouter },
+      )
+
+      fireEvent.click(screen.getByTestId('menu-btn-m2'))
+      expect(screen.queryByRole('menuitem', { name: 'Whisper' })).not.toBeInTheDocument()
+    })
+
+    it('renders no kebab for another member when whispers are off', () => {
+      render(
+        <StatefulMemberList members={mockMembers} isGM={false} gmId="u1" myUserId="u2" channelId="c1" onUpdate={vi.fn()} canWhisper={false} onWhisperTo={vi.fn()} />,
+        { wrapper: MemoryRouter },
+      )
+
+      expect(screen.queryByTestId('menu-btn-m1')).not.toBeInTheDocument()
+    })
+  })
 })

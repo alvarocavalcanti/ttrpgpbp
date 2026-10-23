@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Whisper straight from the player list** — open a member's **⋯** menu in the channel sidebar and pick **Whisper**: the message box opens with that player already selected and your cursor waiting, so you can write the private note and send it without hunting through the whisper menu.
+- **A whispers-only view** — the channel header now has a **Whispers** toggle beside Favorites. Turn it on to see only the whispers you sent or received; a GM sees every whisper in the channel. One tap back shows the full conversation again.
 - **How Role by Post is built** — there's a new page at [/ai-disclaimer](/ai-disclaimer) that says it plainly: AI agents are used to develop Role by Post, every change is reviewed before it lands, and the repository is public if you want to check. It's linked from the footer and the menu, so you can point anyone asking about it straight there.
 
 ### Fixed

@@ -2325,6 +2325,173 @@ describe('ChannelView search functionality', () => {
   })
 })
 
+describe('ChannelView whispers (#632)', () => {
+  const renderChannel = () =>
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    )
+
+  const channelWith = (overrides: Record<string, unknown> = {}) => ({
+    channel: { id: 'c1', name: 'Test Channel' },
+    members: [
+      { id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero', is_blocked: false, profile: { display_name: 'Player One' } },
+      { id: 'm2', user_id: 'user2', is_active_player: false, character_name: 'Sidekick', is_blocked: false, profile: { display_name: 'Player Two' } },
+    ],
+    loading: false,
+    error: null,
+    isGM: false,
+    myMemberInfo: { user_id: 'user1' },
+    gmOnlyResourcesUrl: null,
+    refetch: vi.fn(),
+    refreshMembers: vi.fn(),
+    ...overrides,
+  })
+
+  // One row per visibility case: public, my own whisper, one whispered to me,
+  // and one between two other players (RLS would hide it; the filter must too).
+  const messages = [
+    { id: 'pub', content: 'public post', type: 'regular', sender_id: 'user2', whisper_to: null, created_at: '2026-10-05T10:00:00Z' },
+    { id: 'mine', content: 'my whisper', type: 'regular', sender_id: 'user1', whisper_to: 'user2', created_at: '2026-10-05T10:01:00Z' },
+    { id: 'theirs', content: 'whisper to me', type: 'regular', sender_id: 'user2', whisper_to: 'user1', created_at: '2026-10-05T10:02:00Z' },
+    { id: 'other', content: 'someone else whisper', type: 'regular', sender_id: 'user2', whisper_to: 'user3', created_at: '2026-10-05T10:03:00Z' },
+  ]
+
+  beforeEach(() => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false,
+      alertCount: 0,
+      catchUpError: false,
+      retryCatchUp: vi.fn(),
+      dismissAlert: vi.fn(),
+      triggerXCard: vi.fn()
+    } as any)
+    vi.mocked(useChannel).mockReturnValue(channelWith() as any)
+    vi.mocked(useMessages).mockReturnValue({
+      messages,
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(),
+      favoriteMessages: [],
+      isFavorite: () => false,
+      toggleFavorite: vi.fn(),
+      patchFavoriteMessage: vi.fn(),
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    } as any)
+  })
+
+  it('filters the timeline to whispers the viewer is part of', () => {
+    renderChannel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+
+    expect(screen.getByText('my whisper')).toBeInTheDocument()
+    expect(screen.getByText('whisper to me')).toBeInTheDocument()
+    expect(screen.queryByText('public post')).not.toBeInTheDocument()
+    expect(screen.queryByText('someone else whisper')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show all messages' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('lets the GM see whispers between other players', () => {
+    vi.mocked(useChannel).mockReturnValue(channelWith({ isGM: true, myMemberInfo: { user_id: 'gm1' } }) as any)
+    renderChannel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+
+    expect(screen.getByText('someone else whisper')).toBeInTheDocument()
+    expect(screen.queryByText('public post')).not.toBeInTheDocument()
+  })
+
+  it('shows the whispers empty state when the window holds none', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [messages[0]],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    renderChannel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+
+    expect(screen.getByText('No whispers here yet. Whispers you send or receive show up in this view.')).toBeInTheDocument()
+  })
+
+  it('keeps Favorites and Whispers mutually exclusive', () => {
+    renderChannel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    expect(screen.getByRole('button', { name: 'Show all messages' })).toHaveAttribute('title', 'Favorites')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+    const favoritesToggle = screen.getByRole('button', { name: 'Show favorites only' })
+    expect(favoritesToggle).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    expect(screen.getByRole('button', { name: 'Show whispers only' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('queues a whisper from the player list menu', async () => {
+    renderChannel()
+
+    fireEvent.click(screen.getByTestId('menu-btn-m2'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Whisper' }))
+
+    expect(await screen.findByLabelText('Edit Whisper: Sidekick')).toBeInTheDocument()
+  })
+
+  it('hides the whisper shortcut when the room turns whispers off', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [{ id: 'r1', name: 'Quiet', visibility: 'all', allow_whispers: false }],
+      archivedRooms: [],
+      loading: false,
+      error: null,
+      create: vi.fn(),
+      rename: vi.fn(),
+      setArchived: vi.fn(),
+      remove: vi.fn(),
+      patchRoomStatus: vi.fn(),
+      refetch: vi.fn(),
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1/sub/r1']}>
+          <Routes>
+            <Route path="/channel/:id/sub/:subId" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    )
+
+    // Without whispers the row has no menu at all for a non-GM viewer, so the
+    // shortcut is unreachable rather than present-but-broken.
+    expect(screen.queryByTestId('menu-btn-m2')).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Whisper' })).not.toBeInTheDocument()
+  })
+})
+
 describe('ChannelView edit-character deep link (#408)', () => {
   it('opens the character editor with the viewer member id from a check-link deep link', () => {
     vi.mocked(useChannel).mockReturnValue({
