@@ -20,6 +20,7 @@ describe('SiteFooter', () => {
     }
     expect(screen.getAllByText('Help').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Privacy Policy').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('AI Disclaimer').length).toBeGreaterThan(0)
   })
 
   it('keeps the Footer navigation landmark', () => {

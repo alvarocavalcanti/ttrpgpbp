@@ -318,6 +318,13 @@ function AppNav() {
             >
               Features
             </Link>
+            <Link
+              to="/ai-disclaimer"
+              className={NAV_MENU_ITEM}
+              onClick={() => closeMenu('action')}
+            >
+              AI Disclaimer
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -482,6 +489,7 @@ export default function App() {
                 <Route path={ROUTES.vsDiscord} element={<ContentPage />} />
                 <Route path={ROUTES.altRpol} element={<ContentPage />} />
                 <Route path={ROUTES.altMythWeavers} element={<ContentPage />} />
+                <Route path={ROUTES.aiDisclaimer} element={<ContentPage />} />
                 <Route path={ROUTES.help} element={<HelpPage />} />
                 <Route path={ROUTES.helpTopic} element={<HelpPage />} />
                 <Route path={ROUTES.notFound} element={<NotFound />} />
