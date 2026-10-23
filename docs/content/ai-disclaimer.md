@@ -6,7 +6,7 @@ As it has become a strong point of questioning, I'd like to make it clear that I
 
 Even though I am strongly against the use of AI in creative works — art, music, writing — it is a fact that software development has entered a new era and there's no going back. While *vibe coding* has become prevalent and several cautionary tales have been around since day one, I want to make a case why **Role by Post is not AI slop**.
 
-I started my career as software developer in 1998, and I have a very strong experience building robust, reliable and professional-grade software. The company I worked for the last 10+ years has introduced AI tools for developers around two years ago and the development teams' productivity *and quality* improved tenfold.
+I started my career as a software developer in 1998, and I have extensive experience building robust, reliable and professional-grade software. The company I worked for the last 10+ years introduced AI tools for developers about two years ago and the development teams' productivity *and quality* improved tenfold.
 
 I have leveraged my experience and AI tools to build this platform to the highest of the industry's standards, and I guarantee there's no sloppiness involved. Quite on the contrary, people can have a look at the public [GitHub repository](https://github.com/alvarocavalcanti/ttrpgpbp/), and see how I conducted several [audits](https://github.com/alvarocavalcanti/ttrpgpbp/tree/main/docs/audit), [features and bug requests](https://github.com/alvarocavalcanti/ttrpgpbp/issues?q=is%3Aissue+state%3Aclosed), and [reviewed every change](https://github.com/alvarocavalcanti/ttrpgpbp/pulls?q=is%3Apr+is%3Amerged) before it was accepted.
 
