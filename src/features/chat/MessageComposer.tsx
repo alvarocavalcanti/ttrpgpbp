@@ -58,6 +58,9 @@ interface MessageComposerProps {
 // markdown at the cursor, without lifting the composer's draft state up.
 export interface MessageComposerHandle {
   insertImages: (paths: string[]) => void
+  // Whisper shortcut from the player list (#632): queues the recipient and
+  // focuses the box without opening the whisper picker.
+  startWhisper: (userId: string) => void
 }
 
 export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, subChannelId = null, roomName, capabilities = ALL_CAPABILITIES, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
@@ -323,7 +326,17 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     })
   }, [])
 
-  useImperativeHandle(ref, () => ({ insertImages: insertImagePaths }), [insertImagePaths])
+  // Sidebar whisper shortcut (#632). A no-op when the room turns whispers off:
+  // the capability effect above would clear it anyway, and silently queuing a
+  // hidden mode would be worse.
+  const startWhisper = useCallback((userId: string) => {
+    if (!capabilities.allow_whispers) return
+    setIsScene(false)
+    setWhisperTo(userId)
+    textareaRef.current?.focus()
+  }, [capabilities.allow_whispers])
+
+  useImperativeHandle(ref, () => ({ insertImages: insertImagePaths, startWhisper }), [insertImagePaths, startWhisper])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

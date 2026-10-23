@@ -33,13 +33,16 @@ interface MemberListProps {
   // sheet in chat) can deep-link straight into Edit Character.
   editingMemberId: string | null
   onEditMember: (memberId: string | null) => void
+  // Whisper shortcut (#632): available whenever whispers are on in the room.
+  canWhisper: boolean
+  onWhisperTo: (userId: string) => void
 }
 
 /**
  * Sidebar member roster: players and GMs with character names, active/
  * away status, and GM moderation actions (kick, block, edit character).
  */
-export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, onPortraitUpdate, editingMemberId, onEditMember }: MemberListProps) {
+export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none', channelId, onUpdate, onPortraitUpdate, editingMemberId, onEditMember, canWhisper, onWhisperTo }: MemberListProps) {
   const navigate = useNavigate()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -271,7 +274,7 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     </>
                 </div>
 
-                {(isMe || isGM) && (
+                {(isMe || isGM || canWhisper) && (
                   <div className="relative">
                     <button
                       type="button"
@@ -290,6 +293,16 @@ export function MemberList({ members, isGM, gmId, myUserId, gameSystem = 'none',
                     {openMenuId === member.id && (
                       <div role="menu" aria-label={`Member options for ${member.character_name}`} className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-surface-800 ring-1 ring-black ring-opacity-5 z-50">
                         <div className="py-1">
+                          {!isMe && canWhisper && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => { setOpenMenuId(null); onWhisperTo(member.user_id); }}
+                              className="flex min-h-11 w-full items-center text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+                            >
+                              Whisper
+                            </button>
+                          )}
                           {isMe && (
                             <button
                               type="button"

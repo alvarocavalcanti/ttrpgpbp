@@ -145,6 +145,8 @@
 
 - Messages visible only to GM + one specific player
 - Visible within the same channel timeline (but hidden from others)
+- **Whisper from the player list** — the member's **⋯** menu has **Whisper**: it jumps to the message box with that player already selected and the cursor ready
+- **Whispers-only view** — the channel header's **Whispers** toggle (next to Favorites) shows just the whispers you sent or received; for a GM it shows every whisper in the channel. It filters the loaded messages, and turns Favorites off while it's on
 
 ## Server Messages (announcements & admin DMs)
 

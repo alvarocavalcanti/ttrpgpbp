@@ -61,6 +61,10 @@ React to a message or dice roll with an **emoji** from the **Reactions** action.
 
 The GM can send a **whisper** visible only to themselves and one specific player. Whispers appear in the same timeline but are hidden from everyone else.
 
+To whisper someone without opening the composer's whisper menu, open their **⋯** menu in the player list and choose **Whisper**. The message box opens with that player already chosen and your cursor ready — type and send as usual.
+
+The **Whispers** toggle in the channel header (next to Favorites) shows only the whispers you sent or received; a GM sees every whisper in the channel. Turning it on turns Favorites off, and turning Favorites on turns it off. It looks at the messages already loaded in the timeline, so very old whispers may need the channel reopened to show up.
+
 ## Connection status
 
 If your connection drops, a banner lets you know while keeping loaded chat available. RoleByPost catches up on new messages and channel changes when your connection returns or when you bring the app back to the foreground.

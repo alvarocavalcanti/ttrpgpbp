@@ -1335,6 +1335,75 @@ describe('MessageComposer', () => {
     expect(screen.queryByLabelText('Edit Active: Hero')).not.toBeInTheDocument()
   })
 
+  describe('sidebar whisper shortcut (#632)', () => {
+    it('queues the recipient, focuses the box and sends a whisper', async () => {
+      const ref = { current: null as any }
+      const mockOnSend = vi.fn().mockResolvedValue(undefined)
+      render(<MessageComposer ref={ref} isGM={false} members={members} onSendMessage={mockOnSend} />)
+
+      act(() => { ref.current.startWhisper('u1') })
+
+      const textarea = screen.getByRole('combobox', { name: 'Message' })
+      expect(textarea).toHaveFocus()
+      expect(screen.getByLabelText('Edit Whisper: Hero')).toBeInTheDocument()      // No picker is opened by the shortcut.
+      expect(screen.queryByRole('dialog', { name: 'Whisper' })).not.toBeInTheDocument()
+
+      fireEvent.change(textarea, { target: { value: 'psst' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+      await waitFor(() => {
+        expect(mockOnSend).toHaveBeenCalledWith({
+          content: 'psst',
+          type: 'regular',
+          whisper_to: 'u1',
+          active_player_ids: undefined
+        })
+      })
+    })
+
+    it('clears a queued scene mode so the whisper is visible in the controls', async () => {
+      const ref = { current: null as any }
+      render(<MessageComposer ref={ref} isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+      fireEvent.click(screen.getByLabelText('Toggle options'))
+      fireEvent.click(screen.getByLabelText('Scene Description'))
+      fireEvent.click(screen.getByLabelText('Toggle options'))
+      act(() => { ref.current.startWhisper('u1') })
+
+      expect(screen.getByLabelText('Edit Whisper: Hero')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Edit Scene')).not.toBeInTheDocument()
+    })
+
+    it('does nothing when the room turns whispers off', async () => {
+      const ref = { current: null as any }
+      const mockOnSend = vi.fn().mockResolvedValue(undefined)
+      render(
+        <MessageComposer
+          ref={ref}
+          isGM={false}
+          members={members}
+          capabilities={{ allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: false }}
+          onSendMessage={mockOnSend}
+        />
+      )
+
+      ref.current.startWhisper('u1')
+      expect(screen.queryByLabelText('Edit Whisper: Hero')).not.toBeInTheDocument()
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'hello' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+      await waitFor(() => {
+        expect(mockOnSend).toHaveBeenCalledWith({
+          content: 'hello',
+          type: 'regular',
+          whisper_to: undefined,
+          active_player_ids: undefined
+        })
+      })
+    })
+  })
+
   it('shows the formatting toolbar only while the message box is focused', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
