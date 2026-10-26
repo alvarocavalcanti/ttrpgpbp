@@ -107,6 +107,12 @@ export const HELP_TOPICS: HelpTopic[] = [
       'Post, reply, react, whisper, edit, and format messages in a Role by Post campaign timeline.',
   },
   {
+    slug: 'notes',
+    title: 'Campaign Notes — Role by Post Help',
+    description:
+      'Keep character, party, and GM-only notes in a Role by Post campaign, shared across every room.',
+  },
+  {
     slug: 'notifications',
     title: 'Notifications — Role by Post Help',
     description:

@@ -137,6 +137,21 @@ export const RoomUnreadRowSchema = z.looseObject({
   unread_count: z.number().nullish(),
 })
 
+// Campaign notes (#762). Every row is scope-checked before it reaches state:
+// an unknown scope is dropped rather than rendered in the wrong tab.
+export const NoteScopeSchema = z.enum(['character', 'party', 'gm'])
+export type NoteScope = z.infer<typeof NoteScopeSchema>
+
+export const ChannelNoteRowSchema = z.looseObject({
+  id: z.string(),
+  channel_id: z.string(),
+  author_id: z.string().nullable(),
+  scope: NoteScopeSchema,
+  body: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+})
+
 export const ProfileRowSchema = z.looseObject({
   id: z.string(),
   display_name: z.string().nullish(),

@@ -29,6 +29,9 @@ const mockMemberships = [
     joined_at: '2026-01-02T00:00:00Z',
   },
 ]
+const mockNotes = [
+  { id: 'n1', channel_id: 'c1', scope: 'party', body: 'the party knows', created_at: '2026-01-02T00:00:00Z', updated_at: '2026-01-02T00:00:00Z' },
+]
 const mockMessages = [
   { id: 'm1', channel_id: 'c1', type: 'regular', content: 'hello', whisper_to: null, npc_name: null, is_edited: false, is_deleted: false, created_at: '2026-01-03T00:00:00Z' },
   { id: 'm2', channel_id: 'c1', type: 'regular', content: 'psst', whisper_to: 'other-user', npc_name: null, is_edited: false, is_deleted: false, created_at: '2026-01-04T00:00:00Z' },
@@ -63,6 +66,7 @@ function setupQueries() {
   vi.mocked(supabase.from).mockImplementation(((table: string) => {
     if (table === 'profiles') return mockChain(mockProfile)
     if (table === 'channel_members') return mockChain(mockMemberships)
+    if (table === 'channel_notes') return mockChain(mockNotes)
     if (table === 'messages') return mockChain(mockMessages)
     if (table === 'dice_rolls') return mockChain(mockDice)
     if (table === 'message_reactions') return mockChain(mockReactions)
@@ -95,6 +99,7 @@ describe('buildUserDataExport', () => {
     expect(result.channel_memberships).toHaveLength(1)
     expect(result.channel_memberships[0].channel_name).toBe('The Den')
     expect(result.channel_memberships[0].character_notes).toBe('secret family name')
+    expect(result.notes).toEqual(mockNotes)
     expect(result.messages).toHaveLength(2)
     expect(result.messages[1].whisper_to).toBe('other-user') // authored whisper included
     expect(result.dice_rolls).toEqual(mockDice)
@@ -114,7 +119,7 @@ describe('buildUserDataExport', () => {
 
     const fromCalls = vi.mocked(supabase.from).mock.calls.map(c => c[0])
     expect(fromCalls).toEqual([
-      'profiles', 'channel_members', 'messages', 'dice_rolls', 'message_reactions',
+      'profiles', 'channel_members', 'channel_notes', 'messages', 'dice_rolls', 'message_reactions',
       'dice_roll_favorites', 'message_favorites', 'notification_preferences', 'abuse_reports', 'admin_messages',
     ])
   })

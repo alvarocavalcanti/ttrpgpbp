@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-26
+
+### Added
+
+- **Campaign notes** — the channel sidebar now has a **Notes** section. **Character Notes** is your own character's notebook (you and the GM can read it), **Party Notes** is shared with everyone in the campaign, and **GM Notes** is the GM's private notebook. Notes are shared across every room, keep your line breaks, and appear live for everyone who can see them. Archived campaigns keep their notes readable but read-only, and the notes you wrote come out with **Download My Data**.
+
 ## 2026-10-23
 
 ### Added

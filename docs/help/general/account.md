@@ -38,11 +38,11 @@ In the **Users** tab you can search by name or email, and filter by status (All,
 
 ## Download your data
 
-From **Settings → Account & Data → Download My Data** you can export your profile, channel memberships, authored messages (including your whispers), dice rolls, reactions, and notification preferences as a JSON file.
+From **Settings → Account & Data → Download My Data** you can export your profile, channel memberships, authored messages (including your whispers), campaign notes, dice rolls, reactions, and notification preferences as a JSON file.
 
 ## Delete your account
 
-From **Settings → Account & Data → Delete Account** you can permanently erase your account and personal data. To confirm, type `DELETE`. After deletion your past messages stay in the chat but are shown without your name, and any channels you ran become available to the server admin. This cannot be undone.
+From **Settings → Account & Data → Delete Account** you can permanently erase your account and personal data. To confirm, type `DELETE`. After deletion your past messages and campaign notes stay in the app but are shown without your name, and any channels you ran become available to the server admin. This cannot be undone.
 
 ## Privacy policy & Terms of Service
 
