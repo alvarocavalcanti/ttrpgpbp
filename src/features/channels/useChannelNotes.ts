@@ -68,23 +68,39 @@ export function useChannelNotes(channelId: string | undefined) {
       .channel(`channel:${cid}:notes`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'channel_notes', filter: `channel_id=eq.${cid}` },
+        { event: 'INSERT', schema: 'public', table: 'channel_notes', filter: `channel_id=eq.${cid}` },
         (payload) => {
           if (!mounted) return
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const next = parseRow(ChannelNoteRowSchema, payload.new)
-            if (!next) return
-            setNotes(prev => {
-              if (prev.some(n => n.id === next.id)) {
-                return prev.map(n => (n.id === next.id ? next : n))
-              }
-              return [next, ...prev]
-            })
-          } else if (payload.eventType === 'DELETE') {
-            // Replica identity is FULL, so the echo carries channel_id too.
-            const oldId = (payload.old as { id?: string } | null)?.id
-            if (oldId) setNotes(prev => prev.filter(n => n.id !== oldId))
-          }
+          const next = parseRow(ChannelNoteRowSchema, payload.new)
+          if (!next) return
+          setNotes(prev => {
+            if (prev.some(n => n.id === next.id)) {
+              return prev.map(n => (n.id === next.id ? next : n))
+            }
+            return [next, ...prev]
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'channel_notes', filter: `channel_id=eq.${cid}` },
+        (payload) => {
+          if (!mounted) return
+          const next = parseRow(ChannelNoteRowSchema, payload.new)
+          if (!next) return
+          setNotes(prev => prev.map(n => (n.id === next.id ? next : n)))
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'channel_notes' },
+        (payload) => {
+          // RLS may strip everything but the primary key from `old`; the
+          // channel filter would then drop the event, so this listener is
+          // deliberately unfiltered and removes by id only.
+          if (!mounted) return
+          const oldId = (payload.old as { id?: string } | null)?.id
+          if (oldId) setNotes(prev => prev.filter(n => n.id !== oldId))
         },
       )
     const unsubscribe = subscribeWithRetry(realtimeChannel, `channel:${cid}:notes`)

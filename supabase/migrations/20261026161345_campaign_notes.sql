@@ -28,20 +28,16 @@ ALTER TABLE public.channel_notes ENABLE ROW LEVEL SECURITY;
 
 -- Reads ---------------------------------------------------------------------
 
-CREATE POLICY "Party notes are readable by channel members"
+CREATE POLICY "Party notes are readable by channel members and their author"
   ON public.channel_notes FOR SELECT
   USING (
     scope = 'party'
-    AND (is_channel_member(channel_id) OR is_channel_gm(channel_id))
+    AND (is_channel_member(channel_id) OR is_channel_gm(channel_id) OR author_id = auth.uid())
   );
 
 CREATE POLICY "Character notes are readable by their author and the GM"
   ON public.channel_notes FOR SELECT
-  USING (
-    scope = 'character'
-    AND (is_channel_member(channel_id) OR is_channel_gm(channel_id))
-    AND (author_id = auth.uid() OR is_channel_gm(channel_id))
-  );
+  USING (scope = 'character' AND (author_id = auth.uid() OR is_channel_gm(channel_id)));
 
 CREATE POLICY "GM notes are readable by the GM"
   ON public.channel_notes FOR SELECT
@@ -146,7 +142,11 @@ BEGIN
     RAISE EXCEPTION 'A note cannot change channel or scope'
       USING ERRCODE = 'P0001';
   END IF;
-  NEW.updated_at := NOW();
+  -- Only a body edit counts as an edit: the profiles FK sets author_id to NULL
+  -- on account deletion, and that must not mark every surviving note edited.
+  IF NEW.body IS DISTINCT FROM OLD.body THEN
+    NEW.updated_at := NOW();
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -164,7 +164,8 @@ REVOKE ALL ON FUNCTION public.guard_channel_note_update() FROM PUBLIC, anon, aut
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_notes TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_notes TO service_role;
 
--- Live updates for everyone who can read the row. FULL identity means DELETE
--- echoes carry channel_id so the realtime channel filter matches.
+-- Live updates for everyone who can read the row. With RLS enabled, DELETE
+-- payloads can expose only the primary key, so clients remove notes by id
+-- through an unfiltered DELETE subscription (see useChannelNotes).
 ALTER TABLE public.channel_notes REPLICA IDENTITY FULL;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.channel_notes;

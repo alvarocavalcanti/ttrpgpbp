@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CampaignNotesModal } from './CampaignNotesModal'
 import { useChannelNotes } from './useChannelNotes'
@@ -93,6 +93,23 @@ describe('CampaignNotesModal', () => {
 
     await waitFor(() => expect(createNote).toHaveBeenCalledWith('party', '  table clue  '))
     await waitFor(() => expect(input).toHaveValue(''))
+  })
+
+  it('blocks repeated submits while a save is in flight', async () => {
+    let resolveSave!: (value: boolean) => void
+    const createNote = vi.fn().mockReturnValue(new Promise<boolean>(resolve => { resolveSave = resolve }))
+    mockNotes({ createNote })
+    renderModal()
+
+    fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'only once' } })
+    const button = screen.getByRole('button', { name: 'Add note' })
+    fireEvent.click(button)
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(createNote).toHaveBeenCalledTimes(1)
+
+    await act(async () => { resolveSave(false) })
+    await waitFor(() => expect(button).toBeEnabled())
   })
 
   it('caps input at 4000 characters and blocks blank notes', () => {

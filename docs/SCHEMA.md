@@ -168,9 +168,9 @@ Per-user, per-room read mark backing the unread dot. Own-row RLS.
 ### `channel_notes` (Campaign Notes, #762)
 
 Channel-wide notes shared by every room. Three scopes decide who can read a row:
-`character` (author + channel GM), `party` (every member + GM), and `gm` (GM
-only). Authors edit and delete their own entries; the channel and scope are
-immutable after insert.
+`character` (author + channel GM), `party` (every member + GM, and the note's
+author after they leave), and `gm` (GM only). Authors edit and delete their own
+entries; the channel and scope are immutable after insert.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -222,7 +222,7 @@ Automatic RLS is enabled for all tables, defaulting to deny-all. The following p
 - **sub_channels**: Readable only where `can_view_sub_channel(id)` holds — a channel member, and (for a restricted room) the GM or an invited player. **No client write policy** — create/rename/archive/delete/audience are GM-only SECURITY DEFINER RPCs.
 - **sub_channel_members**: Readable by the room's GM and by the member themselves. **No client write policy** — `set_sub_channel_audience` is the only writer.
 - **sub_channel_reads**: Own-row only (read, insert, update a user's own read mark).
-- **channel_notes**: Character notes are readable by their author and the channel GM; party notes by every channel member and the GM; GM notes only by the GM. Authors insert, update, and delete their own rows, with the channel/scope immutable via a before-update trigger. Archived channels reject writes.
+- **channel_notes**: Character notes are readable by their author (even after leaving the channel) and the channel GM; party notes by every channel member, the GM, or the note's author. GM notes only by the GM. Authors insert, update, and delete their own rows, with the channel/scope immutable via a before-update trigger. Archived channels reject writes.
 - **notification_preferences**: Users can only read/write their own row.
 - **storage.objects (`images` bucket)**: Private bucket. Reads are gated to channel members (`is_channel_member(storage.foldername(name)[1]::uuid)`), plus the server admin for report investigation. **Writes have no client policy by design** — only the service role (`upload-image`, which enforces the admin toggle, the size cap, the path shape, and GM-of-channel — except for the `character` folder, where any active member of that channel may upload their own character portrait) may INSERT/UPDATE. Adding an INSERT/UPDATE policy on this bucket re-opens a bypass of those server-side gates. `images_delete` remains GM-gated. Object paths are `{channel_id}/{avatar|message|map|resources|npc|character}/{uuid}.jpg`. Uploads are stored unscanned; abusive uploads are handled through player reports.
 

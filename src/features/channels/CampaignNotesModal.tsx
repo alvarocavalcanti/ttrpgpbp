@@ -67,6 +67,7 @@ export function CampaignNotesModal({
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ChannelNote | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const memberNames = useMemo(
     () => new Map(members.map(m => [m.user_id, m.character_name])),
@@ -100,18 +101,29 @@ export function CampaignNotesModal({
   }
 
   const handleCreate = async () => {
+    if (saving) return
     setActionError(null)
-    const ok = await createNote(activeScope, draft)
-    if (ok) setDrafts(prev => ({ ...prev, [activeScope]: '' }))
-    else setActionError('Could not save this note.')
+    setSaving(true)
+    try {
+      const ok = await createNote(activeScope, draft)
+      if (ok) setDrafts(prev => ({ ...prev, [activeScope]: '' }))
+      else setActionError('Could not save this note.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleUpdate = async () => {
-    if (!editing) return
+    if (!editing || saving) return
     setActionError(null)
-    const ok = await updateNote(editing.id, editing.body)
-    if (ok) setEditing(null)
-    else setActionError('Could not save this note.')
+    setSaving(true)
+    try {
+      const ok = await updateNote(editing.id, editing.body)
+      if (ok) setEditing(null)
+      else setActionError('Could not save this note.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = async () => {
@@ -219,7 +231,7 @@ export function CampaignNotesModal({
                   <button
                     type="button"
                     onClick={handleCreate}
-                    disabled={!draft.trim() || draft.trim().length > MAX_NOTE_LENGTH}
+                    disabled={saving || !draft.trim() || draft.trim().length > MAX_NOTE_LENGTH}
                     className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Add note
@@ -295,7 +307,7 @@ export function CampaignNotesModal({
                             <button
                               type="button"
                               onClick={handleUpdate}
-                              disabled={!editing.body.trim() || editing.body.trim().length > MAX_NOTE_LENGTH}
+                              disabled={saving || !editing.body.trim() || editing.body.trim().length > MAX_NOTE_LENGTH}
                               className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Save
@@ -331,18 +343,18 @@ export function CampaignNotesModal({
               </ul>
             )}
           </div>
+
+          {pendingDelete && (
+            <ConfirmDialog
+              title="Delete note?"
+              description="This note will be removed for everyone who can see it."
+              confirmLabel="Delete note"
+              onConfirm={handleDelete}
+              onClose={() => setPendingDelete(null)}
+            />
+          )}
         </div>
       </div>
-
-      {pendingDelete && (
-        <ConfirmDialog
-          title="Delete note?"
-          description="This note will be removed for everyone who can see it."
-          confirmLabel="Delete note"
-          onConfirm={handleDelete}
-          onClose={() => setPendingDelete(null)}
-        />
-      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(27);
+SELECT plan(28);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -221,8 +221,8 @@ SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 
 SELECT is(
   (SELECT count(*) FROM channel_notes WHERE channel_id = '00000000-0000-0000-0000-00000000f001'),
-  0::bigint,
-  'a blocked member loses note access'
+  1::bigint,
+  'a blocked member still reads only their own note'
 );
 
 SELECT throws_ok(
@@ -269,6 +269,16 @@ SELECT ok(
       AND channel_id = '00000000-0000-0000-0000-00000000f001'
   ),
   'account deletion anonymises shared notes without deleting them'
+);
+
+SELECT ok(
+  NOT EXISTS (
+    SELECT 1 FROM channel_notes
+    WHERE author_id IS NULL
+      AND channel_id = '00000000-0000-0000-0000-00000000f001'
+      AND updated_at <> created_at
+  ),
+  'account deletion does not mark surviving notes as edited'
 );
 
 SELECT * FROM finish();

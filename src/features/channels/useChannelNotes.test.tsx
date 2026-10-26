@@ -28,9 +28,11 @@ const note = (over: Record<string, unknown> = {}) => ({
 
 const realtime = () => {
   const handlers: Array<(payload: unknown) => void> = []
+  const filters: Array<Record<string, unknown>> = []
   const channel = {
-    on: vi.fn().mockImplementation((_event, _filter, cb) => {
+    on: vi.fn().mockImplementation((_event, filter, cb) => {
       handlers.push(cb)
+      filters.push(filter)
       return channel
     }),
     subscribe: vi.fn().mockImplementation((cb) => {
@@ -39,7 +41,7 @@ const realtime = () => {
     }),
     unsubscribe: vi.fn(),
   }
-  return { channel, handlers }
+  return { channel, handlers, filters }
 }
 
 function mockSupabase({
@@ -124,14 +126,15 @@ describe('useChannelNotes', () => {
     }))
     expect(result.current.notes).toHaveLength(2)
 
-    act(() => mock.rt.handlers[0]({
+    act(() => mock.rt.handlers[1]({
       eventType: 'UPDATE',
       new: note({ body: 'edited' }),
     }))
     expect(result.current.notes.find(n => n.id === 'n1')?.body).toBe('edited')
 
-    act(() => mock.rt.handlers[0]({ eventType: 'DELETE', old: { id: 'n1' } }))
+    act(() => mock.rt.handlers[2]({ eventType: 'DELETE', old: { id: 'n1' } }))
     expect(result.current.notes.map(n => n.id)).toEqual(['n2'])
+    expect(mock.rt.filters[2]).not.toHaveProperty('filter')
   })
 
   it('trims a new note and sends the author and scope', async () => {
