@@ -70,6 +70,12 @@ vi.mock('./useSafetyCardEvents', () => ({
   useSafetyCardEvents: vi.fn()
 }))
 
+vi.mock('./CampaignNotesModal', () => ({
+  CampaignNotesModal: ({ initialScope, readOnly }: any) => (
+    <div data-testid="campaign-notes-modal" data-scope={initialScope} data-readonly={String(readOnly)} />
+  ),
+}))
+
 const updateStatusMock = vi.hoisted(() => vi.fn())
 
 vi.mock('./useChannelStatus', () => ({
@@ -874,6 +880,82 @@ describe('ChannelView search functionality', () => {
     expect(menu).not.toHaveTextContent('Settings')
   })
 
+  it('shows the Notes section with character and party notes to players', () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const menu = screen.getByTestId('sidebar-menu')
+    expect(menu).toHaveTextContent('Notes')
+    expect(within(menu).getByTestId('sidebar-menu-notes')).toHaveTextContent('Character Notes')
+    expect(within(menu).getByTestId('sidebar-menu-notes')).toHaveTextContent('Party Notes')
+    expect(within(menu).getByTestId('sidebar-menu-notes')).not.toHaveTextContent('GM Notes')
+
+    fireEvent.click(screen.getByText('Party Notes'))
+    expect(screen.getByTestId('campaign-notes-modal')).toHaveAttribute('data-scope', 'party')
+  })
+
+  it('shows GM Notes to the GM and opens the GM scope', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', gm_id: 'user1', is_archived: false, game_system: 'generic' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: true,
+      myMemberInfo: { user_id: 'user1', id: 'm1', character_name: 'Hero' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    const menu = screen.getByTestId('sidebar-menu-notes')
+    expect(menu).toHaveTextContent('GM Notes')
+
+    fireEvent.click(screen.getByText('GM Notes'))
+    expect(screen.getByTestId('campaign-notes-modal')).toHaveAttribute('data-scope', 'gm')
+  })
+
+  it('opens notes read-only on an archived campaign', () => {
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel', is_archived: true },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn()
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByText('Character Notes'))
+    expect(screen.getByTestId('campaign-notes-modal')).toHaveAttribute('data-readonly', 'true')
+  })
+
   it('shows the GM Tools section for the GM', () => {
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Test Channel', gm_id: 'user1', is_archived: false, game_system: 'generic' },
@@ -1468,6 +1550,9 @@ describe('ChannelView search functionality', () => {
       'Safety Tools',
       'Channel Media',
       'Help',
+      'Character Notes',
+      'Party Notes',
+      'GM Notes',
       'GM Resources',
       'NPCs',
       'Rooms',
@@ -1475,6 +1560,7 @@ describe('ChannelView search functionality', () => {
       'Settings'
     ])
     expect(screen.getByText('Table')).toBeInTheDocument()
+    expect(screen.getByText('Notes')).toBeInTheDocument()
     expect(screen.getByText('GM Tools')).toBeInTheDocument()
   })
 

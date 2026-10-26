@@ -107,6 +107,14 @@ begin
     (ch, p2, 'Kess', false, '{"STR":0,"DEX":3,"CON":1,"INT":2,"WIS":0,"CHA":2}', now()),
     (ch, p3, 'Pip', false, '{"STR":-1,"DEX":2,"CON":0,"INT":3,"WIS":1,"CHA":1}', now());
 
+  -- Campaign notes (#762): party notes fill the shared tab, plus one private
+  -- character note and one GM note for the other scopes.
+  insert into public.channel_notes (channel_id, author_id, scope, body, created_at, updated_at) values
+    (ch, p1, 'party', 'The grove key is under the third stone by the old well. Don''t tell the Goblin King.', now() - interval '40 minutes', now() - interval '40 minutes'),
+    (ch, p2, 'party', 'We still owe the innkeeper 20 gold. Remind me before we leave town.', now() - interval '30 minutes', now() - interval '30 minutes'),
+    (ch, p1, 'character', 'I do not trust the talking owl. It knows my name.', now() - interval '20 minutes', now() - interval '20 minutes'),
+    (ch, gm, 'gm', 'The Goblin King is a puppet. The real threat waits below the shaft and wears Mira''s face.', now() - interval '10 minutes', now() - interval '10 minutes');
+
   -- Rooms (#621): an OOC room, a Dice room, and a GM-only room, so the room bar
   -- and the manager render with real content.
   insert into public.sub_channels (id, channel_id, name, created_by, visibility) values

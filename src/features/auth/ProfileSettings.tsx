@@ -464,7 +464,7 @@ export function ProfileSettings() {
             <div>
               <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Download My Data</h4>
               <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                Export your profile, channel memberships, and authored messages as a JSON file.
+                Export your profile, channel memberships, authored messages, and campaign notes as a JSON file.
               </p>
             </div>
             <button
@@ -482,7 +482,7 @@ export function ProfileSettings() {
               <div>
                 <h4 className="text-sm font-medium text-red-600 dark:text-red-400">Delete Account</h4>
                 <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                  Permanently deletes your account and personal data. Your messages are kept
+                  Permanently deletes your account and personal data. Your messages and campaign notes are kept
                   anonymous and your channels are handed to the server admin.
                 </p>
               </div>

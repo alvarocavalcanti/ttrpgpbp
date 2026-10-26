@@ -33,6 +33,10 @@ The **NPCs** sidebar item opens the NPC roster for the channel. From there the G
 
 The **Rooms** sidebar item opens the room manager. From there the GM can create, rename, archive, restore, and delete rooms, choose who can see each one (**Everyone**, **Only the GM**, or **Invited players**), and turn dice, Scenes, NPC posts, and whispers on or off per room — either while creating the room or on one that already exists. A channel holds up to 10 active rooms. See [Rooms](/help/rooms) for the full guide.
 
+## Campaign notes
+
+The **GM Notes** item in the Notes section of the sidebar opens the GM-only notebook. Players never see the tab or its contents. Character Notes show you every player's character notebook; you can read them but only each author can edit their own. Party Notes are shared with the whole campaign. See [Campaign Notes](/help/notes).
+
 ## Setting active players
 
 The **Active Player** sidebar item opens a list of the channel's players. Check one or more to name who is up next, then **Save** — the change applies immediately (no message needed) and sends the active player(s) an "It's your turn" notification. Leaving all boxes unchecked clears the active player.

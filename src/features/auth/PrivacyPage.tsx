@@ -167,12 +167,12 @@ export function PrivacyPage() {
             <li>
               <span className="font-semibold">Access / portability:</span>{' use '}
               <span className="font-medium">Settings → Account &amp; Data → Download My Data</span>
-              {' to export your profile, memberships, and authored messages as JSON.'}
+              {' to export your profile, memberships, authored messages, and campaign notes as JSON.'}
             </li>
             <li>
               <span className="font-semibold">Erasure:</span>{' use '}
               <span className="font-medium">Settings → Account &amp; Data → Delete Account</span>
-              {' to permanently delete your account and personal data. Your past messages are kept anonymously so chat history for other players is preserved.'}
+              {' to permanently delete your account and personal data. Your past messages and campaign notes are kept anonymously so chat history for other players is preserved.'}
             </li>
           </ul>
         </section>

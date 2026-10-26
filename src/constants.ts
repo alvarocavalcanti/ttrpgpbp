@@ -17,6 +17,7 @@ export const MAX_SAFETY_TEXT_LENGTH = 2000
 export const MAX_AWAY_MESSAGE_LENGTH = 200
 export const MAX_ADMIN_SUSPEND_REASON_LENGTH = 200
 export const MAX_NPC_NAME_LENGTH = 40
+export const MAX_NOTE_LENGTH = 4000
 
 // Listing copy caps (#674). update_channel_settings and the channels CHECK
 // constraints enforce the same numbers server-side; these mirror them so the

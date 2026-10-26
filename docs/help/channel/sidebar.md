@@ -21,6 +21,12 @@ The sidebar groups items by who uses them:
 - **Search** — find messages in the channel history
 - **Help** — channel-specific help
 
+**Notes** — shared across every room in the campaign:
+
+- **Character Notes** — your own character's notebook; only you and the GM can read it
+- **Party Notes** — notes shared with everyone in the campaign
+- **GM Notes** — the GM's private notebook (only the GM sees this item)
+
 **GM Tools** — GM only:
 
 - **Rooms** — create and manage rooms, and choose who can see each one — see [Rooms](/help/rooms)

@@ -24,6 +24,14 @@ export interface UserDataExport {
     terms_version: string | null
   } | null
   channel_memberships: ChannelMembership[]
+  notes: {
+    id: string
+    channel_id: string
+    scope: string
+    body: string
+    created_at: string
+    updated_at: string
+  }[]
   messages: {
     id: string
     channel_id: string
@@ -96,6 +104,11 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .select('channel_id, channel:channels(name), character_name, character_avatar_url, character_sheet_url, character_notes, is_away, is_blocked, joined_at')
     .eq('user_id', userId)
     .order('id', { ascending: true })
+  const notesQuery = supabase
+    .from('channel_notes')
+    .select('id, channel_id, scope, body, created_at, updated_at')
+    .eq('author_id', userId)
+    .order('id', { ascending: true })
   const messagesQuery = supabase
     .from('messages')
     .select('id, channel_id, type, content, whisper_to, npc_name, is_edited, is_deleted, created_at')
@@ -137,9 +150,10 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .eq('sender_id', userId)
     .order('id', { ascending: true })
 
-  const [profileResult, memberships, messages, diceRolls, reactions, diceFavorites, messageFavorites, prefsResult, abuseReports, adminMessages] = await Promise.all([
+  const [profileResult, memberships, notes, messages, diceRolls, reactions, diceFavorites, messageFavorites, prefsResult, abuseReports, adminMessages] = await Promise.all([
     profile,
     fetchAllRows(membershipsQuery),
+    fetchAllRows(notesQuery),
     fetchAllRows(messagesQuery),
     fetchAllRows(diceRollsQuery),
     fetchAllRows(reactionsQuery),
@@ -168,6 +182,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
       is_blocked: m.is_blocked,
       joined_at: m.joined_at,
     })),
+    notes,
     messages,
     dice_rolls: diceRolls,
     reactions,

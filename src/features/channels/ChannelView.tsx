@@ -30,6 +30,8 @@ import { useChannelNpcs } from './useChannelNpcs'
 import { NpcManagementModal } from './NpcManagementModal'
 import { ActivePlayerModal } from './ActivePlayerModal'
 import { SafetyToolsModal } from './SafetyToolsModal'
+import { CampaignNotesModal } from './CampaignNotesModal'
+import type { NoteScope } from '../validation/rowSchemas'
 import { useSafetyCardEvents } from './useSafetyCardEvents'
 import { ChannelHelpModal } from '../help/ChannelHelpModal'
 import { useToast } from '../../contexts/ToastContext'
@@ -40,7 +42,8 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 
 // Shared styling for the sidebar menu rows (Map, Rolls, Search, Notifications,
-// Resources, Safety Tools, Help, GM Resources, NPCs, Active Player, Settings).
+// Resources, Safety Tools, Media, Help, Notes, GM Resources, NPCs, Active
+// Player, Settings).
 const SIDEBAR_MENU_ITEM =
   'block w-full text-left px-4 py-2.5 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors'
 
@@ -116,6 +119,7 @@ export function ChannelView() {
   const [showSearch, setShowSearch] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [showSafetyTools, setShowSafetyTools] = useState(false)
+  const [notesScope, setNotesScope] = useState<NoteScope | null>(null)
   const [showMedia, setShowMedia] = useState(false)
   const [showNpcs, setShowNpcs] = useState(false)
   const [showActivePlayer, setShowActivePlayer] = useState(false)
@@ -184,11 +188,11 @@ export function ChannelView() {
   // doesn't stay open behind them. Only a real mobile-sidebar close is
   // tracked: modals opened from the persistent desktop sidebar emit no event.
   useEffect(() => {
-    if ((showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer || showMedia) && sidebarOpenRef.current) {
+    if ((showSettings || showRollHistory || showSearch || showNotificationSettings || showSafetyTools || showNpcs || showHelp || showActivePlayer || showMedia || notesScope !== null) && sidebarOpenRef.current) {
       setShowMobileSidebar(false)
       trackEvent('menu_close', { menu: 'sidebar', method: 'modal' })
     }
-  }, [showMobileSidebar, showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer, showMedia])
+  }, [showMobileSidebar, showSettings, showRollHistory, showSearch, showNotificationSettings, showSafetyTools, showNpcs, showHelp, showActivePlayer, showMedia, notesScope])
 
   // Ref mirror of the drawer's open flag (see openSidebar/closeSidebar above).
   useEffect(() => {
@@ -874,6 +878,37 @@ export function ChannelView() {
             </button>
           </div>
 
+          {/* Campaign notes (#762), shared across every room in the channel. */}
+          <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-400">Notes</p>
+          <div
+            data-testid="sidebar-menu-notes"
+            className="divide-y divide-surface-100 dark:divide-surface-700 border-t border-surface-100 dark:border-surface-700"
+          >
+            <button
+              type="button"
+              onClick={() => setNotesScope('character')}
+              className={SIDEBAR_MENU_ITEM}
+            >
+              Character Notes
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotesScope('party')}
+              className={SIDEBAR_MENU_ITEM}
+            >
+              Party Notes
+            </button>
+            {isGM && (
+              <button
+                type="button"
+                onClick={() => setNotesScope('gm')}
+                className={SIDEBAR_MENU_ITEM}
+              >
+                GM Notes
+              </button>
+            )}
+          </div>
+
           {isGM && (
             <>
               {/* GM-only tools */}
@@ -937,6 +972,18 @@ export function ChannelView() {
           channelId={channel.id}
           myMemberId={myMemberInfo?.id}
           onClose={() => setShowNotificationSettings(false)}
+        />
+      )}
+
+      {notesScope && (
+        <CampaignNotesModal
+          channelId={channel.id}
+          initialScope={notesScope}
+          isGM={isGM}
+          readOnly={channel.is_archived}
+          members={members}
+          myUserId={user?.id}
+          onClose={() => setNotesScope(null)}
         />
       )}
 

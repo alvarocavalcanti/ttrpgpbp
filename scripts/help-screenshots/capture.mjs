@@ -129,8 +129,23 @@ console.log('status-bar done')
 await page.click('[aria-label^="Toggle sidebar menu"]')
 await page.waitForSelector('[data-testid="sidebar-menu"]')
 await page.waitForTimeout(600)
+// Scroll the drawer to the Notes section (#762) so the new menu group is in
+// the captured viewport.
+await page.getByRole('button', { name: 'Party Notes' }).scrollIntoViewIfNeeded()
+await page.waitForTimeout(300)
 await page.screenshot({ path: `${OUT}/sidebar.png` })
 console.log('sidebar done')
+
+// ── 4b. Campaign notes (from sidebar) ────────────────────────────────────
+await page.getByRole('button', { name: 'Party Notes' }).click()
+await page.getByRole('dialog', { name: 'Campaign Notes' }).waitFor()
+await page.waitForTimeout(800)
+await page.screenshot({ path: `${OUT}/notes.png` })
+console.log('notes done')
+await closeSheets()
+// Opening notes closes the mobile drawer; reopen it for the GM settings step.
+await page.click('[aria-label^="Toggle sidebar menu"]')
+await page.waitForTimeout(400)
 
 // ── 5. GM settings (from sidebar) ────────────────────────────────────────
 await page.getByRole('button', { name: 'Settings' }).last().click()
