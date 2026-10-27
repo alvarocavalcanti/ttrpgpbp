@@ -17,6 +17,7 @@ import { chipBase, chipIdle, chipActive } from './composerChip'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../lib/safeStorage'
 import { MarkdownToolbar } from './MarkdownToolbar'
 import { applyMarkdownFormat, type MarkdownFormat } from './markdownFormat'
+import { markdownAutoPair } from './markdownAutoPair'
 
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
@@ -511,6 +512,40 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Markdown auto-pair: close a delimiter as it is typed and step over a
+    // closer that is already there. Handled before the mention/send branches,
+    // and before the character reaches the textarea, so component state and
+    // the DOM value can never drift apart.
+    if (textareaRef.current) {
+      const textarea = textareaRef.current
+      const caret = textarea.selectionStart ?? 0
+      // AltGr arrives as ctrl+alt on Windows and is how a French layout types
+      // `~` and `` ` ``, so only a plain ctrl is a real modifier.
+      const modifierOnly = e.metaKey || (e.ctrlKey && !e.altKey)
+      if (
+        e.key.length === 1 &&
+        !modifierOnly &&
+        !e.nativeEvent.isComposing &&
+        caret === textarea.selectionEnd
+      ) {
+        const outcome = markdownAutoPair(textarea.value, caret, e.key)
+        if (outcome) {
+          e.preventDefault()
+          if (outcome.kind === 'skip') {
+            textarea.setSelectionRange(caret + 1, caret + 1)
+          } else {
+            contentRef.current = outcome.value
+            setContent(outcome.value)
+            setMentionState(null)
+            requestAnimationFrame(() => {
+              textareaRef.current?.setSelectionRange(outcome.caret, outcome.caret)
+            })
+          }
+          return
+        }
+      }
+    }
+
     // Send on Cmd/Ctrl + Enter
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       handleSubmit(e as unknown as React.FormEvent)

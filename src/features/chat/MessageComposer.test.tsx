@@ -1774,4 +1774,134 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       }
     })
   })
+
+  describe('markdown auto-pair while typing', () => {
+    const settleFrame = () =>
+      act(async () => { await new Promise<null>(resolve => requestAnimationFrame(() => resolve(null))) })
+
+    // jsdom never inserts typed characters, so a keystroke is replayed as the
+    // browser would: the composer changes the value itself when it pairs or
+    // skips, otherwise the character arrives through change.
+    const type = async (textarea: HTMLTextAreaElement, char: string, init: Record<string, unknown> = {}) => {
+      const before = textarea.value
+      const caret = textarea.selectionStart ?? 0
+      fireEvent.keyDown(textarea, { key: char, ...init })
+      await settleFrame()
+      if (textarea.value === before && (textarea.selectionStart ?? 0) === caret) {
+        const next = before.slice(0, caret) + char + before.slice(caret)
+        fireEvent.change(textarea, { target: { value: next, selectionStart: caret + 1, selectionEnd: caret + 1 } })
+      }
+    }
+
+    const renderComposer = () =>
+      render(<MessageComposer channelId="c1" isGM={false} members={[]} onSendMessage={vi.fn()} />)
+
+    it('pairs bold markers so the caret never has to be moved back', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      // One `*` already leaves the closing marker behind the caret.
+      await type(textarea, '*')
+      expect(textarea).toHaveValue('**')
+      expect(textarea.selectionStart).toBe(1)
+
+      // A second `*` nests into a bold pair.
+      await type(textarea, '*')
+      expect(textarea).toHaveValue('****')
+      expect(textarea.selectionStart).toBe(2)
+
+      // Typing the text lands inside the closers without typing them.
+      for (const char of ['b', 'o', 'l', 'd']) await type(textarea, char)
+      expect(textarea).toHaveValue('**bold**')
+      expect(textarea.selectionStart).toBe(6)
+
+      // Re-typing the closers steps over them instead of doubling them.
+      for (const char of ['*', '*']) await type(textarea, char)
+      expect(textarea).toHaveValue('**bold**')
+      expect(textarea.selectionStart).toBe(8)
+    })
+
+    it('pairs italic markers', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      await type(textarea, '*')
+      await type(textarea, 'h')
+      expect(textarea).toHaveValue('*h*')
+      expect(textarea.selectionStart).toBe(2)
+
+      await type(textarea, 'i')
+      await type(textarea, '*')
+      expect(textarea).toHaveValue('*hi*')
+      expect(textarea.selectionStart).toBe(4)
+    })
+
+    it('pairs strikethrough markers', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      await type(textarea, '~')
+      await type(textarea, '~')
+      expect(textarea).toHaveValue('~~~~')
+      expect(textarea.selectionStart).toBe(2)
+
+      for (const char of ['o', 'l', 'd', '~', '~']) await type(textarea, char)
+      expect(textarea).toHaveValue('~~old~~')
+      expect(textarea.selectionStart).toBe(7)
+    })
+
+    it('pairs an inline code backtick', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      await type(textarea, '`')
+      for (const char of ['r', 'u', 'n']) await type(textarea, char)
+      expect(textarea).toHaveValue('`run`')
+      expect(textarea.selectionStart).toBe(4)
+
+      await type(textarea, '`')
+      expect(textarea).toHaveValue('`run`')
+      expect(textarea.selectionStart).toBe(5)
+    })
+
+    it('never pairs a table pipe', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      await type(textarea, 'a')
+      await type(textarea, '|')
+      await type(textarea, 'b')
+
+      expect(textarea).toHaveValue('a|b')
+    })
+
+    it('leaves an IME composition alone', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      await type(textarea, 'a')
+      fireEvent.keyDown(textarea, { key: '*', isComposing: true })
+
+      expect(textarea).toHaveValue('a')
+    })
+
+    it('still pairs on an AltGr combination, which is how some layouts type the marker', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      fireEvent.keyDown(textarea, { key: '~', ctrlKey: true, altKey: true })
+
+      expect(textarea).toHaveValue('~~')
+    })
+
+    it('leaves ctrl and cmd shortcuts to the composer', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      fireEvent.keyDown(textarea, { key: '*', ctrlKey: true })
+      fireEvent.keyDown(textarea, { key: '*', metaKey: true })
+
+      expect(textarea).toHaveValue('')
+    })
+  })
 })
