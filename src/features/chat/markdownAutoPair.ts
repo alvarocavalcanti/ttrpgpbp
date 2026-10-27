@@ -3,9 +3,9 @@ import { MAX_MESSAGE_LENGTH } from '../../constants'
 // Delimiters that pair while typing. `_` is absent (snake_case and emphasis
 // inside a word would pair constantly) and so is `|` (a single pipe is how GFM
 // tables are typed, so pairing it would break ordinary typing).
-export const AUTO_PAIR_DELIMITERS: readonly string[] = ['*', '~', '`']
+const AUTO_PAIR_DELIMITERS: readonly string[] = ['*', '~', '`']
 
-export type AutoPairOutcome =
+type AutoPairOutcome =
   // Caret sits between the opener the player typed and the closer we added.
   | { kind: 'paired'; value: string; caret: number }
   // The character after the caret is already the marker being typed: step the
@@ -18,6 +18,8 @@ export type AutoPairOutcome =
 // `*` nests into `**|**`, and typing the closing marker steps over the one
 // already there. Callers must run this BEFORE the character reaches the
 // textarea (keydown + preventDefault) so state and DOM never drift apart.
+// shortcut: every delimiter keystroke pairs, so a literal marker needs the
+// `\*` escape; upgrade if players ask for a smarter rule.
 export function markdownAutoPair(
   value: string,
   caret: number,

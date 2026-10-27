@@ -30,6 +30,10 @@ vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn(() => ({ user: { id: 'u1' } })),
 }))
 
+// Let a pending focus/caret animation frame run before asserting.
+const settleFrame = () =>
+  act(async () => { await new Promise<null>(resolve => requestAnimationFrame(() => resolve(null))) })
+
 describe('MessageComposer', () => {
   const members: any[] = [
     { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } }
@@ -1682,9 +1686,6 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     }
 
     // Let a pending focus frame run before asserting that none happened.
-    const settleFrame = () =>
-      act(async () => { await new Promise<null>(resolve => requestAnimationFrame(() => resolve(null))) })
-
     const composer = (subChannelId?: string) => (
       <MessageComposer channelId="c1" subChannelId={subChannelId} isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
@@ -1776,9 +1777,6 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
   })
 
   describe('markdown auto-pair while typing', () => {
-    const settleFrame = () =>
-      act(async () => { await new Promise<null>(resolve => requestAnimationFrame(() => resolve(null))) })
-
     // jsdom never inserts typed characters, so a keystroke is replayed as the
     // browser would: the composer changes the value itself when it pairs or
     // skips, otherwise the character arrives through change.
