@@ -17,7 +17,9 @@ Messages support **Markdown** and emoji. Bold, italics, lists, headings and code
 
 Tapping into the message box shows a formatting toolbar at the top right with one-tap buttons for bold, italics, lists, quotes, code and spoilers. The left-most button opens a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu, and the toolbar hides while mention or NPC suggestions are open.
 
-You can also type the markers: `*`, `**`, `~~` and a backtick close themselves as you type, so the cursor stays inside and you never have to arrow back. Typing over a closing marker you already have steps past it instead of doubling it.
+You can also type the markers: `*`, `**`, `~~` and a backtick close themselves as you type, so the cursor stays inside and you never have to arrow back. Typing over a closing marker you already have steps past it instead of doubling it. This works the same with a phone keyboard.
+
+The message box names where you're writing — `Message #<channel name>` on Main and `Message #<room name>` inside a room.
 
 Messages can contain up to **4,000 characters**, including Markdown. The same limit applies when editing.
 
@@ -47,7 +49,7 @@ GMs can type **`@all`** to mention every player in the channel at once.
 
 ## Drafts and Resending
 
-The message composer **saves your text automatically** as a draft for each channel. If you close the app or lose connection, your text will still be there when you return. On a computer, switching rooms leaves the cursor waiting in the message box, so you can type straight away; on a phone the keyboard still waits for a tap.
+The message composer **saves your text automatically** as a draft for each channel. If you close the app or lose connection, your text will still be there when you return. On a computer, opening a channel or switching rooms leaves the cursor waiting in the message box, so you can type straight away; on a phone the keyboard still waits for a tap.
 
 If a message or dice roll fails to send because of a network drop, it will appear as **Pending** and then give you **Retry** and **Remove** options. Clicking Retry is safe and guaranteed not to send a duplicate.
 
