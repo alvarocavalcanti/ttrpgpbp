@@ -1030,7 +1030,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 aria-controls={mentionOpen ? listboxId : undefined}
                 aria-activedescendant={mentionOpen ? `${listboxId}-option-${Math.min(activeMentionIndex, mentionOptions.length - 1)}` : undefined}
                 aria-label="Message"
-                placeholder={subChannelId ? `Message #${roomName ?? 'room'}` : undefined}
+                placeholder={`Message #${roomName ?? 'room'}`}
                 className={`block w-full text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />

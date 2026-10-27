@@ -1773,6 +1773,22 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
         dialog.remove()
       }
     })
+
+    it('uses the channel name as the Main placeholder', () => {
+      render(
+        <MessageComposer channelId="c1" roomName="The Den" isGM={false} members={[]} onSendMessage={vi.fn()} />
+      )
+
+      expect(screen.getByRole('combobox', { name: 'Message' })).toHaveAttribute('placeholder', 'Message #The Den')
+    })
+
+    it('keeps the room name in the placeholder inside a room', () => {
+      render(
+        <MessageComposer channelId="c1" subChannelId="room-b" roomName="OOC" isGM={false} members={[]} onSendMessage={vi.fn()} />
+      )
+
+      expect(screen.getByRole('combobox', { name: 'Message' })).toHaveAttribute('placeholder', 'Message #OOC')
+    })
   })
 
   describe('markdown auto-pair while typing', () => {
