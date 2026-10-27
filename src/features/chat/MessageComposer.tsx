@@ -15,6 +15,7 @@ import { useClickOutside } from '../../hooks/useClickOutside'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 import { chipBase, chipIdle, chipActive } from './composerChip'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../lib/safeStorage'
+import { lastInputWasMouse } from '../../lib/inputModality'
 import { MarkdownToolbar } from './MarkdownToolbar'
 import { applyMarkdownFormat, type MarkdownFormat } from './markdownFormat'
 import { markdownAutoPair } from './markdownAutoPair'
@@ -217,35 +218,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     return () => observer.disconnect()
   }, [resizeComposer])
 
-  // Where the caret goes on a room switch, like a desktop chat app: the box is
-  // focused and ready to type. Desktop only — on a touch device the keyboard
-  // must stay closed until the player taps (native behavior), so a coarse
-  // primary pointer skips the focus entirely.
-  const isCoarsePointer = useMediaQuery('(pointer: coarse)')
-  // Pointer vs keyboard matters: the room tablist uses roving focus with arrow
-  // keys, so a keyboard-driven switch must leave focus on the tabs.
-  const lastInputWasPointer = useRef(false)
-  // undefined = first commit (nothing to switch from). Compared instead of a
-  // mounted flag so StrictMode's double-invoked mount effect can't focus a
-  // freshly loaded page.
-  const previousDraftKeyRef = useRef<string | null | undefined>(undefined)
-
+  // Where the caret goes after a navigation, like a desktop chat app: opening a
+  // channel or switching rooms leaves the box focused with the draft loaded.
+  // Every one of those is a fresh mount (the route error boundary keys the
+  // channel subtree on the pathname), so this runs per mount and per draft key.
+  // Only a non-touch pointer counts: a phone must keep its keyboard closed until
+  // the player taps, and the room tablist's arrow keys must keep their focus.
   useEffect(() => {
-    const onPointerDown = () => { lastInputWasPointer.current = true }
-    const onKeyDown = () => { lastInputWasPointer.current = false }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('keydown', onKeyDown, true)
-    }
-  }, [])
-
-  useEffect(() => {
-    const previous = previousDraftKeyRef.current
-    previousDraftKeyRef.current = draftKey
-    if (previous === undefined || previous === draftKey) return
-    if (isCoarsePointer || !lastInputWasPointer.current) return
+    if (!lastInputWasMouse()) return
     const active = document.activeElement as HTMLElement | null
     const tag = active?.tagName
     // Never take focus away from a field the player is already in (room-create
@@ -261,7 +241,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     })
     return () => cancelAnimationFrame(frame)
-  }, [draftKey, isCoarsePointer])
+  }, [draftKey])
 
   // Sorted A-Z case-insensitively (#521); @all stays first via showAllMention below.
   const matchedMembers = mentionState
@@ -511,39 +491,65 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
   }
 
+  // A handled keydown should never be handled twice if a browser still emits
+  // beforeinput for the same character (some Android IMEs do).
+  const handledByKeydownRef = useRef<string | null>(null)
+
+  // Single markdown auto-pair action shared by hardware keyboards (keydown) and
+  // soft keyboards (beforeinput). Returns whether it handled the character.
+  const applyAutoPair = useCallback((char: string): boolean => {
+    const textarea = textareaRef.current
+    if (!textarea) return false
+    const caret = textarea.selectionStart ?? 0
+    if (caret !== textarea.selectionEnd) return false
+    const outcome = markdownAutoPair(textarea.value, caret, char)
+    if (!outcome) return false
+    if (outcome.kind === 'skip') {
+      textarea.setSelectionRange(caret + 1, caret + 1)
+    } else {
+      contentRef.current = outcome.value
+      setContent(outcome.value)
+      setMentionState(null)
+      requestAnimationFrame(() => {
+        textareaRef.current?.setSelectionRange(outcome.caret, outcome.caret)
+      })
+    }
+    return true
+  }, [])
+
+  // Soft keyboards (iOS, several Android IMEs) type through a composition, so
+  // keydown never carries a usable key there; beforeinput is what they emit.
+  // preventDefault leaves the DOM untouched, keeping state and DOM in lockstep.
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const handleBeforeInput = (event: InputEvent) => {
+      if (event.inputType !== 'insertText' || event.isComposing) return
+      const data = event.data
+      // Single characters only: paste, drop and autocorrect replacements keep
+      // the browser's own behavior.
+      if (!data || data.length !== 1) return
+      const handledByKeydown = handledByKeydownRef.current === data
+      handledByKeydownRef.current = null
+      if (handledByKeydown) return
+      if (applyAutoPair(data)) event.preventDefault()
+    }
+    textarea.addEventListener('beforeinput', handleBeforeInput)
+    return () => textarea.removeEventListener('beforeinput', handleBeforeInput)
+  }, [applyAutoPair])
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Markdown auto-pair: close a delimiter as it is typed and step over a
     // closer that is already there. Handled before the mention/send branches,
     // and before the character reaches the textarea, so component state and
     // the DOM value can never drift apart.
-    if (textareaRef.current) {
-      const textarea = textareaRef.current
-      const caret = textarea.selectionStart ?? 0
-      // AltGr arrives as ctrl+alt on Windows and is how a French layout types
-      // `~` and `` ` ``, so only a plain ctrl is a real modifier.
-      const modifierOnly = e.metaKey || (e.ctrlKey && !e.altKey)
-      if (
-        e.key.length === 1 &&
-        !modifierOnly &&
-        !e.nativeEvent.isComposing &&
-        caret === textarea.selectionEnd
-      ) {
-        const outcome = markdownAutoPair(textarea.value, caret, e.key)
-        if (outcome) {
-          e.preventDefault()
-          if (outcome.kind === 'skip') {
-            textarea.setSelectionRange(caret + 1, caret + 1)
-          } else {
-            contentRef.current = outcome.value
-            setContent(outcome.value)
-            setMentionState(null)
-            requestAnimationFrame(() => {
-              textareaRef.current?.setSelectionRange(outcome.caret, outcome.caret)
-            })
-          }
-          return
-        }
-      }
+    // AltGr arrives as ctrl+alt on Windows and is how a French layout types
+    // `~` and `` ` ``, so only a plain ctrl is a real modifier.
+    const modifierOnly = e.metaKey || (e.ctrlKey && !e.altKey)
+    if (e.key.length === 1 && !modifierOnly && !e.nativeEvent.isComposing && applyAutoPair(e.key)) {
+      handledByKeydownRef.current = e.key
+      e.preventDefault()
+      return
     }
 
     // Send on Cmd/Ctrl + Enter
@@ -1032,7 +1038,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 aria-controls={mentionOpen ? listboxId : undefined}
                 aria-activedescendant={mentionOpen ? `${listboxId}-option-${Math.min(activeMentionIndex, mentionOptions.length - 1)}` : undefined}
                 aria-label="Message"
-                placeholder={subChannelId ? `Message #${roomName ?? 'room'}` : undefined}
+                placeholder={`Message #${roomName ?? 'room'}`}
                 className={`block w-full text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
                 rows={1}
               />

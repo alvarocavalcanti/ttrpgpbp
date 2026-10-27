@@ -51,6 +51,10 @@ test.describe('Core Journey', () => {
     // 6. Send a message
     const messageInput = page.getByRole('combobox', { name: 'Message' });
     await expect(messageInput).toBeVisible();
+    // Opening the channel focuses the box, and Main carries the channel name
+    // in the placeholder instead of leaving it empty.
+    await expect(messageInput).toBeFocused();
+    await expect(messageInput).toHaveAttribute('placeholder', `Message #${channelName}`);
     await messageInput.fill('Hello from E2E test!');
     await messageInput.press('Enter');
 

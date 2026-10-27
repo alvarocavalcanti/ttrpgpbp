@@ -141,6 +141,15 @@ Every UI change must follow these conventions:
 - **Accessibility basics** — inputs have visible `<label>`s, interactive elements have accessible names/`aria-label`, focus states are visible, and modals close on Escape.
 - **Tests for all of the above** — validation rejection, empty/loading/error states, scroll anchoring, and sanitization paths get explicit tests.
 
+## Platform Parity
+
+The app is **mobile-first and desktop is a first-class target**: every user-facing change must work in both. A behavior that only works on one platform is a bug, not a caveat.
+
+- **Default to both.** Before calling a change done, say how it behaves on a phone (touch, no hover, on-screen keyboard, narrow viewport) and on a desktop (mouse, hover, physical keyboard). If a platform could not be tested, say which one in the PR body — never leave it implied that both were verified.
+- **Platform-specific mechanics need a touch path.** Keyboard events, hover affordances, `matchMedia`/pointer checks, and clipboard or share APIs all differ on touch. Ship the touch path together with the desktop path, or degrade to today's behavior — a silent no-op on mobile is not acceptable.
+- **When parity is genuinely impossible, the release note must say so.** Name the platform in the same sentence as the feature — "on desktop", "with a physical keyboard", "in the installed app" — never as a footnote. [docs/CHANGELOG.md](docs/CHANGELOG.md) feeds the What's New modal, which is shown to every user on every device: an entry that promises a mobile behavior the app cannot deliver is a wrong instruction, not marketing.
+- **Fix it or qualify it, next release.** If a shipped feature turns out to work on only one platform, either close the gap in the next PR or amend its changelog entry with the platform qualifier. Never leave an unqualified entry standing for a single-platform feature.
+
 ## Local Testing
 
 > **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
@@ -203,6 +212,7 @@ Every UI change must follow these conventions:
 - After any UI change, check whether the help screenshots in `public/help-images/` need updating; regenerate and commit them when they do
   - Screenshot tooling lives in [`scripts/help-screenshots/`](scripts/help-screenshots/): `seed.sql` (idempotent local fixtures, password `shots-pass-1`) + `capture.mjs` (Playwright, 360×780 @3x light mode), which also writes the 320px WebP thumbnails in `public/help-images/thumbs/` used by the `/features` cards (regenerate standalone with `node scripts/help-screenshots/thumbs.mjs`). See its [README](scripts/help-screenshots/README.md) for the run steps. Review the regenerated PNGs and commit only the ones that changed.
 - **Every user-facing feature** (new or changed behavior visible to players) gets an entry in [docs/CHANGELOG.md](docs/CHANGELOG.md) in the same PR, under the top date-stamped heading (`## YYYY-MM-DD` — open a new heading for the merge date; merges to `main` ship immediately, so there is no "Unreleased:" state)
+- **Platform-qualify any single-platform entry** — a changelog or help entry about behavior that exists on only one platform names it in the same sentence ("on desktop", "with a physical keyboard"), per [Platform Parity](#platform-parity). Help screenshots have the same duty: do not illustrate a desktop-only control without saying it is desktop-only
 - **Server Admin entries stay out of player views** — end an entry about the Server Admin console with a trailing `<!-- admin-only -->` HTML comment (invisible everywhere since there is no `rehype-raw`). `stripAdminEntries` in `src/features/changelog/changelog.ts` removes tagged entries — plus any date/section header left empty — from the What's New modal, the `/changelog` page, and the seen-hash, so an admin-only edit never re-shows the modal. Tag new admin entries; never remove old ones (history stays intact).
 - **User-facing copy must be player-friendly** — any text shown to app users (What's New modal, `/changelog` page, help docs, error messages) is written for RPG players, not developers. No schema/table names, RLS/SQL/API internals, function/column names, storage details, or error codes — say what the player gains, in plain words. [docs/CHANGELOG.md](docs/CHANGELOG.md) feeds the What's New UI directly, so keep its entries human-readable even when they summarize technical work.
 

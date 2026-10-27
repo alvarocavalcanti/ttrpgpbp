@@ -9,9 +9,14 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAnalytics } from './lib/analytics'
 import { hasAnalyticsConsent } from './lib/analyticsConsent'
 import { hasPersistedSession } from './lib/authSessionHint'
+import { trackInputModality } from './lib/inputModality'
 import { initSentry } from './lib/sentry'
 
 void initSentry()
+
+// Must run before any click: the first input decides whether a channel the
+// player opens gets the caret in its composer (see lastInputWasMouse).
+trackInputModality()
 
 // Analytics loads only after the visitor allows it (see AnalyticsConsentBanner).
 if (hasAnalyticsConsent()) initAnalytics()

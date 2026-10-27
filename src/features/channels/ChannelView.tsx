@@ -738,7 +738,7 @@ export function ChannelView() {
             ref={composerRef}
             channelId={channel.id}
             subChannelId={subId ?? null}
-            roomName={activeRoomName}
+            roomName={subId ? activeRoomName : channel.name}
             capabilities={activeCapabilities}
             isGM={isGM} 
             members={whisperableMembers} 
