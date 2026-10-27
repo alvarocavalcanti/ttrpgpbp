@@ -1664,4 +1664,114 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  describe('focus on room switch', () => {
+    // Query-precise: the coarse-pointer check must not be confused with the
+    // max-width one the toolbar uses.
+    const setCoarsePointer = () => {
+      window.matchMedia = ((query: string) => ({
+        matches: query === '(pointer: coarse)',
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as any
+    }
+
+    // Let a pending focus frame run before asserting that none happened.
+    const settleFrame = () =>
+      act(async () => { await new Promise<null>(resolve => requestAnimationFrame(() => resolve(null))) })
+
+    const composer = (subChannelId?: string) => (
+      <MessageComposer channelId="c1" subChannelId={subChannelId} isGM={false} members={[]} onSendMessage={vi.fn()} />
+    )
+
+    it('focuses the box with the caret at the end of the draft after a pointer room switch', async () => {
+      localStorage.setItem('composer_draft_c1', 'draft for main')
+      localStorage.setItem('composer_draft_c1_room-b', 'draft for room')
+
+      const { rerender } = render(composer())
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+      expect(textarea).toHaveValue('draft for main')
+      expect(textarea).not.toHaveFocus()
+
+      fireEvent.pointerDown(document)
+      rerender(composer('room-b'))
+
+      await waitFor(() => expect(textarea).toHaveFocus())
+      expect(textarea).toHaveValue('draft for room')
+      expect(textarea.selectionStart).toBe('draft for room'.length)
+      expect(textarea.selectionEnd).toBe('draft for room'.length)
+    })
+
+    it('does not focus on the first render, even after a pointer click', async () => {
+      render(composer())
+      fireEvent.pointerDown(document)
+
+      await settleFrame()
+      expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+    })
+
+    it('does not focus when the primary pointer is coarse (touch)', async () => {
+      setCoarsePointer()
+      const { rerender } = render(composer())
+      fireEvent.pointerDown(document)
+      rerender(composer('room-b'))
+
+      await settleFrame()
+      expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+    })
+
+    it('does not focus after a keyboard-driven switch, so room tab arrow keys keep working', async () => {
+      const { rerender } = render(composer())
+      fireEvent.keyDown(document, { key: 'ArrowRight' })
+      rerender(composer('room-b'))
+
+      await settleFrame()
+      expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+    })
+
+    it('does not steal focus from another field', async () => {
+      const { rerender } = render(
+        <>
+          <input aria-label="Other field" />
+          {composer()}
+        </>
+      )
+      const other = screen.getByLabelText('Other field')
+      other.focus()
+      fireEvent.pointerDown(other)
+      rerender(
+        <>
+          <input aria-label="Other field" />
+          {composer('room-b')}
+        </>
+      )
+
+      await settleFrame()
+      expect(other).toHaveFocus()
+      expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+    })
+
+    it('does not focus while a modal is open', async () => {
+      const dialog = document.createElement('div')
+      dialog.setAttribute('role', 'dialog')
+      dialog.setAttribute('aria-modal', 'true')
+      document.body.appendChild(dialog)
+
+      try {
+        const { rerender } = render(composer())
+        fireEvent.pointerDown(document)
+        rerender(composer('room-b'))
+
+        await settleFrame()
+        expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+      } finally {
+        dialog.remove()
+      }
+    })
+  })
 })
