@@ -491,39 +491,57 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
   }
 
+  // Single markdown auto-pair action shared by hardware keyboards (keydown) and
+  // soft keyboards (beforeinput). Returns whether it handled the character.
+  const applyAutoPair = useCallback((char: string): boolean => {
+    const textarea = textareaRef.current
+    if (!textarea) return false
+    const caret = textarea.selectionStart ?? 0
+    if (caret !== textarea.selectionEnd) return false
+    const outcome = markdownAutoPair(textarea.value, caret, char)
+    if (!outcome) return false
+    if (outcome.kind === 'skip') {
+      textarea.setSelectionRange(caret + 1, caret + 1)
+    } else {
+      contentRef.current = outcome.value
+      setContent(outcome.value)
+      setMentionState(null)
+      requestAnimationFrame(() => {
+        textareaRef.current?.setSelectionRange(outcome.caret, outcome.caret)
+      })
+    }
+    return true
+  }, [])
+
+  // Soft keyboards (iOS, several Android IMEs) type through a composition, so
+  // keydown never carries a usable key there; beforeinput is what they emit.
+  // preventDefault leaves the DOM untouched, keeping state and DOM in lockstep.
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const handleBeforeInput = (event: InputEvent) => {
+      if (event.inputType !== 'insertText' || event.isComposing) return
+      const data = event.data
+      // Single characters only: paste, drop and autocorrect replacements keep
+      // the browser's own behavior.
+      if (!data || data.length !== 1) return
+      if (applyAutoPair(data)) event.preventDefault()
+    }
+    textarea.addEventListener('beforeinput', handleBeforeInput)
+    return () => textarea.removeEventListener('beforeinput', handleBeforeInput)
+  }, [applyAutoPair])
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Markdown auto-pair: close a delimiter as it is typed and step over a
     // closer that is already there. Handled before the mention/send branches,
     // and before the character reaches the textarea, so component state and
     // the DOM value can never drift apart.
-    if (textareaRef.current) {
-      const textarea = textareaRef.current
-      const caret = textarea.selectionStart ?? 0
-      // AltGr arrives as ctrl+alt on Windows and is how a French layout types
-      // `~` and `` ` ``, so only a plain ctrl is a real modifier.
-      const modifierOnly = e.metaKey || (e.ctrlKey && !e.altKey)
-      if (
-        e.key.length === 1 &&
-        !modifierOnly &&
-        !e.nativeEvent.isComposing &&
-        caret === textarea.selectionEnd
-      ) {
-        const outcome = markdownAutoPair(textarea.value, caret, e.key)
-        if (outcome) {
-          e.preventDefault()
-          if (outcome.kind === 'skip') {
-            textarea.setSelectionRange(caret + 1, caret + 1)
-          } else {
-            contentRef.current = outcome.value
-            setContent(outcome.value)
-            setMentionState(null)
-            requestAnimationFrame(() => {
-              textareaRef.current?.setSelectionRange(outcome.caret, outcome.caret)
-            })
-          }
-          return
-        }
-      }
+    // AltGr arrives as ctrl+alt on Windows and is how a French layout types
+    // `~` and `` ` ``, so only a plain ctrl is a real modifier.
+    const modifierOnly = e.metaKey || (e.ctrlKey && !e.altKey)
+    if (e.key.length === 1 && !modifierOnly && !e.nativeEvent.isComposing && applyAutoPair(e.key)) {
+      e.preventDefault()
+      return
     }
 
     // Send on Cmd/Ctrl + Enter

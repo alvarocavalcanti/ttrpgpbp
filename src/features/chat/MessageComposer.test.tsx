@@ -1891,7 +1891,8 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       expect(textarea.selectionStart).toBe(5)
     })
 
-    it('never pairs a table pipe', async () => {      renderComposer()
+    it('never pairs a table pipe', async () => {
+      renderComposer()
       const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
 
       await type(textarea, 'a')
@@ -1928,6 +1929,68 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       fireEvent.keyDown(textarea, { key: '*', metaKey: true })
 
       expect(textarea).toHaveValue('')
+    })
+
+    // Soft keyboards type through beforeinput and often carry no usable key.
+    const beforeInput = (
+      textarea: HTMLTextAreaElement,
+      data: string,
+      { inputType = 'insertText', isComposing = false }: { inputType?: string; isComposing?: boolean } = {}
+    ) => {
+      const event = new Event('beforeinput', { bubbles: true, cancelable: true })
+      Object.defineProperties(event, {
+        inputType: { value: inputType },
+        data: { value: data },
+        isComposing: { value: isComposing },
+      })
+      return textarea.dispatchEvent(event)
+    }
+
+    it('pairs a marker that arrives through beforeinput, as soft keyboards send it', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      act(() => { beforeInput(textarea, '*') })
+      await settleFrame()
+
+      expect(textarea).toHaveValue('**')
+      expect(textarea.selectionStart).toBe(1)
+      expect(textarea.selectionEnd).toBe(1)
+    })
+
+    it('steps over a closer through beforeinput without touching the text', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+      fireEvent.change(textarea, { target: { value: '**bold**' } })
+      textarea.setSelectionRange(7, 7)
+
+      const notPrevented = beforeInput(textarea, '*')
+
+      expect(notPrevented).toBe(false)
+      expect(textarea).toHaveValue('**bold**')
+      expect(textarea.selectionStart).toBe(8)
+    })
+
+    it('ignores composed and multi-character insertions', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      beforeInput(textarea, '*', { inputType: 'insertCompositionText' })
+      beforeInput(textarea, '**')
+      beforeInput(textarea, '*', { isComposing: true })
+
+      expect(textarea).toHaveValue('')
+    })
+
+    it('handles a delimiter exactly once, because a handled keydown prevents beforeinput', () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      // fireEvent returns false when the default action was prevented, which is
+      // what stops the browser from emitting beforeinput for the same key.
+      expect(fireEvent.keyDown(textarea, { key: '*' })).toBe(false)
+      expect(textarea).toHaveValue('**')
+      expect(fireEvent.keyDown(textarea, { key: 'b' })).toBe(true)
     })
   })
 })
