@@ -17,7 +17,7 @@ Messages support **Markdown** and emoji. Bold, italics, lists, headings and code
 
 Tapping into the message box shows a formatting toolbar at the top right with one-tap buttons for bold, italics, lists, quotes, code and spoilers. The left-most button opens a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu, and the toolbar hides while mention or NPC suggestions are open.
 
-You can also type the markers: `*`, `**`, `~~` and a backtick close themselves as you type, so the cursor stays inside and you never have to arrow back. Typing over a closing marker you already have steps past it instead of doubling it. This works the same with a phone keyboard.
+You can also type the markers: `*`, `**`, `~~` and a backtick close themselves as you type, so the cursor stays inside and you never have to arrow back. Typing over a closing marker you already have steps past it instead of doubling it. This works the same with a phone keyboard, except on keyboards that swap in whole words as you type — there the marker is left exactly as typed.
 
 The message box names where you're writing — `Message #<channel name>` on Main and `Message #<room name>` inside a room.
 
