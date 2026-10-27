@@ -15,6 +15,7 @@ import { useClickOutside } from '../../hooks/useClickOutside'
 import { MAX_MESSAGE_LENGTH, MAX_NPC_NAME_LENGTH } from '../../constants'
 import { chipBase, chipIdle, chipActive } from './composerChip'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../lib/safeStorage'
+import { lastInputWasMouse } from '../../lib/inputModality'
 import { MarkdownToolbar } from './MarkdownToolbar'
 import { applyMarkdownFormat, type MarkdownFormat } from './markdownFormat'
 import { markdownAutoPair } from './markdownAutoPair'
@@ -217,35 +218,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     return () => observer.disconnect()
   }, [resizeComposer])
 
-  // Where the caret goes on a room switch, like a desktop chat app: the box is
-  // focused and ready to type. Desktop only — on a touch device the keyboard
-  // must stay closed until the player taps (native behavior), so a coarse
-  // primary pointer skips the focus entirely.
-  const isCoarsePointer = useMediaQuery('(pointer: coarse)')
-  // Pointer vs keyboard matters: the room tablist uses roving focus with arrow
-  // keys, so a keyboard-driven switch must leave focus on the tabs.
-  const lastInputWasPointer = useRef(false)
-  // undefined = first commit (nothing to switch from). Compared instead of a
-  // mounted flag so StrictMode's double-invoked mount effect can't focus a
-  // freshly loaded page.
-  const previousDraftKeyRef = useRef<string | null | undefined>(undefined)
-
+  // Where the caret goes after a navigation, like a desktop chat app: opening a
+  // channel or switching rooms leaves the box focused with the draft loaded.
+  // Every one of those is a fresh mount (the route error boundary keys the
+  // channel subtree on the pathname), so this runs per mount and per draft key.
+  // Only a non-touch pointer counts: a phone must keep its keyboard closed until
+  // the player taps, and the room tablist's arrow keys must keep their focus.
   useEffect(() => {
-    const onPointerDown = () => { lastInputWasPointer.current = true }
-    const onKeyDown = () => { lastInputWasPointer.current = false }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('keydown', onKeyDown, true)
-    }
-  }, [])
-
-  useEffect(() => {
-    const previous = previousDraftKeyRef.current
-    previousDraftKeyRef.current = draftKey
-    if (previous === undefined || previous === draftKey) return
-    if (isCoarsePointer || !lastInputWasPointer.current) return
+    if (!lastInputWasMouse()) return
     const active = document.activeElement as HTMLElement | null
     const tag = active?.tagName
     // Never take focus away from a field the player is already in (room-create
@@ -261,7 +241,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     })
     return () => cancelAnimationFrame(frame)
-  }, [draftKey, isCoarsePointer])
+  }, [draftKey])
 
   // Sorted A-Z case-insensitively (#521); @all stays first via showAllMention below.
   const matchedMembers = mentionState

@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { resetInputModality, trackInputModality } from '../../lib/inputModality'
 
 const { mockUploadImage, mockAddToast } = vi.hoisted(() => ({
   mockUploadImage: vi.fn(),
@@ -33,6 +34,13 @@ vi.mock('../auth/useAuth', () => ({
 // Let a pending focus/caret animation frame run before asserting.
 const settleFrame = () =>
   act(async () => { await new Promise<null>(resolve => requestAnimationFrame(() => resolve(null))) })
+
+// The input tracker is a module singleton that outlives components, so every
+// test starts from "nothing typed yet".
+beforeEach(() => {
+  trackInputModality()
+  resetInputModality()
+})
 
 describe('MessageComposer', () => {
   const members: any[] = [
@@ -1669,92 +1677,84 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     }
   })
 
-  describe('focus on room switch', () => {
-    // Query-precise: the coarse-pointer check must not be confused with the
-    // max-width one the toolbar uses.
-    const setCoarsePointer = () => {
-      window.matchMedia = ((query: string) => ({
-        matches: query === '(pointer: coarse)',
-        media: query,
-        onchange: null,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        addListener: () => {},
-        removeListener: () => {},
-        dispatchEvent: () => false,
-      })) as any
-    }
-
-    // Let a pending focus frame run before asserting that none happened.
+  describe('focus after a navigation', () => {
+    // The route error boundary keys the channel subtree on the pathname, so a
+    // room switch is unmount + fresh mount, never a prop update: these tests
+    // must reproduce that or they cannot catch the bug they exist for.
     const composer = (subChannelId?: string) => (
       <MessageComposer channelId="c1" subChannelId={subChannelId} isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
 
-    it('focuses the box with the caret at the end of the draft after a pointer room switch', async () => {
+    const pointerDown = (pointerType?: string) => {
+      const event = new Event('pointerdown', { bubbles: true })
+      if (pointerType) Object.defineProperty(event, 'pointerType', { value: pointerType })
+      document.dispatchEvent(event)
+    }
+
+    it('focuses the box with the draft after a room switch remount', async () => {
       localStorage.setItem('composer_draft_c1', 'draft for main')
       localStorage.setItem('composer_draft_c1_room-b', 'draft for room')
 
-      const { rerender } = render(composer())
+      const { unmount } = render(composer())
+      expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('draft for main')
+
+      pointerDown('mouse')
+      unmount()
+      render(composer('room-b'))
+
       const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
-      expect(textarea).toHaveValue('draft for main')
-      expect(textarea).not.toHaveFocus()
-
-      fireEvent.pointerDown(document)
-      rerender(composer('room-b'))
-
       await waitFor(() => expect(textarea).toHaveFocus())
       expect(textarea).toHaveValue('draft for room')
       expect(textarea.selectionStart).toBe('draft for room'.length)
       expect(textarea.selectionEnd).toBe('draft for room'.length)
     })
 
-    it('does not focus on the first render, even after a pointer click', async () => {
+    it('focuses the box when a channel opens from the lobby', async () => {
+      pointerDown('mouse')
       render(composer())
-      fireEvent.pointerDown(document)
+
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Message' })).toHaveFocus())
+    })
+
+    it('does not focus on a cold load with no pointer input', async () => {
+      render(composer())
 
       await settleFrame()
       expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
     })
 
-    it('does not focus when the primary pointer is coarse (touch)', async () => {
-      setCoarsePointer()
-      const { rerender } = render(composer())
-      fireEvent.pointerDown(document)
-      rerender(composer('room-b'))
+    it('does not focus after a touch, so the phone keyboard stays closed', async () => {
+      pointerDown('touch')
+      render(composer())
 
       await settleFrame()
       expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
     })
 
     it('does not focus after a keyboard-driven switch, so room tab arrow keys keep working', async () => {
-      const { rerender } = render(composer())
       fireEvent.keyDown(document, { key: 'ArrowRight' })
-      rerender(composer('room-b'))
+      render(composer())
 
       await settleFrame()
       expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
     })
 
     it('does not steal focus from another field', async () => {
-      const { rerender } = render(
-        <>
-          <input aria-label="Other field" />
-          {composer()}
-        </>
-      )
-      const other = screen.getByLabelText('Other field')
-      other.focus()
-      fireEvent.pointerDown(other)
-      rerender(
-        <>
-          <input aria-label="Other field" />
-          {composer('room-b')}
-        </>
-      )
+      const other = document.createElement('input')
+      other.setAttribute('aria-label', 'Other field')
+      document.body.appendChild(other)
 
-      await settleFrame()
-      expect(other).toHaveFocus()
-      expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+      try {
+        other.focus()
+        pointerDown('mouse')
+        render(composer())
+
+        await settleFrame()
+        expect(other).toHaveFocus()
+        expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
+      } finally {
+        other.remove()
+      }
     })
 
     it('does not focus while a modal is open', async () => {
@@ -1764,9 +1764,8 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       document.body.appendChild(dialog)
 
       try {
-        const { rerender } = render(composer())
-        fireEvent.pointerDown(document)
-        rerender(composer('room-b'))
+        pointerDown('mouse')
+        render(composer())
 
         await settleFrame()
         expect(screen.getByRole('combobox', { name: 'Message' })).not.toHaveFocus()
