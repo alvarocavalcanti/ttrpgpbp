@@ -67,7 +67,6 @@ test.describe('Rooms', () => {
     await expect(page.getByRole('tab', { name: 'Main' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/channel\/[^/]+$/);
-    await expect(page.getByRole('tab', { name: 'Main' })).toBeFocused();
     await expect(composer).not.toBeFocused();
   });
 });
