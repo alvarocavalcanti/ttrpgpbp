@@ -7,7 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **The message box is ready when you switch rooms** — switching rooms or channels on a computer now leaves your cursor already in the message box, so you can start typing straight away instead of clicking into it first. On a phone nothing changes: the keyboard still waits for a tap. Switching rooms with the keyboard arrows keeps you on the room tabs, and an open window or a box you're already typing in is never interrupted.
-- **Markdown markers close themselves** — typing `**`, `*`, `~~` or a backtick now adds the closing marker for you and leaves the cursor inside, so bold is just `**`, your text, and you keep going — no more arrowing back to the middle. If a closing marker is already there, typing it steps past it instead of doubling it. Tables still type normally.
+- **Markdown markers close themselves** — typing `**`, `*`, `~~` or a backtick now adds the closing marker for you and leaves the cursor inside, so bold is just `**`, your text, and you keep going — no more arrowing back to the middle. If a closing marker is already there, typing it steps past it instead of doubling it. Tables still type normally, and text inside an inline code span keeps its markers exactly as you type them.
 
 ## 2026-10-26
 

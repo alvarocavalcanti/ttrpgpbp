@@ -46,6 +46,42 @@ describe('markdownAutoPair', () => {
     expect(r).toEqual({ kind: 'paired', value: 'hi ** **', caret: 7 })
   })
 
+  it('pairs instead of skipping after punctuation that can only open', () => {
+    // `(*` must still become `(**|**)`, not be treated as closing a pair.
+    expect(markdownAutoPair('(**', 2, '*')).toEqual({ kind: 'paired', value: '(****', caret: 3 })
+    expect(markdownAutoPair('“**', 2, '*')).toEqual({ kind: 'paired', value: '“****', caret: 3 })
+  })
+
+  it('skips a closer that follows closing punctuation', () => {
+    expect(markdownAutoPair('**bold!**', 8, '*')).toEqual({ kind: 'skip' })
+    expect(markdownAutoPair('**bold.**', 8, '*')).toEqual({ kind: 'skip' })
+  })
+
+  it('keeps italic and bold opened separately from being mistaken for closers', () => {
+    // The run before the caret follows a space, so it opens a new pair.
+    expect(markdownAutoPair('*a* **', 5, '*')).toEqual({ kind: 'paired', value: '*a* ****', caret: 6 })
+  })
+
+  it('never pairs a literal marker inside an inline code span', () => {
+    expect(markdownAutoPair('`2`', 2, '*')).toBeNull()
+    expect(markdownAutoPair('`2`', 2, '~')).toBeNull()
+    expect(markdownAutoPair('`a`', 2, '*')).toBeNull()
+    // Inside code the escape is literal too, so the backtick is the only escape.
+    expect(markdownAutoPair('`a\\`', 3, '*')).toBeNull()
+  })
+
+  it('still steps over the closing backtick of a code span', () => {
+    expect(markdownAutoPair('`2*3`', 4, '`')).toEqual({ kind: 'skip' })
+  })
+
+  it('pairs again once the code span is closed', () => {
+    expect(markdownAutoPair('`a` ', 4, '*')).toEqual({ kind: 'paired', value: '`a` **', caret: 5 })
+  })
+
+  it('keeps markers literal inside a fenced code block', () => {
+    expect(markdownAutoPair('```', 3, '*')).toBeNull()
+  })
+
   it('ignores an escaped marker', () => {
     expect(markdownAutoPair('a \\', 3, '*')).toBeNull()
   })

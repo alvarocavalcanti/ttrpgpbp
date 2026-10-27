@@ -1862,8 +1862,37 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       expect(textarea.selectionStart).toBe(5)
     })
 
-    it('never pairs a table pipe', async () => {
+    it('pairs bold after punctuation that can only open', async () => {
       renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      for (const char of ['(', '*', '*', 'b', '*', '*']) await type(textarea, char)
+
+      expect(textarea).toHaveValue('(**b**')
+      expect(textarea.selectionStart).toBe(6)
+    })
+
+    it('keeps italic and bold in the same message from interfering', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      for (const char of ['*', 'a', '*', ' ', '*', '*', 'b', '*', '*']) await type(textarea, char)
+
+      expect(textarea).toHaveValue('*a* **b**')
+      expect(textarea.selectionStart).toBe(9)
+    })
+
+    it('keeps literal markers inside an inline code span', async () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      for (const char of ['`', '2', '*', '3', '`']) await type(textarea, char)
+
+      expect(textarea).toHaveValue('`2*3`')
+      expect(textarea.selectionStart).toBe(5)
+    })
+
+    it('never pairs a table pipe', async () => {      renderComposer()
       const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
 
       await type(textarea, 'a')
