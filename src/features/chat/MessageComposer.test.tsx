@@ -2008,5 +2008,19 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       expect(textarea).toHaveValue('**')
       expect(fireEvent.keyDown(textarea, { key: 'b' })).toBe(true)
     })
+
+    it('does not pair twice if the browser emits beforeinput after a handled keydown', () => {
+      renderComposer()
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+
+      fireEvent.keyDown(textarea, { key: '*' })
+      expect(textarea).toHaveValue('**')
+
+      // Some Android IMEs still send the input event; the character was
+      // already handled, so a second pair would leave four markers.
+      act(() => { beforeInput(textarea, '*') })
+
+      expect(textarea).toHaveValue('**')
+    })
   })
 })

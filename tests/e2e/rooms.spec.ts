@@ -59,5 +59,15 @@ test.describe('Rooms', () => {
     await expect(page.getByText('OOC-only message')).toBeVisible();
     await expect(composer).toBeFocused();
     await expect(composer).toHaveAttribute('placeholder', 'Message #OOC');
+
+    // Keyboard navigation keeps focus on the room tabs: arrow keys then Enter
+    // must not hand the caret to the composer.
+    await page.getByRole('tab', { name: 'OOC' }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('tab', { name: 'Main' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/channel\/[^/]+$/);
+    await expect(page.getByRole('tab', { name: 'Main' })).toBeFocused();
+    await expect(composer).not.toBeFocused();
   });
 });

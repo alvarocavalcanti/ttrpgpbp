@@ -491,6 +491,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
   }
 
+  // A handled keydown should never be handled twice if a browser still emits
+  // beforeinput for the same character (some Android IMEs do).
+  const handledByKeydownRef = useRef<string | null>(null)
+
   // Single markdown auto-pair action shared by hardware keyboards (keydown) and
   // soft keyboards (beforeinput). Returns whether it handled the character.
   const applyAutoPair = useCallback((char: string): boolean => {
@@ -525,6 +529,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       // Single characters only: paste, drop and autocorrect replacements keep
       // the browser's own behavior.
       if (!data || data.length !== 1) return
+      const handledByKeydown = handledByKeydownRef.current === data
+      handledByKeydownRef.current = null
+      if (handledByKeydown) return
       if (applyAutoPair(data)) event.preventDefault()
     }
     textarea.addEventListener('beforeinput', handleBeforeInput)
@@ -540,6 +547,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     // `~` and `` ` ``, so only a plain ctrl is a real modifier.
     const modifierOnly = e.metaKey || (e.ctrlKey && !e.altKey)
     if (e.key.length === 1 && !modifierOnly && !e.nativeEvent.isComposing && applyAutoPair(e.key)) {
+      handledByKeydownRef.current = e.key
       e.preventDefault()
       return
     }
