@@ -45,7 +45,10 @@ function unreadBadgeAria(count: number): string {
   return `${unreadBadgeLabel(count)} unread ${count === 1 ? 'message' : 'messages'}`
 }
 
-// Plain-text preview of the most recent message; CSS `truncate` adds the ellipsis.
+// Plain-text preview of the most recent message. The value is per-viewer
+// (get_user_channel_previews): it is the last message THIS user can see, read
+// or not, like WhatsApp/Telegram — the unread count is the only thing that
+// tracks "new". A channel with no readable message renders "No messages yet".
 // Spoiler content (`||…||`, issue #709) collapses to a marker so lobby rows
 // never leak a secret. The DB caps the stored preview at 120 chars of raw
 // markdown, so a long message can slice a mention/link chip in half (#606):
@@ -402,7 +405,7 @@ export function Lobby() {
                             <span className="text-sm text-surface-500 dark:text-surface-400 truncate">
                               {channelPreview(channel.last_message_preview)}
                             </span>
-                            {preferences?.badge_enabled !== false && channel.unread_count && channel.unread_count > 0 ? (
+                            {channel.unread_count && channel.unread_count > 0 ? (
                               <span
                                 role="img"
                                 aria-label={unreadBadgeAria(channel.unread_count)}

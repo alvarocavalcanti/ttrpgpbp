@@ -4,11 +4,12 @@ import { useAuth } from '../auth/useAuth'
 import { subscribeWithRetry } from '../../lib/realtime'
 import { RoomUnreadRowSchema, parseRow } from '../validation/rowSchemas'
 
-// Per-room unread dots (#621, decision 4). The channel badge clears when the
-// channel opens, so without a room dot the player has no signal of where the
-// new posts are. Counts come from get_channel_room_unread (server truth, keyed
-// on sub_channel_reads) and are refreshed on channel change, on foreground
-// return, and live from room message INSERTs.
+// Per-room unread dots (#621, decision 4). Counts come from
+// get_channel_room_unread (server truth, keyed on sub_channel_reads and the
+// Main read mark) and are refreshed on channel change, on foreground return,
+// and live from room message INSERTs. Main is keyed 'main' so the tab bar can
+// light it too: reading a room never clears it, so a player who opened a room
+// straight from a notification still sees that Main is unread.
 //
 // History-first: the owner calls markRoomRead only after the room's history
 // fetch resolves, so a failed fetch can never clear a dot for unseen posts.
@@ -31,6 +32,12 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
     if (error) console.error('Failed to mark room read', error)
   }, [])
 
+  // Main has no room row to mark; useChannel writes its read mark, so the dot
+  // only needs the local count cleared (the next fetch reads the server truth).
+  const markMainRead = useCallback(() => {
+    setCounts(prev => (prev.main ? { ...prev, main: 0 } : prev))
+  }, [])
+
   useEffect(() => {
     let mounted = true
     setCounts({})
@@ -46,8 +53,8 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
       const next: Record<string, number> = {}
       for (const row of data ?? []) {
         const parsed = parseRow(RoomUnreadRowSchema, row)
-        // The NULL group is Main; its unread lives on the channel badge.
-        if (parsed?.sub_channel_id) next[parsed.sub_channel_id] = parsed.unread_count ?? 0
+        // The NULL group is Main; every visible room keys by its id.
+        if (parsed) next[parsed.sub_channel_id ?? 'main'] = parsed.unread_count ?? 0
       }
       if (mounted) setCounts(next)
     }
@@ -63,18 +70,20 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
         (payload) => {
           if (!mounted) return
           const row = payload.new as { sub_channel_id?: string | null; sender_id?: string | null }
-          const subId = row.sub_channel_id ?? null
-          // Main has no dot.
-          if (!subId) return
+          const roomId = row.sub_channel_id ?? null
           // The room the user is looking at: advance its read mark so a later
-          // reopen does not re-flag it (mirrors useChannel's live advance).
-          if (subId === activeRef.current) {
-            if (document.visibilityState === 'visible') void markRoomRead(subId)
+          // reopen does not re-flag it (mirrors useChannel's live advance). Main
+          // is deliberately left alone here: useChannel writes its mark, and
+          // only once history has loaded — clearing the dot from this event
+          // could hide posts the player never saw (a failed history fetch).
+          if (roomId === activeRef.current) {
+            if (document.visibilityState === 'visible' && roomId) void markRoomRead(roomId)
             return
           }
           // Other rooms: own messages are already read; anything else lights a dot.
           if (row.sender_id === user?.id) return
-          setCounts(prev => ({ ...prev, [subId]: (prev[subId] ?? 0) + 1 }))
+          const key = roomId ?? 'main'
+          setCounts(prev => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }))
         },
       )
     const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}:room-unread`, (status) => {
@@ -97,7 +106,7 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
       stopRealtime()
       void supabase.removeChannel(realtimeChannel)
     }
-  }, [channelId, user?.id, markRoomRead, refetchTrigger])
+  }, [channelId, user?.id, markRoomRead, markMainRead, refetchTrigger])
 
-  return { counts, markRoomRead, refetch }
+  return { counts, markRoomRead, markMainRead, refetch }
 }

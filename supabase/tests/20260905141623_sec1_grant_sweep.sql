@@ -16,7 +16,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(71);
+SELECT plan(73);
 
 SELECT is(
   (SELECT count(*)
@@ -403,7 +403,7 @@ SELECT is(
   'authenticated cannot call get_unread_totals'
 );
 SELECT is(
-  has_function_privilege('authenticated', 'public.mark_channel_read(uuid)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.mark_channel_read(uuid,boolean)', 'EXECUTE'),
   true,
   'authenticated keeps mark_channel_read (read-state RPC; anon grant stripped by 20260907132031)'
 );
@@ -434,6 +434,16 @@ SELECT is(
   has_function_privilege('authenticated', 'public.get_channel_room_unread(uuid)', 'EXECUTE'),
   true,
   'authenticated keeps get_channel_room_unread (client RPC)'
+);
+SELECT is(
+  has_function_privilege('authenticated', 'public.get_user_channel_previews(uuid)', 'EXECUTE'),
+  true,
+  'authenticated keeps get_user_channel_previews (lobby preview RPC)'
+);
+SELECT is(
+  has_function_privilege('anon', 'public.get_user_channel_previews(uuid)', 'EXECUTE'),
+  false,
+  'anon cannot read per-viewer previews'
 );
 
 SELECT * FROM finish();

@@ -447,8 +447,8 @@ export function ProfileSettings() {
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label htmlFor="badge_enabled" className="font-medium text-surface-700 dark:text-surface-300">Show Unread Badges</label>
-                    <p className="text-surface-500 dark:text-surface-400">Show a red dot on channels with unread messages.</p>
+                    <label htmlFor="badge_enabled" className="font-medium text-surface-700 dark:text-surface-300">Show App Icon Badge</label>
+                    <p className="text-surface-500 dark:text-surface-400">Show the unread count on the app icon (home screen or taskbar). Unread markers inside the app are always shown.</p>
                   </div>
                 </div>
               </div>

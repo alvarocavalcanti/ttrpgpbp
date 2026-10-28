@@ -5,7 +5,7 @@ title: Notifications
 ## Notification types
 
 - **Push** — browser push notifications, on by default. Delivery is handled by the server as soon as a message lands, so it works even if the sender closes the app right after sending.
-- **In-app badge** — an unread badge in the app, on by default
+- **In-app markers** — the count on each game in the Lobby and the dot on Main and each room tab, so you can always tell where new messages are. Always shown.
 - **Home-screen badge** — when the app is installed, the icon on your home screen shows your total unread count. Supported on iOS 16.4+ and desktop; it updates even when the app is closed. On Android the badge is handled by the OS and only shows a dot while a notification is active.
 - **Email** — off by default
 - **"It's your turn"** — a distinct notification when you are the active player
@@ -20,7 +20,7 @@ You don't have to keep watching the toggle: if a device's subscription is ever d
 
 On iOS, push notifications require **installing the app to your Home Screen** — iOS only exposes the Push API inside installed web apps. The UI shows install guidance and disables push controls until the app is installed. For the home-screen badge to show, **Badges** must be enabled under iOS Settings → Notifications → the app.
 
-The home-screen badge counts your unread channel messages (archived channels don't count) plus any unread admin messages, and it refreshes every time you open the app. If the icon ever shows a number after you've read everything, turn **Badges** off and back on in iOS Settings → Notifications → the app — that flushes a badge the phone itself got stuck on.
+The home-screen badge counts your unread messages in channels and rooms you can see (archived channels don't count) plus any unread admin messages, and it refreshes every time you open the app. Its setting, **Show App Icon Badge**, controls that icon number only — the markers inside the app stay visible. If the icon ever shows a number after you've read everything, turn **Badges** off and back on in iOS Settings → Notifications → the app — that flushes a badge the phone itself got stuck on.
 
 ## Per-channel settings
 

@@ -91,9 +91,17 @@ returns a safe projection (name, game_system, has_password) for the join form.
 | `away_message` | text, nullable | Maximum 200 characters |
 | `is_active_player` | boolean | Default `false`. Multiple can be active. |
 | `is_blocked` | boolean | Default `false`. Blocked members lose channel access (`is_channel_member()` excludes them) and can be unblocked by the GM. (Kick deletes the row) |
-| `joined_at` | timestamptz | |
+| `joined_at` | timestamptz | Also the read baseline for a room with no `sub_channel_reads` row: a player who joins a game with existing room history starts caught up instead of seeing every old room message as unread |
+| `last_read_at` | timestamptz | Advanced by `mark_channel_read` on every channel visit; drives the "New messages" divider and the members' last-seen view |
+| `main_last_read_at` | timestamptz, nullable | Main's own read mark (#621 follow-up), advanced only when `mark_channel_read(..., p_mark_main => true)` is called from Main (the default is `true`, which keeps a cached bundle that passes only the channel id working). Backfilled from `last_read_at`, and every insert defaults it to the row's own `last_read_at`, so a room visit never clears Main |
 
 **Constraints:** Unique constraint on (`channel_id`, `user_id`)
+
+`channels.last_message_preview` is a channel-wide projection (sender + room
+prefix, plus the latest message time) kept for channel-wide readers; the Lobby
+does **not** use it — `get_user_channel_previews` returns the per-viewer last
+message instead (WhatsApp/Telegram rule), which the shared column cannot express
+because it is NULLed for whispers and restricted rooms to protect other members.
 
 ### `messages`
 
@@ -282,7 +290,8 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | `update_sub_channel` | Rename, archive/restore, and set per-room capability flags (`allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers`) | GM-only, same name validation (reserved `Main` included); restoring at the active cap is rejected |
 | `delete_sub_channel` | Hard-delete an empty room | GM-only, refused when the room has any messages (archive instead) |
 | `mark_sub_channel_read` | Advance the caller's per-room read mark | membership |
-| `get_channel_room_unread` | Read-only per-room unread counts, including the Main (`NULL`) group | member-only, mirrors `get_user_channels_unread` (excludes own, deleted, and unreadable whispers) |
+| `get_channel_room_unread` | Read-only per-room unread counts, including the Main (`NULL`) group | member-only, mirrors `get_user_channels_unread` (excludes own, deleted, and unreadable whispers); Main reads `main_last_read_at`, a room without a read row falls back to `joined_at` |
+| `get_user_channel_previews` | Read-only, per-viewer Lobby preview: the last message **this caller** can see per channel (content, sender label, room-name prefix) | self-only (`p_user_id` must match `auth.uid()`), skips deleted messages and every whisper/room the caller cannot read |
 | `set_sub_channel_audience` | Set a room's `visibility` and replace its invited players (#621 Phase 3) | GM-only, `visibility` ∈ `all`/`gm`/`private`, invited users must be channel members |
 | `get_channel_roll_history` | Read-only roll history (excluding rolls from soft-deleted messages), attributed to each roller's channel character name (account name as fallback) | member-only via RLS |
 

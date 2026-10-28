@@ -529,7 +529,7 @@ describe('ProfileSettings', () => {
     fireEvent.click(screen.getByLabelText('Send me Push Notifications'))
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ push_enabled: false }) // since it was true
 
-    fireEvent.click(screen.getByLabelText('Show Unread Badges'))
+    fireEvent.click(screen.getByLabelText('Show App Icon Badge'))
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ badge_enabled: false })
   })
 
@@ -668,7 +668,7 @@ describe('ProfileSettings', () => {
     renderWithRouter(<ProfileSettings />)
 
     expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
-    expect(screen.getByLabelText('Show Unread Badges')).toBeEnabled()
+    expect(screen.getByLabelText('Show App Icon Badge')).toBeEnabled()
   })
 
   it('shows iOS install message when needsInstall is true', () => {

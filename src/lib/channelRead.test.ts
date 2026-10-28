@@ -31,7 +31,14 @@ describe('notifyChannelRead', () => {
     await notifyChannelRead('c1', 'u1', true)
 
     expect(getRegistration).toHaveBeenCalled()
-    expect(postMessage).toHaveBeenCalledWith({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1', subChannelId: null })
+  })
+
+  it('scopes the dismissal to the room that was read', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    await notifyChannelRead('c1', 'u1', true, 'r1')
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1', subChannelId: 'r1' })
   })
 
   it('sets the badge to the remaining unread total', async () => {

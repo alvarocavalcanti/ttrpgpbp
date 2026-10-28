@@ -57,18 +57,21 @@ export function ChannelView() {
   // Dismiss the channel's system notifications once per visit, and keep the
   // launcher badge in sync with the total unread. A later non-live read (the
   // tab came back after a gap) refreshes the badge; live message reads don't
-  // change the total, so they skip the extra fetch (#502).
+  // change the total, so they skip the extra fetch (#502). Keyed by channel AND
+  // room: opening a room must dismiss that room's notifications and refresh the
+  // launcher count (each room carries its own unread now), not the channel's.
   const readHandledRef = useRef<string | null>(null)
   const handleChannelRead = useCallback((live?: boolean) => {
     if (!id || !user?.id) return
     const badgeEnabled = preferences?.badge_enabled !== false
-    if (readHandledRef.current !== id) {
-      readHandledRef.current = id
-      void notifyChannelRead(id, user.id, badgeEnabled)
+    const visitKey = `${id}:${subId ?? 'main'}`
+    if (readHandledRef.current !== visitKey) {
+      readHandledRef.current = visitKey
+      void notifyChannelRead(id, user.id, badgeEnabled, subId ?? null)
       return
     }
     if (!live) void refreshAppBadge(user.id, badgeEnabled)
-  }, [id, user?.id, preferences?.badge_enabled])
+  }, [id, subId, user?.id, preferences?.badge_enabled])
 
   // History-first read-mark (#412). The ref is the call-time gate handed to
   // useChannel (stable identity, so the realtime INSERT closure always reads
@@ -90,7 +93,7 @@ export function ChannelView() {
     setMessagesLoaded(false)
   }, [id, subId])
 
-  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead)
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead, !subId)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, subId ?? null, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
@@ -100,7 +103,7 @@ export function ChannelView() {
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
   const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(isGM ? id : undefined)
-  const { counts: roomUnread, markRoomRead } = useSubChannelUnread(id, subId ?? null)
+  const { counts: roomUnread, markRoomRead, markMainRead } = useSubChannelUnread(id, subId ?? null)
   const [showManageRooms, setShowManageRooms] = useState(false)
   // Active room and its capability flags (#621 Phase 2). Main (no room) and an
   // unknown room allow everything.
@@ -209,9 +212,17 @@ export function ChannelView() {
     markRead()
     // Per-room read mark (#621): a room is marked read only once its history
     // has loaded, so a failed fetch never clears a dot for unseen posts. Main
-    // has no dot, so only named rooms are marked.
-    if (subId) void markRoomRead(subId)
-  }, [messagesLoaded, myMemberInfo?.id, markRead, subId, markRoomRead])
+    // has no room row — useChannel writes its mark — so only the local dot is
+    // cleared. The room read also drops the launcher count now that rooms count
+    // toward it, so refresh it afterwards.
+    if (subId) {
+      void markRoomRead(subId).then(() => {
+        if (user?.id) void refreshAppBadge(user.id, preferences?.badge_enabled !== false)
+      })
+    } else {
+      markMainRead()
+    }
+  }, [messagesLoaded, myMemberInfo?.id, markRead, subId, markRoomRead, markMainRead, user?.id, preferences?.badge_enabled])
 
   // Unknown or deleted room deep link (#621): once the room list has resolved,
   // fall back to Main with a toast instead of a blank timeline. A still-loading

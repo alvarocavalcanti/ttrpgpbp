@@ -76,6 +76,13 @@ describe('SubChannelTabs', () => {
     expect(screen.queryByLabelText('0 unread')).not.toBeInTheDocument()
   })
 
+  it('shows an unread dot on Main too', () => {
+    // Main keeps its own read mark, so it needs its own dot: opening a room
+    // from a notification must not hide unread Main messages.
+    renderTabs({ subChannels: [room()], counts: { main: 4, r1: 0 } })
+    expect(screen.getByRole('tab', { name: /^Main/ })).toContainElement(screen.getByLabelText('4 unread'))
+  })
+
   it('shows the GM create/manage affordances only for a GM', () => {
     renderTabs({ subChannels: [room()], isGM: true })
     expect(screen.getByRole('button', { name: 'Add room' })).toBeInTheDocument()

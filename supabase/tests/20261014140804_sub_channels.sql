@@ -17,11 +17,14 @@ VALUES
   ('00000000-0000-0000-0000-00000000f002', 'Rooms Two', '00000000-0000-0000-0000-00000000e001', 'aabbcc02'),
   ('00000000-0000-0000-0000-00000000f003', 'Rooms Cap', '00000000-0000-0000-0000-00000000e001', 'aabbcc03');
 
-INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at)
+-- joined_at predates the fixture messages: a room with no read row falls back
+-- to joined_at (20261028125531), so a member who was already in the channel
+-- must still see the room's messages as unread.
+INSERT INTO channel_members (id, channel_id, user_id, character_name, last_read_at, joined_at)
 VALUES
-  ('00000000-0000-0000-0000-000000200001', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e001', 'GM', now() - interval '1 hour'),
-  ('00000000-0000-0000-0000-000000200002', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e002', 'P1', now() - interval '1 hour'),
-  ('00000000-0000-0000-0000-000000200003', '00000000-0000-0000-0000-00000000f003', '00000000-0000-0000-0000-00000000e001', 'GMCap', now() - interval '1 hour');
+  ('00000000-0000-0000-0000-000000200001', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e001', 'GM', now() - interval '1 hour', now() - interval '2 hours'),
+  ('00000000-0000-0000-0000-000000200002', '00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-00000000e002', 'P1', now() - interval '1 hour', now() - interval '2 hours'),
+  ('00000000-0000-0000-0000-000000200003', '00000000-0000-0000-0000-00000000f003', '00000000-0000-0000-0000-00000000e001', 'GMCap', now() - interval '1 hour', now() - interval '2 hours');
 
 -- A fixed room per channel for the routing/scoping assertions, plus one room
 -- with a Main message and a room message so unread has something to count.

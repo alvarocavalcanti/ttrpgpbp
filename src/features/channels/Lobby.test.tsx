@@ -567,7 +567,9 @@ describe('Lobby', () => {
     expect(pill).toHaveClass('flex-shrink-0')
   })
 
-  it('hides unread counts if badge_enabled is false', () => {
+  it('keeps unread counts when the app icon badge is turned off', () => {
+    // badge_enabled now controls the OS/launcher badge only; the in-app pill is
+    // the player's only cue to where the unread messages are.
     vi.mocked(usePushNotifications).mockReturnValue({
       preferences: { badge_enabled: false } as any
     } as any)
@@ -587,7 +589,31 @@ describe('Lobby', () => {
     })
 
     render(<Lobby />, { wrapper: MemoryRouter })
-    expect(screen.queryByLabelText('5 unread messages')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('5 unread messages')).toHaveTextContent('5')
+  })
+
+  it('renders the per-viewer preview the row carries', () => {
+    // useChannels already swapped in the last message this viewer can see; the
+    // Lobby only formats it, so reading a channel never changes the text.
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        {
+          id: '1',
+          name: 'My Channel',
+          member: { character_name: 'Hero' },
+          last_message_at: '2026-10-28T10:00:00Z',
+          last_message_preview: 'Battle · GM: the troll falls',
+          unread_count: 2,
+        } as any,
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    expect(screen.getByText('Battle · GM: the troll falls')).toBeInTheDocument()
+    expect(screen.queryByText('No messages yet')).not.toBeInTheDocument()
   })
 
   it('refreshes the launcher badge from the server total, not the local channel sum', async () => {

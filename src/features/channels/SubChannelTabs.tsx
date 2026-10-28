@@ -133,7 +133,7 @@ export function SubChannelTabs({
         onKeyDown={handleKeyDown}
         className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto px-3 py-2"
       >
-        {renderTab('main', 'Main', `/channel/${channelId}`, 0)}
+        {renderTab('main', 'Main', `/channel/${channelId}`, counts.main ?? 0)}
         {subChannels.map(room => renderTab(room.id, room.name ?? 'Room', channelRoomPath(channelId, room.id), counts[room.id] ?? 0, (room.visibility ?? 'all') !== 'all'))}
       </div>
       {isGM && (

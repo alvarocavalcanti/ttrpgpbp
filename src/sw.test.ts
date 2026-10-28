@@ -229,13 +229,46 @@ describe('sw message handler closes channel notifications', () => {
     })
   })
 
-  it('closes only the notifications for the exact channel path', async () => {
+  it('closes only the notification for Main', async () => {
+    // Each notification gets its own spy: a call count alone would also pass
+    // if the room's notification were the one closed.
+    const mainClose = vi.fn()
+    const roomClose = vi.fn()
+    const otherClose = vi.fn()
+    getNotifications = vi.fn().mockResolvedValue([
+      { data: { url: '/channel/c1' }, close: mainClose },
+      { data: { url: '/channel/c1/sub/r1' }, close: roomClose },
+      { data: { url: '/channel/c10' }, close: otherClose },
+    ])
+    Object.defineProperty(self, 'registration', { value: { getNotifications }, configurable: true, writable: true })
+
     const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1' })
     await waitUntil.mock.calls[0][0]
 
-    expect(getNotifications).toHaveBeenCalled()
-    // Exact pathname match: /channel/c1 only, not /channel/c1/extra or /channel/c10.
-    expect(close).toHaveBeenCalledTimes(1)
+    // Reading Main leaves a room's ping alone: a room still unread keeps its
+    // notification until that room is opened.
+    expect(mainClose).toHaveBeenCalledTimes(1)
+    expect(roomClose).not.toHaveBeenCalled()
+    expect(otherClose).not.toHaveBeenCalled()
+  })
+
+  it('closes only the notification for the room that was read', async () => {
+    const mainClose = vi.fn()
+    const r1Close = vi.fn()
+    const r2Close = vi.fn()
+    getNotifications = vi.fn().mockResolvedValue([
+      { data: { url: '/channel/c1' }, close: mainClose },
+      { data: { url: '/channel/c1/sub/r1' }, close: r1Close },
+      { data: { url: '/channel/c1/sub/r2' }, close: r2Close },
+    ])
+    Object.defineProperty(self, 'registration', { value: { getNotifications }, configurable: true, writable: true })
+
+    const waitUntil = dispatchMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId: 'c1', subChannelId: 'r1' })
+    await waitUntil.mock.calls[0][0]
+
+    expect(r1Close).toHaveBeenCalledTimes(1)
+    expect(mainClose).not.toHaveBeenCalled()
+    expect(r2Close).not.toHaveBeenCalled()
   })
 
   it('ignores messages without a channelId', async () => {

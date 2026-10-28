@@ -85,13 +85,12 @@ function matchesPath(url: string, target: string): boolean {
   }
 }
 
-// A channel's notifications cover the channel itself and each of its rooms
-// (/channel/:id/sub/:subId), so opening the channel clears room pings too
-// (#621 Phase 4).
-function matchesChannel(url: string, channelUrl: string): boolean {
+// Which notifications a read mark dismisses. Reading Main clears only Main's
+// pings; reading a room clears only that room's (#621 Phase 4). The two paths
+// never overlap, so opening Main cannot close a ping for a room still unread.
+function matchesChannel(url: string, targetPath: string): boolean {
   try {
-    const path = new URL(url, self.location.origin).pathname
-    return path === channelUrl || path.startsWith(`${channelUrl}/sub/`)
+    return new URL(url, self.location.origin).pathname === targetPath
   } catch {
     return false
   }
@@ -180,11 +179,11 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(Promise.allSettled(tasks))
 })
 
-// The page asks us to dismiss a channel's system notifications once it has
-// been read, so reading in the app clears the tray instead of leaving stale
-// notifications behind.
+// The page asks us to dismiss a channel's or a room's system notifications once
+// it has been read, so reading in the app clears the tray instead of leaving
+// stale notifications behind.
 self.addEventListener('message', (event) => {
-  const data = event.data as { type?: string; channelId?: string }
+  const data = event.data as { type?: string; channelId?: string; subChannelId?: string | null }
 
   // The page asked us to take over when the user chose to update (issue #385):
   // workbox-window's messageSkipWaiting() sends this after the "New version
@@ -200,9 +199,11 @@ self.addEventListener('message', (event) => {
 
   event.waitUntil(
     self.registration.getNotifications().then((notifications) => {
-      const channelUrl = `/channel/${data.channelId}`
+      const targetPath = data.subChannelId
+        ? `/channel/${data.channelId}/sub/${data.subChannelId}`
+        : `/channel/${data.channelId}`
       notifications
-        .filter(n => typeof n.data?.url === 'string' && matchesChannel(n.data.url, channelUrl))
+        .filter(n => typeof n.data?.url === 'string' && matchesChannel(n.data.url, targetPath))
         .forEach(n => n.close())
     })
   )

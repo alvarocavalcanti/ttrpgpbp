@@ -15,7 +15,10 @@ type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
 // once message history has loaded for this channel. The read mark (mount-time
 // and live-advance) is suppressed until then, so a failed messages fetch can
 // never destroy the "New messages" boundary for posts the player never saw.
-export function useChannel(channelId: string | undefined, onRead?: (live?: boolean) => void, canMarkRead?: () => boolean) {
+// markMain (optional, default true): only a Main read may clear Main's own
+// unread. A room read advances last_read_at for the divider but must leave the
+// Main marker alone, or opening a room would silently clear Main's badge.
+export function useChannel(channelId: string | undefined, onRead?: (live?: boolean) => void, canMarkRead?: () => boolean, markMain = true) {
   const { user } = useAuth()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [members, setMembers] = useState<ChannelMember[]>([])
@@ -64,6 +67,22 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     membersRef.current = members
   }, [members])
 
+  // Read from the realtime and visibility handlers without re-subscribing on a
+  // room switch (they outlive the render that created them).
+  const markMainRef = useRef(markMain)
+  markMainRef.current = markMain
+
+  // Divider baseline. Main reads from its own mark, or a room visit (which
+  // advances the shared last_read_at) would push Main's "New messages" divider
+  // past posts the player never saw. A room keeps the channel-level mark.
+  const readBaseline = useCallback((member: ChannelMember | undefined): string | null => {
+    if (!member) return null
+    const baseline = markMainRef.current
+      ? member.main_last_read_at ?? member.last_read_at
+      : member.last_read_at
+    return baseline ?? null
+  }, [])
+
   const markRead = useCallback((live = false) => {
     // Capture the member id and channel at scheduling time: the write runs
     // later, after other queued writes, and must never adopt the member id or
@@ -81,7 +100,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         // may have closed in between (#412).
         if (myMemberIdRef.current !== memberId) return
         if (canMarkRead && !canMarkRead()) return
-        const { error } = await supabase.rpc('mark_channel_read', { p_channel_id: channelId })
+        const { error } = await supabase.rpc('mark_channel_read', { p_channel_id: channelId, p_mark_main: markMainRef.current })
         if (error) console.error('Failed to update last_read_at', error)
         else onRead?.(live)
       })
@@ -132,11 +151,11 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       setMembers(formattedMembers)
       if (!boundaryCapturedRef.current) {
         boundaryCapturedRef.current = true
-        setLastReadAt(formattedMembers.find(m => m.user_id === user?.id)?.last_read_at ?? null)
+        setLastReadAt(readBaseline(formattedMembers.find(m => m.user_id === user?.id)))
       }
     }
     return formattedMembers
-  }, [channelId, user?.id])
+  }, [channelId, user?.id, readBaseline])
 
   /**
    * Refreshes the member roster only. Leaves the channel row, the loading
@@ -263,8 +282,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       if (document.visibilityState === 'hidden') {
         // Remember what we had seen when leaving; messages that arrive while
         // the app is away must stay on the "new" side of the divider (#502).
-        hiddenReadBoundaryRef.current = membersRef.current
-          .find(m => m.user_id === user?.id)?.last_read_at ?? null
+        hiddenReadBoundaryRef.current = readBaseline(
+          membersRef.current.find(m => m.user_id === user?.id)
+        )
         return
       }
       void fetchChannelData()
@@ -284,7 +304,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       stopRealtime()
       void supabase.removeChannel(realtimeChannel)
     }
-  }, [channelId, user?.id, refetchTrigger])
+  }, [channelId, user?.id, refetchTrigger, readBaseline])
 
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)
