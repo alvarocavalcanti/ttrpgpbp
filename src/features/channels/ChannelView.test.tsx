@@ -99,7 +99,7 @@ beforeEach(() => {
     patchRoomStatus: vi.fn(),
     refetch: vi.fn(),
   } as any)
-  vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), refetch: vi.fn() } as any)
+  vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), markMainRead: vi.fn(), refetch: vi.fn() } as any)
   // No pending applications unless a test says otherwise (#674).
   vi.mocked(usePendingJoinRequests).mockReturnValue({
     requests: [],
@@ -2091,7 +2091,7 @@ describe('ChannelView search functionality', () => {
     act(() => onRead?.())
 
     await waitFor(() => {
-      expect(notifyChannelRead).toHaveBeenCalledWith('c1', 'user1', true)
+      expect(notifyChannelRead).toHaveBeenCalledWith('c1', 'user1', true, null)
     })
   })
 
@@ -3109,6 +3109,83 @@ describe('ChannelView rooms (#621)', () => {
     renderAt('/channel/c1/sub/r1')
 
     expect(vi.mocked(useMessages)).toHaveBeenCalledWith('c1', 'r1', expect.any(Function))
+  })
+
+  it('tells useChannel whether Main or a room is open', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+    expect(vi.mocked(useChannel)).toHaveBeenLastCalledWith('c1', expect.any(Function), expect.any(Function), true)
+
+    renderAt('/channel/c1/sub/r1')
+    expect(vi.mocked(useChannel)).toHaveBeenLastCalledWith('c1', expect.any(Function), expect.any(Function), false)
+  })
+
+  it('dismisses only the room notifications when a room is read', async () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave' }, members: [], loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, markRead: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    const onRead = vi.mocked(useChannel).mock.calls.at(-1)?.[1] as (() => void) | undefined
+    act(() => onRead?.())
+
+    // Opening a room must not close Main's ping, and vice versa.
+    expect(notifyChannelRead).toHaveBeenCalledWith('c1', 'user1', true, 'r1')
+  })
+
+  it('clears the Main dot once Main history loads and is read', async () => {
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    const markMainRead = vi.fn()
+    vi.mocked(useSubChannelUnread).mockReturnValue({ counts: { main: 2 }, markRoomRead: vi.fn(), markMainRead, refetch: vi.fn() } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave' }, members: [], loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, markRead: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    const onLoaded = vi.mocked(useMessages).mock.calls.at(-1)?.[2] as (() => void) | undefined
+    await act(async () => { onLoaded?.() })
+
+    await waitFor(() => expect(markMainRead).toHaveBeenCalled())
+  })
+
+  it('refreshes the launcher badge after the room read mark resolves', async () => {
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    const markRoomRead = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead, markMainRead: vi.fn(), refetch: vi.fn() } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave' }, members: [], loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, markRead: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    // useMessages' third argument is the history-loaded callback.
+    const onLoaded = vi.mocked(useMessages).mock.calls.at(-1)?.[2] as (() => void) | undefined
+    await act(async () => { onLoaded?.() })
+
+    // Rooms only clear their own mark once the history actually rendered.
+    await waitFor(() => expect(markRoomRead).toHaveBeenCalledWith('r1'))
+    await waitFor(() => expect(refreshAppBadge).toHaveBeenCalledWith('user1', true))
   })
 
   it('falls back to Main with a toast when the room does not exist', async () => {

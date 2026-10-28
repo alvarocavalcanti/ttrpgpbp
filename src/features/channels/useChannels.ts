@@ -72,10 +72,30 @@ export function useChannels() {
 
         if (mounted) {
           // One RPC for every channel's unread count instead of a count query
-          // per channel (C4).
-          const { data: unreadData, error: unreadError } = await supabase.rpc('get_user_channels_unread', { p_user_id: user.id })
+          // per channel (C4). Previews come from their own per-viewer RPC: the
+          // Lobby shows the last message THIS viewer can see (whisper and
+          // room-visibility rules), which the shared channels row cannot do.
+          const fetchPreviews = async () => {
+            const first = await supabase.rpc('get_user_channel_previews', { p_user_id: user.id })
+            if (!first.error) return first
+            // One retry: without it a transient failure leaves every row with
+            // no preview (and ordered by created_at) until an unrelated event
+            // refetches the Lobby.
+            return supabase.rpc('get_user_channel_previews', { p_user_id: user.id })
+          }
+          const [{ data: unreadData, error: unreadError }, previewsResult] = await Promise.all([
+            supabase.rpc('get_user_channels_unread', { p_user_id: user.id }),
+            fetchPreviews(),
+          ])
           if (unreadError) throw unreadError
+          // A failed preview read must not blank the Lobby: rows render with no
+          // preview rather than the channel-wide string, which belongs to a
+          // different viewer. Nothing the player can retry, so this stays a log.
+          if (previewsResult.error) console.error('Error fetching channel previews:', previewsResult.error)
           const unreadMap = new Map((unreadData || []).map(row => [row.channel_id, row.unread_count]))
+          const previewMap = new Map(
+            (previewsResult.error ? [] : previewsResult.data || []).map(row => [row.channel_id, row])
+          )
 
           // Format my channels; malformed rows are dropped rather than
           // rendered with undefined props (issue #338 runtime validation).
@@ -84,8 +104,11 @@ export function useChannels() {
             const channel = parseRow(ChannelRowSchema, channelData)
             const member = parseRow(ChannelMemberRowSchema, row)
             if (!channel || !member) return []
+            const preview = previewMap.get(channel.id)
             return {
               ...channel,
+              last_message_at: preview?.last_message_at ?? null,
+              last_message_preview: preview?.last_message_preview ?? null,
               member: member as ChannelMember,
               unread_count: unreadMap.get(member.channel_id ?? '') ?? 0
             }
@@ -151,12 +174,14 @@ export function useChannels() {
 
     const stopRealtimeStatus = subscribeRealtimeStatus(scheduleUnreadRefresh)
 
-    // Keep unread badges live while sitting in the Lobby: a plain messages
-    // INSERT subscription, filtered client-side to my channels, schedules a
-    // refetch.
+    // Keep unread badges and previews live while sitting in the Lobby: an INSERT
+    // adds unread, an UPDATE is an edit or a soft-delete (which can change the
+    // last visible message). Both schedule one throttled refetch, filtered
+    // client-side to my channels. A DELETE carries no channel id (replica
+    // identity is the key), and messages are soft-deleted anyway.
     const lobbyChannel = supabase
       .channel('lobby-unread')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
         const channelId = (payload.new as { channel_id?: string } | null)?.channel_id
         if (channelId && myChannelIdsRef.current.has(channelId)) scheduleUnreadRefresh()
       })

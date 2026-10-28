@@ -50,6 +50,33 @@ const validMember = (over: Record<string, unknown> = {}) => ({
 const fillRows = (rows: any[]) =>
   rows.map(r => ({ ...validMember(r), channel: validChannel(r.channel) }))
 
+// The Lobby fetches unread counts and per-viewer previews in parallel; route
+// each RPC by name so payloads never land on the wrong call.
+const mockLobbyRpcs = ({
+  unread = [] as any[],
+  previews = [] as any[],
+  unreadError = null as unknown,
+  previewsError = null as unknown,
+} = {}) => {
+  vi.mocked(supabase.rpc).mockImplementation(((name: string) => {
+    if (name === 'get_user_channel_previews') {
+      return Promise.resolve({ data: previews, error: previewsError })
+    }
+    return Promise.resolve({ data: unread, error: unreadError })
+  }) as any)
+}
+
+// One unread payload per lobby fetch (mount, push refetch, retry).
+const mockLobbyRpcQueue = (unreadPayloads: any[][]) => {
+  let call = 0
+  vi.mocked(supabase.rpc).mockImplementation(((name: string) => {
+    if (name === 'get_user_channel_previews') return Promise.resolve({ data: [], error: null })
+    const data = unreadPayloads[Math.min(call, unreadPayloads.length - 1)]
+    call += 1
+    return Promise.resolve({ data, error: null })
+  }) as any)
+}
+
 describe('useChannels', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -78,12 +105,12 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: [], error: null }) as any
       return {} as any
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockLobbyRpcs()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
     rerender()
 
-    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(1))
-    // Exactly one channels fetch and one unread RPC once auth has settled.
+    // One channels fetch plus the unread and preview RPCs once auth settles.
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith('get_user_channel_previews', { p_user_id: 'user-1' }))
     expect(supabase.from).toHaveBeenCalledTimes(1)
     expect(vi.mocked(supabase.from).mock.calls[0][0]).toBe('channel_members')
     expect(supabase.rpc).toHaveBeenCalledWith('get_user_channels_unread', { p_user_id: 'user-1' })
@@ -162,7 +189,7 @@ describe('useChannels', () => {
       }
       return {} as any
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockLobbyRpcs()
 
     // A service-worker push triggers an immediate (un-throttled) refetch — the
     // same success path the visibilitychange / realtime refetches take.
@@ -201,7 +228,7 @@ describe('useChannels', () => {
       }
       return {} as any
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockLobbyRpcs()
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.error).toBeInstanceOf(Error))
@@ -222,10 +249,7 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: [{ channel_id: 'channel-2', unread_count: 5 }],
-      error: null
-    } as any)
+    mockLobbyRpcs({ unread: [{ channel_id: 'channel-2', unread_count: 5 }] })
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -253,9 +277,10 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
       return {} as any
     })
-    vi.mocked(supabase.rpc)
-      .mockResolvedValueOnce({ data: [{ channel_id: 'channel-2', unread_count: 1 }], error: null } as any)
-      .mockResolvedValueOnce({ data: [{ channel_id: 'channel-2', unread_count: 2 }], error: null } as any)
+    mockLobbyRpcQueue([
+      [{ channel_id: 'channel-2', unread_count: 1 }],
+      [{ channel_id: 'channel-2', unread_count: 2 }],
+    ])
 
     const { result, unmount } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(1))
@@ -281,10 +306,7 @@ describe('useChannels', () => {
       }]), error: null }) as any;
       return {} as any;
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: [{ channel_id: 'channel-2', unread_count: 3 }],
-      error: null
-    } as any)
+    mockLobbyRpcs({ unread: [{ channel_id: 'channel-2', unread_count: 3 }] })
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -304,7 +326,7 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockLobbyRpcs()
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -333,7 +355,14 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    // Order comes from the per-viewer preview timestamp; c3 has no readable
+    // message, so it sorts last despite its newer created_at.
+    mockLobbyRpcs({
+      previews: [
+        { channel_id: 'c1', last_message_at: '2023-01-01T00:00:00Z', last_message_preview: 'A: old' },
+        { channel_id: 'c2', last_message_at: '2024-06-01T00:00:00Z', last_message_preview: 'B: recent' },
+      ],
+    })
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -357,7 +386,12 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any;
       return {} as any;
     })
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: [], error: null } as any)
+    mockLobbyRpcs({
+      previews: [
+        { channel_id: 'c1', last_message_at: '2024-06-01T00:00:00Z', last_message_preview: 'A: same time' },
+        { channel_id: 'c2', last_message_at: '2024-06-01T00:00:00Z', last_message_preview: 'B: same time' },
+      ],
+    })
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -384,9 +418,10 @@ describe('useChannels', () => {
       if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
       return {} as any
     })
-    vi.mocked(supabase.rpc)
-      .mockResolvedValueOnce({ data: [{ channel_id: 'c1', unread_count: 1 }], error: null } as any)
-      .mockResolvedValueOnce({ data: [{ channel_id: 'c1', unread_count: 2 }], error: null } as any)
+    mockLobbyRpcQueue([
+      [{ channel_id: 'c1', unread_count: 1 }],
+      [{ channel_id: 'c1', unread_count: 2 }],
+    ])
 
     const { result } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(1))
@@ -427,7 +462,10 @@ describe('useChannels', () => {
     })
     // Unread RPC stays pending until after the racing INSERT fires.
     const rpcPromise = new Promise<{ data: { channel_id: string, unread_count: number }[], error: null }>(res => { resolveUnreadRpc = res })
-    vi.mocked(supabase.rpc).mockReturnValue(rpcPromise as any)
+    vi.mocked(supabase.rpc).mockImplementation(((name: string) => {
+      if (name === 'get_user_channel_previews') return Promise.resolve({ data: [], error: null })
+      return rpcPromise
+    }) as any)
 
     const { result } = renderHook(() => useChannels())
     // Wait until the subscription is wired, then race an INSERT against the
@@ -459,9 +497,11 @@ describe('useChannels', () => {
     const rpc = vi.fn().mockResolvedValue({ data: [], error: null })
     vi.mocked(supabase.rpc).mockImplementation(rpc as any)
 
+    const unreadFetches = () => rpc.mock.calls.filter(call => call[0] === 'get_user_channels_unread').length
+
     const { result, unmount } = renderHook(() => useChannels())
     await waitFor(() => expect(result.current.loading).toBe(false))
-    const fetchesAfterLoad = rpc.mock.calls.length
+    const fetchesAfterLoad = unreadFetches()
 
     // A rapid flap storm: drop, retry, recover — each used to refetch the
     // lobby on its own.
@@ -472,13 +512,50 @@ describe('useChannels', () => {
     })
 
     // No immediate refetch — throttled to one per 2s window.
-    expect(rpc.mock.calls.length).toBe(fetchesAfterLoad)
+    expect(unreadFetches()).toBe(fetchesAfterLoad)
 
     await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
 
-    expect(rpc.mock.calls.length).toBe(fetchesAfterLoad + 1)
+    expect(unreadFetches()).toBe(fetchesAfterLoad + 1)
     unmount()
     clearRealtimeStatus('flap-test')
+  })
+
+  it('refetches when a message is edited or soft-deleted', async () => {
+    // The preview is the last visible message, so an edit or delete of it must
+    // refresh the row too, not just new inserts.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const mockMyChannelsRaw = [{
+      id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Thor',
+      last_read_at: '2023-01-01T00:00:00Z', channel: { id: 'c1', name: 'My Channel' }
+    }]
+    let messagesHandler: ((payload: any) => void) | undefined
+    const channelMock: any = {
+      on: (_event: any, filter: any, cb: any) => {
+        if (filter.table === 'messages') messagesHandler = cb
+        return channelMock
+      },
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn().mockResolvedValue(undefined)
+    }
+    vi.mocked(supabase.channel).mockImplementation(() => channelMock as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') return createChain({ data: fillRows(mockMyChannelsRaw), error: null }) as any
+      return {} as any
+    })
+    mockLobbyRpcQueue([[{ channel_id: 'c1', unread_count: 1 }], [{ channel_id: 'c1', unread_count: 1 }]])
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.myChannels[0]?.unread_count).toBe(1))
+    const before = vi.mocked(supabase.rpc).mock.calls.filter(c => c[0] === 'get_user_channels_unread').length
+
+    await act(async () => {
+      messagesHandler?.({ eventType: 'UPDATE', new: { id: 'm1', channel_id: 'c1' } })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+
+    const after = vi.mocked(supabase.rpc).mock.calls.filter(c => c[0] === 'get_user_channels_unread').length
+    expect(after).toBe(before + 1)
   })
 
   it('ignores realtime message INSERTs for channels I am not in', async () => {
@@ -514,5 +591,137 @@ describe('useChannels', () => {
 
     expect(rpc.mock.calls.length).toBe(callsBefore)
     expect(result.current.myChannels).toHaveLength(1)
+  })
+
+  it('overrides the channel-wide preview with the per-viewer one', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([{
+          id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Hero',
+          // Channel-wide column: another member's message, which this viewer
+          // cannot necessarily see (whisper / restricted room).
+          channel: { id: 'c1', name: 'My Channel', last_message_at: '2026-01-01T00:00:00Z', last_message_preview: 'Hero: someone else wrote this' },
+        }]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs({
+      previews: [{
+        channel_id: 'c1',
+        last_message_at: '2025-12-31T00:00:00Z',
+        last_message_preview: 'Battle · Hero: the last thing I can see',
+      }],
+    })
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.myChannels[0].last_message_preview).toBe('Battle · Hero: the last thing I can see')
+    expect(result.current.myChannels[0].last_message_at).toBe('2025-12-31T00:00:00Z')
+    expect(supabase.rpc).toHaveBeenCalledWith('get_user_channel_previews', { p_user_id: 'user-1' })
+  })
+
+  it('sorts by the per-viewer timestamp, not the shared channel one', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([
+          {
+            id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'A',
+            channel: { id: 'c1', name: 'Hidden Activity', created_at: '2023-01-01T00:00:00Z', last_message_at: '2026-01-02T00:00:00Z' },
+          },
+          {
+            id: 'member-2', channel_id: 'c2', user_id: 'user-1', character_name: 'B',
+            channel: { id: 'c2', name: 'Visible Activity', created_at: '2023-01-01T00:00:00Z', last_message_at: '2026-01-01T00:00:00Z' },
+          },
+        ]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs({
+      previews: [
+        { channel_id: 'c1', last_message_at: '2024-01-01T00:00:00Z', last_message_preview: 'A: older' },
+        { channel_id: 'c2', last_message_at: '2026-01-01T00:00:00Z', last_message_preview: 'B: newer' },
+      ],
+    })
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.myChannels.map(c => c.id)).toEqual(['c2', 'c1'])
+  })
+
+  it('shows no preview for a channel the previews RPC omits', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([{
+          id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Hero',
+          channel: { id: 'c1', name: 'Hidden Only', last_message_at: '2026-01-01T00:00:00Z', last_message_preview: 'secret room content' },
+        }]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs({ previews: [] })
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.myChannels[0].last_message_preview).toBeNull()
+    expect(result.current.myChannels[0].last_message_at).toBeNull()
+  })
+
+  it('retries the previews read once before giving up', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([{
+          id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Hero',
+          channel: { id: 'c1', name: 'My Channel' },
+        }]), error: null }) as any
+      }
+      return {} as any
+    })
+    let previewsCalls = 0
+    vi.mocked(supabase.rpc).mockImplementation(((name: string) => {
+      if (name === 'get_user_channel_previews') {
+        previewsCalls += 1
+        if (previewsCalls === 1) {
+          return Promise.resolve({ data: null, error: new Error('timeout') })
+        }
+        return Promise.resolve({ data: [{ channel_id: 'c1', last_message_at: '2026-01-01T00:00:00Z', last_message_preview: 'Hero: back online' }], error: null })
+      }
+      return Promise.resolve({ data: [], error: null })
+    }) as any)
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(previewsCalls).toBe(2)
+    expect(result.current.myChannels[0].last_message_preview).toBe('Hero: back online')
+  })
+
+  it('keeps the lobby usable when the previews RPC fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([{
+          id: 'member-1', channel_id: 'c1', user_id: 'user-1', character_name: 'Hero',
+          channel: { id: 'c1', name: 'My Channel' },
+        }]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs({ unread: [{ channel_id: 'c1', unread_count: 2 }], previewsError: new Error('previews down') })
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.myChannels).toHaveLength(1)
+    expect(result.current.myChannels[0].unread_count).toBe(2)
+    expect(result.current.myChannels[0].last_message_preview).toBeNull()
+    expect(errorSpy).toHaveBeenCalled()
   })
 })

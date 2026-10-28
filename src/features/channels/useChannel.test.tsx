@@ -343,8 +343,83 @@ describe('useChannel', () => {
       messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
     })
 
-    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1' })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1', p_mark_main: true })
     expect(onRead).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves the Main read mark alone when a room is open', async () => {
+    // Opening /channel/:id/sub/:room advances last_read_at (the divider) but
+    // must not clear Main's unread, or the Lobby pill and the Main dot would
+    // lose messages the player never saw.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    const mockOn = vi.fn().mockImplementation(() => ({ on: mockOn, subscribe: mockSubscribe }))
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const onRead = vi.fn()
+    renderHook(() => useChannel('c1', onRead, undefined, false))
+
+    await waitFor(() => {
+      expect(onRead).toHaveBeenCalledTimes(1)
+    })
+
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1', p_mark_main: false })
+  })
+
+  it('anchors the divider on Main\'s own mark, and on the channel mark in a room', async () => {
+    // A room visit advances last_read_at; Main's divider must not follow it, or
+    // unread Main posts end up above the "New messages" line.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{
+      id: 'm1', user_id: 'u1',
+      last_read_at: '2023-01-01T12:00:00Z',
+      main_last_read_at: '2023-01-01T10:00:00Z',
+      profile: { display_name: 'Hero' },
+    }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const main = renderHook(() => useChannel('c1', undefined, undefined, true))
+    await waitFor(() => expect(main.result.current.loading).toBe(false))
+    expect(main.result.current.lastReadAt).toBe('2023-01-01T10:00:00Z')
+    main.unmount()
+
+    const room = renderHook(() => useChannel('c1', undefined, undefined, false))
+    await waitFor(() => expect(room.result.current.loading).toBe(false))
+    expect(room.result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
   })
 
   it('serializes read-mark RPCs when writes are initiated back to back', async () => {
@@ -408,7 +483,7 @@ describe('useChannel', () => {
 
     expect(supabase.rpc).toHaveBeenCalledTimes(2)
     for (const call of vi.mocked(supabase.rpc).mock.calls) {
-      expect(call).toEqual(['mark_channel_read', { p_channel_id: 'c1' }])
+      expect(call).toEqual(['mark_channel_read', { p_channel_id: 'c1', p_mark_main: true }])
     }
   })
 
@@ -864,7 +939,7 @@ describe('useChannel', () => {
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
-    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1' })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1', p_mark_main: true })
   })
 
   it('marks read when the tab becomes visible after history loaded hidden', async () => {
@@ -915,7 +990,7 @@ describe('useChannel', () => {
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledTimes(1)
     })
-    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1' })
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_channel_read', { p_channel_id: 'c1', p_mark_main: true })
   })
 
   it('gates the live INSERT advance on the messages-loaded gate', async () => {

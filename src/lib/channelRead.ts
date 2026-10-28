@@ -32,12 +32,14 @@ export async function refreshAppBadge(userId: string, badgeEnabled: boolean): Pr
   }
 }
 
-// Called once a channel has been read (last_read_at committed). Asks the
-// service worker to dismiss that channel's system-tray notifications and
-// refreshes the launcher badge to the current total unread.
-export async function notifyChannelRead(channelId: string, userId: string, badgeEnabled: boolean): Promise<void> {
+// Called once a channel or room has been read (its read mark committed). Asks
+// the service worker to dismiss that surface's system-tray notifications —
+// exactly the channel for Main, exactly `/channel/:id/sub/:room` for a room, so
+// an unread room's notification survives opening Main — and refreshes the
+// launcher badge to the current total unread.
+export async function notifyChannelRead(channelId: string, userId: string, badgeEnabled: boolean, subChannelId?: string | null): Promise<void> {
   navigator.serviceWorker?.getRegistration().then(reg => {
-    reg?.active?.postMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId })
+    reg?.active?.postMessage({ type: 'CLOSE_CHANNEL_NOTIFICATIONS', channelId, subChannelId: subChannelId ?? null })
   })
 
   await refreshAppBadge(userId, badgeEnabled)

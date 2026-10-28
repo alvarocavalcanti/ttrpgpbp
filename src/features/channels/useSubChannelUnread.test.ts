@@ -55,7 +55,7 @@ describe('useSubChannelUnread', () => {
     expect(result.current.counts).toEqual({})
   })
 
-  it('loads per-room counts and ignores the Main (NULL) group', async () => {
+  it('loads per-room counts, keying the Main (NULL) group as main', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     mockRpc([
       { sub_channel_id: null, unread_count: 3 },
@@ -64,11 +64,11 @@ describe('useSubChannelUnread', () => {
 
     const { result } = renderHook(() => useSubChannelUnread('c1', null))
 
-    await waitFor(() => expect(result.current.counts).toEqual({ r1: 2 }))
+    await waitFor(() => expect(result.current.counts).toEqual({ main: 3, r1: 2 }))
     expect(supabase.rpc).toHaveBeenCalledWith('get_channel_room_unread', { p_channel_id: 'c1' })
   })
 
-  it('increments a non-active room on a live message, skipping own/Main/active', async () => {
+  it('increments a non-active room on a live message, skipping own messages', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     mockRpc([{ sub_channel_id: 'r1', unread_count: 0 }])
     const getHandler = installMessagesHandler()
@@ -82,10 +82,39 @@ describe('useSubChannelUnread', () => {
     // Own message: already read, no dot.
     await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: 'r1', sender_id: 'u1' } }) })
     expect(result.current.counts.r1).toBe(1)
+  })
 
-    // Main message: no room dot.
+  it('lights the Main dot for a message that arrives while the user is in a room', async () => {
+    // Opening a room straight from a notification must not hide Main's unread.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    mockRpc([{ sub_channel_id: null, unread_count: 0 }, { sub_channel_id: 'r1', unread_count: 0 }])
+    const getHandler = installMessagesHandler()
+
+    const { result } = renderHook(() => useSubChannelUnread('c1', 'r1'))
+    await waitFor(() => expect(result.current.counts).toEqual({ main: 0, r1: 0 }))
+
     await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: null, sender_id: 'u2' } }) })
-    expect(result.current.counts.r1).toBe(1)
+    expect(result.current.counts.main).toBe(1)
+
+    // Own Main message: already read.
+    await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: null, sender_id: 'u1' } }) })
+    expect(result.current.counts.main).toBe(1)
+  })
+
+  it('leaves the Main dot to ChannelView for a message read live in Main', async () => {
+    // useChannel writes Main's mark only after history loads; clearing the dot
+    // from here could hide unread posts when that fetch failed.
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    mockRpc([{ sub_channel_id: null, unread_count: 2 }, { sub_channel_id: 'r1', unread_count: 0 }])
+    const getHandler = installMessagesHandler()
+
+    const { result } = renderHook(() => useSubChannelUnread('c1', null))
+    await waitFor(() => expect(result.current.counts.main).toBe(2))
+
+    await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: null, sender_id: 'u2' } }) })
+    expect(result.current.counts.main).toBe(2)
+    expect(supabase.rpc).not.toHaveBeenCalledWith('mark_sub_channel_read', expect.anything())
   })
 
   it('advances the read mark (not the dot) for a live message in the room being viewed', async () => {
@@ -128,6 +157,20 @@ describe('useSubChannelUnread', () => {
     await act(async () => { await result.current.markRoomRead('r1') })
     expect(result.current.counts.r1).toBe(0)
     expect(supabase.rpc).toHaveBeenCalledWith('mark_sub_channel_read', { p_sub_channel_id: 'r1' })
+  })
+
+  it('markMainRead clears the local Main dot', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    mockRpc([{ sub_channel_id: null, unread_count: 3 }, { sub_channel_id: 'r1', unread_count: 1 }])
+
+    const { result } = renderHook(() => useSubChannelUnread('c1', null))
+    await waitFor(() => expect(result.current.counts.main).toBe(3))
+
+    act(() => { result.current.markMainRead() })
+
+    expect(result.current.counts.main).toBe(0)
+    // The room dots are untouched.
+    expect(result.current.counts.r1).toBe(1)
   })
 
   it('refetches counts when the tab becomes visible again', async () => {
