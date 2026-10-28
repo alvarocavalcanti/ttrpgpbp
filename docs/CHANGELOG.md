@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-10-28
+
+### Fixed
+
+- **Each room keeps its own unread badge** — the count on a game in the Lobby now adds up Main and every room you can open, instead of being cleared as soon as you stepped into the channel. Opening Main no longer wipes the count for a room you never read, reading a room only clears that room (and its share of the game's count), and Main now has its own dot in the room bar. Opening a room straight from a notification leaves Main's dot and the game's Lobby count in place, and closing the app no longer loses them.
+- **Notifications clear where you actually are** — reading Main leaves a push for an unread room in your notification tray, and reading the room clears that room's push. Main's pings clear when you read Main.
+- **A game's row shows the last message you can see** — the Lobby preview is now the newest message *you* can read, whether or not you have read it, like WhatsApp or Telegram: whispers show for the people in them (sender, recipient and the GM), a private or GM-only room's messages show for players who can open that room, and a game with nothing you can read says "No messages yet". Deleting the newest message falls back to the previous one instead of leaving its text behind.
+- **The badge setting now means the app icon** — the setting once called Show Unread Badges is now **Show App Icon Badge** and controls only the number on the app icon. The Lobby count, the Main dot and the room dots stay visible, so turning the icon number off no longer hides where the new messages are.
+
 ## 2026-10-27
 
 ### Added

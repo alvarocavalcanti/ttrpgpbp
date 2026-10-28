@@ -5,7 +5,7 @@ screenshot: /help-images/lobby-empty.png
 
 The **lobby** is the first screen after signing in. It has two tabs:
 
-- **My Games** — the private channels you've joined. Each shows a preview of its **most recent message** (or *No messages yet*) with the sender's name, a short timestamp, and a small **GM** chip when you run it — plus a count of unread messages when there's something new to read.
+- **My Games** — the private channels you've joined. Each row shows the last message **you** can see — read or not, like WhatsApp or Telegram — with its room name when it was posted in a room, the sender's name, a short timestamp, and a small **GM** chip when you run it. Whispers only appear for the people in them (sender, recipient and the GM), and a private or GM-only room's messages only appear for players who can open that room; if you can see nothing in a game yet, it says *No messages yet*. The count on the right is the only thing that tracks **new** messages: it adds up Main and every room you can open, and reading a game never changes the preview text.
 - **Discover** — games whose GMs have **listed** them as looking for players.
 
 With no channels yet, the lobby opens on Discover so you can find a table.
