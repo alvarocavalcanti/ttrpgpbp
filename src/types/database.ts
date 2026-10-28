@@ -412,6 +412,7 @@ export type Database = {
           is_blocked: boolean
           joined_at: string
           last_read_at: string
+          main_last_read_at: string | null
           notify_all_messages: boolean
           notify_gm_messages: boolean
           notify_turn: boolean
@@ -431,6 +432,7 @@ export type Database = {
           is_blocked?: boolean
           joined_at?: string
           last_read_at?: string
+          main_last_read_at?: string | null
           notify_all_messages?: boolean
           notify_gm_messages?: boolean
           notify_turn?: boolean
@@ -450,6 +452,7 @@ export type Database = {
           is_blocked?: boolean
           joined_at?: string
           last_read_at?: string
+          main_last_read_at?: string | null
           notify_all_messages?: boolean
           notify_gm_messages?: boolean
           notify_turn?: boolean
@@ -1770,6 +1773,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_channel_previews: {
+        Args: { p_user_id: string }
+        Returns: {
+          channel_id: string
+          last_message_at: string
+          last_message_preview: string
+        }[]
+      }
       get_user_channels_unread: {
         Args: { p_user_id: string }
         Returns: {
@@ -1828,7 +1839,10 @@ export type Database = {
         Args: { p_thread_id: string }
         Returns: undefined
       }
-      mark_channel_read: { Args: { p_channel_id: string }; Returns: undefined }
+      mark_channel_read: {
+        Args: { p_channel_id: string; p_mark_main?: boolean }
+        Returns: undefined
+      }
       mark_sub_channel_read: {
         Args: { p_sub_channel_id: string }
         Returns: undefined
