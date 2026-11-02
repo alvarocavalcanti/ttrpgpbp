@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-02
+
+### Changed
+
+- **Channel settings are split into tabs** — **General**, **Resources**, **Safety**, and **Listing**, with **Save Changes** always at the bottom of the window instead of below a long scroll. On a phone the settings fill the screen; on a computer the window is wider and pairs related fields side by side. A dot next to a tab name marks settings you've edited but not saved yet, so you can see what still needs saving.
+- **Closing with unsaved changes asks first** — Escape, the × button, tapping outside the window, and **Cancel** all ask **Discard changes?** before throwing an edit away. Choosing Cancel on that prompt keeps everything you typed and leaves the settings open.
+- **Saving leaves you where you are** — a save confirms with a message, keeps the window open on the same tab, and leaves your values in place so you can carry on adjusting without reopening settings. If a field can't be saved (for example a link that doesn't start with `http://` or `https://`), the window moves to that tab and shows the problem there.
+
+### Fixed
+
+- **Uploading a resources image shows the right progress** — the Resources upload button now reports its own upload rather than the map's, so it no longer shows a pending label for the wrong field.
+
 ## 2026-10-28
 
 ### Fixed
