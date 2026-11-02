@@ -54,8 +54,12 @@ describe('ChannelSettings', () => {
     invite_code: '123'
   }
 
+  // The tab strip keeps the active tab in view; jsdom has no layout engine.
+  const openTab = (name: string | RegExp) => fireEvent.click(screen.getByRole('tab', { name }))
+
   beforeEach(() => {
     vi.clearAllMocks()
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
     mockAddToast.mockClear()
     vi.mocked(useChannelAvatar).mockReturnValue({
       uploadEnabled: true,
@@ -94,6 +98,8 @@ describe('ChannelSettings', () => {
       chain.select = () => chain
       chain.eq = () => chain
       chain.order = () => Promise.resolve({ data: [], error: null })
+      // useSafetyTools reads a single row once the Safety tab is opened.
+      chain.maybeSingle = () => Promise.resolve({ data: null, error: null })
       // eslint-disable-next-line unicorn/no-thenable
       chain.then = (resolve: (value: unknown) => unknown) =>
         Promise.resolve({ data: [], error: null }).then(resolve)
@@ -110,11 +116,14 @@ describe('ChannelSettings', () => {
     
     expect(screen.getByDisplayValue('Game Room')).toBeInTheDocument()
     expect(screen.getByLabelText('Channel Name')).toHaveAttribute('maxLength', '80')
+    expect(screen.getByDisplayValue('http://localhost/join/c1?code=123')).toBeInTheDocument()
+
+    openTab('Resources')
+
     expect(screen.getByDisplayValue('http://map')).toBeInTheDocument()
     expect(screen.getByLabelText('Map URL')).toHaveAttribute('maxLength', '500')
     expect(screen.getByDisplayValue('http://gmresources')).toBeInTheDocument()
     expect(screen.getByLabelText('GM-Only Resources URL')).toHaveAttribute('maxLength', '500')
-    expect(screen.getByDisplayValue('http://localhost/join/c1?code=123')).toBeInTheDocument()
   })
 
   it('shows the password as set when hasPassword is true', () => {
@@ -158,9 +167,10 @@ describe('ChannelSettings', () => {
       { wrapper: MemoryRouter },
     )
 
+    openTab('Listing')
+
     expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
-    // The invite-link Copy comes first in the DOM; the public-link Copy is next.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[1])
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost/game/c1')
@@ -178,11 +188,12 @@ describe('ChannelSettings', () => {
       { wrapper: MemoryRouter },
     )
 
+    openTab('Listing')
     fireEvent.click(screen.getByRole('button', { name: 'Listed — apply to join' }))
 
     // The draft toggle shows the field, but the link only works once saved.
     expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Copy' })[1]).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
     expect(screen.getByText('Save the listing to publish this link.')).toBeInTheDocument()
   })
 
@@ -195,6 +206,8 @@ describe('ChannelSettings', () => {
       />,
       { wrapper: MemoryRouter },
     )
+
+    openTab('Listing')
 
     expect(screen.queryByDisplayValue('http://localhost/game/c1')).not.toBeInTheDocument()
   })
@@ -225,7 +238,9 @@ describe('ChannelSettings', () => {
       }))
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
       expect(mockOnUpdate).toHaveBeenCalled()
-      expect(mockOnClose).toHaveBeenCalled()
+      // The dialog stays open on the same tab; only the dirty state clears.
+      expect(mockOnClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('tab', { name: 'General' })).not.toHaveTextContent('unsaved changes')
     })
   })
 
@@ -235,6 +250,7 @@ describe('ChannelSettings', () => {
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
+    openTab('Resources')
     fireEvent.change(screen.getByLabelText('Map URL'), { target: { value: 'javascript:alert(1)' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
@@ -276,7 +292,7 @@ describe('ChannelSettings', () => {
 
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
-    fireEvent.click(screen.getByText('Safety Tools (Lines & Veils)'))
+    openTab('Safety')
     fireEvent.change(screen.getByLabelText('Lines'), { target: { value: 'no gore' } })
     fireEvent.change(screen.getByLabelText('Veils'), { target: { value: 'romance' } })
     fireEvent.change(screen.getByLabelText('Safety Tools URL'), { target: { value: 'https://docs.google.com/doc' } })
@@ -291,7 +307,7 @@ describe('ChannelSettings', () => {
     })
   })
 
-  it('does not save safety tools unless the section was opened', async () => {
+  it('does not save safety tools unless the Safety tab was opened', async () => {
     const mockRpc = vi.fn().mockResolvedValue({ error: null })
     vi.mocked(supabase.rpc).mockImplementation(mockRpc)
 
@@ -559,6 +575,7 @@ describe('ChannelSettings', () => {
     mockUploadImage.mockResolvedValue('https://supabase/images/c1/map/u.jpg')
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
+    openTab('Resources')
     fireEvent.change(screen.getByLabelText('Upload map image'), {
       target: { files: [new File(['data'], 'dungeon.png', { type: 'image/png' })] }
     })
@@ -573,6 +590,7 @@ describe('ChannelSettings', () => {
     mockUploadImage.mockResolvedValue('https://supabase/images/c1/resources/u.jpg')
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
+    openTab('Resources')
     fireEvent.change(screen.getByLabelText('Upload resources image'), {
       target: { files: [new File(['data'], 'handout.png', { type: 'image/png' })] }
     })
@@ -587,11 +605,53 @@ describe('ChannelSettings', () => {
     mockUploadImage.mockRejectedValue(new Error('Image uploads are disabled by the server admin'))
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
+    openTab('Resources')
     fireEvent.change(screen.getByLabelText('Upload map image'), {
       target: { files: [new File(['data'], 'dungeon.png', { type: 'image/png' })] }
     })
 
     expect(await screen.findByText('Image uploads are disabled by the server admin')).toBeInTheDocument()
+  })
+
+  it('shows the pending state on the upload that is running', async () => {
+    let resolveUpload!: (value: string | null) => void
+    mockUploadImage.mockReturnValue(new Promise(resolve => { resolveUpload = resolve }))
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Resources')
+    fireEvent.change(screen.getByLabelText('Upload resources image'), {
+      target: { files: [new File(['data'], 'handout.png', { type: 'image/png' })] }
+    })
+
+    expect(screen.getByLabelText('Upload resources image').closest('label')).toHaveTextContent('Uploading...')
+    expect(screen.getByLabelText('Upload map image').closest('label')).toHaveTextContent('Upload image')
+    expect(screen.getByLabelText('Upload resources image')).toBeDisabled()
+
+    resolveUpload('https://supabase/images/c1/resources/u.jpg')
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Resources URL')).toHaveValue('https://supabase/images/c1/resources/u.jpg')
+    })
+    expect(screen.getByLabelText('Upload resources image').closest('label')).toHaveTextContent('Upload image')
+  })
+
+  it('does not show the resources upload as pending during a map upload', async () => {
+    let resolveUpload!: (value: string | null) => void
+    mockUploadImage.mockReturnValue(new Promise(resolve => { resolveUpload = resolve }))
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Resources')
+    fireEvent.change(screen.getByLabelText('Upload map image'), {
+      target: { files: [new File(['data'], 'dungeon.png', { type: 'image/png' })] }
+    })
+
+    expect(screen.getByLabelText('Upload map image').closest('label')).toHaveTextContent('Uploading...')
+    expect(screen.getByLabelText('Upload resources image').closest('label')).toHaveTextContent('Upload image')
+
+    resolveUpload('https://supabase/images/c1/map/u.jpg')
+    await waitFor(() => {
+      expect(screen.getByLabelText('Map URL')).toHaveValue('https://supabase/images/c1/map/u.jpg')
+    })
   })
 
   describe('Discovery and join requests (#674)', () => {
@@ -628,6 +688,7 @@ describe('ChannelSettings', () => {
       const onClose = vi.fn()
       const onUpdate = vi.fn()
       render(<ChannelSettings channel={channel} onClose={onClose} onUpdate={onUpdate} />, { wrapper: MemoryRouter })
+      openTab('Listing')
       return { onClose, onUpdate }
     }
 
@@ -860,6 +921,281 @@ describe('ChannelSettings', () => {
       expect(await screen.findByText("Couldn't load requests.")).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
       await waitFor(() => expect(supabase.from).toHaveBeenCalledTimes(2))
+    })
+  })
+
+  describe('tabs', () => {
+    it('exposes a tablist wired to its panels', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      expect(screen.getByRole('tablist', { name: 'Channel settings sections' })).toBeInTheDocument()
+
+      const general = screen.getByRole('tab', { name: 'General' })
+      expect(general).toHaveAttribute('aria-selected', 'true')
+      expect(general).toHaveAttribute('aria-controls', 'settings-panel-general')
+      expect(screen.getByRole('tab', { name: 'Resources' })).toHaveAttribute('aria-selected', 'false')
+
+      const panel = screen.getByRole('tabpanel', { name: 'General' })
+      expect(panel).toHaveAttribute('id', 'settings-panel-general')
+      expect(panel).toBeVisible()
+    })
+
+    it('keeps the roving tabindex on the selected tab', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('tabIndex', '0')
+      expect(screen.getByRole('tab', { name: 'Resources' })).toHaveAttribute('tabIndex', '-1')
+
+      openTab('Safety')
+
+      expect(screen.getByRole('tab', { name: 'Safety' })).toHaveAttribute('tabIndex', '0')
+      expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('tabIndex', '-1')
+      expect(screen.getByRole('tablist')).toHaveAttribute('tabIndex', '-1')
+    })
+
+    it('moves focus and selection with the arrow keys', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowRight' })
+
+      const resources = screen.getByRole('tab', { name: 'Resources' })
+      expect(resources).toHaveAttribute('aria-selected', 'true')
+      expect(document.activeElement).toBe(resources)
+      expect(screen.getByRole('tabpanel', { name: 'Resources' })).toBeVisible()
+      // A hidden panel leaves the accessibility tree, so it has no accessible
+      // name — assert visibility on the element itself.
+      expect(document.getElementById('settings-panel-general')).not.toBeVisible()
+    })
+
+    it('handles Home, End, and wrap-around', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowLeft' })
+      expect(screen.getByRole('tab', { name: 'Listing' })).toHaveAttribute('aria-selected', 'true')
+
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'Listing' }), { key: 'ArrowRight' })
+      expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'End' })
+      expect(screen.getByRole('tab', { name: 'Listing' })).toHaveAttribute('aria-selected', 'true')
+
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'Listing' }), { key: 'Home' })
+      expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('keeps the active tab in view', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+      vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+      openTab('Listing')
+
+      expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+    })
+
+    it('starts the newly selected panel at the top', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+      const body = screen.getByTestId('settings-body')
+      body.scrollTop = 120
+
+      openTab('Resources')
+
+      expect(body.scrollTop).toBe(0)
+    })
+  })
+
+  describe('unsaved changes', () => {
+    function renderWithDirtyEdit() {
+      const onClose = vi.fn()
+      render(<ChannelSettings channel={mockChannel} onClose={onClose} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'Renamed' } })
+      return { onClose }
+    }
+
+    it('closes straight away when nothing was edited', () => {
+      const onClose = vi.fn()
+      render(<ChannelSettings channel={mockChannel} onClose={onClose} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+
+      expect(onClose).toHaveBeenCalled()
+      expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).not.toBeInTheDocument()
+    })
+
+    it('keeps an edit across a tab switch', () => {
+      renderWithDirtyEdit()
+
+      openTab('Listing')
+      openTab(/General/)
+
+      expect(screen.getByLabelText('Channel Name')).toHaveValue('Renamed')
+    })
+
+    it('marks only the tabs holding an edit', () => {
+      renderWithDirtyEdit()
+
+      expect(screen.getByRole('tab', { name: /General/ })).toHaveTextContent('unsaved changes')
+      expect(screen.getByRole('tab', { name: 'Resources' })).not.toHaveTextContent('unsaved changes')
+      expect(screen.getByRole('tab', { name: 'Listing' })).not.toHaveTextContent('unsaved changes')
+    })
+
+    it('does not treat opening Safety as an edit', async () => {
+      vi.mocked(supabase.from).mockImplementation((() => {
+        const chain: Record<string, unknown> = {}
+        chain.select = () => chain
+        chain.eq = () => chain
+        chain.order = () => Promise.resolve({ data: [], error: null })
+        chain.maybeSingle = () => Promise.resolve({ data: { lines: 'no gore', veils: 'romance' }, error: null })
+        // eslint-disable-next-line unicorn/no-thenable
+        chain.then = (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve)
+        return chain
+      }) as any)
+      const onClose = vi.fn()
+      render(<ChannelSettings channel={mockChannel} onClose={onClose} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      openTab('Safety')
+      expect(await screen.findByDisplayValue('no gore')).toBeInTheDocument()
+      expect(screen.queryByText('unsaved changes')).not.toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('asks before discarding on Escape, and Cancel keeps the form', () => {
+      const { onClose } = renderWithDirtyEdit()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+
+      const dialog = screen.getByRole('dialog', { name: 'Discard changes?' })
+      expect(onClose).not.toHaveBeenCalled()
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Channel Name')).toHaveValue('Renamed')
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('asks before discarding on a backdrop click', () => {
+      const { onClose } = renderWithDirtyEdit()
+
+      fireEvent.click(screen.getByTestId('settings-backdrop'))
+
+      expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('asks before discarding on Cancel', () => {
+      const { onClose } = renderWithDirtyEdit()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('discards the edits when the confirm is accepted', () => {
+      const { onClose } = renderWithDirtyEdit()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+      expect(onClose).toHaveBeenCalled()
+    })
+  })
+
+  describe('saving', () => {
+    it('stays on the current tab and clears the dirty state', async () => {
+      vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+      render(
+        <ChannelSettings
+          channel={{ ...mockChannel, join_mode: 'approval', description: 'A weekly game.', constraints: 'Be kind.' }}
+          onClose={vi.fn()}
+          onUpdate={vi.fn()}
+        />,
+        { wrapper: MemoryRouter },
+      )
+
+      openTab('Listing')
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success'))
+
+      expect(screen.getByRole('tab', { name: 'Listing' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('tab', { name: 'Listing' })).not.toHaveTextContent('unsaved changes')
+      expect(screen.getByLabelText('Description')).toHaveValue('A weekly game.')
+    })
+
+    it('does not resend the password on the next save', async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByText('Change Password'))
+      fireEvent.change(screen.getByPlaceholderText('Leave blank to remove password'), { target: { value: 'new_secret' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+      await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success'))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+      await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(2))
+
+      expect(mockRpc).toHaveBeenLastCalledWith('update_channel_settings', expect.objectContaining({
+        p_password_hash: undefined,
+        p_password_salt: undefined,
+        p_clear_password: false,
+      }))
+    })
+
+    it('shows a failed save inline, keeping the dialog and every value', async () => {
+      vi.mocked(supabase.rpc).mockResolvedValue({ error: new Error('Update failed') } as any)
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'Renamed' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Update failed')
+      expect(mockAddToast).toHaveBeenCalledWith('Failed to update channel settings.', 'error')
+      expect(screen.getByLabelText('Channel Name')).toHaveValue('Renamed')
+      expect(screen.getByRole('tab', { name: /General/ })).toHaveTextContent('unsaved changes')
+    })
+
+    it('jumps to the tab that holds an invalid field', async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      openTab('Resources')
+      fireEvent.change(screen.getByLabelText('Map URL'), { target: { value: 'javascript:alert(1)' } })
+      openTab('General')
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      expect(screen.getByRole('tab', { name: /Resources/ })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByText('Links must start with http:// or https://')).toBeVisible()
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('fires listing_publish once, even when saving again while open', async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      render(<ChannelSettings channel={{ ...mockChannel, join_mode: 'invite' }} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      openTab('Listing')
+      fireEvent.click(screen.getByRole('button', { name: 'Listed — apply to join' }))
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
+      fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+      await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success'))
+
+      // The public link works as soon as the listing is saved — no reopen needed.
+      expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+      await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(2))
+
+      expect(trackEvent).toHaveBeenCalledTimes(1)
+      expect(trackEvent).toHaveBeenCalledWith('listing_publish', { game_system: 'none' })
     })
   })
 })

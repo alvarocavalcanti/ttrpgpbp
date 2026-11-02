@@ -215,6 +215,37 @@ describe('useFocusTrap', () => {
     expect(getByRole('button', { name: 'Inner Last' })).toHaveFocus()
   })
 
+  it('skips focusables inside a hidden subtree', () => {
+    // Tabs keep every panel mounted and mark the inactive ones `hidden`. Those
+    // controls are out of the tab order, so the trap must ignore them too —
+    // otherwise the wrap check compares against a control that can never take
+    // focus and Tab from the last visible control leaves the dialog.
+    function TabbedDialog() {
+      const ref = useRef<HTMLDivElement>(null)
+      useFocusTrap(ref)
+      return (
+        <div ref={ref} role="dialog">
+          <div role="tabpanel">
+            <button type="button">Visible First</button>
+            <button type="button">Visible Last</button>
+          </div>
+          <div role="tabpanel" hidden>
+            <button type="button">Inactive First</button>
+            <button type="button">Inactive Last</button>
+          </div>
+        </div>
+      )
+    }
+    const { getByRole } = render(<TabbedDialog />)
+    getByRole('button', { name: 'Visible Last' }).focus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(getByRole('button', { name: 'Visible First' })).toHaveFocus()
+
+    getByRole('button', { name: 'Visible First' }).focus()
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(getByRole('button', { name: 'Visible Last' })).toHaveFocus()
+  })
+
   it('cleans up the keydown listener on unmount', () => {
     const { unmount } = render(<TrapDialog />)
     const spy = vi.spyOn(window, 'removeEventListener')
