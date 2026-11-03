@@ -72,15 +72,17 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const tabDirty = (id: ChannelSettingsTab) => TAB_FIELDS[id].some(key => dirty.has(key))
 
   const [activeTab, setActiveTab] = useState<ChannelSettingsTab>('general')
+  const [safetyVisited, setSafetyVisited] = useState(false)
   const tabListRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLFieldSetElement>(null)
 
   // Automatic activation, matching CampaignNotesModal — arrows move focus and
   // selection together, so there is no second "focused tab" state to keep in sync.
   const selectTab = (id: ChannelSettingsTab) => {
     setActiveTab(id)
-    // The safety fields are only sent once the GM has looked at them.
-    if (id === 'safety') patch({ safetyToolsLoaded: true })
+    // Opening Safety starts its read; the fields are only written back once
+    // that read has settled (see the save payload).
+    if (id === 'safety') setSafetyVisited(true)
     tabListRef.current?.querySelector<HTMLElement>(`[data-settings-tab="${id}"]`)?.focus()
   }
 
@@ -96,7 +98,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   const [confirmArchive, setConfirmArchive] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const { safetyTools } = useSafetyTools(channel.id, form.safetyToolsLoaded)
+  const { safetyTools, loading: safetyLoading, loaded: safetyLoaded } = useSafetyTools(channel.id, safetyVisited)
 
   // Discovery / listing state (#674). The GM publishes the channel by switching
   // join mode to 'approval' with a description + constraints; that is what makes
@@ -111,12 +113,21 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // A save (or a join-request decision) marks the parent as stale, but the
+  // refresh is deferred to close: onUpdate() sets the channel page back to its
+  // loading skeleton, which would unmount this dialog and its tab.
+  const refreshOnCloseRef = useRef(false)
+  const closeDialog = () => {
+    if (refreshOnCloseRef.current) onUpdate()
+    onClose()
+  }
+
   // Every close path (Escape, backdrop, Cancel) goes through the guard, so an
   // accidental dismissal cannot lose an edit.
   const requestClose = () => {
     if (isSubmitting) return
     if (!isDirty) {
-      onClose()
+      closeDialog()
       return
     }
     setConfirmDiscard(true)
@@ -125,13 +136,15 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
 
   useEffect(() => {
     if (!safetyTools) return
-    // The fetch fills in values the form was initialized without; adopt them as
-    // the saved baseline too, or merely opening Safety would look like an edit.
-    const untouched = form.safetyLines === baseline.safetyLines
-    if (!untouched) return
-    const values = { safetyLines: safetyTools.lines, safetyVeils: safetyTools.veils }
+    // The fetch fills in values the form was initialized without. Each field
+    // takes its saved value only if the GM has not edited it, and the baseline
+    // adopts both, or merely opening Safety would look like an edit.
+    const values = {
+      safetyLines: form.safetyLines === baseline.safetyLines ? safetyTools.lines : form.safetyLines,
+      safetyVeils: form.safetyVeils === baseline.safetyVeils ? safetyTools.veils : form.safetyVeils,
+    }
     setForm(prev => ({ ...prev, ...values }))
-    setBaseline(prev => ({ ...prev, ...values }))
+    setBaseline(prev => ({ ...prev, safetyLines: safetyTools.lines, safetyVeils: safetyTools.veils }))
   }, [safetyTools])
 
   // Keep the active tab in view when the strip overflows, and start the new
@@ -142,8 +155,12 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [activeTab])
 
-  // Changing password logic
+  // Changing password logic. The saved flag is local: the parent refresh that
+  // refreshes `hasPassword` waits until the dialog closes, so the copy would
+  // otherwise describe the password from before this save.
   const [showPassword, setShowPassword] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(hasPassword)
+  useEffect(() => { setPasswordSaved(hasPassword) }, [hasPassword])
 
   const { uploadEnabled, settingsLoading, uploading, uploadAvatar } = useChannelAvatar(channel.id, () => {
     addToast('Channel avatar updated', 'success')
@@ -242,10 +259,13 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     setSaveError(null)
 
     // Server rejects non-http(s) URLs; fail early with an inline error, on the
-    // tab that holds the offending field so it cannot fail out of sight.
+    // tab that holds the offending field so it cannot fail out of sight. Every
+    // URL is checked here because the form opts out of native validation —
+    // otherwise a bad value in a hidden panel would block Save silently.
     const urls: Array<[string, (msg: string) => void, keyof ChannelSettingsForm]> = [
       [form.mapUrl, setMapError, 'mapUrl'],
       [form.resourcesUrl, setResourcesError, 'resourcesUrl'],
+      [form.gmOnlyResourcesUrl, setResourcesError, 'gmOnlyResourcesUrl'],
       [form.safetyToolsUrl, setSafetyToolsError, 'safetyToolsUrl'],
     ]
     let urlError: string | null = null
@@ -286,8 +306,11 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
         p_password_hash: form.changePassword ? (hashedPassword?.hash ?? undefined) : undefined,
         p_password_salt: form.changePassword ? (hashedPassword?.salt ?? undefined) : undefined,
         p_clear_password: form.changePassword && !form.newPassword,
-        p_safety_lines: form.safetyToolsLoaded ? form.safetyLines : undefined,
-        p_safety_veils: form.safetyToolsLoaded ? form.safetyVeils : undefined,
+        // Only write safety text once the read has settled: while it is
+        // pending or after it failed the form holds blanks, and the server's
+        // COALESCE would turn those into lost Lines & Veils.
+        p_safety_lines: safetyVisited && safetyLoaded ? form.safetyLines : undefined,
+        p_safety_veils: safetyVisited && safetyLoaded ? form.safetyVeils : undefined,
         p_join_mode: form.joinMode,
         p_description: form.description || undefined,
         p_constraints: form.constraints || undefined,
@@ -305,6 +328,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       // Keep the dialog open on the same tab; only what the server accepted
       // becomes the new baseline. The password was just applied, so a second
       // save must not send it again.
+      if (form.changePassword) setPasswordSaved(form.newPassword.length > 0)
       const saved = { ...form, changePassword: false, newPassword: '' }
       setForm(saved)
       setBaseline(saved)
@@ -316,7 +340,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       setListingError(null)
 
       addToast('Channel settings saved successfully', 'success')
-      onUpdate()
+      refreshOnCloseRef.current = true
     } catch (err) {
       console.error('Error updating channel:', err)
       setSaveError(toError(err).message)
@@ -380,9 +404,10 @@ setIsSubmitting(true)
       // Funnel event: non-identifying, so only the decision (Phase 4).
       trackEvent('join_request_decide', { decision: approve ? 'approve' : 'reject' })
       addToast(approve ? 'Application approved' : 'Application rejected', 'success')
-      // The queue and the caller's pending badge both refresh.
+      // The queue refreshes in place; the caller's badge waits for close so a
+      // decision cannot unmount the dialog mid-review.
       refetchRequests()
-      onUpdate()
+      refreshOnCloseRef.current = true
     } catch (err) {
       // decide_join_request raises player-facing copy (channel archived, applicant
       // blocked); surface it rather than a generic message.
@@ -496,8 +521,13 @@ setIsSubmitting(true)
           })}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div ref={bodyRef} data-testid="settings-body" className="flex-1 overflow-y-auto px-4 py-4 lg:px-6">
+        <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+          <fieldset
+            ref={bodyRef}
+            disabled={isSubmitting}
+            data-testid="settings-body"
+            className="min-w-0 flex-1 overflow-y-auto border-0 px-4 py-4 lg:px-6"
+          >
             <div {...panelProps('general')}>
               <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
                 <div className="lg:col-span-2">
@@ -625,7 +655,7 @@ setIsSubmitting(true)
                     </div>
                   ) : (
                     <div className="mt-1 text-sm text-surface-500 dark:text-surface-400 italic">
-                      {hasPassword ? 'Password is set (hidden)' : 'No password currently set'}
+                      {passwordSaved ? 'Password is set (hidden)' : 'No password currently set'}
                     </div>
                   )}
                 </div>
@@ -727,6 +757,16 @@ setIsSubmitting(true)
 
             <div {...panelProps('safety')}>
               <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
+                {safetyLoading ? (
+                  <p role="status" className="text-sm text-surface-500 dark:text-surface-400 lg:col-span-2">
+                    Loading safety tools…
+                  </p>
+                ) : !safetyLoaded && (
+                  <p role="alert" className="text-sm text-amber-600 dark:text-amber-400 lg:col-span-2">
+                    Safety tools couldn't be loaded, so Lines, Veils and their link won't be saved.
+                    Close and reopen settings to try again.
+                  </p>
+                )}
                 <div>
                   <label htmlFor="safetyLines" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Lines</label>
                   <textarea
@@ -944,7 +984,7 @@ setIsSubmitting(true)
                 )}
               </div>
             </div>
-          </div>
+          </fieldset>
 
           {saveError && (
             <p role="alert" className="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>
@@ -961,7 +1001,7 @@ setIsSubmitting(true)
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !form.name.trim()}
+              disabled={isSubmitting || !form.name.trim() || (safetyVisited && safetyLoading)}
               className="inline-flex min-h-11 w-full justify-center rounded-md border border-transparent bg-primary-600 px-4 text-base font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:w-auto sm:text-sm"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -994,7 +1034,7 @@ setIsSubmitting(true)
           confirmLabel="Discard"
           onConfirm={() => {
             setConfirmDiscard(false)
-            onClose()
+            closeDialog()
           }}
           onClose={() => setConfirmDiscard(false)}
         />

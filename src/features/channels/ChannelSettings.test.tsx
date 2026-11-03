@@ -237,9 +237,10 @@ describe('ChannelSettings', () => {
         p_safety_veils: undefined
       }))
       expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success')
-      expect(mockOnUpdate).toHaveBeenCalled()
-      // The dialog stays open on the same tab; only the dirty state clears.
+      // The dialog stays open on the same tab; the parent refresh that would
+      // unmount it is deferred to close.
       expect(mockOnClose).not.toHaveBeenCalled()
+      expect(mockOnUpdate).not.toHaveBeenCalled()
       expect(screen.getByRole('tab', { name: 'General' })).not.toHaveTextContent('unsaved changes')
     })
   })
@@ -256,6 +257,103 @@ describe('ChannelSettings', () => {
 
     expect(mockRpc).not.toHaveBeenCalled()
     expect(screen.getByText('Links must start with http:// or https://')).toBeInTheDocument()
+  })
+
+  it('rejects a malformed GM-only resources URL on the tab that holds it', () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Resources')
+    fireEvent.change(screen.getByLabelText('GM-Only Resources URL'), { target: { value: 'example.com/x' } })
+    openTab('General')
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    // Native validation is off, so handleSubmit must catch it itself — even
+    // while the field sits in a panel the user is not looking at.
+    expect(screen.getByRole('tab', { name: /Resources/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Links must start with http:// or https://')).toBeVisible()
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('opts out of native validation so a hidden panel cannot block Save', () => {
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    expect(screen.getByRole('button', { name: 'Save Changes' }).closest('form')).toHaveAttribute('novalidate')
+  })
+
+  it('disables the fields while a save is in flight', async () => {
+    let resolveSave!: (value: { error: unknown }) => void
+    vi.mocked(supabase.rpc).mockImplementation((() => new Promise(resolve => { resolveSave = resolve })) as any)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    // Text typed into the request would be overwritten by the success reset.
+    expect(screen.getByLabelText('Channel Name')).toBeDisabled()
+
+    resolveSave({ error: null })
+    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success'))
+    expect(screen.getByLabelText('Channel Name')).toBeEnabled()
+  })
+
+  it('hydrates Veils even when Lines was edited before the read settled', async () => {
+    let resolveRead!: (value: { data: unknown; error: unknown }) => void
+    const pending = new Promise(resolve => { resolveRead = resolve })
+    vi.mocked(supabase.from).mockImplementation((() => {
+      const chain: Record<string, unknown> = {}
+      chain.select = () => chain
+      chain.eq = () => chain
+      chain.order = () => Promise.resolve({ data: [], error: null })
+      chain.maybeSingle = () => pending
+      // eslint-disable-next-line unicorn/no-thenable
+      chain.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve)
+      return chain
+    }) as any)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Safety')
+    fireEvent.change(screen.getByLabelText('Lines'), { target: { value: 'my own line' } })
+
+    resolveRead({ data: { lines: 'saved line', veils: 'saved veil' }, error: null })
+
+    // The edit wins for Lines; Veils still takes the saved value instead of
+    // being saved back as a blank.
+    await waitFor(() => expect(screen.getByLabelText('Veils')).toHaveValue('saved veil'))
+    expect(screen.getByLabelText('Lines')).toHaveValue('my own line')
+  })
+
+  it('omits the safety fields when their read failed', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    vi.mocked(supabase.from).mockImplementation((() => {
+      const chain: Record<string, unknown> = {}
+      chain.select = () => chain
+      chain.eq = () => chain
+      chain.order = () => Promise.resolve({ data: [], error: null })
+      chain.maybeSingle = () => Promise.resolve({ data: null, error: { message: 'boom' } })
+      // eslint-disable-next-line unicorn/no-thenable
+      chain.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve)
+      return chain
+    }) as any)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Safety')
+    expect(await screen.findByText(/Safety tools couldn't be loaded/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Lines'), { target: { value: 'typed anyway' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_safety_lines: undefined,
+        p_safety_veils: undefined,
+      }))
+    })
   })
 
   it('saves changes with password update', async () => {
@@ -293,6 +391,8 @@ describe('ChannelSettings', () => {
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     openTab('Safety')
+    // Save waits for the safety read so an edit made during it is not dropped.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled())
     fireEvent.change(screen.getByLabelText('Lines'), { target: { value: 'no gore' } })
     fireEvent.change(screen.getByLabelText('Veils'), { target: { value: 'romance' } })
     fireEvent.change(screen.getByLabelText('Safety Tools URL'), { target: { value: 'https://docs.google.com/doc' } })
@@ -352,6 +452,18 @@ describe('ChannelSettings', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith('Failed to update channel settings.', 'error')
     })
+  })
+
+  it('reflects a saved password without waiting for the parent refresh', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    render(<ChannelSettings channel={mockChannel} hasPassword={false} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    fireEvent.click(screen.getByText('Change Password'))
+    fireEvent.change(screen.getByPlaceholderText('Leave blank to remove password'), { target: { value: 'new_secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(await screen.findByText('Password is set (hidden)')).toBeInTheDocument()
   })
 
   it('toggles password visibility', () => {
@@ -851,7 +963,8 @@ describe('ChannelSettings', () => {
       expect(mockRpc).not.toHaveBeenCalledWith('update_channel_settings', expect.anything())
       expect(mockAddToast).toHaveBeenCalledWith('Application approved', 'success')
       expect(trackEvent).toHaveBeenCalledWith('join_request_decide', { decision: 'approve' })
-      expect(onUpdate).toHaveBeenCalled()
+      // The parent refresh is deferred so the queue stays open.
+      expect(onUpdate).not.toHaveBeenCalled()
     })
 
     it('fires the decision event for a rejection too', async () => {
@@ -1117,14 +1230,15 @@ describe('ChannelSettings', () => {
       )
 
       openTab('Listing')
-      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A monthly game.' } })
+      expect(screen.getByRole('tab', { name: /Listing/ })).toHaveTextContent('unsaved changes')
       fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
       await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success'))
 
       expect(screen.getByRole('tab', { name: 'Listing' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('tab', { name: 'Listing' })).not.toHaveTextContent('unsaved changes')
-      expect(screen.getByLabelText('Description')).toHaveValue('A weekly game.')
+      expect(screen.getByLabelText('Description')).toHaveValue('A monthly game.')
     })
 
     it('does not resend the password on the next save', async () => {

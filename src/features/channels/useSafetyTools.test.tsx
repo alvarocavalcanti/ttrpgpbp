@@ -20,6 +20,8 @@ describe('useSafetyTools', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools).toBeNull()
+      // Nothing was read, so callers must not write the empty form back.
+      expect(result.current.loaded).toBe(false)
     })
   })
 
@@ -37,6 +39,7 @@ describe('useSafetyTools', () => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools?.lines).toBe('no gore')
       expect(result.current.safetyTools?.veils).toBe('romance')
+      expect(result.current.loaded).toBe(true)
     })
   })
 
@@ -50,6 +53,8 @@ describe('useSafetyTools', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools).toBeNull()
+      // A successful read with no row is still a read the GM can write back.
+      expect(result.current.loaded).toBe(true)
     })
   })
 
@@ -64,6 +69,7 @@ describe('useSafetyTools', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools).toBeNull()
+      expect(result.current.loaded).toBe(false)
     })
     expect(console.error).toHaveBeenCalled()
   })

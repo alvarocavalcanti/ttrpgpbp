@@ -52,7 +52,6 @@ describe('initialForm', () => {
       applicationPrompt: 'Why?',
       changePassword: false,
       newPassword: '',
-      safetyToolsLoaded: false,
     })
   })
 
@@ -107,12 +106,6 @@ describe('dirtyKeys', () => {
 
     expect(dirty.has('changePassword')).toBe(true)
     expect(dirty.has('newPassword')).toBe(true)
-  })
-
-  it('never reports the safety tools bookkeeping flag', () => {
-    const dirty = dirtyKeys({ ...baseline, safetyToolsLoaded: true }, baseline)
-
-    expect(dirty.size).toBe(0)
   })
 })
 

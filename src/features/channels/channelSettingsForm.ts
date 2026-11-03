@@ -19,9 +19,6 @@ export interface ChannelSettingsForm {
   applicationPrompt: string
   changePassword: boolean
   newPassword: string
-  // Gates the optional safety fields on save (they are only sent once the GM
-  // has looked at them). It is not an edit, so it never marks the form dirty.
-  safetyToolsLoaded: boolean
 }
 
 export const TAB_IDS: ChannelSettingsTab[] = ['general', 'resources', 'safety', 'listing']
@@ -38,7 +35,7 @@ export const TAB_LABELS: Record<ChannelSettingsTab, string> = {
 export const TAB_FIELDS: Record<ChannelSettingsTab, (keyof ChannelSettingsForm)[]> = {
   general: ['name', 'gameSystem', 'changePassword', 'newPassword'],
   resources: ['mapUrl', 'resourcesUrl', 'gmOnlyResourcesUrl'],
-  safety: ['safetyToolsUrl', 'safetyLines', 'safetyVeils', 'safetyToolsLoaded'],
+  safety: ['safetyToolsUrl', 'safetyLines', 'safetyVeils'],
   listing: ['joinMode', 'description', 'constraints', 'applicationPrompt'],
 }
 
@@ -58,19 +55,17 @@ export function initialForm(channel: Channel, gmOnlyResourcesUrl: string | null)
     applicationPrompt: channel.application_prompt ?? '',
     changePassword: false,
     newPassword: '',
-    safetyToolsLoaded: false,
   }
 }
 
 // Derived, never stored: a key counts as dirty when it differs from what the
-// server last accepted. safetyToolsLoaded is bookkeeping, not an edit.
+// server last accepted.
 export function dirtyKeys(
   form: ChannelSettingsForm,
   baseline: ChannelSettingsForm,
 ): Set<keyof ChannelSettingsForm> {
   const dirty = new Set<keyof ChannelSettingsForm>()
   for (const key of Object.keys(form) as (keyof ChannelSettingsForm)[]) {
-    if (key === 'safetyToolsLoaded') continue
     if (form[key] !== baseline[key]) dirty.add(key)
   }
   return dirty
