@@ -297,10 +297,12 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                     />
                   </div>
 
-                  <p className="rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
-                    Publicly listed and search-engine indexable. Only your description and expectations
-                    are shown publicly — never messages or player details.
-                  </p>
+                  {isListed && (
+                    <p className="rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                      Publicly listed and search-engine indexable. Only your description and expectations
+                      are shown publicly — never messages or player details.
+                    </p>
+                  )}
                 </div>
 
                 {missingListingCopy && (

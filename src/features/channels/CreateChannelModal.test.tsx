@@ -212,6 +212,7 @@ describe('CreateChannelModal', () => {
       expect(screen.getByLabelText('What you expect')).toBeDisabled()
       expect(screen.getByLabelText('Application prompt (optional)')).toBeDisabled()
       expect(screen.getByText(/to edit these/)).toBeInTheDocument()
+      expect(screen.queryByText(/Publicly listed and search-engine indexable/)).not.toBeInTheDocument()
     })
 
     it('enables the listing copy, capped to match the server, when switched on', () => {
@@ -224,6 +225,7 @@ describe('CreateChannelModal', () => {
       expect(screen.getByLabelText('Description')).toHaveAttribute('maxlength', '600')
       expect(screen.getByLabelText('What you expect')).toHaveAttribute('maxlength', '600')
       expect(screen.getByLabelText('Application prompt (optional)')).toHaveAttribute('maxlength', '300')
+      expect(screen.getByText(/Publicly listed and search-engine indexable/)).toBeInTheDocument()
     })
 
     it('refuses a listed channel without description and constraints', async () => {

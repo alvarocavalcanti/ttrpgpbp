@@ -921,6 +921,8 @@ describe('ChannelSettings', () => {
       expect(screen.queryByDisplayValue('http://localhost/game/c1')).not.toBeInTheDocument()
       expect(screen.getByText('The public game link appears once this game is listed.')).toBeInTheDocument()
       expect(screen.getByText(/Turn on/)).toHaveTextContent('List this game publicly')
+      // The "search-engine indexable" notice would be a lie while private.
+      expect(screen.queryByText(/Publicly listed and search-engine indexable/)).not.toBeInTheDocument()
     })
 
     it('enables the copy and reveals the link when the switch is on', () => {
@@ -937,6 +939,7 @@ describe('ChannelSettings', () => {
       expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
       expect(screen.getByText('Save the listing to publish this link.')).toBeInTheDocument()
       expect(screen.queryByText(/Turn on/)).not.toBeInTheDocument()
+      expect(screen.getByText(/Publicly listed and search-engine indexable/)).toBeInTheDocument()
     })
 
     it('caps the listing copy at input, matching the server', () => {
@@ -1225,16 +1228,25 @@ describe('ChannelSettings', () => {
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
-    it('fires the decision event for a rejection too', async () => {
-      vi.mocked(supabase.from).mockImplementation(
-        () => requestChain({ data: [pendingRequest], error: null }) as any,
-      )
+    it('fires the decision event for a rejection too, and refreshes the queue', async () => {
+      // First read: the pending request. Refetch after the decision: empty.
+      const results = [
+        { data: [pendingRequest], error: null },
+        { data: [], error: null },
+      ]
+      let call = 0
+      vi.mocked(supabase.from).mockImplementation(() => {
+        const result = results[Math.min(call, results.length - 1)]
+        call += 1
+        return requestChain(result) as any
+      })
       const mockRpc = vi.fn().mockResolvedValue({ error: null })
       vi.mocked(supabase.rpc).mockImplementation(mockRpc)
-      renderSettings(listedChannel)
+      const { onUpdate } = renderSettings(listedChannel)
       openApplications()
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Reject' }))
+      expect(await screen.findByText('Join requests (1)')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Reject' }))
 
       await waitFor(() =>
         expect(mockRpc).toHaveBeenCalledWith('decide_join_request', {
@@ -1243,6 +1255,10 @@ describe('ChannelSettings', () => {
         }),
       )
       expect(trackEvent).toHaveBeenCalledWith('join_request_decide', { decision: 'reject' })
+      // The queue really reloads on a rejection too, not just an approval.
+      expect(await screen.findByText('Join requests (0)')).toBeInTheDocument()
+      expect(screen.queryByText('Aria')).not.toBeInTheDocument()
+      expect(onUpdate).not.toHaveBeenCalled()
     })
 
     it('surfaces the server message when a decision fails', async () => {

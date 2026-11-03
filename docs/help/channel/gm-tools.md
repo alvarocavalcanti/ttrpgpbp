@@ -7,12 +7,13 @@ Everything the **GM** can do to run and manage a channel.
 
 ## Channel settings
 
-Open **Settings** from the channel sidebar. The settings are grouped into four tabs, with **Save Changes** always at the bottom of the window:
+Open **Settings** from the channel sidebar. The settings are grouped into tabs, with **Save Changes** always at the bottom of the window:
 
 - **General** — channel name (up to 80 characters), game system, password, avatar, the invite link, and **Advanced Actions** (export the chat, archive the channel)
 - **Resources** — Map, Resources, and GM resources URLs (up to 500 characters); the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
 - **Safety** — Safety Tools Doc URL (up to 500 characters) and Lines & Veils (up to 2,000 characters each)
-- **Listing** — list the channel so players can find it and apply (see below)
+- **Listing** — the **List this game publicly** switch and the listing copy (see below)
+- **Applications** — everyone waiting on a decision, with a count on the tab; it only appears while the channel is listed (see below)
 
 A dot next to a tab name marks settings on that tab you haven't saved yet. Closing the window with unsaved changes — with Escape, the × button, tapping outside, or **Cancel** — asks before discarding them, so an accidental close never loses an edit. Saving leaves the window open on the same tab with your values in place.
 
@@ -77,7 +78,7 @@ Applications are one at a time: a player can't apply twice while a decision is p
 
 ## Removing a listing
 
-Switch the **List this game publicly** switch back off to remove a listing; it asks first, and says how many open applications the removal will close. The game disappears from Discover and [/directory](/directory), and existing members keep playing normally. A server admin can also remove a listing; while it's removed the switch is greyed out with the reason and says who to contact, and you can't re-list until they restore it.
+Switch the **List this game publicly** switch back off to remove a listing; it asks first, and — when the applications list has loaded — says how many open applications the removal will close. The game disappears from Discover and [/directory](/directory), and existing members keep playing normally. A server admin can also remove a listing; while it's removed the switch is greyed out and says the listing can't be relisted and who to contact, and you can't re-list until they restore it.
 
 ## Invites & privacy
 

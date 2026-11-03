@@ -16,7 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- **A listing a server admin removed says so** — the switch is greyed out with the reason instead of letting you fill in the whole listing and only then refusing to save.
+- **A listing a server admin removed says so** — the switch is greyed out and explains that the listing can't be relisted and who to contact, instead of letting you fill in the whole listing and only then refusing to save.
 
 ## 2026-11-02
 
