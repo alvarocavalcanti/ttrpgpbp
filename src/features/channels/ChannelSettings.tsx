@@ -38,6 +38,17 @@ import {
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
+// The server only checks the scheme, so `https://` (no host) would save and
+// render as a link with nowhere to go. Parse it here: a real host is required.
+function isWebLink(value: string): boolean {
+  if (!/^https?:\/\//i.test(value)) return false
+  try {
+    return new URL(value).hostname !== ''
+  } catch {
+    return false
+  }
+}
+
 interface ChannelSettingsProps {
   channel: Channel
   gmOnlyResourcesUrl?: string | null
@@ -174,6 +185,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const { uploadImage } = useImageUpload(channel.id)
   const [mapError, setMapError] = useState<string | null>(null)
   const [resourcesError, setResourcesError] = useState<string | null>(null)
+  const [gmOnlyResourcesError, setGmOnlyResourcesError] = useState<string | null>(null)
   const [safetyToolsError, setSafetyToolsError] = useState<string | null>(null)
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,13 +277,13 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     const urls: Array<[string, (msg: string) => void, keyof ChannelSettingsForm]> = [
       [form.mapUrl, setMapError, 'mapUrl'],
       [form.resourcesUrl, setResourcesError, 'resourcesUrl'],
-      [form.gmOnlyResourcesUrl, setResourcesError, 'gmOnlyResourcesUrl'],
+      [form.gmOnlyResourcesUrl, setGmOnlyResourcesError, 'gmOnlyResourcesUrl'],
       [form.safetyToolsUrl, setSafetyToolsError, 'safetyToolsUrl'],
     ]
     let urlError: string | null = null
     for (const [url, setError, field] of urls) {
-      if (url && !/^https?:\/\//i.test(url)) {
-        urlError = 'Links must start with http:// or https://'
+      if (url && !isWebLink(url)) {
+        urlError = 'Links must be a full web address starting with http:// or https://'
         setError(urlError)
         selectTab(tabForField(field))
         break
@@ -330,12 +342,20 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       // save must not send it again.
       if (form.changePassword) setPasswordSaved(form.newPassword.length > 0)
       const saved = { ...form, changePassword: false, newPassword: '' }
-      setForm(saved)
-      setBaseline(saved)
+      const safetySent = safetyVisited && safetyLoaded
+      setForm(prev => ({ ...saved, safetyLines: prev.safetyLines, safetyVeils: prev.safetyVeils }))
+      // Only what this save actually sent becomes the baseline; unsent Safety
+      // text stays dirty, so closing still asks before dropping it.
+      setBaseline(prev => ({
+        ...saved,
+        safetyLines: safetySent ? saved.safetyLines : prev.safetyLines,
+        safetyVeils: safetySent ? saved.safetyVeils : prev.safetyVeils,
+      }))
       setShowPassword(false)
       setSaveError(null)
       setMapError(null)
       setResourcesError(null)
+      setGmOnlyResourcesError(null)
       setSafetyToolsError(null)
       setListingError(null)
 
@@ -751,6 +771,7 @@ setIsSubmitting(true)
                     className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                     placeholder="https://lorekeeper.app/..."
                   />
+                  {gmOnlyResourcesError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{gmOnlyResourcesError}</p>}
                 </div>
               </div>
             </div>
@@ -763,7 +784,7 @@ setIsSubmitting(true)
                   </p>
                 ) : !safetyLoaded && (
                   <p role="alert" className="text-sm text-amber-600 dark:text-amber-400 lg:col-span-2">
-                    Safety tools couldn't be loaded, so Lines, Veils and their link won't be saved.
+                    Safety tools couldn't be loaded, so Lines and Veils won't be saved.
                     Close and reopen settings to try again.
                   </p>
                 )}
@@ -1001,7 +1022,7 @@ setIsSubmitting(true)
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !form.name.trim() || (safetyVisited && safetyLoading)}
+              disabled={isSubmitting || pendingUpload !== null || !form.name.trim() || (safetyVisited && safetyLoading)}
               className="inline-flex min-h-11 w-full justify-center rounded-md border border-transparent bg-primary-600 px-4 text-base font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:w-auto sm:text-sm"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}

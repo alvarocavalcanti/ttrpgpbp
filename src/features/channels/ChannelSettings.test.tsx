@@ -109,6 +109,9 @@ describe('ChannelSettings', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    // The export tests stub `URL` for createObjectURL; unlike mocks, stubGlobal
+    // survives restoreAllMocks and would break the URL constructor for later tests.
+    vi.unstubAllGlobals()
   })
 
   it('renders correctly', () => {
@@ -256,7 +259,7 @@ describe('ChannelSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     expect(mockRpc).not.toHaveBeenCalled()
-    expect(screen.getByText('Links must start with http:// or https://')).toBeInTheDocument()
+    expect(screen.getByText('Links must be a full web address starting with http:// or https://')).toBeInTheDocument()
   })
 
   it('rejects a malformed GM-only resources URL on the tab that holds it', () => {
@@ -272,7 +275,24 @@ describe('ChannelSettings', () => {
     // Native validation is off, so handleSubmit must catch it itself — even
     // while the field sits in a panel the user is not looking at.
     expect(screen.getByRole('tab', { name: /Resources/ })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByText('Links must start with http:// or https://')).toBeVisible()
+    const error = screen.getByText('Links must be a full web address starting with http:// or https://')
+    expect(error).toBeVisible()
+    // Its own slot: the message must sit under the GM-only input, not under the
+    // valid Resources URL above it.
+    expect(screen.getByLabelText('GM-Only Resources URL').parentElement).toContainElement(error)
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a URL with no host before calling the RPC', () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Resources')
+    fireEvent.change(screen.getByLabelText('Map URL'), { target: { value: 'https://' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(screen.getByText('Links must be a full web address starting with http:// or https://')).toBeVisible()
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
@@ -354,6 +374,27 @@ describe('ChannelSettings', () => {
         p_safety_veils: undefined,
       }))
     })
+
+    // The text was never saved, so it must still count as an unsaved edit.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument()
+  })
+
+  it('blocks Save while an upload is still running', async () => {
+    let resolveUpload!: (value: string | null) => void
+    mockUploadImage.mockReturnValue(new Promise(resolve => { resolveUpload = resolve }))
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Resources')
+    fireEvent.change(screen.getByLabelText('Upload map image'), {
+      target: { files: [new File(['data'], 'dungeon.png', { type: 'image/png' })] }
+    })
+
+    // The upload lands in the form; saving now would overwrite it on success.
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled()
+
+    resolveUpload('https://supabase/images/c1/map/u.jpg')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled())
   })
 
   it('saves changes with password update', async () => {
@@ -963,8 +1004,12 @@ describe('ChannelSettings', () => {
       expect(mockRpc).not.toHaveBeenCalledWith('update_channel_settings', expect.anything())
       expect(mockAddToast).toHaveBeenCalledWith('Application approved', 'success')
       expect(trackEvent).toHaveBeenCalledWith('join_request_decide', { decision: 'approve' })
-      // The parent refresh is deferred so the queue stays open.
+      // The parent refresh is deferred so the queue stays open, then runs once
+      // the dialog closes (the form is clean, so this closes directly).
       expect(onUpdate).not.toHaveBeenCalled()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(onUpdate).toHaveBeenCalledTimes(1)
     })
 
     it('fires the decision event for a rejection too', async () => {
@@ -1286,7 +1331,7 @@ describe('ChannelSettings', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
       expect(screen.getByRole('tab', { name: /Resources/ })).toHaveAttribute('aria-selected', 'true')
-      expect(screen.getByText('Links must start with http:// or https://')).toBeVisible()
+      expect(screen.getByText('Links must be a full web address starting with http:// or https://')).toBeVisible()
       expect(mockRpc).not.toHaveBeenCalled()
     })
 

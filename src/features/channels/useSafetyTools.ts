@@ -23,6 +23,10 @@ export function useSafetyTools(channelId: string | undefined, enabled = true) {
       return
     }
     const cid = channelId
+    // A new read starts from nothing: keeping the previous channel's row (or a
+    // stale `loaded`) would report a settled read for data it never read.
+    setSafetyTools(null)
+    setLoaded(false)
     setLoading(true)
 
     async function fetchSafetyTools() {
