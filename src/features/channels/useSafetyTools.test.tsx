@@ -20,6 +20,8 @@ describe('useSafetyTools', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools).toBeNull()
+      // Nothing was read, so callers must not write the empty form back.
+      expect(result.current.loaded).toBe(false)
     })
   })
 
@@ -37,6 +39,7 @@ describe('useSafetyTools', () => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools?.lines).toBe('no gore')
       expect(result.current.safetyTools?.veils).toBe('romance')
+      expect(result.current.loaded).toBe(true)
     })
   })
 
@@ -50,7 +53,26 @@ describe('useSafetyTools', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools).toBeNull()
+      // A successful read with no row is still a read the GM can write back.
+      expect(result.current.loaded).toBe(true)
     })
+  })
+
+  it('resets the settled state when the channel changes', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockMaybeSingle = vi.fn()
+      .mockResolvedValueOnce({ data: { channel_id: 'c1', lines: 'no gore', veils: 'romance' }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
+    const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
+    vi.mocked(supabase.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq: mockEq }) } as any)
+
+    const { result, rerender } = renderHook(({ id }) => useSafetyTools(id), { initialProps: { id: 'c1' } })
+    await waitFor(() => expect(result.current.loaded).toBe(true))
+
+    rerender({ id: 'c2' })
+
+    await waitFor(() => expect(result.current.loaded).toBe(false))
+    expect(result.current.safetyTools).toBeNull()
   })
 
   it('logs and returns false on fetch error', async () => {
@@ -64,6 +86,7 @@ describe('useSafetyTools', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
       expect(result.current.safetyTools).toBeNull()
+      expect(result.current.loaded).toBe(false)
     })
     expect(console.error).toHaveBeenCalled()
   })

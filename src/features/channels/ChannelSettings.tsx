@@ -19,6 +19,16 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { toError } from '../../lib/errors'
 import { trackEvent } from '../../lib/analytics'
 import {
+  TAB_FIELDS,
+  TAB_IDS,
+  TAB_LABELS,
+  dirtyKeys,
+  initialForm,
+  tabForField,
+  type ChannelSettingsForm,
+  type ChannelSettingsTab,
+} from './channelSettingsForm'
+import {
   MAX_CHANNEL_NAME_LENGTH,
   MAX_SAFETY_TEXT_LENGTH,
   MAX_URL_LENGTH,
@@ -28,6 +38,17 @@ import {
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
+// The server only checks the scheme, so `https://` (no host) would save and
+// render as a link with nowhere to go. Parse it here: a real host is required.
+function isWebLink(value: string): boolean {
+  if (!/^https?:\/\//i.test(value)) return false
+  try {
+    return new URL(value).hostname !== ''
+  } catch {
+    return false
+  }
+}
+
 interface ChannelSettingsProps {
   channel: Channel
   gmOnlyResourcesUrl?: string | null
@@ -36,53 +57,121 @@ interface ChannelSettingsProps {
   onUpdate: () => void
 }
 
+const TAB_CLASS =
+  'inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500'
+const TAB_ACTIVE = 'bg-white text-primary-700 dark:bg-surface-800 dark:text-primary-300'
+const TAB_IDLE =
+  'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
+
 export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUrlProp = null, hasPassword = false, onClose, onUpdate }: ChannelSettingsProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   const navigate = useNavigate()
   const { addToast } = useToast()
   const { updateChannelSettings } = useUpdateChannelSettings()
   const { fetchChannelMessages, archiveChannel } = useChannelMaintenance()
-  const [name, setName] = useState(channel.name)
-  const [gameSystem, setGameSystem] = useState(channel.game_system || 'none')
-  const [mapUrl, setMapUrl] = useState(channel.map_url || '')
-  const [resourcesUrl, setResourcesUrl] = useState(channel.resources_url || '')
-  const [gmOnlyResourcesUrl, setGmOnlyResourcesUrl] = useState(gmOnlyResourcesUrlProp || '')
-  const [safetyToolsUrl, setSafetyToolsUrl] = useState(channel.safety_tools_url || '')
-  const [showSafetyTools, setShowSafetyTools] = useState(false)
+
+  // One form object: the tabs share it, and dirty state is derived from it.
+  const [initial] = useState<ChannelSettingsForm>(() => initialForm(channel, gmOnlyResourcesUrlProp))
+  const [form, setForm] = useState<ChannelSettingsForm>(initial)
+  // What the server last accepted. Only a successful save moves it.
+  const [baseline, setBaseline] = useState<ChannelSettingsForm>(initial)
+  const patch = (changes: Partial<ChannelSettingsForm>) => setForm(prev => ({ ...prev, ...changes }))
+
+  const dirty = dirtyKeys(form, baseline)
+  const isDirty = dirty.size > 0
+  const tabDirty = (id: ChannelSettingsTab) => TAB_FIELDS[id].some(key => dirty.has(key))
+
+  const [activeTab, setActiveTab] = useState<ChannelSettingsTab>('general')
+  const [safetyVisited, setSafetyVisited] = useState(false)
+  const tabListRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLFieldSetElement>(null)
+
+  // Automatic activation, matching CampaignNotesModal — arrows move focus and
+  // selection together, so there is no second "focused tab" state to keep in sync.
+  const selectTab = (id: ChannelSettingsTab) => {
+    setActiveTab(id)
+    // Opening Safety starts its read; the fields are only written back once
+    // that read has settled (see the save payload).
+    if (id === 'safety') setSafetyVisited(true)
+    tabListRef.current?.querySelector<HTMLElement>(`[data-settings-tab="${id}"]`)?.focus()
+  }
+
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
+    e.preventDefault()
+    const i = TAB_IDS.indexOf(activeTab)
+    const next = e.key === 'ArrowRight' ? (i + 1) % TAB_IDS.length
+      : e.key === 'ArrowLeft' ? (i - 1 + TAB_IDS.length) % TAB_IDS.length
+      : e.key === 'Home' ? 0 : TAB_IDS.length - 1
+    selectTab(TAB_IDS[next])
+  }
+
   const [confirmArchive, setConfirmArchive] = useState(false)
-  const { safetyTools } = useSafetyTools(channel.id, showSafetyTools)
-  const [safetyLines, setSafetyLines] = useState('')
-  const [safetyVeils, setSafetyVeils] = useState('')
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const { safetyTools, loading: safetyLoading, loaded: safetyLoaded } = useSafetyTools(channel.id, safetyVisited)
 
   // Discovery / listing state (#674). The GM publishes the channel by switching
   // join mode to 'approval' with a description + constraints; that is what makes
   // it apply-only, discoverable in the Lobby and listed on the public
   // /directory.
-  const [joinMode, setJoinMode] = useState<'invite' | 'approval'>(channel.join_mode)
-  const [description, setDescription] = useState(channel.description ?? '')
-  const [constraints, setConstraints] = useState(channel.constraints ?? '')
-  const [applicationPrompt, setApplicationPrompt] = useState(channel.application_prompt ?? '')
   const [listingError, setListingError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmDelist, setConfirmDelist] = useState(false)
   const [decidingId, setDecidingId] = useState<string | null>(null)
   const { requests, loading: requestsLoading, error: requestsError, refetch: refetchRequests, decide } =
     usePendingJoinRequests(channel.id)
 
-  useEffect(() => {
-    if (safetyTools) {
-      setSafetyLines(safetyTools.lines)
-      setSafetyVeils(safetyTools.veils)
-    }
-  }, [safetyTools])
-  
-  // Changing password logic
-  const [changePassword, setChangePassword] = useState(false)
-  const [newPassword, setNewPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // A save (or a join-request decision) marks the parent as stale, but the
+  // refresh is deferred to close: onUpdate() sets the channel page back to its
+  // loading skeleton, which would unmount this dialog and its tab.
+  const refreshOnCloseRef = useRef(false)
+  const closeDialog = () => {
+    if (refreshOnCloseRef.current) onUpdate()
+    onClose()
+  }
+
+  // Every close path (Escape, backdrop, Cancel) goes through the guard, so an
+  // accidental dismissal cannot lose an edit.
+  const requestClose = () => {
+    if (isSubmitting) return
+    if (!isDirty) {
+      closeDialog()
+      return
+    }
+    setConfirmDiscard(true)
+  }
+  useEscapeToClose(requestClose)
+
+  useEffect(() => {
+    if (!safetyTools) return
+    // The fetch fills in values the form was initialized without. Each field
+    // takes its saved value only if the GM has not edited it, and the baseline
+    // adopts both, or merely opening Safety would look like an edit.
+    const values = {
+      safetyLines: form.safetyLines === baseline.safetyLines ? safetyTools.lines : form.safetyLines,
+      safetyVeils: form.safetyVeils === baseline.safetyVeils ? safetyTools.veils : form.safetyVeils,
+    }
+    setForm(prev => ({ ...prev, ...values }))
+    setBaseline(prev => ({ ...prev, safetyLines: safetyTools.lines, safetyVeils: safetyTools.veils }))
+  }, [safetyTools])
+
+  // Keep the active tab in view when the strip overflows, and start the new
+  // panel at the top: switching tabs is a real content change.
+  useEffect(() => {
+    tabListRef.current?.querySelector<HTMLElement>(`[data-settings-tab="${activeTab}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (bodyRef.current) bodyRef.current.scrollTop = 0
+  }, [activeTab])
+
+  // Changing password logic. The saved flag is local: the parent refresh that
+  // refreshes `hasPassword` waits until the dialog closes, so the copy would
+  // otherwise describe the password from before this save.
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(hasPassword)
+  useEffect(() => { setPasswordSaved(hasPassword) }, [hasPassword])
 
   const { uploadEnabled, settingsLoading, uploading, uploadAvatar } = useChannelAvatar(channel.id, () => {
     addToast('Channel avatar updated', 'success')
@@ -90,9 +179,13 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const [avatarUrl, setAvatarUrl] = useState(channel.avatar_url || '')
   const [avatarError, setAvatarError] = useState<string | null>(null)
 
-  const { uploading: mapUploading, uploadImage } = useImageUpload(channel.id)
+  // Each upload button reports its own progress: sharing one flag showed the
+  // map's pending label on the resources button.
+  const [pendingUpload, setPendingUpload] = useState<'map' | 'resources' | null>(null)
+  const { uploadImage } = useImageUpload(channel.id)
   const [mapError, setMapError] = useState<string | null>(null)
   const [resourcesError, setResourcesError] = useState<string | null>(null)
+  const [gmOnlyResourcesError, setGmOnlyResourcesError] = useState<string | null>(null)
   const [safetyToolsError, setSafetyToolsError] = useState<string | null>(null)
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,12 +209,15 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    setPendingUpload('map')
     setMapError(null)
     try {
       const publicUrl = await uploadImage(file, 'map')
-      if (publicUrl) setMapUrl(publicUrl)
+      if (publicUrl) patch({ mapUrl: publicUrl })
     } catch (err) {
       setMapError(err instanceof Error ? err.message : 'Failed to upload map.')
+    } finally {
+      setPendingUpload(null)
     }
   }
 
@@ -129,12 +225,15 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    setPendingUpload('resources')
     setResourcesError(null)
     try {
       const publicUrl = await uploadImage(file, 'resources')
-      if (publicUrl) setResourcesUrl(publicUrl)
+      if (publicUrl) patch({ resourcesUrl: publicUrl })
     } catch (err) {
       setResourcesError(err instanceof Error ? err.message : 'Failed to upload resources.')
+    } finally {
+      setPendingUpload(null)
     }
   }
 
@@ -142,7 +241,7 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const publicGameLink = `${window.location.origin}/game/${channel.id}`
   // Only a saved listing has a working public page: selecting "Listed" in the
   // form does not publish until Save.
-  const listingPublished = channel.join_mode === 'approval'
+  const listingPublished = baseline.joinMode === 'approval'
 
   const handleCopy = async () => {
     try {
@@ -161,33 +260,42 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       await copyToClipboard(publicGameLink)
       addToast('Public game link copied!', 'success')
     } catch (err) {
-      console.error('Failed to copy', err)
+      console.error('Failed to copy public game link', err)
       addToast('Failed to copy public game link', 'error')
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // A server error from the previous attempt is stale as soon as a new one starts.
+    setSaveError(null)
 
-    // Server rejects non-http(s) URLs; fail early with an inline error.
-    const urls: Array<[string, (msg: string) => void]> = [
-      [mapUrl, setMapError],
-      [resourcesUrl, setResourcesError],
-      [safetyToolsUrl, setSafetyToolsError],
+    // Server rejects non-http(s) URLs; fail early with an inline error, on the
+    // tab that holds the offending field so it cannot fail out of sight. Every
+    // URL is checked here because the form opts out of native validation —
+    // otherwise a bad value in a hidden panel would block Save silently.
+    const urls: Array<[string, (msg: string) => void, keyof ChannelSettingsForm]> = [
+      [form.mapUrl, setMapError, 'mapUrl'],
+      [form.resourcesUrl, setResourcesError, 'resourcesUrl'],
+      [form.gmOnlyResourcesUrl, setGmOnlyResourcesError, 'gmOnlyResourcesUrl'],
+      [form.safetyToolsUrl, setSafetyToolsError, 'safetyToolsUrl'],
     ]
     let urlError: string | null = null
-    for (const [url, setError] of urls) {
-      if (url && !/^https?:\/\//i.test(url)) {
-        urlError = 'Links must start with http:// or https://'
+    for (const [url, setError, field] of urls) {
+      if (url && !isWebLink(url)) {
+        urlError = 'Links must be a full web address starting with http:// or https://'
         setError(urlError)
+        selectTab(tabForField(field))
+        break
       }
     }
     if (urlError) return
 
     // Publishing requires both copy fields — the server raises the same rule and
     // the cap is enforced at input, so this is the point-of-save guard.
-    if (joinMode === 'approval' && (description.trim() === '' || constraints.trim() === '')) {
+    if (form.joinMode === 'approval' && (form.description.trim() === '' || form.constraints.trim() === '')) {
       setListingError('A listed channel needs both a description and constraints.')
+      selectTab('listing')
       return
     }
     setListingError(null)
@@ -195,42 +303,69 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     setIsSubmitting(true)
 
     try {
-      const hashedPassword = newPassword ? await hashPassword(newPassword) : null
+      const hashedPassword = form.newPassword ? await hashPassword(form.newPassword) : null
 
       // Password only sent when the GM toggled "Change Password"; a blank
       // new password clears the existing one.
       const { error: updateError } = await updateChannelSettings({
         p_channel_id: channel.id,
-        p_name: name,
-        p_game_system: gameSystem,
-        p_map_url: mapUrl || undefined,
-        p_resources_url: resourcesUrl || undefined,
-        p_safety_tools_url: safetyToolsUrl || undefined,
-        p_gm_only_resources_url: gmOnlyResourcesUrl || undefined,
-        p_password_hash: changePassword ? (hashedPassword?.hash ?? undefined) : undefined,
-        p_password_salt: changePassword ? (hashedPassword?.salt ?? undefined) : undefined,
-        p_clear_password: changePassword && !newPassword,
-        p_safety_lines: showSafetyTools ? safetyLines : undefined,
-        p_safety_veils: showSafetyTools ? safetyVeils : undefined,
-        p_join_mode: joinMode,
-        p_description: description || undefined,
-        p_constraints: constraints || undefined,
-        p_application_prompt: applicationPrompt || undefined,
+        p_name: form.name,
+        p_game_system: form.gameSystem,
+        p_map_url: form.mapUrl || undefined,
+        p_resources_url: form.resourcesUrl || undefined,
+        p_safety_tools_url: form.safetyToolsUrl || undefined,
+        p_gm_only_resources_url: form.gmOnlyResourcesUrl || undefined,
+        p_password_hash: form.changePassword ? (hashedPassword?.hash ?? undefined) : undefined,
+        p_password_salt: form.changePassword ? (hashedPassword?.salt ?? undefined) : undefined,
+        p_clear_password: form.changePassword && !form.newPassword,
+        // Only write safety text once the read has settled: while it is
+        // pending or after it failed the form holds blanks, and the server's
+        // COALESCE would turn those into lost Lines & Veils.
+        p_safety_lines: safetyVisited && safetyLoaded ? form.safetyLines : undefined,
+        p_safety_veils: safetyVisited && safetyLoaded ? form.safetyVeils : undefined,
+        p_join_mode: form.joinMode,
+        p_description: form.description || undefined,
+        p_constraints: form.constraints || undefined,
+        p_application_prompt: form.applicationPrompt || undefined,
       })
 
       if (updateError) throw updateError
 
       // The funnel event fires on the transition, not on every later edit.
-      if (joinMode === 'approval' && channel.join_mode !== 'approval') {
-        trackEvent('listing_publish', { game_system: gameSystem })
+      // Compared against the last saved mode so staying open cannot re-fire it.
+      if (form.joinMode === 'approval' && baseline.joinMode !== 'approval') {
+        trackEvent('listing_publish', { game_system: form.gameSystem })
       }
 
+      // Keep the dialog open on the same tab; only what the server accepted
+      // becomes the new baseline. The password was just applied, so a second
+      // save must not send it again.
+      if (form.changePassword) setPasswordSaved(form.newPassword.length > 0)
+      const saved = { ...form, changePassword: false, newPassword: '' }
+      const safetySent = safetyVisited && safetyLoaded
+      setForm(prev => ({ ...saved, safetyLines: prev.safetyLines, safetyVeils: prev.safetyVeils }))
+      // Only what this save actually sent becomes the baseline; unsent Safety
+      // text stays dirty, so closing still asks before dropping it.
+      setBaseline(prev => ({
+        ...saved,
+        safetyLines: safetySent ? saved.safetyLines : prev.safetyLines,
+        safetyVeils: safetySent ? saved.safetyVeils : prev.safetyVeils,
+      }))
+      setShowPassword(false)
+      setSaveError(null)
+      setMapError(null)
+      setResourcesError(null)
+      setGmOnlyResourcesError(null)
+      setSafetyToolsError(null)
+      setListingError(null)
+
       addToast('Channel settings saved successfully', 'success')
-      onUpdate()
-      onClose()
+      refreshOnCloseRef.current = true
     } catch (err) {
       console.error('Error updating channel:', err)
+      setSaveError(toError(err).message)
       addToast('Failed to update channel settings.', 'error')
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -289,9 +424,10 @@ setIsSubmitting(true)
       // Funnel event: non-identifying, so only the decision (Phase 4).
       trackEvent('join_request_decide', { decision: approve ? 'approve' : 'reject' })
       addToast(approve ? 'Application approved' : 'Application rejected', 'success')
-      // The queue and the caller's pending badge both refresh.
+      // The queue refreshes in place; the caller's badge waits for close so a
+      // decision cannot unmount the dialog mid-review.
       refetchRequests()
-      onUpdate()
+      refreshOnCloseRef.current = true
     } catch (err) {
       // decide_join_request raises player-facing copy (channel archived, applicant
       // blocked); surface it rather than a generic message.
@@ -307,9 +443,9 @@ setIsSubmitting(true)
   // currently listed (the mode was only changed in this unsaved form) has
   // nothing to remove, so it switches back without the prompt.
   const requestDelist = () => {
-    if (joinMode === 'invite') return
-    if (channel.join_mode !== 'approval') {
-      setJoinMode('invite')
+    if (form.joinMode === 'invite') return
+    if (baseline.joinMode !== 'approval') {
+      patch({ joinMode: 'invite' })
       return
     }
     setConfirmDelist(true)
@@ -318,13 +454,13 @@ setIsSubmitting(true)
   const modeButton = (mode: 'invite' | 'approval', label: string) => (
     <button
       type="button"
-      aria-pressed={joinMode === mode}
+      aria-pressed={form.joinMode === mode}
       onClick={() => {
         if (mode === 'invite') requestDelist()
-        else setJoinMode('approval')
+        else patch({ joinMode: 'approval' })
       }}
       className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
-        joinMode === mode
+        form.joinMode === mode
           ? 'bg-white font-medium text-surface-900 shadow-sm dark:bg-surface-700 dark:text-surface-100'
           : 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
       }`}
@@ -333,386 +469,480 @@ setIsSubmitting(true)
     </button>
   )
 
+  const panelProps = (id: ChannelSettingsTab) => ({
+    role: 'tabpanel' as const,
+    id: `settings-panel-${id}`,
+    'aria-labelledby': `settings-tab-${id}`,
+    hidden: activeTab !== id,
+  })
+
   return (
-    <div ref={dialogRef} className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-surface-500 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-surface-800 sm:items-center sm:justify-center sm:bg-transparent sm:p-6"
+    >
+      <div data-testid="settings-backdrop" className="fixed inset-0 bg-surface-500 bg-opacity-75 transition-opacity dark:bg-surface-900 dark:bg-opacity-80" aria-hidden="true" onClick={requestClose}></div>
 
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div data-testid="settings-sheet" className="relative flex h-full w-full flex-col overflow-hidden bg-white dark:bg-surface-800 sm:h-[80dvh] sm:max-w-3xl sm:rounded-lg sm:shadow-xl lg:max-w-5xl">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+          <h3 className="text-lg leading-6 font-medium text-surface-900 dark:text-surface-100" id="modal-title">
+            Channel Settings
+          </h3>
+          <button
+            type="button"
+            aria-label="Close settings"
+            onClick={requestClose}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-surface-400 hover:text-surface-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-surface-400 dark:hover:text-surface-300"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-        <div className="inline-block align-bottom bg-white dark:bg-surface-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-          <div>
-            <h3 className="text-lg leading-6 font-medium text-surface-900 dark:text-surface-100" id="modal-title">
-              Channel Settings
-            </h3>
-            
-            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Invite Link</label>
-                <div className="mt-1 flex rounded-md shadow-sm">
+        <div
+          ref={tabListRef}
+          role="tablist"
+          aria-label="Channel settings sections"
+          tabIndex={-1}
+          onKeyDown={handleTabKeyDown}
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-surface-200 px-2 pt-2 dark:border-surface-700"
+        >
+          {TAB_IDS.map(id => {
+            const selected = id === activeTab
+            return (
+              <button
+                key={id}
+                id={`settings-tab-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`settings-panel-${id}`}
+                tabIndex={selected ? 0 : -1}
+                data-settings-tab={id}
+                onClick={() => selectTab(id)}
+                className={`${TAB_CLASS} ${selected ? TAB_ACTIVE : TAB_IDLE}`}
+              >
+                {TAB_LABELS[id]}
+                {tabDirty(id) && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="ml-1.5 inline-block h-2 w-2 rounded-full bg-primary-500 dark:bg-primary-400"
+                    />
+                    <span className="sr-only"> unsaved changes</span>
+                  </>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+          <fieldset
+            ref={bodyRef}
+            disabled={isSubmitting}
+            data-testid="settings-body"
+            className="min-w-0 flex-1 overflow-y-auto border-0 px-4 py-4 lg:px-6"
+          >
+            <div {...panelProps('general')}>
+              <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Invite Link</label>
+                  <div className="mt-1 flex rounded-md shadow-sm">
+                    <input
+                      type="text"
+                      readOnly
+                      value={inviteLink}
+                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4 lg:col-span-2">
+                  <div className="flex-shrink-0">
+                    {avatarUrl ? (
+                      <SignedImg
+                        src={avatarUrl}
+                        alt="Channel avatar"
+                        referrerPolicy="no-referrer"
+                        className="h-12 w-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 text-lg font-medium">
+                        {(form.name[0] || '#').toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label htmlFor="channelAvatar" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Channel Avatar</label>
+                    <p className="text-xs text-surface-400 dark:text-surface-400 mt-0.5 mb-1">Shown in the channel list and header.</p>
+                    <input
+                      type="file"
+                      id="channelAvatar"
+                      accept="image/*"
+                      disabled={uploading || !uploadEnabled || settingsLoading}
+                      onChange={handleAvatarChange}
+                      className="block min-h-11 w-full text-sm text-surface-500 dark:text-surface-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 dark:file:bg-primary-950 file:text-primary-700 dark:file:text-primary-300 hover:file:bg-primary-100 dark:hover:file:bg-primary-900 disabled:opacity-50"
+                    />
+                    {uploading && <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Uploading...</p>}
+                    {!uploadEnabled && !settingsLoading && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Image uploads are disabled by the server admin.</p>
+                    )}
+                    {avatarError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{avatarError}</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Channel Name</label>
                   <input
                     type="text"
-                    readOnly
-                    value={inviteLink}
-                    className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
+                    id="name"
+                    required
+                    maxLength={MAX_CHANNEL_NAME_LENGTH}
+                    value={form.name}
+                    onChange={(e) => patch({ name: e.target.value })}
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                   />
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700"
-                  >
-                    Copy
-                  </button>
                 </div>
-              </div>
 
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  {avatarUrl ? (
-                    <SignedImg
-                      src={avatarUrl}
-                      alt="Channel avatar"
-                      referrerPolicy="no-referrer"
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
+                <div>
+                  <label htmlFor="gameSystem" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Game System</label>
+                  <select
+                    id="gameSystem"
+                    value={form.gameSystem}
+                    onChange={(e) => patch({ gameSystem: e.target.value })}
+                    className="bg-white dark:bg-surface-800 mt-1 block min-h-11 w-full pl-3 pr-10 py-2 text-base border-surface-300 dark:border-surface-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
+                  >
+                    {GAME_SYSTEM_OPTIONS.map(sys => (
+                      <option key={sys.id} value={sys.id}>{sys.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="pt-2 lg:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="password" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                      Channel Password
+                    </label>
+                    {!form.changePassword && (
+                      <button
+                        type="button"
+                        onClick={() => patch({ changePassword: true })}
+                        className="inline-flex min-h-11 items-center text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
+                      >
+                        Change Password
+                      </button>
+                    )}
+                  </div>
+                  {form.changePassword ? (
+                    <div className="relative mt-1">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        id="password"
+                        value={form.newPassword}
+                        onChange={(e) => patch({ newPassword: e.target.value })}
+                        className="bg-white dark:bg-surface-800 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border pr-10"
+                        placeholder="Leave blank to remove password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 px-3 flex items-center text-surface-400 dark:text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   ) : (
-                    <div className="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 text-lg font-medium">
-                      {(name[0] || '#').toUpperCase()}
+                    <div className="mt-1 text-sm text-surface-500 dark:text-surface-400 italic">
+                      {passwordSaved ? 'Password is set (hidden)' : 'No password currently set'}
                     </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <label htmlFor="channelAvatar" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Channel Avatar</label>
-                  <p className="text-xs text-surface-400 dark:text-surface-400 mt-0.5 mb-1">Shown in the channel list and header.</p>
+
+                <div className="mt-8 border-t border-surface-200 pt-6 dark:border-surface-700 lg:col-span-2 lg:mt-0">
+                  <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100 mb-4">Advanced Actions</h4>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={handleExport}
+                      disabled={isSubmitting}
+                      className="w-full inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-base font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:text-sm disabled:opacity-50 transition-colors"
+                    >
+                      Export Chat to Markdown
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmArchive(true)}
+                      disabled={isSubmitting}
+                      className="w-full inline-flex justify-center rounded-md border border-red-300 dark:border-red-700 shadow-sm px-4 py-2 bg-red-50 dark:bg-red-950 text-base font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm disabled:opacity-50 transition-colors"
+                    >
+                      Archive Channel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div {...panelProps('resources')}>
+              <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="mapUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Map URL</label>
+                    <label className="inline-flex min-h-11 items-center text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium rounded focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        aria-label="Upload map image"
+                        disabled={pendingUpload !== null || !uploadEnabled || settingsLoading}
+                        onChange={handleMapUpload}
+                        className="sr-only"
+                      />
+                      {pendingUpload === 'map' ? 'Uploading...' : 'Upload image'}
+                    </label>
+                  </div>
                   <input
-                    type="file"
-                    id="channelAvatar"
-                    accept="image/*"
-                    disabled={uploading || !uploadEnabled || settingsLoading}
-                    onChange={handleAvatarChange}
-                    className="block w-full text-sm text-surface-500 dark:text-surface-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 dark:file:bg-primary-950 file:text-primary-700 dark:file:text-primary-300 hover:file:bg-primary-100 dark:hover:file:bg-primary-900 disabled:opacity-50"
+                    type="url"
+                    id="mapUrl"
+                    maxLength={MAX_URL_LENGTH}
+                    value={form.mapUrl}
+                    onChange={(e) => patch({ mapUrl: e.target.value })}
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                    placeholder="https://owlbear.rodeo/..."
                   />
-                  {uploading && <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">Uploading...</p>}
-                  {!uploadEnabled && !settingsLoading && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Image uploads are disabled by the server admin.</p>
-                  )}
-                  {avatarError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{avatarError}</p>}
+                  {mapError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{mapError}</p>}
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Channel Name</label>
-                <input
-                  type="text"
-                  id="name"
-                  required
-                  maxLength={MAX_CHANNEL_NAME_LENGTH}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="gameSystem" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Game System</label>
-                <select
-                  id="gameSystem"
-                  value={gameSystem}
-                  onChange={(e) => setGameSystem(e.target.value)}
-                  className="bg-white dark:bg-surface-800 mt-1 block w-full pl-3 pr-10 py-2 text-base border-surface-300 dark:border-surface-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
-                >
-                  {GAME_SYSTEM_OPTIONS.map(sys => (
-                    <option key={sys.id} value={sys.id}>{sys.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                    Channel Password
-                  </label>
-                  {!changePassword && (
-                    <button
-                      type="button"
-                      onClick={() => setChangePassword(true)}
-                      className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
-                    >
-                      Change Password
-                    </button>
-                  )}
-                </div>
-                {changePassword ? (
-                  <div className="relative mt-1">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="bg-white dark:bg-surface-800 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border pr-10"
-                      placeholder="Leave blank to remove password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 px-3 flex items-center text-surface-400 dark:text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                        </svg>
-                      ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-1 text-sm text-surface-500 dark:text-surface-400 italic">
-                    {hasPassword ? 'Password is set (hidden)' : 'No password currently set'}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <label htmlFor="mapUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Map URL</label>
-                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium rounded focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      aria-label="Upload map image"
-                      disabled={mapUploading || !uploadEnabled || settingsLoading}
-                      onChange={handleMapUpload}
-                      className="sr-only"
-                    />
-                    {mapUploading ? 'Uploading...' : 'Upload image'}
-                  </label>
-                </div>
-                <input
-                  type="url"
-                  id="mapUrl"
-                  maxLength={MAX_URL_LENGTH}
-                  value={mapUrl}
-                  onChange={(e) => setMapUrl(e.target.value)}
-                  className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                  placeholder="https://owlbear.rodeo/..."
-                />
-                {mapError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{mapError}</p>}
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <label htmlFor="resourcesUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Resources URL</label>
-                  <label className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium rounded focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      aria-label="Upload resources image"
-                      disabled={mapUploading || !uploadEnabled || settingsLoading}
-                      onChange={handleResourcesUpload}
-                      className="sr-only"
-                    />
-                    {mapUploading ? 'Uploading...' : 'Upload image'}
-                  </label>
-                </div>
-                <input
-                  type="url"
-                  id="resourcesUrl"
-                  maxLength={MAX_URL_LENGTH}
-                  value={resourcesUrl}
-                  onChange={(e) => setResourcesUrl(e.target.value)}
-                  className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                  placeholder="https://drive.google.com/..."
-                />
-                {resourcesError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{resourcesError}</p>}
-              </div>
 
                 <div>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="resourcesUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Resources URL</label>
+                    <label className="inline-flex min-h-11 items-center text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 cursor-pointer font-medium rounded focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-50">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        aria-label="Upload resources image"
+                        disabled={pendingUpload !== null || !uploadEnabled || settingsLoading}
+                        onChange={handleResourcesUpload}
+                        className="sr-only"
+                      />
+                      {pendingUpload === 'resources' ? 'Uploading...' : 'Upload image'}
+                    </label>
+                  </div>
+                  <input
+                    type="url"
+                    id="resourcesUrl"
+                    maxLength={MAX_URL_LENGTH}
+                    value={form.resourcesUrl}
+                    onChange={(e) => patch({ resourcesUrl: e.target.value })}
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                    placeholder="https://drive.google.com/..."
+                  />
+                  {resourcesError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{resourcesError}</p>}
+                </div>
+
+                <div className="lg:col-span-2">
                   <label htmlFor="gmOnlyResourcesUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">GM-Only Resources URL</label>
                   <input
                     type="url"
                     id="gmOnlyResourcesUrl"
                     maxLength={MAX_URL_LENGTH}
-                    value={gmOnlyResourcesUrl}
-                    onChange={(e) => setGmOnlyResourcesUrl(e.target.value)}
+                    value={form.gmOnlyResourcesUrl}
+                    onChange={(e) => {
+                      patch({ gmOnlyResourcesUrl: e.target.value })
+                      setGmOnlyResourcesError(null)
+                    }}
                     className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
                     placeholder="https://lorekeeper.app/..."
                   />
+                  {gmOnlyResourcesError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{gmOnlyResourcesError}</p>}
                 </div>
+              </div>
+            </div>
 
-                <div className="pt-2 border-t border-surface-200 dark:border-surface-700">
-                  <button
-                    type="button"
-                    onClick={() => setShowSafetyTools(!showSafetyTools)}
-                    className="flex items-center justify-between w-full text-sm font-medium text-surface-700 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                    aria-expanded={showSafetyTools}
-                  >
-                    Safety Tools (Lines &amp; Veils)
-                    <svg
-                      className={`w-4 h-4 transform transition-transform ${showSafetyTools ? 'rotate-180' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+            <div {...panelProps('safety')}>
+              <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
+                {safetyLoading ? (
+                  <p role="status" className="text-sm text-surface-500 dark:text-surface-400 lg:col-span-2">
+                    Loading safety tools…
+                  </p>
+                ) : !safetyLoaded && (
+                  <p role="alert" className="text-sm text-amber-600 dark:text-amber-400 lg:col-span-2">
+                    Safety tools couldn't be loaded, so Lines and Veils won't be saved.
+                    Close and reopen settings to try again.
+                  </p>
+                )}
+                <div>
+                  <label htmlFor="safetyLines" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Lines</label>
+                  <textarea
+                    id="safetyLines"
+                    maxLength={MAX_SAFETY_TEXT_LENGTH}
+                    value={form.safetyLines}
+                    onChange={(e) => patch({ safetyLines: e.target.value })}
+                    rows={3}
+                    placeholder="Hard limits the group agrees never to cross (one per line)."
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="safetyVeils" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Veils</label>
+                  <textarea
+                    id="safetyVeils"
+                    maxLength={MAX_SAFETY_TEXT_LENGTH}
+                    value={form.safetyVeils}
+                    onChange={(e) => patch({ safetyVeils: e.target.value })}
+                    rows={3}
+                    placeholder="Topics that happen off-screen when they come up (one per line)."
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <label htmlFor="safetyToolsUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Safety Tools URL</label>
+                  <input
+                    type="url"
+                    id="safetyToolsUrl"
+                    maxLength={MAX_URL_LENGTH}
+                    value={form.safetyToolsUrl}
+                    onChange={(e) => patch({ safetyToolsUrl: e.target.value })}
+                    className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                    placeholder="https://docs.google.com/document/d/..."
+                  />
+                  <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                    Shown as a menu item for all players in the sidebar, like the other URL fields.
+                  </p>
+                  {safetyToolsError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{safetyToolsError}</p>}
+                </div>
+              </div>
+            </div>
 
-                  {showSafetyTools && (
-                    <div className="mt-3 space-y-4">
-                      <div>
-                        <label htmlFor="safetyLines" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Lines</label>
-                        <textarea
-                          id="safetyLines"
-                          maxLength={MAX_SAFETY_TEXT_LENGTH}
-                          value={safetyLines}
-                          onChange={(e) => setSafetyLines(e.target.value)}
-                          rows={3}
-                          placeholder="Hard limits the group agrees never to cross (one per line)."
-                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                        />
+            <div {...panelProps('listing')}>
+              <div className="space-y-4">
+                {/* Discovery / listing (#674). */}
+                <div>
+                  <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Discovery</h4>
+                  <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                    A listed channel appears in the Lobby's Discover tab and on the public directory,
+                    where anyone can read its description. Players apply and you approve; messages and
+                    player details always stay inside the channel.
+                  </p>
+
+                  <div className="mt-3 flex items-center rounded-md bg-surface-100 p-1 dark:bg-surface-900">
+                    {modeButton('invite', 'Private — invite link only')}
+                    {modeButton('approval', 'Listed — apply to join')}
+                  </div>
+
+                  {form.joinMode === 'approval' && (
+                    <div className="mt-4 space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
+                      <div className="lg:col-span-2">
+                        <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                          Public game link
+                        </label>
+                        <div className="mt-1 flex rounded-md shadow-sm">
+                          <input
+                            type="text"
+                            readOnly
+                            aria-label="Public game link"
+                            value={publicGameLink}
+                            className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCopyPublicLink}
+                            disabled={!listingPublished}
+                            className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50 disabled:hover:bg-surface-50 dark:disabled:hover:bg-surface-900"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                          {listingPublished
+                            ? 'Share this anywhere — anyone can open it, read your listing, and sign in to apply.'
+                            : 'Save the listing to publish this link.'}
+                        </p>
                       </div>
+
                       <div>
-                        <label htmlFor="safetyVeils" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Veils</label>
+                        <label htmlFor="listingDescription" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                          Description
+                        </label>
                         <textarea
-                          id="safetyVeils"
-                          maxLength={MAX_SAFETY_TEXT_LENGTH}
-                          value={safetyVeils}
-                          onChange={(e) => setSafetyVeils(e.target.value)}
-                          rows={3}
-                          placeholder="Topics that happen off-screen when they come up (one per line)."
+                          id="listingDescription"
+                          rows={4}
+                          maxLength={MAX_LISTING_TEXT_LENGTH}
+                          value={form.description}
+                          onChange={(e) => patch({ description: e.target.value })}
                           className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="safetyToolsUrl" className="block text-sm font-medium text-surface-700 dark:text-surface-300">Safety Tools URL</label>
-                        <input
-                          type="url"
-                          id="safetyToolsUrl"
-                          maxLength={MAX_URL_LENGTH}
-                          value={safetyToolsUrl}
-                          onChange={(e) => setSafetyToolsUrl(e.target.value)}
-                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                          placeholder="https://docs.google.com/document/d/..."
                         />
                         <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                          Shown as a menu item for all players in the sidebar, like the other URL fields.
+                          What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - form.description.length} characters left.
                         </p>
-                        {safetyToolsError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{safetyToolsError}</p>}
                       </div>
+
+                      <div>
+                        <label htmlFor="listingConstraints" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                          What you expect
+                        </label>
+                        <textarea
+                          id="listingConstraints"
+                          rows={4}
+                          maxLength={MAX_LISTING_TEXT_LENGTH}
+                          value={form.constraints}
+                          onChange={(e) => patch({ constraints: e.target.value })}
+                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                        />
+                        <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                          Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - form.constraints.length} characters left.
+                        </p>
+                      </div>
+
+                      <div className="lg:col-span-2">
+                        <label htmlFor="listingPrompt" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                          Application prompt (optional)
+                        </label>
+                        <input
+                          id="listingPrompt"
+                          type="text"
+                          maxLength={MAX_APPLICATION_PROMPT_LENGTH}
+                          value={form.applicationPrompt}
+                          onChange={(e) => patch({ applicationPrompt: e.target.value })}
+                          placeholder="Why do you want to join?"
+                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+                        />
+                      </div>
+
+                      <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400 lg:col-span-2">
+                        Publicly listed and search-engine indexable. Only your description and expectations
+                        are shown publicly — never messages or player details.
+                      </p>
                     </div>
+                  )}
+
+                  {listingError && (
+                    <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{listingError}</p>
                   )}
                 </div>
 
-
-              {/* Discovery / listing (#674). */}
-              <div className="mt-5 border-t border-surface-200 pt-5 dark:border-surface-700">
-                <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Discovery</h4>
-                <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                  A listed channel appears in the Lobby's Discover tab and on the public directory,
-                  where anyone can read its description. Players apply and you approve; messages and
-                  player details always stay inside the channel.
-                </p>
-
-                <div className="mt-3 flex items-center rounded-md bg-surface-100 p-1 dark:bg-surface-900">
-                  {modeButton('invite', 'Private — invite link only')}
-                  {modeButton('approval', 'Listed — apply to join')}
-                </div>
-
-                {joinMode === 'approval' && (
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Public game link
-                      </label>
-                      <div className="mt-1 flex rounded-md shadow-sm">
-                        <input
-                          type="text"
-                          readOnly
-                          aria-label="Public game link"
-                          value={publicGameLink}
-                          className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCopyPublicLink}
-                          disabled={!listingPublished}
-                          className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50 disabled:hover:bg-surface-50 dark:disabled:hover:bg-surface-900"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                        {listingPublished
-                          ? 'Share this anywhere — anyone can open it, read your listing, and sign in to apply.'
-                          : 'Save the listing to publish this link.'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label htmlFor="listingDescription" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Description
-                      </label>
-                      <textarea
-                        id="listingDescription"
-                        rows={4}
-                        maxLength={MAX_LISTING_TEXT_LENGTH}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                      />
-                      <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                        What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label htmlFor="listingConstraints" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        What you expect
-                      </label>
-                      <textarea
-                        id="listingConstraints"
-                        rows={4}
-                        maxLength={MAX_LISTING_TEXT_LENGTH}
-                        value={constraints}
-                        onChange={(e) => setConstraints(e.target.value)}
-                        className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                      />
-                      <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                        Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label htmlFor="listingPrompt" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Application prompt (optional)
-                      </label>
-                      <input
-                        id="listingPrompt"
-                        type="text"
-                        maxLength={MAX_APPLICATION_PROMPT_LENGTH}
-                        value={applicationPrompt}
-                        onChange={(e) => setApplicationPrompt(e.target.value)}
-                        placeholder="Why do you want to join?"
-                        className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                      />
-                    </div>
-
-                    <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400">
-                      Publicly listed and search-engine indexable. Only your description and expectations
-                      are shown publicly — never messages or player details.
-                    </p>
-                  </div>
-                )}
-
-                {listingError && (
-                  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{listingError}</p>
-                )}
-
-                {joinMode === 'approval' && (
-                  <div className="mt-5">
+                {form.joinMode === 'approval' && (
+                  <div>
                     <h5 className="text-sm font-medium text-surface-900 dark:text-surface-100">
                       Join requests ({requests.length})
                     </h5>
@@ -777,49 +1007,31 @@ setIsSubmitting(true)
                   </div>
                 )}
               </div>
+            </div>
+          </fieldset>
 
-              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !name.trim()}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm disabled:opacity-50 transition-colors"
-                >
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-base font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-              
-              <div className="mt-8 pt-6 border-t border-surface-200 dark:border-surface-700">
-                <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100 mb-4">Advanced Actions</h4>
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    disabled={isSubmitting}
-                    className="w-full inline-flex justify-center rounded-md border border-surface-300 dark:border-surface-600 shadow-sm px-4 py-2 bg-white dark:bg-surface-800 text-base font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:text-sm disabled:opacity-50 transition-colors"
-                  >
-                    Export Chat to Markdown
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmArchive(true)}
-                    disabled={isSubmitting}
-                    className="w-full inline-flex justify-center rounded-md border border-red-300 dark:border-red-700 shadow-sm px-4 py-2 bg-red-50 dark:bg-red-950 text-base font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm disabled:opacity-50 transition-colors"
-                  >
-                    Archive Channel
-                  </button>
-                </div>
-              </div>
-            </form>
+          {saveError && (
+            <p role="alert" className="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>
+          )}
+
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-surface-200 px-4 py-3 dark:border-surface-700 sm:flex-row sm:justify-end sm:gap-3">
+            <button
+              type="button"
+              onClick={requestClose}
+              disabled={isSubmitting}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-surface-300 bg-white px-4 text-base font-medium text-surface-700 transition-colors hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700 sm:w-auto sm:text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || pendingUpload !== null || !form.name.trim()}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 text-base font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:w-auto sm:text-sm"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
-        </div>
+        </form>
       </div>
 
       {confirmDelist && (
@@ -833,9 +1045,22 @@ setIsSubmitting(true)
           confirmLabel="Remove listing"
           onConfirm={() => {
             setConfirmDelist(false)
-            setJoinMode('invite')
+            patch({ joinMode: 'invite' })
           }}
           onClose={() => setConfirmDelist(false)}
+        />
+      )}
+
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Discard changes?"
+          description="Your edits to this channel's settings will be lost."
+          confirmLabel="Discard"
+          onConfirm={() => {
+            setConfirmDiscard(false)
+            closeDialog()
+          }}
+          onClose={() => setConfirmDiscard(false)}
         />
       )}
 

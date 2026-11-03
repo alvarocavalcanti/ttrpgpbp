@@ -7,13 +7,14 @@ Everything the **GM** can do to run and manage a channel.
 
 ## Channel settings
 
-Open **Settings** from the channel sidebar to configure:
+Open **Settings** from the channel sidebar. The settings are grouped into four tabs, with **Save Changes** always at the bottom of the window:
 
-- Channel name (up to 80 characters) and game system
-- **Discovery** — list the channel so players can find it and apply (see below)
-- **Channel avatar** — upload an image shown in the channel list and header (requires the server admin to enable image uploads)
-- Map, resources, and GM resources URLs (up to 500 characters) — the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
-- Safety Tools Doc URL (up to 500 characters) and Lines & Veils (up to 2,000 characters each)
+- **General** — channel name (up to 80 characters), game system, password, avatar, the invite link, and **Advanced Actions** (export the chat, archive the channel)
+- **Resources** — Map, Resources, and GM resources URLs (up to 500 characters); the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
+- **Safety** — Safety Tools Doc URL (up to 500 characters) and Lines & Veils (up to 2,000 characters each)
+- **Listing** — list the channel so players can find it and apply (see below)
+
+A dot next to a tab name marks settings on that tab you haven't saved yet. Closing the window with unsaved changes — with Escape, the × button, tapping outside, or **Cancel** — asks before discarding them, so an accidental close never loses an edit. Saving leaves the window open on the same tab with your values in place.
 
 ## Managing members
 
@@ -49,7 +50,7 @@ The GM can **archive** a channel, removing it from the main lobby. Archived chan
 
 ## Listing your game for new players
 
-Channel **Settings** has a **Discovery** section. A channel is either:
+The **Listing** tab of Channel **Settings** sets how the channel takes new players. A channel is either:
 
 - **Private — invite link only** (the default), or
 - **Listed — apply to join**, which puts it in the lobby's **Discover** tab and on the public [/directory](/directory) page, where anyone can read its description.
@@ -60,13 +61,13 @@ Listing a channel is public: the description and what you expect are shown to an
 
 ### Sharing your game
 
-A listed channel has a **public game link** you can post anywhere — Reddit, a forum, Discord. Copy it from the **Public game link** field in **Channel Settings → Discovery**, or with **Copy public link** on the listing itself. Anyone who opens it, signed in or not, reads the game's name, system, description, what you expect, and your application question, plus who runs it; a signed-out visitor is invited to sign in and apply, and a signed-in player gets the usual **Apply to join** form. Messages and player details never appear on it, and the page is not search-engine indexed — the [/directory](/directory) page is the public, searchable list. If you switch back to **Private** or a server admin takes the listing down, the link stops working and shows a plain "this game isn't listed" page.
+A listed channel has a **public game link** you can post anywhere — Reddit, a forum, Discord. Copy it from the **Public game link** field in **Channel Settings → Listing**, or with **Copy public link** on the listing itself. Anyone who opens it, signed in or not, reads the game's name, system, description, what you expect, and your application question, plus who runs it; a signed-out visitor is invited to sign in and apply, and a signed-in player gets the usual **Apply to join** form. Messages and player details never appear on it, and the page is not search-engine indexed — the [/directory](/directory) page is the public, searchable list. If you switch back to **Private** or a server admin takes the listing down, the link stops working and shows a plain "this game isn't listed" page.
 
 Web links you paste into the description or what you expect become tappable wherever the listing appears — players can open them in a new tab. Use full addresses (`https://example.com` or `www.example.com`); plain words are left alone.
 
 ## Join requests
 
-Below the Discovery section, **Join requests (N)** lists everyone waiting on you — their character name, their answer, and when they applied. **Approve** adds them as a member straight away (the name they gave becomes their character name) and **Reject** closes the application; either way they're notified. There's a count badge on the channel's **Settings** button and on the channel's row in the lobby, so a new application is visible without opening the channel.
+Below the listing fields, **Join requests (N)** lists everyone waiting on you — their character name, their answer, and when they applied. **Approve** adds them as a member straight away (the name they gave becomes their character name) and **Reject** closes the application; either way they're notified. There's a count badge on the channel's **Settings** button and on the channel's row in the lobby, so a new application is visible without opening the channel.
 
 Applications are one at a time: a player can't apply twice while a decision is pending, and the same applicant can't be approved twice.
 

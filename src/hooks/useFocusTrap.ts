@@ -27,7 +27,10 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, enable
 
     const focusables = () =>
       Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => !el.hasAttribute('hidden') && el.closest('[aria-hidden="true"]') === null
+        // `hidden` on an ancestor (e.g. an inactive tab panel) removes the
+        // element from the tab order, so the trap must not count it either —
+        // otherwise Tab from the last visible control fails to wrap.
+        (el) => el.closest('[hidden]') === null && el.closest('[aria-hidden="true"]') === null
       )
 
     // Move focus into the dialog unless the surface already did (e.g. a

@@ -43,7 +43,7 @@ Choose how the channel starts:
 - **Private — invite link only** — the default. Only people you send the invite link to can join.
 - **Listed — apply to join** — the game appears in Discover and on the public directory, with the **Description** and **What you expect** you write there, plus an optional question applicants answer. You approve or reject every application.
 
-You can move a channel between the two later from **Channel Settings → Discovery**.
+You can move a channel between the two later from **Channel Settings → Listing**.
 
 ## Joining a private channel
 

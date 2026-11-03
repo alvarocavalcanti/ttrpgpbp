@@ -50,6 +50,8 @@ test.describe('Listed channel created up front, and the decision lands in the lo
     // ── GM: approve from the channel ──────────────────────────────────────
     await gmPage.goto(channelUrl);
     await gmPage.getByTestId('sidebar-menu').getByRole('button', { name: /^Settings/ }).click();
+    // The join-request queue lives on the Listing tab (#772).
+    await gmPage.getByRole('tab', { name: 'Listing' }).click();
     await expect(gmPage.getByText('Join requests (1)')).toBeVisible();
     await gmPage.getByRole('button', { name: 'Approve' }).click();
     await expect(gmPage.getByText('Application approved')).toBeVisible();
@@ -103,6 +105,8 @@ test.describe('Listed channel created up front, and the decision lands in the lo
 
     await gmPage.goto(channelUrl);
     await gmPage.getByTestId('sidebar-menu').getByRole('button', { name: /^Settings/ }).click();
+    // The join-request queue lives on the Listing tab (#772).
+    await gmPage.getByRole('tab', { name: 'Listing' }).click();
     await expect(gmPage.getByText('Join requests (1)')).toBeVisible();
     await gmPage.getByRole('button', { name: 'Reject' }).click();
     await expect(gmPage.getByText('Application rejected')).toBeVisible();
