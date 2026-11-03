@@ -192,9 +192,9 @@ describe('ChannelSettings', () => {
     )
 
     openTab('Listing')
-    fireEvent.click(screen.getByRole('button', { name: 'Listed — apply to join' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'List this game publicly' }))
 
-    // The draft toggle shows the field, but the link only works once saved.
+    // The draft switch shows the field, but the link only works once saved.
     expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
     expect(screen.getByText('Save the listing to publish this link.')).toBeInTheDocument()
@@ -859,13 +859,14 @@ describe('ChannelSettings', () => {
     })
   })
 
-  describe('Discovery and join requests (#674)', () => {
+  describe('Listing switch and applications (#674, #773)', () => {
     const listedChannel = {
       ...mockChannel,
       join_mode: 'approval',
       description: 'A weekly Shadowdark game.',
       constraints: 'Post most days.',
       application_prompt: 'Why do you want to join?',
+      listing_takedown_at: null,
     }
 
     const pendingRequest = {
@@ -897,18 +898,45 @@ describe('ChannelSettings', () => {
       return { onClose, onUpdate }
     }
 
-    it('starts private and reveals the listing copy only when listed', () => {
+    const publicSwitch = () => screen.getByRole('switch', { name: 'List this game publicly' })
+    const openApplications = () => openTab(/Applications/)
+
+    it('shows one labelled Public switch and no private/listed control', () => {
       renderSettings()
 
-      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
-      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'false')
+      expect(screen.queryByRole('button', { name: /invite link only/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Listed — apply to join/ })).not.toBeInTheDocument()
+    })
 
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+    it('keeps the copy visible but disabled while private, and withholds the link', () => {
+      renderSettings()
 
-      expect(screen.getByLabelText('Description')).toBeInTheDocument()
-      expect(screen.getByLabelText('What you expect')).toBeInTheDocument()
-      expect(screen.getByLabelText('Application prompt (optional)')).toBeInTheDocument()
-      expect(screen.getByText(/Publicly listed and search-engine indexable/)).toBeInTheDocument()
+      for (const label of ['Description', 'What you expect', 'Application prompt (optional)']) {
+        expect(screen.getByLabelText(label)).toBeDisabled()
+      }
+      // A private game has no working public page, so the URL is never rendered.
+      expect(screen.getByLabelText('Public game link')).toBeDisabled()
+      expect(screen.getByLabelText('Public game link')).toHaveValue('')
+      expect(screen.queryByDisplayValue('http://localhost/game/c1')).not.toBeInTheDocument()
+      expect(screen.getByText('The public game link appears once this game is listed.')).toBeInTheDocument()
+      expect(screen.getByText(/Turn on/)).toHaveTextContent('List this game publicly')
+    })
+
+    it('enables the copy and reveals the link when the switch is on', () => {
+      renderSettings()
+
+      fireEvent.click(publicSwitch())
+
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByLabelText('Description')).toBeEnabled()
+      expect(screen.getByLabelText('What you expect')).toBeEnabled()
+      expect(screen.getByLabelText('Application prompt (optional)')).toBeEnabled()
+      expect(screen.getByDisplayValue('http://localhost/game/c1')).toBeInTheDocument()
+      // The page only exists once the listing is saved.
+      expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+      expect(screen.getByText('Save the listing to publish this link.')).toBeInTheDocument()
+      expect(screen.queryByText(/Turn on/)).not.toBeInTheDocument()
     })
 
     it('caps the listing copy at input, matching the server', () => {
@@ -919,16 +947,74 @@ describe('ChannelSettings', () => {
       expect(screen.getByLabelText('Application prompt (optional)')).toHaveAttribute('maxlength', '300')
     })
 
-    it('rejects a publish with blank copy inline, without calling the server', () => {
+    it('keeps saved copy when the switch is turned off without saving', () => {
+      renderSettings(listedChannel)
+
+      fireEvent.click(publicSwitch())
+      fireEvent.click(screen.getByRole('button', { name: 'Remove listing' }))
+
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByLabelText('Description')).toBeDisabled()
+      expect(screen.getByLabelText('Description')).toHaveValue('A weekly Shadowdark game.')
+      expect(screen.queryByDisplayValue('http://localhost/game/c1')).not.toBeInTheDocument()
+    })
+
+    it('blocks a publish with blank copy, inline and without calling the server', () => {
       const mockRpc = vi.fn().mockResolvedValue({ error: null })
       vi.mocked(supabase.rpc).mockImplementation(mockRpc)
       renderSettings()
 
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
+
+      // The rule is live: the GM sees why before pressing Save.
+      expect(screen.getByRole('alert')).toHaveTextContent('A listed channel needs both a description and constraints.')
+
       fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
+      // The footer stays usable — the error is on this tab, not hidden behind a
+      // disabled button.
+      expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled()
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('jumps back to the Listing tab when the copy is still missing', () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      renderSettings()
+
+      fireEvent.click(publicSwitch())
+      openTab('General')
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      // Listing is dirty by now, so its name carries "unsaved changes".
+      expect(screen.getByRole('tab', { name: /Listing/ })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('alert')).toHaveTextContent('A listed channel needs both a description and constraints.')
       expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('clears the copy error as soon as both fields are filled', () => {
+      renderSettings()
+
+      fireEvent.click(publicSwitch())
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+
+      fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('keeps a bad URL ahead of the copy error', () => {
+      renderSettings()
+
+      fireEvent.click(publicSwitch())
+      openTab('Resources')
+      fireEvent.change(screen.getByLabelText('Map URL'), { target: { value: 'not-a-link' } })
+      openTab('General')
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      expect(screen.getByRole('tab', { name: /Resources/ })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByText('Links must be a full web address starting with http:// or https://')).toBeVisible()
     })
 
     it('publishes the listing fields and fires listing_publish on the transition', async () => {
@@ -936,7 +1022,7 @@ describe('ChannelSettings', () => {
       vi.mocked(supabase.rpc).mockImplementation(mockRpc)
       renderSettings()
 
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
       fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
       fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
       fireEvent.change(screen.getByLabelText('Application prompt (optional)'), { target: { value: 'Why?' } })
@@ -972,22 +1058,23 @@ describe('ChannelSettings', () => {
     it('confirms before removing the listing, and keeps it when cancelled', () => {
       renderSettings(listedChannel)
 
-      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      fireEvent.click(publicSwitch())
       const dialog = screen.getByRole('dialog', { name: 'Remove this listing?' })
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-      expect(screen.getByRole('button', { name: /Listed — apply to join/ })).toHaveAttribute('aria-pressed', 'true')
+
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'true')
       expect(screen.queryByRole('dialog', { name: 'Remove this listing?' })).not.toBeInTheDocument()
     })
 
     it('removes the listing when the confirm is accepted', () => {
       renderSettings(listedChannel)
 
-      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      fireEvent.click(publicSwitch())
       fireEvent.click(screen.getByRole('button', { name: 'Remove listing' }))
 
-      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
-      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByLabelText('Description')).toBeDisabled()
     })
 
     it('warns about the pending applications a delist will close', async () => {
@@ -998,7 +1085,7 @@ describe('ChannelSettings', () => {
 
       // Wait for the queue so the confirm knows how many applications it closes.
       await screen.findByText('Join requests (1)')
-      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      fireEvent.click(publicSwitch())
 
       expect(screen.getByRole('dialog', { name: 'Remove this listing?' })).toHaveTextContent(
         'its 1 pending application is closed',
@@ -1008,13 +1095,13 @@ describe('ChannelSettings', () => {
     it('does not ask to confirm when the channel was never listed', () => {
       renderSettings()
 
-      // Toggle to Listed and back without saving: nothing was ever published,
-      // so there is no delist to confirm.
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
-      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      // Switch on and back without saving: nothing was ever published, so
+      // there is no delist to confirm.
+      fireEvent.click(publicSwitch())
+      fireEvent.click(publicSwitch())
 
       expect(screen.queryByRole('dialog', { name: 'Remove this listing?' })).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'false')
     })
 
     it('still names the pending applications a delist closes when the queue did not load', () => {
@@ -1023,12 +1110,60 @@ describe('ChannelSettings', () => {
       )
       renderSettings(listedChannel)
 
-      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      fireEvent.click(publicSwitch())
 
       // The count is unknown, but a destructive action must not understate it.
       expect(screen.getByRole('dialog', { name: 'Remove this listing?' })).toHaveTextContent(
         'any pending applications it has are closed',
       )
+    })
+
+    it('greys out the switch for a listing a server admin removed', async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      renderSettings({ ...listedChannel, join_mode: 'invite', listing_takedown_at: '2026-10-16T10:00:00Z' })
+
+      expect(publicSwitch()).toBeDisabled()
+      expect(screen.getByText(/A server admin removed this listing/)).toBeInTheDocument()
+      expect(screen.queryByText(/Turn on/)).not.toBeInTheDocument()
+
+      // Everything else about the channel is still editable.
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'Renamed' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+      await waitFor(() =>
+        expect(mockRpc).toHaveBeenCalledWith(
+          'update_channel_settings',
+          expect.objectContaining({ p_join_mode: 'invite' }),
+        ),
+      )
+    })
+
+    it('shows the Applications tab with the pending count only while listed', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => requestChain({ data: [pendingRequest], error: null }) as any,
+      )
+      renderSettings()
+
+      expect(screen.queryByRole('tab', { name: /Applications/ })).not.toBeInTheDocument()
+
+      fireEvent.click(publicSwitch())
+
+      expect(screen.getByRole('tab', { name: /Applications/ })).toBeInTheDocument()
+      expect(await screen.findByRole('tab', { name: /Applications, 1 pending application/ })).toBeInTheDocument()
+    })
+
+    it('hides the Applications tab when the listing is removed', () => {
+      renderSettings(listedChannel)
+      openApplications()
+      expect(screen.getByRole('tab', { name: /Applications/ })).toHaveAttribute('aria-selected', 'true')
+
+      openTab('Listing')
+      fireEvent.click(publicSwitch())
+      fireEvent.click(screen.getByRole('button', { name: 'Remove listing' }))
+
+      expect(screen.queryByRole('tab', { name: /Applications/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Listing/ })).toHaveAttribute('aria-selected', 'true')
     })
 
     it('lists pending applications and approves one without submitting the form', async () => {
@@ -1038,6 +1173,7 @@ describe('ChannelSettings', () => {
       const mockRpc = vi.fn().mockResolvedValue({ error: null })
       vi.mocked(supabase.rpc).mockImplementation(mockRpc)
       const { onUpdate } = renderSettings(listedChannel)
+      openApplications()
 
       expect(await screen.findByText('Join requests (1)')).toBeInTheDocument()
       expect(screen.getByText('Aria')).toBeInTheDocument()
@@ -1064,6 +1200,31 @@ describe('ChannelSettings', () => {
       expect(onUpdate).toHaveBeenCalledTimes(1)
     })
 
+    it('drops the badge and the row after a decision, without closing settings', async () => {
+      const results = [
+        { data: [pendingRequest], error: null },
+        { data: [], error: null },
+      ]
+      let call = 0
+      vi.mocked(supabase.from).mockImplementation(() => {
+        const result = results[Math.min(call, results.length - 1)]
+        call += 1
+        return requestChain(result) as any
+      })
+      const mockRpc = vi.fn().mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+      const { onUpdate } = renderSettings(listedChannel)
+      openApplications()
+
+      expect(await screen.findByRole('tab', { name: /Applications, 1 pending application/ })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+      expect(await screen.findByText('Join requests (0)')).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Applications' })).toBeInTheDocument()
+      expect(screen.queryByText('Aria')).not.toBeInTheDocument()
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
+
     it('fires the decision event for a rejection too', async () => {
       vi.mocked(supabase.from).mockImplementation(
         () => requestChain({ data: [pendingRequest], error: null }) as any,
@@ -1071,6 +1232,7 @@ describe('ChannelSettings', () => {
       const mockRpc = vi.fn().mockResolvedValue({ error: null })
       vi.mocked(supabase.rpc).mockImplementation(mockRpc)
       renderSettings(listedChannel)
+      openApplications()
 
       fireEvent.click(await screen.findByRole('button', { name: 'Reject' }))
 
@@ -1089,6 +1251,7 @@ describe('ChannelSettings', () => {
       )
       vi.mocked(supabase.rpc).mockResolvedValue({ error: { message: 'This channel is archived.' } } as any)
       renderSettings(listedChannel)
+      openApplications()
 
       fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
 
@@ -1099,27 +1262,30 @@ describe('ChannelSettings', () => {
 
     it('shows the empty queue state', async () => {
       renderSettings(listedChannel)
+      openApplications()
 
       expect(await screen.findByText('Join requests (0)')).toBeInTheDocument()
       expect(screen.getByText('No pending requests.')).toBeInTheDocument()
     })
 
-    it('aligns the decision buttons with the middle of a long answer', async () => {
+    it('stacks an application entry for a phone and splits it on a wider sheet', async () => {
       vi.mocked(supabase.from).mockImplementation(
         () => requestChain({ data: [pendingRequest], error: null }) as any,
       )
       renderSettings(listedChannel)
+      openApplications()
 
-      // A wrapped answer makes the row taller than the buttons; the button
-      // column centres itself instead of sticking to the top (#722). The
-      // buttons must centre their own labels inside the 44px touch target too,
-      // or the text sits at the top of the box.
+      // At 360px the row stacks (name, answer, date, then buttons); from `sm`
+      // the buttons sit beside the answer. jsdom has no layout engine, so the
+      // class contract is the assertion — the screenshot is the real check.
       const approve = await screen.findByRole('button', { name: 'Approve' })
-      const buttons = approve.parentElement
-      expect(buttons).toHaveClass('self-center')
-      expect(buttons).toHaveClass('items-center')
-      expect(approve).toHaveClass('items-center')
-      expect(screen.getByRole('button', { name: 'Reject' })).toHaveClass('items-center')
+      const actions = approve.parentElement as HTMLElement
+      const row = actions.parentElement as HTMLElement
+
+      expect(row).toHaveClass('flex-col', 'sm:flex-row', 'sm:items-center', 'sm:justify-between')
+      expect(actions).toHaveClass('flex', 'gap-2', 'sm:flex-shrink-0')
+      expect(approve).toHaveClass('flex-1', 'items-center', 'sm:flex-none')
+      expect(screen.getByRole('button', { name: 'Reject' })).toHaveClass('flex-1', 'items-center', 'sm:flex-none')
     })
 
     it('offers Retry when the queue cannot be loaded', async () => {
@@ -1127,6 +1293,7 @@ describe('ChannelSettings', () => {
         () => requestChain({ data: null, error: new Error('down') }) as any,
       )
       renderSettings(listedChannel)
+      openApplications()
 
       expect(await screen.findByText("Couldn't load requests.")).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
@@ -1411,7 +1578,7 @@ describe('ChannelSettings', () => {
       render(<ChannelSettings channel={{ ...mockChannel, join_mode: 'invite' }} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
       openTab('Listing')
-      fireEvent.click(screen.getByRole('button', { name: 'Listed — apply to join' }))
+      fireEvent.click(screen.getByRole('switch', { name: 'List this game publicly' }))
       fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly game.' } })
       fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))

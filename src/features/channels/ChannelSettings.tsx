@@ -82,6 +82,18 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const isDirty = dirty.size > 0
   const tabDirty = (id: ChannelSettingsTab) => TAB_FIELDS[id].some(key => dirty.has(key))
 
+  // One switch, one source of truth: the form's join mode decides the listing
+  // fields, the public link area and whether the Applications tab exists.
+  const listed = form.joinMode === 'approval'
+  // A listing a server admin removed cannot be re-listed — the server raises on
+  // it — so the switch is locked off with the reason instead of failing at save.
+  const listingLocked = Boolean(channel.listing_takedown_at)
+  const visibleTabs = listed ? TAB_IDS : TAB_IDS.filter(id => id !== 'applications')
+  // Mirrors the server's "approval needs a description and constraints" rule.
+  // Derived, never stored: filling a field clears the message without a save.
+  const missingListingCopy = listed
+    && (form.description.trim() === '' || form.constraints.trim() === '')
+
   const [activeTab, setActiveTab] = useState<ChannelSettingsTab>('general')
   const [safetyVisited, setSafetyVisited] = useState(false)
   const tabListRef = useRef<HTMLDivElement>(null)
@@ -100,22 +112,21 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
   const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
     e.preventDefault()
-    const i = TAB_IDS.indexOf(activeTab)
-    const next = e.key === 'ArrowRight' ? (i + 1) % TAB_IDS.length
-      : e.key === 'ArrowLeft' ? (i - 1 + TAB_IDS.length) % TAB_IDS.length
-      : e.key === 'Home' ? 0 : TAB_IDS.length - 1
-    selectTab(TAB_IDS[next])
+    // The strip may be shorter than TAB_IDS (Applications hides while private).
+    const i = visibleTabs.indexOf(activeTab)
+    const next = e.key === 'ArrowRight' ? (i + 1) % visibleTabs.length
+      : e.key === 'ArrowLeft' ? (i - 1 + visibleTabs.length) % visibleTabs.length
+      : e.key === 'Home' ? 0 : visibleTabs.length - 1
+    selectTab(visibleTabs[next])
   }
 
   const [confirmArchive, setConfirmArchive] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const { safetyTools, loading: safetyLoading, loaded: safetyLoaded } = useSafetyTools(channel.id, safetyVisited)
 
-  // Discovery / listing state (#674). The GM publishes the channel by switching
-  // join mode to 'approval' with a description + constraints; that is what makes
-  // it apply-only, discoverable in the Lobby and listed on the public
-  // /directory.
-  const [listingError, setListingError] = useState<string | null>(null)
+  // Discovery / listing state (#674). The GM publishes the channel with the
+  // single "List this game publicly" switch: that is what makes it apply-only,
+  // discoverable in the Lobby and listed on the public /directory.
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmDelist, setConfirmDelist] = useState(false)
   const [decidingId, setDecidingId] = useState<string | null>(null)
@@ -165,6 +176,13 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [activeTab])
+
+  // Turning the listing off hides Applications. A selected tab that no longer
+  // exists would leave the panel labelled by a missing tab, so fall back to the
+  // tab that owns the switch the GM just touched.
+  useEffect(() => {
+    if (!listed && activeTab === 'applications') setActiveTab('listing')
+  }, [listed, activeTab])
 
   // Changing password logic. The saved flag is local: the parent refresh that
   // refreshes `hasPassword` waits until the dialog closes, so the copy would
@@ -292,13 +310,13 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
     if (urlError) return
 
     // Publishing requires both copy fields — the server raises the same rule and
-    // the cap is enforced at input, so this is the point-of-save guard.
-    if (form.joinMode === 'approval' && (form.description.trim() === '' || form.constraints.trim() === '')) {
-      setListingError('A listed channel needs both a description and constraints.')
+    // the cap is enforced at input, so this is the point-of-save guard. The error
+    // is derived, so it is already on screen; this only makes sure the GM is on
+    // the tab that shows it.
+    if (missingListingCopy) {
       selectTab('listing')
       return
     }
-    setListingError(null)
 
     setIsSubmitting(true)
 
@@ -357,7 +375,6 @@ export function ChannelSettings({ channel, gmOnlyResourcesUrl: gmOnlyResourcesUr
       setResourcesError(null)
       setGmOnlyResourcesError(null)
       setSafetyToolsError(null)
-      setListingError(null)
 
       addToast('Channel settings saved successfully', 'success')
       refreshOnCloseRef.current = true
@@ -451,24 +468,6 @@ setIsSubmitting(true)
     setConfirmDelist(true)
   }
 
-  const modeButton = (mode: 'invite' | 'approval', label: string) => (
-    <button
-      type="button"
-      aria-pressed={form.joinMode === mode}
-      onClick={() => {
-        if (mode === 'invite') requestDelist()
-        else patch({ joinMode: 'approval' })
-      }}
-      className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
-        form.joinMode === mode
-          ? 'bg-white font-medium text-surface-900 shadow-sm dark:bg-surface-700 dark:text-surface-100'
-          : 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
-      }`}
-    >
-      {label}
-    </button>
-  )
-
   const panelProps = (id: ChannelSettingsTab) => ({
     role: 'tabpanel' as const,
     id: `settings-panel-${id}`,
@@ -511,7 +510,7 @@ setIsSubmitting(true)
           onKeyDown={handleTabKeyDown}
           className="flex shrink-0 gap-1 overflow-x-auto border-b border-surface-200 px-2 pt-2 dark:border-surface-700"
         >
-          {TAB_IDS.map(id => {
+          {visibleTabs.map(id => {
             const selected = id === activeTab
             return (
               <button
@@ -527,6 +526,19 @@ setIsSubmitting(true)
                 className={`${TAB_CLASS} ${selected ? TAB_ACTIVE : TAB_IDLE}`}
               >
                 {TAB_LABELS[id]}
+                {id === 'applications' && requests.length > 0 && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-primary-600 px-1.5 text-xs font-semibold text-white dark:bg-primary-500"
+                    >
+                      {requests.length}
+                    </span>
+                    <span className="sr-only">
+                      {`, ${requests.length} pending application${requests.length === 1 ? '' : 's'}`}
+                    </span>
+                  </>
+                )}
                 {tabDirty(id) && (
                   <>
                     <span
@@ -836,177 +848,213 @@ setIsSubmitting(true)
 
             <div {...panelProps('listing')}>
               <div className="space-y-4">
-                {/* Discovery / listing (#674). */}
-                <div>
-                  <h4 className="text-sm font-medium text-surface-900 dark:text-surface-100">Discovery</h4>
-                  <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                    A listed channel appears in the Lobby's Discover tab and on the public directory,
-                    where anyone can read its description. Players apply and you approve; messages and
-                    player details always stay inside the channel.
-                  </p>
-
-                  <div className="mt-3 flex items-center rounded-md bg-surface-100 p-1 dark:bg-surface-900">
-                    {modeButton('invite', 'Private — invite link only')}
-                    {modeButton('approval', 'Listed — apply to join')}
+                {/* Discovery / listing (#674, #773). One switch is the whole
+                    model: join_mode is a two-state axis, so on = approval. */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h4 id="listing-toggle-label" className="text-sm font-medium text-surface-900 dark:text-surface-100">
+                      List this game publicly
+                    </h4>
+                    <p id="listing-toggle-hint" className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                      Your game appears in the Lobby's Discover tab and on the public directory, where
+                      anyone can read its description. Players apply and you approve; messages and
+                      player details always stay inside the channel.
+                    </p>
                   </div>
-
-                  {form.joinMode === 'approval' && (
-                    <div className="mt-4 space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
-                      <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                          Public game link
-                        </label>
-                        <div className="mt-1 flex rounded-md shadow-sm">
-                          <input
-                            type="text"
-                            readOnly
-                            aria-label="Public game link"
-                            value={publicGameLink}
-                            className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleCopyPublicLink}
-                            disabled={!listingPublished}
-                            className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50 disabled:hover:bg-surface-50 dark:disabled:hover:bg-surface-900"
-                          >
-                            Copy
-                          </button>
-                        </div>
-                        <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                          {listingPublished
-                            ? 'Share this anywhere — anyone can open it, read your listing, and sign in to apply.'
-                            : 'Save the listing to publish this link.'}
-                        </p>
-                      </div>
-
-                      <div>
-                        <label htmlFor="listingDescription" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                          Description
-                        </label>
-                        <textarea
-                          id="listingDescription"
-                          rows={4}
-                          maxLength={MAX_LISTING_TEXT_LENGTH}
-                          value={form.description}
-                          onChange={(e) => patch({ description: e.target.value })}
-                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                        />
-                        <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                          What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - form.description.length} characters left.
-                        </p>
-                      </div>
-
-                      <div>
-                        <label htmlFor="listingConstraints" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                          What you expect
-                        </label>
-                        <textarea
-                          id="listingConstraints"
-                          rows={4}
-                          maxLength={MAX_LISTING_TEXT_LENGTH}
-                          value={form.constraints}
-                          onChange={(e) => patch({ constraints: e.target.value })}
-                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                        />
-                        <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                          Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - form.constraints.length} characters left.
-                        </p>
-                      </div>
-
-                      <div className="lg:col-span-2">
-                        <label htmlFor="listingPrompt" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                          Application prompt (optional)
-                        </label>
-                        <input
-                          id="listingPrompt"
-                          type="text"
-                          maxLength={MAX_APPLICATION_PROMPT_LENGTH}
-                          value={form.applicationPrompt}
-                          onChange={(e) => patch({ applicationPrompt: e.target.value })}
-                          placeholder="Why do you want to join?"
-                          className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
-                        />
-                      </div>
-
-                      <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400 lg:col-span-2">
-                        Publicly listed and search-engine indexable. Only your description and expectations
-                        are shown publicly — never messages or player details.
-                      </p>
-                    </div>
-                  )}
-
-                  {listingError && (
-                    <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{listingError}</p>
-                  )}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={listed}
+                    aria-labelledby="listing-toggle-label"
+                    aria-describedby="listing-toggle-hint"
+                    disabled={listingLocked}
+                    onClick={() => {
+                      if (listed) requestDelist()
+                      else patch({ joinMode: 'approval' })
+                    }}
+                    className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${listed ? 'bg-primary-600' : 'bg-surface-200 dark:bg-surface-700'}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out dark:bg-surface-800 ${listed ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
                 </div>
 
-                {form.joinMode === 'approval' && (
-                  <div>
-                    <h5 className="text-sm font-medium text-surface-900 dark:text-surface-100">
-                      Join requests ({requests.length})
-                    </h5>
+                {/* One hint slot: the takedown reason wins over "turn it on". */}
+                {listingLocked ? (
+                  <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400">
+                    A server admin removed this listing, so it can't be re-listed. Contact them if you
+                    think that's a mistake.
+                  </p>
+                ) : !listed && (
+                  <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400">
+                    Turn on <strong>List this game publicly</strong> to edit these. What you have written
+                    is kept, so nothing is lost while the game is private.
+                  </p>
+                )}
 
-                    {requestsLoading ? (
-                      <p className="mt-2 text-sm text-surface-500 dark:text-surface-400" role="status">Loading requests…</p>
-                    ) : requestsError ? (
-                      <div className="mt-2 flex items-center gap-3 text-sm text-red-600 dark:text-red-400" role="alert">
-                        <span>Couldn't load requests.</span>
-                        <button type="button" onClick={refetchRequests} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">
-                          Retry
-                        </button>
-                      </div>
-                    ) : requests.length === 0 ? (
-                      <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">No pending requests.</p>
-                    ) : (
-                      <ul className="mt-2 divide-y divide-surface-200 dark:divide-surface-700">
-                        {requests.map((request) => (
-                          <li key={request.id} className="py-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-surface-900 dark:text-surface-100">
-                                  {request.character_name}
-                                </p>
-                                {request.message && (
-                                  <p className="mt-1 whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">
-                                    {request.message}
-                                  </p>
-                                )}
-                                <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
-                                  Applied {channelTimestamp(request.created_at)}
-                                </p>
-                              </div>
-                              {/* self-center: a long answer grows the row, so
-                                  the button column centres itself on it. The
-                                  buttons centre their own labels too: the flex
-                                  default stretches the text to the top of the
-                                  44px touch target (#722). */}
-                              <div className="flex flex-shrink-0 items-center gap-2 self-center">
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDecide(request.id, true)}
-                                  disabled={decidingId !== null}
-                                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
-                                >
-                                  {decidingId === request.id ? 'Working…' : 'Approve'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDecide(request.id, false)}
-                                  disabled={decidingId !== null}
-                                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-surface-300 px-3 text-sm font-medium text-surface-700 hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-5 lg:space-y-0">
+                  <div className="lg:col-span-2">
+                    <label htmlFor="publicGameLink" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                      Public game link
+                    </label>
+                    <div className="mt-1 flex rounded-md shadow-sm">
+                      {/* The URL is withheld while private: /game/<id> would 404. */}
+                      <input
+                        type="text"
+                        id="publicGameLink"
+                        readOnly
+                        disabled={!listed}
+                        value={listed ? publicGameLink : ''}
+                        className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md sm:text-sm border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 border disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyPublicLink}
+                        disabled={!listed || !listingPublished}
+                        className="inline-flex items-center px-3 py-2 border border-l-0 border-surface-300 dark:border-surface-600 rounded-r-md bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 sm:text-sm hover:bg-surface-100 dark:hover:bg-surface-700 disabled:opacity-50 disabled:hover:bg-surface-50 dark:disabled:hover:bg-surface-900"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                      {!listed
+                        ? 'The public game link appears once this game is listed.'
+                        : listingPublished
+                          ? 'Share this anywhere — anyone can open it, read your listing, and sign in to apply.'
+                          : 'Save the listing to publish this link.'}
+                    </p>
                   </div>
+
+                  <div>
+                    <label htmlFor="listingDescription" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                      Description
+                    </label>
+                    <textarea
+                      id="listingDescription"
+                      rows={4}
+                      maxLength={MAX_LISTING_TEXT_LENGTH}
+                      value={form.description}
+                      disabled={!listed}
+                      onChange={(e) => patch({ description: e.target.value })}
+                      className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border disabled:opacity-50"
+                    />
+                    <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                      What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - form.description.length} characters left.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="listingConstraints" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                      What you expect
+                    </label>
+                    <textarea
+                      id="listingConstraints"
+                      rows={4}
+                      maxLength={MAX_LISTING_TEXT_LENGTH}
+                      value={form.constraints}
+                      disabled={!listed}
+                      onChange={(e) => patch({ constraints: e.target.value })}
+                      className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border disabled:opacity-50"
+                    />
+                    <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                      Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - form.constraints.length} characters left.
+                    </p>
+                  </div>
+
+                  <div className="lg:col-span-2">
+                    <label htmlFor="listingPrompt" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                      Application prompt (optional)
+                    </label>
+                    <input
+                      id="listingPrompt"
+                      type="text"
+                      maxLength={MAX_APPLICATION_PROMPT_LENGTH}
+                      value={form.applicationPrompt}
+                      disabled={!listed}
+                      onChange={(e) => patch({ applicationPrompt: e.target.value })}
+                      placeholder="Why do you want to join?"
+                      className="bg-white dark:bg-surface-800 mt-1 block w-full border-surface-300 dark:border-surface-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border disabled:opacity-50"
+                    />
+                  </div>
+
+                  <p className="rounded-md bg-surface-100 px-3 py-2 text-xs text-surface-600 dark:bg-surface-900 dark:text-surface-400 lg:col-span-2">
+                    Publicly listed and search-engine indexable. Only your description and expectations
+                    are shown publicly — never messages or player details.
+                  </p>
+                </div>
+
+                {missingListingCopy && (
+                  <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                    A listed channel needs both a description and constraints.
+                  </p>
                 )}
               </div>
+            </div>
+
+            <div {...panelProps('applications')}>
+              <h5 className="text-sm font-medium text-surface-900 dark:text-surface-100">
+                Join requests ({requests.length})
+              </h5>
+
+              {requestsLoading ? (
+                <p className="mt-2 text-sm text-surface-500 dark:text-surface-400" role="status">Loading requests…</p>
+              ) : requestsError ? (
+                <div className="mt-2 flex items-center gap-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                  <span>Couldn't load requests.</span>
+                  <button type="button" onClick={refetchRequests} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">
+                    Retry
+                  </button>
+                </div>
+              ) : requests.length === 0 ? (
+                <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">No pending requests.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-surface-200 dark:divide-surface-700">
+                  {requests.map((request) => (
+                    <li key={request.id} className="py-3">
+                      {/* Stacked on a phone (name, answer, date, then full-width
+                          buttons); side by side once the sheet has room (#773). */}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-medium text-surface-900 dark:text-surface-100">
+                            {request.character_name}
+                          </p>
+                          {request.message && (
+                            <p className="mt-1 break-words whitespace-pre-wrap text-sm text-surface-600 dark:text-surface-300">
+                              {request.message}
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-surface-400 dark:text-surface-400">
+                            Applied {channelTimestamp(request.created_at)}
+                          </p>
+                        </div>
+                        {/* The buttons centre their own labels: the flex default
+                            stretches the text to the top of the 44px touch
+                            target (#722). */}
+                        <div className="flex gap-2 sm:flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => void handleDecide(request.id, true)}
+                            disabled={decidingId !== null}
+                            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-transparent bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:flex-none"
+                          >
+                            {decidingId === request.id ? 'Working…' : 'Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDecide(request.id, false)}
+                            disabled={decidingId !== null}
+                            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-surface-300 px-3 text-sm font-medium text-surface-700 hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:flex-none dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </fieldset>
 

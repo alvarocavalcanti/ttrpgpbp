@@ -35,13 +35,15 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const [description, setDescription] = useState('')
   const [constraints, setConstraints] = useState('')
   const [applicationPrompt, setApplicationPrompt] = useState('')
-  const [listingError, setListingError] = useState<string | null>(null)
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { countMyChannels, createChannel } = useCreateChannel()
   const isListed = joinMode === 'approval'
+  // Mirrors the server's "a listed channel needs both copy fields" rule.
+  // Derived, never stored: filling a field clears the message immediately.
+  const missingListingCopy = isListed && (description.trim() === '' || constraints.trim() === '')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,11 +51,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
 
     // Publishing requires both copy fields — the server raises the same rule and
     // the DB CHECK backs it up (#674), so this is the point-of-save guard.
-    if (isListed && (description.trim() === '' || constraints.trim() === '')) {
-      setListingError('A listed channel needs both a description and constraints.')
-      return
-    }
-    setListingError(null)
+    if (missingListingCopy) return
     
     setIsSubmitting(true)
     setError(null)
@@ -202,107 +200,113 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
               </div>
               )}
 
-              {/* Who can find it (#722). Mirrors Channel Settings → Discovery:
-                  the same copy, the same caps, the same server rules. */}
+              {/* Who can find it (#722, #773). The same one-switch model, copy
+                  and caps as Channel Settings → Listing. */}
               <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Discovery</h4>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  A listed channel appears in the Lobby's Discover tab and on the public directory,
-                  where anyone can read its description. Players apply and you approve; messages and
-                  player details always stay inside the channel.
-                </p>
-
-                <div className="mt-3 flex items-center rounded-md bg-gray-100 p-1 dark:bg-gray-900">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h4 id="create-listing-toggle-label" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      List this game publicly
+                    </h4>
+                    <p id="create-listing-toggle-hint" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Your game appears in the Lobby's Discover tab and on the public directory, where
+                      anyone can read its description. Players apply and you approve; messages and
+                      player details always stay inside the channel.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    aria-pressed={joinMode === 'invite'}
-                    onClick={() => setJoinMode('invite')}
-                    className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
-                      joinMode === 'invite'
-                        ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    Private — invite link only
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={isListed}
+                    role="switch"
+                    aria-checked={isListed}
+                    aria-labelledby="create-listing-toggle-label"
+                    aria-describedby="create-listing-toggle-hint"
                     onClick={() => {
+                      if (isListed) {
+                        setJoinMode('invite')
+                        return
+                      }
                       // A listed channel has no password to carry (#722 review).
                       setPassword('')
                       setJoinMode('approval')
                     }}
-                    className={`flex-1 rounded px-3 py-2 text-sm transition-colors ${
-                      isListed
-                        ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                    }`}
+                    className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${isListed ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                   >
-                    Listed — apply to join
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out dark:bg-gray-800 ${isListed ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
                   </button>
                 </div>
 
-                {isListed && (
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label htmlFor="createListingDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Description
-                      </label>
-                      <textarea
-                        id="createListingDescription"
-                        rows={4}
-                        maxLength={MAX_LISTING_TEXT_LENGTH}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      />
-                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
-                        What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label htmlFor="createListingConstraints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        What you expect
-                      </label>
-                      <textarea
-                        id="createListingConstraints"
-                        rows={4}
-                        maxLength={MAX_LISTING_TEXT_LENGTH}
-                        value={constraints}
-                        onChange={(e) => setConstraints(e.target.value)}
-                        className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      />
-                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
-                        Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label htmlFor="createListingPrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Application prompt (optional)
-                      </label>
-                      <input
-                        id="createListingPrompt"
-                        type="text"
-                        maxLength={MAX_APPLICATION_PROMPT_LENGTH}
-                        value={applicationPrompt}
-                        onChange={(e) => setApplicationPrompt(e.target.value)}
-                        placeholder="Why do you want to join?"
-                        className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      />
-                    </div>
-
-                    <p className="rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
-                      Publicly listed and search-engine indexable. Only your description and expectations
-                      are shown publicly — never messages or player details.
-                    </p>
-                  </div>
+                {!isListed && (
+                  <p className="mt-3 rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                    Turn on <strong>List this game publicly</strong> to edit these.
+                  </p>
                 )}
 
-                {listingError && (
-                  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{listingError}</p>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label htmlFor="createListingDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Description
+                    </label>
+                    <textarea
+                      id="createListingDescription"
+                      rows={4}
+                      maxLength={MAX_LISTING_TEXT_LENGTH}
+                      value={description}
+                      disabled={!isListed}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                    />
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
+                      What the game is about. Links become clickable. {MAX_LISTING_TEXT_LENGTH - description.length} characters left.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="createListingConstraints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      What you expect
+                    </label>
+                    <textarea
+                      id="createListingConstraints"
+                      rows={4}
+                      maxLength={MAX_LISTING_TEXT_LENGTH}
+                      value={constraints}
+                      disabled={!isListed}
+                      onChange={(e) => setConstraints(e.target.value)}
+                      className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                    />
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">
+                      Posting pace, tone, safety expectations. Links become clickable. {MAX_LISTING_TEXT_LENGTH - constraints.length} characters left.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="createListingPrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Application prompt (optional)
+                    </label>
+                    <input
+                      id="createListingPrompt"
+                      type="text"
+                      maxLength={MAX_APPLICATION_PROMPT_LENGTH}
+                      value={applicationPrompt}
+                      disabled={!isListed}
+                      onChange={(e) => setApplicationPrompt(e.target.value)}
+                      placeholder="Why do you want to join?"
+                      className="bg-white dark:bg-gray-800 mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+                    />
+                  </div>
+
+                  <p className="rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                    Publicly listed and search-engine indexable. Only your description and expectations
+                    are shown publicly — never messages or player details.
+                  </p>
+                </div>
+
+                {missingListingCopy && (
+                  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    A listed channel needs both a description and constraints.
+                  </p>
                 )}
               </div>
 

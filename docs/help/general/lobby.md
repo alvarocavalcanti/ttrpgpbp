@@ -38,10 +38,12 @@ If a listing doesn't look right, **Report this listing** at the bottom of it sen
 
 Tap **Create a channel** (+) to start your own game. You'll be the Game Master. There's a limit to how many active channels each player can have — when you reach it, the create button explains why.
 
-Choose how the channel starts:
+Choose how the channel starts with the **List this game publicly** switch:
 
-- **Private — invite link only** — the default. Only people you send the invite link to can join.
-- **Listed — apply to join** — the game appears in Discover and on the public directory, with the **Description** and **What you expect** you write there, plus an optional question applicants answer. You approve or reject every application.
+- **Off** (the default) — private: only people you send the invite link to can join.
+- **On** — the game appears in Discover and on the public directory, with the **Description** and **What you expect** you write there, plus an optional question applicants answer. You approve or reject every application.
+
+Until you turn the switch on, the description, expectations and application question are greyed out — they are kept, so you can switch back and forth without losing them.
 
 You can move a channel between the two later from **Channel Settings → Listing**.
 

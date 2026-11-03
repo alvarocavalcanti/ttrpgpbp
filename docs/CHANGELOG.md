@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-03
+
+### Changed
+
+- **One switch lists your game** — the **Listing** tab now has a single **List this game publicly** switch instead of the old private/listed choice. While it's off, your description, what you expect and the application question stay exactly as you wrote them, greyed out with a line saying why, and the public game link only appears once the game is listed.
+- **Creating a game asks the same question** — the create dialog carries the same **List this game publicly** switch, so private and listed mean the same thing everywhere.
+- **Turning the listing off still asks first** — the "Remove this listing?" prompt stays, and it says how many open applications the removal will close.
+
+### Added
+
+- **Applications have their own tab** — games waiting on you now have an **Applications** tab with a count on it, so the queue is no longer buried under the listing copy. Nothing closes while you read: approving or rejecting updates the count and the list in place. On a phone each application stacks the player's name, their answer and when they applied above full-width **Approve** and **Reject** buttons.
+
+### Fixed
+
+- **A listing a server admin removed says so** — the switch is greyed out with the reason instead of letting you fill in the whole listing and only then refusing to save.
+
 ## 2026-11-02
 
 ### Changed
