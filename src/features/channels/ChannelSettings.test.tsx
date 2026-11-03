@@ -296,6 +296,21 @@ describe('ChannelSettings', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
+  it('clears the GM-only URL error as soon as the field is edited', () => {
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Resources')
+    fireEvent.change(screen.getByLabelText('GM-Only Resources URL'), { target: { value: 'https://' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+    expect(screen.getByText('Links must be a full web address starting with http:// or https://')).toBeVisible()
+
+    fireEvent.change(screen.getByLabelText('GM-Only Resources URL'), { target: { value: 'https://lorekeeper.app/gm' } })
+
+    expect(screen.queryByText('Links must be a full web address starting with http:// or https://')).not.toBeInTheDocument()
+  })
+
   it('opts out of native validation so a hidden panel cannot block Save', () => {
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
 
@@ -316,6 +331,43 @@ describe('ChannelSettings', () => {
     resolveSave({ error: null })
     await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Channel settings saved successfully', 'success'))
     expect(screen.getByLabelText('Channel Name')).toBeEnabled()
+  })
+
+  it('saves unrelated fields while the safety read is still pending', async () => {
+    let resolveRead!: (value: { data: unknown; error: unknown }) => void
+    const pending = new Promise(resolve => { resolveRead = resolve })
+    vi.mocked(supabase.from).mockImplementation((() => {
+      const chain: Record<string, unknown> = {}
+      chain.select = () => chain
+      chain.eq = () => chain
+      chain.order = () => Promise.resolve({ data: [], error: null })
+      chain.maybeSingle = () => pending
+      // eslint-disable-next-line unicorn/no-thenable
+      chain.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve)
+      return chain
+    }) as any)
+    const mockRpc = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+    openTab('Safety')
+    expect(screen.getByText('Loading safety tools…')).toBeInTheDocument()
+    // A stalled read must not block a General edit.
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled()
+
+    openTab('General')
+    fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledWith('update_channel_settings', expect.objectContaining({
+        p_name: 'Renamed',
+        p_safety_lines: undefined,
+        p_safety_veils: undefined,
+      }))
+    })
+    resolveRead({ data: null, error: null })
   })
 
   it('hydrates Veils even when Lines was edited before the read settled', async () => {
@@ -432,8 +484,8 @@ describe('ChannelSettings', () => {
     render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={mockOnUpdate} />, { wrapper: MemoryRouter })
 
     openTab('Safety')
-    // Save waits for the safety read so an edit made during it is not dropped.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled())
+    // Let the safety read settle, so the fields are part of the payload.
+    await waitFor(() => expect(screen.queryByText('Loading safety tools…')).not.toBeInTheDocument())
     fireEvent.change(screen.getByLabelText('Lines'), { target: { value: 'no gore' } })
     fireEvent.change(screen.getByLabelText('Veils'), { target: { value: 'romance' } })
     fireEvent.change(screen.getByLabelText('Safety Tools URL'), { target: { value: 'https://docs.google.com/doc' } })
