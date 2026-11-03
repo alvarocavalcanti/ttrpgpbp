@@ -58,7 +58,7 @@ interface ChannelSettingsProps {
 }
 
 const TAB_CLASS =
-  'min-h-11 shrink-0 whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500'
+  'inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500'
 const TAB_ACTIVE = 'bg-white text-primary-700 dark:bg-surface-800 dark:text-primary-300'
 const TAB_IDLE =
   'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
@@ -486,7 +486,7 @@ setIsSubmitting(true)
     >
       <div data-testid="settings-backdrop" className="fixed inset-0 bg-surface-500 bg-opacity-75 transition-opacity dark:bg-surface-900 dark:bg-opacity-80" aria-hidden="true" onClick={requestClose}></div>
 
-      <div className="relative flex h-full w-full flex-col overflow-hidden bg-white dark:bg-surface-800 sm:h-auto sm:max-h-[85vh] sm:max-w-3xl sm:rounded-lg sm:shadow-xl lg:max-w-5xl">
+      <div data-testid="settings-sheet" className="relative flex h-full w-full flex-col overflow-hidden bg-white dark:bg-surface-800 sm:h-[80dvh] sm:max-w-3xl sm:rounded-lg sm:shadow-xl lg:max-w-5xl">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-surface-200 px-4 py-3 dark:border-surface-700">
           <h3 className="text-lg leading-6 font-medium text-surface-900 dark:text-surface-100" id="modal-title">
             Channel Settings
@@ -1016,14 +1016,14 @@ setIsSubmitting(true)
               type="button"
               onClick={requestClose}
               disabled={isSubmitting}
-              className="inline-flex min-h-11 w-full justify-center rounded-md border border-surface-300 bg-white px-4 text-base font-medium text-surface-700 transition-colors hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700 sm:w-auto sm:text-sm"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-surface-300 bg-white px-4 text-base font-medium text-surface-700 transition-colors hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700 sm:w-auto sm:text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || pendingUpload !== null || !form.name.trim() || (safetyVisited && safetyLoading)}
-              className="inline-flex min-h-11 w-full justify-center rounded-md border border-transparent bg-primary-600 px-4 text-base font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:w-auto sm:text-sm"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 text-base font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:w-auto sm:text-sm"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>

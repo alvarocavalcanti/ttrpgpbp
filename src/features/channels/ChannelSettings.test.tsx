@@ -1141,6 +1141,24 @@ describe('ChannelSettings', () => {
       expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
     })
 
+    it('keeps the sheet height fixed so the chrome does not move', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      // Content-sized height made the vertically centred panel resize on every
+      // tab, dragging the tab strip and footer with it.
+      const sheet = screen.getByTestId('settings-sheet')
+      expect(sheet).toHaveClass('sm:h-[80dvh]')
+      expect(sheet).not.toHaveClass('sm:h-auto')
+    })
+
+    it('centres the footer button labels inside their touch target', () => {
+      render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
+
+      // Without items-center, min-h-11 leaves the label at the top of the box.
+      expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveClass('items-center')
+      expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('items-center')
+    })
+
     it('keeps the active tab in view', () => {
       render(<ChannelSettings channel={mockChannel} onClose={vi.fn()} onUpdate={vi.fn()} />, { wrapper: MemoryRouter })
       vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
