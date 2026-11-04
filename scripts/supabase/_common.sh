@@ -24,30 +24,67 @@ supabase_running() {
   [ -n "$($DOCKER_BIN ps -q --filter "label=com.supabase.cli.project=$PROJECT_ID")" ]
 }
 
-# Remove Supabase images no container references — i.e. the image set of a
-# previous CLI version. Must only be called while the stack is up: containers
-# then hold the current set, so anything else is superseded. `rmi -f` is
-# required because the CLI tags one image under both the ghcr and ecr
-# registries and Docker refuses a plain `rmi` on a multi-tagged image.
+# Remove *superseded* Supabase images: an image no container references whose
+# service the running stack does use (same repository, older tag) — i.e. what a
+# CLI upgrade leaves behind. Must only be called while the stack is up:
+# containers then hold the current set. `rmi -f` is required because the CLI
+# tags one image under both the ghcr and ecr registries and Docker refuses a
+# plain `rmi` on a multi-tagged image.
+#
+# Scoping by service name is deliberate. A bare "not referenced ⇒ remove" would
+# also delete images for a service this stack runs without (`supabase start -x`)
+# or a second Supabase project on the same daemon, forcing a multi-GB re-pull
+# on its next start. Services the running stack does not use are left alone.
 prune_supabase_images() {
+  if ! containers=$($DOCKER_BIN ps -aq); then
+    echo "Skipping Supabase image cleanup: could not list containers." >&2
+    return 0
+  fi
+
   keep_ids=""
-  for cid in $($DOCKER_BIN ps -aq); do
-    keep_ids="$keep_ids $($DOCKER_BIN inspect --format '{{.Image}}' "$cid" \
-      | sed 's/^sha256://' | cut -c1-12)"
-  done
+  if [ -n "$containers" ]; then
+    # One inspect for every container, not one per container. A failed inspect
+    # would leave an incomplete keep set — refuse to delete anything then.
+    # shellcheck disable=SC2086
+    if ! raw_ids=$($DOCKER_BIN inspect --format '{{.Image}}' $containers); then
+      echo "Skipping Supabase image cleanup: could not inspect containers." >&2
+      return 0
+    fi
+    keep_ids=$(printf '%s\n' "$raw_ids" | sed 's/^sha256://' | cut -c1-12 | sort -u)
+  fi
+
+  if ! listing=$($DOCKER_BIN image ls --format '{{.ID}}|{{.Repository}}'); then
+    echo "Skipping Supabase image cleanup: could not list images." >&2
+    return 0
+  fi
 
   # Only the two registries the CLI uses are matched. If the CLI ever switches
-  # registry again, unmatched images are left alone: prune degrades to
-  # doing nothing rather than risking an unrelated lookalike.
-  candidates=$($DOCKER_BIN image ls --format '{{.ID}}|{{.Repository}}' \
-    | grep -E '\|(public\.ecr\.aws/supabase/|ghcr\.io/supabase/)' | cut -d'|' -f1 | sort -u)
+  # registry again, unmatched images are left alone: prune degrades to doing
+  # nothing rather than risking an unrelated lookalike.
+  kept_services=""
+  candidates=""
+  for row in $listing; do
+    id=${row%%|*}
+    repo=${row#*|}
+    case "$repo" in
+      public.ecr.aws/supabase/* | ghcr.io/supabase/*) ;;
+      *) continue ;;
+    esac
+    service=${repo##*/}
+    if [ -n "$keep_ids" ] && printf '%s\n' $keep_ids | grep -qx "$id"; then
+      kept_services="$kept_services $service"
+    else
+      candidates="$candidates $id:$service"
+    fi
+  done
 
-  for id in $candidates; do
-    keep=0
-    for k in $keep_ids; do
-      [ "$id" = "$k" ] && keep=1 && break
-    done
-    [ "$keep" = 1 ] && continue
-    $DOCKER_BIN rmi -f "$id" >/dev/null 2>&1 || true
+  for candidate in $candidates; do
+    id=${candidate%%:*}
+    service=${candidate#*:}
+    case " $kept_services " in
+      *" $service "*)
+        $DOCKER_BIN rmi -f "$id" >/dev/null 2>&1 || true
+        ;;
+    esac
   done
 }

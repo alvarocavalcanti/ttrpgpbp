@@ -22,8 +22,17 @@ Deterministic start/stop/reset/prune for the local Supabase stack, wired into
 - **`supabase:prune` is guarded.** It refuses the image cleanup while the stack is
   down, because the current image set would look unused and the next start would
   re-pull several GB. While the stack is up, containers hold the images the CLI
-  needs and Docker refuses to remove them. Only unused (old-version) Supabase
-  images are removed; the untagged-layer pass is always safe.
+  needs and Docker refuses to remove them.
+- **Only superseded versions are removed, never a service the stack does not
+  run.** An image is a candidate only when nothing references it *and* the
+  running stack uses the same service under a newer tag. So a `supabase start -x
+  <service>` stack keeps the excluded service's image, and so does a second
+  Supabase project on the same Docker daemon whose services this project does
+  not run. (Two projects running *different versions of the same service* still
+  race for the tag: the older one is removed and re-pulled on its next start —
+  the price of bounding disk to one image set.) The untagged-layer pass is always
+  safe. A failed `docker ps`/`inspect` aborts the pass rather than deleting
+  against a half-read keep set.
 - **`supabase:down` runs that same image pass before stopping.** Stopping first
   would make the whole image set look unused, so the reclaim happens while the
   containers still pin what the current CLI needs. This is what keeps a CLI
