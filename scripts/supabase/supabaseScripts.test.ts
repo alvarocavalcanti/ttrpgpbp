@@ -60,7 +60,7 @@ describe('scripts/supabase', () => {
         'case "$*" in',
         '  ps\\ -aq*) printf \'%s\\n\' "${STUB_CONTAINER_IDS:-}"; exit 0 ;;',
         '  ps\\ -q*) [ -n "${STUB_CONTAINER:-}" ] && printf \'%s\\n\' "$STUB_CONTAINER"; exit 0 ;;',
-        '  inspect\\ *) printf \'sha256:%s\\n\' "${STUB_INSPECT_IMAGE:-}"; exit 0 ;;',
+        '  inspect\\ *) [ "${STUB_INSPECT_FAIL:-0}" = 1 ] && exit 1; printf \'sha256:%s\\n\' "${STUB_INSPECT_IMAGE:-}"; exit 0 ;;',
         '  image\\ ls*) printf \'%s\\n\' "${STUB_IMAGES:-}"; exit 0 ;;',
         'esac',
         'exit 0',
@@ -128,7 +128,7 @@ describe('scripts/supabase', () => {
     it('applies pending migrations so an already-running stack stays current', () => {
       run('up.sh', [], { STUB_STATUS_ENV: statusEnv })
 
-      expect(calls()).toContain('supabase migration up --local')
+      expect(calls()).toContain('supabase migration up\n')
     })
 
     it('leaves an existing .env.local untouched when a key is missing', () => {
@@ -176,17 +176,44 @@ describe('scripts/supabase', () => {
       expect(result.status).toBe(2)
       expect(result.stderr).toContain('usage:')
     })
+
+    it('reclaims superseded Supabase images before stopping', () => {
+      const keepId = 'a1a1a1a1a1a1'
+      run('down.sh', [], {
+        STUB_CONTAINER: 'abc123',
+        STUB_CONTAINER_IDS: 'abc123',
+        STUB_INSPECT_IMAGE: `${keepId}deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef`,
+        STUB_IMAGES: [
+          `${keepId}|public.ecr.aws/supabase/postgres`,
+          'b2b2b2b2b2b2|ghcr.io/supabase/postgres',
+        ].join('\n'),
+      })
+
+      const log = calls()
+      expect(log).toContain('docker rmi -f b2b2b2b2b2b2')
+      expect(log).not.toContain(`docker rmi -f ${keepId}`)
+      // Images must go before the stop: afterwards they all look unused.
+      expect(log.indexOf('docker rmi')).toBeLessThan(log.indexOf('supabase stop'))
+    })
+
+    it('leaves images alone when the stack is already down', () => {
+      run('down.sh', [])
+
+      expect(calls()).not.toContain('rmi')
+    })
   })
 
   describe('prune.sh', () => {
     const keepId = 'a1a1a1a1a1a1'
-    const unusedId = 'b2b2b2b2b2b2'
+    const staleId = 'b2b2b2b2b2b2'
+    const excludedServiceId = 'e5e5e5e5e5e5'
     const foreignId = 'c3c3c3c3c3c3'
     const lookalikeId = 'd4d4d4d4d4d4'
     const images = [
       `${keepId}|public.ecr.aws/supabase/postgres`,
       `${keepId}|ghcr.io/supabase/postgres`,
-      `${unusedId}|public.ecr.aws/supabase/studio`,
+      `${staleId}|public.ecr.aws/supabase/postgres`,
+      `${excludedServiceId}|public.ecr.aws/supabase/studio`,
       `${foreignId}|<none>`,
       `${foreignId}|us-docker.pkg.dev/wpe-art/ai-local-mcp/backstage-mcp-vertex-ai-search`,
       `${lookalikeId}|registry.example.com/supabase/app`,
@@ -201,7 +228,7 @@ describe('scripts/supabase', () => {
       expect(result.stderr).toContain('skipping Supabase image cleanup')
     })
 
-    it('removes only Supabase images no container references when the stack is up', () => {
+    it('removes a superseded version of a service the stack runs', () => {
       run('prune.sh', [], {
         STUB_CONTAINER: 'abc123',
         STUB_CONTAINER_IDS: 'abc123',
@@ -209,10 +236,36 @@ describe('scripts/supabase', () => {
         STUB_IMAGES: images,
       })
 
-      expect(calls()).toContain(`docker rmi -f ${unusedId}`)
+      expect(calls()).toContain(`docker rmi -f ${staleId}`)
       expect(calls()).not.toContain(`docker rmi -f ${keepId}`)
       expect(calls()).not.toContain(`docker rmi -f ${foreignId}`)
       expect(calls()).not.toContain(`docker rmi -f ${lookalikeId}`)
+    })
+
+    it('keeps images for a service this stack does not run', () => {
+      // `supabase start -x studio`, or a second project on the same daemon:
+      // nothing references studio, but deleting it would force a re-pull.
+      run('prune.sh', [], {
+        STUB_CONTAINER: 'abc123',
+        STUB_CONTAINER_IDS: 'abc123',
+        STUB_INSPECT_IMAGE: `${keepId}deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef`,
+        STUB_IMAGES: images,
+      })
+
+      expect(calls()).not.toContain(`docker rmi -f ${excludedServiceId}`)
+    })
+
+    it('deletes nothing when the container keep set cannot be read', () => {
+      const result = run('prune.sh', [], {
+        STUB_CONTAINER: 'abc123',
+        STUB_CONTAINER_IDS: 'abc123',
+        STUB_INSPECT_FAIL: '1',
+        STUB_IMAGES: images,
+      })
+
+      expect(result.status).toBe(0)
+      expect(result.stderr).toContain('could not inspect containers')
+      expect(calls()).not.toContain('rmi')
     })
   })
 

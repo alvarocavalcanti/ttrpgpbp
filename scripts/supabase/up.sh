@@ -19,7 +19,7 @@ fi
 # pending ones so `supabase:up` is deterministic; a no-op when up to date.
 echo "Applying pending migrations..."
 # shellcheck disable=SC2086
-$SUPABASE_BIN migration up --local
+$SUPABASE_BIN migration up
 
 # `status -o env` prints KEY="value". Values may contain '=' (JWTs), so slice on
 # the first '=' only and keep the remainder intact.

@@ -18,10 +18,17 @@ esac
 if [ "$purge" = 1 ]; then
   # Even with no container up this still deletes the data volumes, so it must
   # not be short-circuited like a plain stop. Exits 0 on an already-stopped stack.
+  if supabase_running; then
+    # Reclaim superseded image versions while the containers still pin the
+    # current set. After the stop every image looks unused, and a blind prune
+    # would make the next start re-pull several GB.
+    prune_supabase_images
+  fi
   echo "Stopping local Supabase stack and deleting data volumes..."
   # shellcheck disable=SC2086
   $SUPABASE_BIN stop --no-backup
 elif supabase_running; then
+  prune_supabase_images
   echo "Stopping local Supabase stack (data volumes kept)..."
   # shellcheck disable=SC2086
   $SUPABASE_BIN stop
