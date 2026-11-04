@@ -110,14 +110,19 @@ describe('dirtyKeys', () => {
 })
 
 describe('tabs', () => {
-  it('lists the four tabs in order with labels', () => {
-    expect(TAB_IDS).toEqual(['general', 'resources', 'safety', 'listing'])
+  it('lists the five tabs in order with labels', () => {
+    expect(TAB_IDS).toEqual(['general', 'resources', 'safety', 'listing', 'applications'])
     expect(TAB_LABELS).toEqual({
       general: 'General',
       resources: 'Resources',
       safety: 'Safety',
       listing: 'Listing',
+      applications: 'Applications',
     })
+  })
+
+  it('gives the applications tab no persisted field of its own', () => {
+    expect(TAB_FIELDS.applications).toEqual([])
   })
 
   it('places every form field in exactly one tab', () => {

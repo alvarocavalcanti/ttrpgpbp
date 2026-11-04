@@ -19,9 +19,9 @@ test.describe('Listed channel created up front, and the decision lands in the lo
     await gmPage.getByLabel('Channel Name').fill(channelName);
     await gmPage.getByLabel('Your GM Name').fill('Listed GM');
 
-    // The copy fields only exist once Listed is chosen.
-    await expect(gmPage.getByLabel('Description')).toHaveCount(0);
-    await gmPage.getByRole('button', { name: /Listed — apply to join/ }).click();
+    // The copy is on screen from the start but disabled until the switch is on.
+    await expect(gmPage.getByLabel('Description')).toBeDisabled();
+    await gmPage.getByRole('switch', { name: 'List this game publicly' }).click();
     await gmPage.getByLabel('Description').fill('A weekly campaign for E2E.');
     await gmPage.getByLabel('What you expect').fill('Post most weekdays.');
     await gmPage.getByRole('button', { name: /^Create$/ }).click();
@@ -50,8 +50,8 @@ test.describe('Listed channel created up front, and the decision lands in the lo
     // ── GM: approve from the channel ──────────────────────────────────────
     await gmPage.goto(channelUrl);
     await gmPage.getByTestId('sidebar-menu').getByRole('button', { name: /^Settings/ }).click();
-    // The join-request queue lives on the Listing tab (#772).
-    await gmPage.getByRole('tab', { name: 'Listing' }).click();
+    // The join-request queue lives on its own Applications tab (#773).
+    await gmPage.getByRole('tab', { name: /Applications/ }).click();
     await expect(gmPage.getByText('Join requests (1)')).toBeVisible();
     await gmPage.getByRole('button', { name: 'Approve' }).click();
     await expect(gmPage.getByText('Application approved')).toBeVisible();
@@ -85,7 +85,7 @@ test.describe('Listed channel created up front, and the decision lands in the lo
     await gmPage.locator('[data-testid="create-channel-fab"]').click();
     await gmPage.getByLabel('Channel Name').fill(channelName);
     await gmPage.getByLabel('Your GM Name').fill('Declining GM');
-    await gmPage.getByRole('button', { name: /Listed — apply to join/ }).click();
+    await gmPage.getByRole('switch', { name: 'List this game publicly' }).click();
     await gmPage.getByLabel('Description').fill('Another weekly campaign.');
     await gmPage.getByLabel('What you expect').fill('Be kind.');
     await gmPage.getByRole('button', { name: /^Create$/ }).click();
@@ -105,8 +105,8 @@ test.describe('Listed channel created up front, and the decision lands in the lo
 
     await gmPage.goto(channelUrl);
     await gmPage.getByTestId('sidebar-menu').getByRole('button', { name: /^Settings/ }).click();
-    // The join-request queue lives on the Listing tab (#772).
-    await gmPage.getByRole('tab', { name: 'Listing' }).click();
+    // The join-request queue lives on its own Applications tab (#773).
+    await gmPage.getByRole('tab', { name: /Applications/ }).click();
     await expect(gmPage.getByText('Join requests (1)')).toBeVisible();
     await gmPage.getByRole('button', { name: 'Reject' }).click();
     await expect(gmPage.getByText('Application rejected')).toBeVisible();

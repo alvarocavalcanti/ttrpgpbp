@@ -7,12 +7,13 @@ Everything the **GM** can do to run and manage a channel.
 
 ## Channel settings
 
-Open **Settings** from the channel sidebar. The settings are grouped into four tabs, with **Save Changes** always at the bottom of the window:
+Open **Settings** from the channel sidebar. The settings are grouped into tabs, with **Save Changes** always at the bottom of the window:
 
 - **General** — channel name (up to 80 characters), game system, password, avatar, the invite link, and **Advanced Actions** (export the chat, archive the channel)
 - **Resources** — Map, Resources, and GM resources URLs (up to 500 characters); the Map and Resources fields also offer **Upload image** buttons that store the image instead of pasting an external link
 - **Safety** — Safety Tools Doc URL (up to 500 characters) and Lines & Veils (up to 2,000 characters each)
-- **Listing** — list the channel so players can find it and apply (see below)
+- **Listing** — the **List this game publicly** switch and the listing copy (see below)
+- **Applications** — everyone waiting on a decision, with a count on the tab; it only appears while the channel is listed (see below)
 
 A dot next to a tab name marks settings on that tab you haven't saved yet. Closing the window with unsaved changes — with Escape, the × button, tapping outside, or **Cancel** — asks before discarding them, so an accidental close never loses an edit. Saving leaves the window open on the same tab with your values in place.
 
@@ -50,12 +51,14 @@ The GM can **archive** a channel, removing it from the main lobby. Archived chan
 
 ## Listing your game for new players
 
-The **Listing** tab of Channel **Settings** sets how the channel takes new players. A channel is either:
+The **Listing** tab of Channel **Settings** has one switch, **List this game publicly**:
 
-- **Private — invite link only** (the default), or
-- **Listed — apply to join**, which puts it in the lobby's **Discover** tab and on the public [/directory](/directory) page, where anyone can read its description.
+- **Off** — private, joined with an invite link only (the default).
+- **On** — the game appears in the lobby's **Discover** tab and on the public [/directory](/directory) page, where anyone can read its description.
 
-To list a game you must write a **Description** (what the game is about) and **What you expect** (posting pace, tone, safety expectations) — both up to 600 characters — and you can add an optional **application prompt** (up to 300 characters), the question applicants answer.
+While the switch is off, the listing fields stay on screen but greyed out, with a line explaining why: whatever you wrote is kept, so you can switch the game back to public later without retyping it.
+
+To list a game you must write a **Description** (what the game is about) and **What you expect** (posting pace, tone, safety expectations) — both up to 600 characters — and you can add an optional **application prompt** (up to 300 characters), the question applicants answer. Turning the switch on with either field empty shows what's missing and won't save until both are filled in.
 
 Listing a channel is public: the description and what you expect are shown to anyone, and search engines can index them. Messages and player details never are. Once a channel is listed, players apply and you decide.
 
@@ -65,15 +68,17 @@ A listed channel has a **public game link** you can post anywhere — Reddit, a 
 
 Web links you paste into the description or what you expect become tappable wherever the listing appears — players can open them in a new tab. Use full addresses (`https://example.com` or `www.example.com`); plain words are left alone.
 
-## Join requests
+## Applications
 
-Below the listing fields, **Join requests (N)** lists everyone waiting on you — their character name, their answer, and when they applied. **Approve** adds them as a member straight away (the name they gave becomes their character name) and **Reject** closes the application; either way they're notified. There's a count badge on the channel's **Settings** button and on the channel's row in the lobby, so a new application is visible without opening the channel.
+The **Applications** tab lists everyone waiting on you — their character name, their answer, and when they applied. It only appears while the game is listed, and a count on the tab tells you how many are waiting. On a phone each application stacks the player's name, their answer and when they applied above full-width **Approve** and **Reject** buttons.
+
+**Approve** adds them as a member straight away (the name they gave becomes their character name) and **Reject** closes the application; either way they're notified. Decisions land in the tab itself, so approving or rejecting updates the count and the list without closing the window. There's also a count badge on the channel's **Settings** button and on the channel's row in the lobby, so a new application is visible without opening the channel.
 
 Applications are one at a time: a player can't apply twice while a decision is pending, and the same applicant can't be approved twice.
 
 ## Removing a listing
 
-Switch back to **Private** to remove a listing. That closes any applications still open, and the game disappears from Discover and [/directory](/directory) — existing members keep playing normally. A server admin can also remove a listing; you can't re-list until they restore it.
+Switch the **List this game publicly** switch back off to remove a listing; it asks first, and — when the applications list has loaded — says how many open applications the removal will close. The game disappears from Discover and [/directory](/directory), and existing members keep playing normally. A server admin can also remove a listing; while it's removed the switch is greyed out and says the listing can't be relisted and who to contact, and you can't re-list until they restore it.
 
 ## Invites & privacy
 

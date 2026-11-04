@@ -199,33 +199,47 @@ describe('CreateChannelModal', () => {
     expect(passwordInput).toHaveAttribute('type', 'password')
   })
 
-  describe('listing at creation (#722)', () => {
-    it('starts private and hides the listing copy', () => {
+  describe('listing at creation (#722, #773)', () => {
+    const publicSwitch = () => screen.getByRole('switch', { name: 'List this game publicly' })
+
+    it('starts with one Public switch and the copy disabled', () => {
       renderModal()
 
-      expect(screen.getByRole('button', { name: /Private — invite link only/ })).toHaveAttribute('aria-pressed', 'true')
-      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
-      expect(screen.queryByLabelText('What you expect')).not.toBeInTheDocument()
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'false')
+      expect(screen.queryByRole('button', { name: /invite link only/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Listed — apply to join/ })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Description')).toBeDisabled()
+      expect(screen.getByLabelText('What you expect')).toBeDisabled()
+      expect(screen.getByLabelText('Application prompt (optional)')).toBeDisabled()
+      expect(screen.getByText(/to edit these/)).toBeInTheDocument()
+      expect(screen.queryByText(/Publicly listed and search-engine indexable/)).not.toBeInTheDocument()
     })
 
-    it('reveals the listing copy, capped to match the server', () => {
+    it('enables the listing copy, capped to match the server, when switched on', () => {
       renderModal()
 
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
 
+      expect(publicSwitch()).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByLabelText('Description')).toBeEnabled()
       expect(screen.getByLabelText('Description')).toHaveAttribute('maxlength', '600')
       expect(screen.getByLabelText('What you expect')).toHaveAttribute('maxlength', '600')
       expect(screen.getByLabelText('Application prompt (optional)')).toHaveAttribute('maxlength', '300')
+      expect(screen.getByText(/Publicly listed and search-engine indexable/)).toBeInTheDocument()
     })
 
     it('refuses a listed channel without description and constraints', async () => {
       renderModal()
 
       fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
+
+      // The rule is live: the GM sees why before pressing Create.
+      expect(screen.getByRole('alert')).toHaveTextContent('A listed channel needs both a description and constraints.')
+
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-      expect(await screen.findByText('A listed channel needs both a description and constraints.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled()
       expect(mockCreateChannel).not.toHaveBeenCalled()
     })
 
@@ -237,7 +251,7 @@ describe('CreateChannelModal', () => {
 
       // Listing refuses a password server-side: a listed channel is apply-only,
       // so the field goes away and its value is dropped (review of #722).
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
       expect(screen.queryByLabelText('Password (Optional)')).not.toBeInTheDocument()
 
       fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly campaign.' } })
@@ -252,10 +266,11 @@ describe('CreateChannelModal', () => {
       }))
     })
 
-    it('creates the channel listed in one RPC call and logs the publish', async () => {      renderModal()
+    it('creates the channel listed in one RPC call and logs the publish', async () => {
+      renderModal()
 
       fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
       fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly campaign.' } })
       fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
       fireEvent.change(screen.getByLabelText('Application prompt (optional)'), { target: { value: 'Why join?' } })
@@ -278,14 +293,20 @@ describe('CreateChannelModal', () => {
       expect(mockTrackEvent).toHaveBeenCalledWith('listing_publish', { game_system: 'none' })
     })
 
-    it('drops typed listing copy when switched back to private', async () => {
+    it('does not send typed listing copy when switched back to private', async () => {
       renderModal()
 
       fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
-      fireEvent.click(screen.getByRole('button', { name: /Listed — apply to join/ }))
+      fireEvent.click(publicSwitch())
       fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A weekly campaign.' } })
       fireEvent.change(screen.getByLabelText('What you expect'), { target: { value: 'Be kind.' } })
-      fireEvent.click(screen.getByRole('button', { name: /Private — invite link only/ }))
+      fireEvent.click(publicSwitch())
+
+      // The copy stays on screen (greyed out) so switching back loses nothing,
+      // but a private channel never sends it.
+      expect(screen.getByLabelText('Description')).toBeDisabled()
+      expect(screen.getByLabelText('Description')).toHaveValue('A weekly campaign.')
+
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
       await waitFor(() => expect(mockCreateChannel).toHaveBeenCalled())

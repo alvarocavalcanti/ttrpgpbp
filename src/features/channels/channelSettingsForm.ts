@@ -2,7 +2,7 @@ import type { Database } from '../../types/database'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 
-export type ChannelSettingsTab = 'general' | 'resources' | 'safety' | 'listing'
+export type ChannelSettingsTab = 'general' | 'resources' | 'safety' | 'listing' | 'applications'
 
 export interface ChannelSettingsForm {
   name: string
@@ -21,22 +21,25 @@ export interface ChannelSettingsForm {
   newPassword: string
 }
 
-export const TAB_IDS: ChannelSettingsTab[] = ['general', 'resources', 'safety', 'listing']
+export const TAB_IDS: ChannelSettingsTab[] = ['general', 'resources', 'safety', 'listing', 'applications']
 
 export const TAB_LABELS: Record<ChannelSettingsTab, string> = {
   general: 'General',
   resources: 'Resources',
   safety: 'Safety',
   listing: 'Listing',
+  applications: 'Applications',
 }
 
 // Every persisted key belongs to exactly one tab, so the dirty dot and the
-// validation jump can both resolve a field to the tab that shows it.
+// validation jump can both resolve a field to the tab that shows it. The
+// applications tab owns no persisted field: it renders the join-request queue.
 export const TAB_FIELDS: Record<ChannelSettingsTab, (keyof ChannelSettingsForm)[]> = {
   general: ['name', 'gameSystem', 'changePassword', 'newPassword'],
   resources: ['mapUrl', 'resourcesUrl', 'gmOnlyResourcesUrl'],
   safety: ['safetyToolsUrl', 'safetyLines', 'safetyVeils'],
   listing: ['joinMode', 'description', 'constraints', 'applicationPrompt'],
+  applications: [],
 }
 
 export function initialForm(channel: Channel, gmOnlyResourcesUrl: string | null): ChannelSettingsForm {
