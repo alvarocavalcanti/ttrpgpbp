@@ -344,10 +344,13 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     contentRef.current = result.value
     setContent(result.value)
     setMentionState(null)
+    // Focus inside the tap, not in the frame below: iOS only opens the soft
+    // keyboard for focus it sees as part of the gesture. The caret has to wait
+    // for React to commit the new value.
+    textareaRef.current?.focus()
     requestAnimationFrame(() => {
       const nextTa = textareaRef.current
       if (!nextTa) return
-      nextTa.focus()
       nextTa.setSelectionRange(result.selectionStart, result.selectionEnd)
     })
   }, [])

@@ -1452,6 +1452,8 @@ describe('MessageComposer', () => {
     expect(ta).not.toHaveFocus()
 
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
+    // Focused synchronously so iOS treats it as part of the tap.
+    expect(ta).toHaveFocus()
     await settleFrame()
 
     expect(ta.value).toBe('**bold**')

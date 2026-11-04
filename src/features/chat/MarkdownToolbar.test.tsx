@@ -72,4 +72,49 @@ describe('MarkdownToolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
     expect(onSubmit).not.toHaveBeenCalled()
   })
+
+  it('is one Tab stop and moves between buttons with the arrow keys', () => {
+    render(<MarkdownToolbar onApply={() => {}} />)
+    const toolbar = screen.getByRole('toolbar', { name: 'Text formatting' })
+    const buttons = Array.from(toolbar.querySelectorAll('button'))
+    expect(buttons.map(b => b.tabIndex)).toEqual([0, ...buttons.slice(1).map(() => -1)])
+
+    buttons[0].focus()
+    fireEvent.keyDown(buttons[0], { key: 'ArrowRight' })
+    expect(buttons[1]).toHaveFocus()
+    expect(buttons[1].tabIndex).toBe(0)
+    expect(buttons[0].tabIndex).toBe(-1)
+
+    fireEvent.keyDown(buttons[1], { key: 'ArrowLeft' })
+    expect(buttons[0]).toHaveFocus()
+
+    fireEvent.keyDown(buttons[0], { key: 'End' })
+    expect(buttons[buttons.length - 1]).toHaveFocus()
+    fireEvent.keyDown(buttons[buttons.length - 1], { key: 'Home' })
+    expect(buttons[0]).toHaveFocus()
+  })
+
+  it('wraps arrow navigation around the ends', () => {
+    render(<MarkdownToolbar onApply={() => {}} />)
+    const toolbar = screen.getByRole('toolbar', { name: 'Text formatting' })
+    const buttons = Array.from(toolbar.querySelectorAll('button'))
+    buttons[0].focus()
+    fireEvent.keyDown(buttons[0], { key: 'ArrowLeft' })
+    expect(buttons[buttons.length - 1]).toHaveFocus()
+    fireEvent.keyDown(buttons[buttons.length - 1], { key: 'ArrowRight' })
+    expect(buttons[0]).toHaveFocus()
+  })
+
+  it('collapses to a single Tab stop on narrow screens too', () => {
+    setViewport(true)
+    render(<MarkdownToolbar onApply={() => {}} />)
+    const buttons = Array.from(screen.getByRole('toolbar', { name: 'Text formatting' }).querySelectorAll('button'))
+    expect(buttons).toHaveLength(3)
+    expect(buttons.map(b => b.tabIndex)).toEqual([0, -1, -1])
+    buttons[0].focus()
+    fireEvent.keyDown(buttons[0], { key: 'ArrowRight' })
+    expect(buttons[1]).toHaveFocus()
+    expect(buttons[1]).toHaveAttribute('tabindex', '0')
+    expect(buttons[2]).toHaveAttribute('aria-haspopup', 'dialog')
+  })
 })
