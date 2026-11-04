@@ -154,7 +154,7 @@ The app is **mobile-first and desktop is a first-class target**: every user-faci
 
 > **Runtime**: dev and tests run on Node 26 (`nvm use`, see `.nvmrc`). CI pins the same major in `.github/workflows/ci.yml` — keep them in sync. Tests rebind `localStorage`/`sessionStorage` to jsdom's instances in `src/test/setup.ts`, so the suite works regardless of Node's own webstorage global.
 
-1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent), applies pending migrations and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept). **Always stop the stack when your work is done — never leave it running for someone else.** It is shared, so anyone who needs it starts it again with `supabase:up`.
+1. **Start Local DB:** `npm run supabase:up` — starts the stack (idempotent), applies pending migrations and writes `.env.local`. `npm run supabase:down` stops it when you are done (data volumes kept) and reclaims any Supabase images the stack does not reference, so a CLI upgrade does not strand the previous version's images on disk. **Always stop the stack when your work is done — never leave it running for someone else.** It is shared, so anyone who needs it starts it again with `supabase:up`.
 2. **Apply Migrations:** done by `npm run supabase:up`; use `npm run supabase:reset` to wipe volumes and re-apply every migration from scratch.
 3. **Start Dev Server:** `npm run dev`
 4. **Login Details:** If using local DB without Google Auth configured, use the Supabase Studio (<http://localhost:54323>) to create a mock user, or link your `.env.local` to the remote Supabase.
@@ -190,7 +190,7 @@ The app is **mobile-first and desktop is a first-class target**: every user-faci
 - **CI enforcement**:
   - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `scripts/git/check-migration-order.sh` first, then `supabase db start` + `supabase db reset`. A PR that breaks migrations or adds a migration that sorts at or before main's latest fails CI.
   - On merge to main, [.github/workflows/migrate.yml](.github/workflows/migrate.yml) runs `supabase db push` against the remote project. If it fails, fix via a new migration.
-  - The Supabase CLI version is pinned in both workflows to the latest release (`v2.117.0`). Keep the pin and your local `npx supabase` in sync — drift between CLI versions changes generated types and migration behavior (see below). Bump the pin together with `npx supabase` locally.
+  - The Supabase CLI version is pinned twice — `devDependencies.supabase` in [package.json](package.json) (currently `2.117.0`, which is what `npx supabase` resolves, so an `npx` cache miss can no longer silently upgrade it) and `supabase/setup-cli` in both workflows. Both pins must match: a newer CLI reformats the generated types wholesale, so CI's drift check fails on a version bump even when the schema is unchanged. To bump: change both, `npm install`, regenerate `src/types/database.ts`.
   - **`CREATE INDEX CONCURRENTLY` must be its own single-statement migration** — the CLI runs `db reset` as a pipeline, and concurrent index creation cannot run inside one. Give it a dedicated file (see `20260908170031_admin_user_details_sender_index.sql`, matching `20260905175441`).
 - **Troubleshooting**:
   - `supabase db reset` failing locally = migration depends on existing state. Fix before pushing.

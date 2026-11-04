@@ -128,7 +128,7 @@ describe('scripts/supabase', () => {
     it('applies pending migrations so an already-running stack stays current', () => {
       run('up.sh', [], { STUB_STATUS_ENV: statusEnv })
 
-      expect(calls()).toContain('supabase migration up --local')
+      expect(calls()).toContain('supabase migration up')
     })
 
     it('leaves an existing .env.local untouched when a key is missing', () => {
@@ -175,6 +175,31 @@ describe('scripts/supabase', () => {
 
       expect(result.status).toBe(2)
       expect(result.stderr).toContain('usage:')
+    })
+
+    it('reclaims superseded Supabase images before stopping', () => {
+      const keepId = 'a1a1a1a1a1a1'
+      run('down.sh', [], {
+        STUB_CONTAINER: 'abc123',
+        STUB_CONTAINER_IDS: 'abc123',
+        STUB_INSPECT_IMAGE: `${keepId}deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef`,
+        STUB_IMAGES: [
+          `${keepId}|public.ecr.aws/supabase/postgres`,
+          'b2b2b2b2b2b2|ghcr.io/supabase/postgres',
+        ].join('\n'),
+      })
+
+      const log = calls()
+      expect(log).toContain('docker rmi -f b2b2b2b2b2b2')
+      expect(log).not.toContain(`docker rmi -f ${keepId}`)
+      // Images must go before the stop: afterwards they all look unused.
+      expect(log.indexOf('docker rmi')).toBeLessThan(log.indexOf('supabase stop'))
+    })
+
+    it('leaves images alone when the stack is already down', () => {
+      run('down.sh', [])
+
+      expect(calls()).not.toContain('rmi')
     })
   })
 
