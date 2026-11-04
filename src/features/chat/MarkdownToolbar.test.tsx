@@ -62,21 +62,6 @@ describe('MarkdownToolbar', () => {
     expect(onApply).toHaveBeenCalledWith('bold')
   })
 
-  it('renders nothing when hidden', () => {
-    const { container } = render(<MarkdownToolbar onApply={() => {}} hidden />)
-    expect(container.firstChild).toBeNull()
-  })
-
-  it('keeps an open sheet mounted when hidden (focus moved into the sheet)', () => {
-    const { rerender } = render(<MarkdownToolbar onApply={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown cheat sheet' }))
-    expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
-    // Simulate the textarea blur that follows focus moving into the sheet.
-    rerender(<MarkdownToolbar onApply={() => {}} hidden />)
-    expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
-    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
-  })
-
   it('toolbar buttons do not submit a surrounding form', () => {
     const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault())
     render(

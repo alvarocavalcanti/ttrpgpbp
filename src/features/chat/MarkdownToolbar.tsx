@@ -20,7 +20,6 @@ import type { MarkdownFormat } from './markdownFormat'
 
 interface MarkdownToolbarProps {
   onApply: (format: MarkdownFormat) => void
-  hidden?: boolean
 }
 
 interface ToolDef {
@@ -48,15 +47,10 @@ const TOOLS: ToolDef[] = [
 const btnClass =
   'p-2 text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500'
 
-export function MarkdownToolbar({ onApply, hidden }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ onApply }: MarkdownToolbarProps) {
   const [cheatOpen, setCheatOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const isNarrow = useMediaQuery('(max-width: 640px)')
-
-  // Sheets live outside the toolbar row: opening one moves focus into the
-  // sheet (blur), which must not unmount the open sheet with it.
-  const sheetOpen = cheatOpen || menuOpen
-  if (hidden && !sheetOpen) return null
 
   const cheatButton = (
     <button
@@ -88,8 +82,7 @@ export function MarkdownToolbar({ onApply, hidden }: MarkdownToolbarProps) {
 
   return (
     <>
-      {!hidden && (
-      <div role="toolbar" aria-label="Text formatting" className="flex items-center justify-end gap-0.5 px-2 sm:px-0">
+      <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5 px-2 py-1">
         {cheatButton}
         {!isNarrow && toolButtons}
         {isNarrow && (
@@ -119,7 +112,6 @@ export function MarkdownToolbar({ onApply, hidden }: MarkdownToolbarProps) {
           </>
         )}
       </div>
-      )}
       {menuOpen && (
         <BottomSheet title="Formatting" onClose={() => setMenuOpen(false)}>
           <div className="flex flex-col">

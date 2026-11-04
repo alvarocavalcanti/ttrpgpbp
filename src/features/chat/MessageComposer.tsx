@@ -145,7 +145,6 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   }, [capabilities.allow_scenes, capabilities.allow_npc, capabilities.allow_whispers])
   const dragDepth = useRef(0)
   const [isExpanded, setIsExpanded] = useState(false)
-  const [isEditorFocused, setIsEditorFocused] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const listboxId = useId()
@@ -181,10 +180,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     setNpcSuggestionsDismissed(true)
   }
 
-  // Auto-resize textarea. The element is border-box with a 1px border, so a
-  // height of exactly scrollHeight leaves it ~2px short and every browser draws
-  // a scrollbar (#722) — add the border back in, and only allow scrolling once
-  // the cap binds.
+  // Auto-resize textarea. The shell carries the border, so this borderless
+  // textarea's offsetHeight/clientHeight differ by 0; the delta is kept because
+  // a height of exactly scrollHeight leaves a bordered box short and every
+  // browser draws a scrollbar (#722). Only allow scrolling once the cap binds.
   const resizeComposer = useCallback(() => {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -960,78 +959,18 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             </div>
           )}
 
-          <div className="flex items-end space-x-2 relative">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="mb-1 p-3 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
-              aria-label="Toggle options"
-            >
-              <svg className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-45 text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+          <div className="relative">
             <div
-              className="relative flex-1"
-              onBlur={(e) => {
-                // Keyboard users Shift+Tab from the textarea into the toolbar:
-                // keep it mounted while focus stays inside this region, hide
-                // only when focus leaves it entirely.
-                if (e.currentTarget.contains(e.relatedTarget as Node)) return
-                setIsEditorFocused(false)
-              }}
+              data-testid="composer-shell"
+              className={`flex flex-col rounded-2xl border border-gray-300 dark:border-gray-600 shadow-sm transition-colors focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
             >
-              <MarkdownToolbar onApply={applyFormat} hidden={!isEditorFocused || mentionOpen || npcSuggestionsOpen} />
-              {(showAllMention || matchedMembers.length > 0) && (
-                <div id={listboxId} role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {showAllMention && (
-                    <button
-                      type="button"
-                      role="option"
-                      id={`${listboxId}-option-0`}
-                      aria-selected={activeMentionIndex === 0}
-                      onMouseDown={(e) => { e.preventDefault(); selectMention('all') }}
-                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
-                    >
-                      <span className="font-medium text-gray-900 dark:text-gray-100">@all</span>
-                      <span className="text-xs text-gray-400 dark:text-gray-400">All players</span>
-                    </button>
-                  )}
-                  {matchedMembers.map((m, i) => {
-                    const active = activeMentionIndex === memberStartIndex + i
-                    // Channel portrait → account picture → initial (#743).
-                    const avatarSrc = m.character_avatar_url || m.profile?.avatar_url || ''
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        role="option"
-                        id={`${listboxId}-option-${memberStartIndex + i}`}
-                        aria-selected={active}
-                        onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
-                        className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
-                      >
-                        {avatarSrc ? (
-                          <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={avatarSrc} alt="" referrerPolicy="no-referrer" />
-                        ) : (
-                          <span className="h-5 w-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[0.6rem] font-medium text-indigo-500 dark:text-indigo-400 flex-shrink-0">
-                            {(m.character_name[0] || '?').toUpperCase()}
-                          </span>
-                        )}
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{m.character_name}</span>
-                        {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-400">({m.profile.display_name})</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+              <MarkdownToolbar onApply={applyFormat} />
               <textarea
                 ref={textareaRef}
                 value={content}
                 onChange={handleChange}
                 maxLength={MAX_MESSAGE_LENGTH}
                 onKeyDown={handleKeyDown}
-                onFocus={() => setIsEditorFocused(true)}
                 role="combobox"
                 aria-autocomplete={mentionOpen ? 'list' : undefined}
                 aria-expanded={mentionOpen}
@@ -1039,21 +978,77 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                 aria-activedescendant={mentionOpen ? `${listboxId}-option-${Math.min(activeMentionIndex, mentionOptions.length - 1)}` : undefined}
                 aria-label="Message"
                 placeholder={`Message #${roomName ?? 'room'}`}
-                className={`block w-full text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-none py-3 px-4 ${isScene || isNpc ? 'bg-parchment dark:bg-parchment-dark font-serif' : whisperTo ? 'bg-purple-50 dark:bg-purple-950' : 'bg-white dark:bg-gray-800'}`}
+                className={`block w-full border-0 bg-transparent text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-0 sm:text-sm resize-none py-2 px-4 ${isScene || isNpc ? 'font-serif' : ''}`}
                 rows={1}
               />
+              <div className="flex items-center gap-1 px-1.5 pb-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="p-3 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
+                  aria-label="Toggle options"
+                >
+                  <svg className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-45 text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+                <div className="flex-1" />
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !content.trim()}
+                  className="p-3 flex-shrink-0 inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
+                  aria-label="Send"
+                  title={`Send (${isMac ? '⌘' : 'Ctrl'} + Enter)`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <button
-              type="submit"
-              disabled={isSubmitting || !content.trim()}
-              className="mb-1 p-3 flex-shrink-0 inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
-              aria-label="Send"
-              title={`Send (${isMac ? '⌘' : 'Ctrl'} + Enter)`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
+            {(showAllMention || matchedMembers.length > 0) && (
+              <div id={listboxId} role="listbox" aria-label="Mention options" className="absolute bottom-full mb-1 left-0 right-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {showAllMention && (
+                  <button
+                    type="button"
+                    role="option"
+                    id={`${listboxId}-option-0`}
+                    aria-selected={activeMentionIndex === 0}
+                    onMouseDown={(e) => { e.preventDefault(); selectMention('all') }}
+                    className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${activeMentionIndex === 0 ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
+                  >
+                    <span className="font-medium text-gray-900 dark:text-gray-100">@all</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-400">All players</span>
+                  </button>
+                )}
+                {matchedMembers.map((m, i) => {
+                  const active = activeMentionIndex === memberStartIndex + i
+                  // Channel portrait → account picture → initial (#743).
+                  const avatarSrc = m.character_avatar_url || m.profile?.avatar_url || ''
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="option"
+                      id={`${listboxId}-option-${memberStartIndex + i}`}
+                      aria-selected={active}
+                      onMouseDown={(e) => { e.preventDefault(); selectMention(m.character_name) }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 ${active ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}
+                    >
+                      {avatarSrc ? (
+                        <Avatar className="h-5 w-5 rounded-full flex-shrink-0" src={avatarSrc} alt="" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="h-5 w-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[0.6rem] font-medium text-indigo-500 dark:text-indigo-400 flex-shrink-0">
+                          {(m.character_name[0] || '?').toUpperCase()}
+                        </span>
+                      )}
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{m.character_name}</span>
+                      {m.profile?.display_name && <span className="text-xs text-gray-400 dark:text-gray-400">({m.profile.display_name})</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </form>
