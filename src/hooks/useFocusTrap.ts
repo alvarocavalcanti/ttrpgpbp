@@ -75,10 +75,17 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, enable
     window.addEventListener('keydown', handler)
     return () => {
       window.removeEventListener('keydown', handler)
-      // preventScroll matches the open path above: a trigger inside an
-      // off-screen drawer (closed for a modal) would otherwise scroll the
-      // overflow-hidden root into view, making the drawer look re-opened (#731).
-      previouslyFocused?.focus({ preventScroll: true })
+      // Hand focus back only when it is still ours to give: it fell back to the
+      // page (dialog removed under a focused control, Escape) or never left.
+      // A control that took focus on purpose — the composer applying a format —
+      // keeps it instead of losing it to the trigger.
+      const active = document.activeElement
+      if (!active || active === document.body || container.contains(active)) {
+        // preventScroll matches the open path above: a trigger inside an
+        // off-screen drawer (closed for a modal) would otherwise scroll the
+        // overflow-hidden root into view, making the drawer look re-opened (#731).
+        previouslyFocused?.focus({ preventScroll: true })
+      }
     }
   }, [containerRef, enabled])
 }

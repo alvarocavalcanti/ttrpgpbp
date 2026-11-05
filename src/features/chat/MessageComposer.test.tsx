@@ -1506,6 +1506,22 @@ describe('MessageComposer', () => {
     expect(ta.value).toBe('*hi*')
   })
 
+  it('keeps focus in the message box after a format from the overflow sheet', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'hi' } })
+    ta.setSelectionRange(0, 2)
+    // Keyboard path: the three-dot button holds focus when the sheet opens, so
+    // the trap's teardown is what used to pull focus back out of the box.
+    const more = screen.getByRole('button', { name: 'More formatting options' })
+    more.focus()
+    fireEvent.click(more)
+    fireEvent.click(screen.getByRole('button', { name: 'Italic' }))
+    expect(ta).toHaveFocus()
+    expect(more).not.toHaveFocus()
+  })
+
   it('keeps the cheat sheet open when focus moves into it', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
