@@ -62,21 +62,6 @@ describe('MarkdownToolbar', () => {
     expect(onApply).toHaveBeenCalledWith('bold')
   })
 
-  it('renders nothing when hidden', () => {
-    const { container } = render(<MarkdownToolbar onApply={() => {}} hidden />)
-    expect(container.firstChild).toBeNull()
-  })
-
-  it('keeps an open sheet mounted when hidden (focus moved into the sheet)', () => {
-    const { rerender } = render(<MarkdownToolbar onApply={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown cheat sheet' }))
-    expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
-    // Simulate the textarea blur that follows focus moving into the sheet.
-    rerender(<MarkdownToolbar onApply={() => {}} hidden />)
-    expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
-    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
-  })
-
   it('toolbar buttons do not submit a surrounding form', () => {
     const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault())
     render(
@@ -86,5 +71,50 @@ describe('MarkdownToolbar', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('is one Tab stop and moves between buttons with the arrow keys', () => {
+    render(<MarkdownToolbar onApply={() => {}} />)
+    const toolbar = screen.getByRole('toolbar', { name: 'Text formatting' })
+    const buttons = Array.from(toolbar.querySelectorAll('button'))
+    expect(buttons.map(b => b.tabIndex)).toEqual([0, ...buttons.slice(1).map(() => -1)])
+
+    buttons[0].focus()
+    fireEvent.keyDown(buttons[0], { key: 'ArrowRight' })
+    expect(buttons[1]).toHaveFocus()
+    expect(buttons[1].tabIndex).toBe(0)
+    expect(buttons[0].tabIndex).toBe(-1)
+
+    fireEvent.keyDown(buttons[1], { key: 'ArrowLeft' })
+    expect(buttons[0]).toHaveFocus()
+
+    fireEvent.keyDown(buttons[0], { key: 'End' })
+    expect(buttons[buttons.length - 1]).toHaveFocus()
+    fireEvent.keyDown(buttons[buttons.length - 1], { key: 'Home' })
+    expect(buttons[0]).toHaveFocus()
+  })
+
+  it('wraps arrow navigation around the ends', () => {
+    render(<MarkdownToolbar onApply={() => {}} />)
+    const toolbar = screen.getByRole('toolbar', { name: 'Text formatting' })
+    const buttons = Array.from(toolbar.querySelectorAll('button'))
+    buttons[0].focus()
+    fireEvent.keyDown(buttons[0], { key: 'ArrowLeft' })
+    expect(buttons[buttons.length - 1]).toHaveFocus()
+    fireEvent.keyDown(buttons[buttons.length - 1], { key: 'ArrowRight' })
+    expect(buttons[0]).toHaveFocus()
+  })
+
+  it('collapses to a single Tab stop on narrow screens too', () => {
+    setViewport(true)
+    render(<MarkdownToolbar onApply={() => {}} />)
+    const buttons = Array.from(screen.getByRole('toolbar', { name: 'Text formatting' }).querySelectorAll('button'))
+    expect(buttons).toHaveLength(3)
+    expect(buttons.map(b => b.tabIndex)).toEqual([0, -1, -1])
+    buttons[0].focus()
+    fireEvent.keyDown(buttons[0], { key: 'ArrowRight' })
+    expect(buttons[1]).toHaveFocus()
+    expect(buttons[1]).toHaveAttribute('tabindex', '0')
+    expect(buttons[2]).toHaveAttribute('aria-haspopup', 'dialog')
   })
 })

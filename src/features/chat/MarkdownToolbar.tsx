@@ -20,7 +20,6 @@ import type { MarkdownFormat } from './markdownFormat'
 
 interface MarkdownToolbarProps {
   onApply: (format: MarkdownFormat) => void
-  hidden?: boolean
 }
 
 interface ToolDef {
@@ -48,78 +47,71 @@ const TOOLS: ToolDef[] = [
 const btnClass =
   'p-2 text-surface-500 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500'
 
-export function MarkdownToolbar({ onApply, hidden }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ onApply }: MarkdownToolbarProps) {
   const [cheatOpen, setCheatOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [focusIndex, setFocusIndex] = useState(0)
   const isNarrow = useMediaQuery('(max-width: 640px)')
 
-  // Sheets live outside the toolbar row: opening one moves focus into the
-  // sheet (blur), which must not unmount the open sheet with it.
-  const sheetOpen = cheatOpen || menuOpen
-  if (hidden && !sheetOpen) return null
+  const boldTool = TOOLS[0]
+  // One flat list for both layouts: the roving tabindex needs a single order.
+  const actions = [
+    {
+      key: 'cheat-sheet',
+      label: 'Markdown cheat sheet',
+      title: 'Markdown cheat sheet',
+      icon: <CircleHelp className="w-5 h-5" />,
+      select: () => setCheatOpen(true),
+    },
+    ...(isNarrow
+      ? [
+          { key: boldTool.format, label: boldTool.label, title: boldTool.title, icon: boldTool.icon, select: () => onApply(boldTool.format) },
+          { key: 'more', label: 'More formatting options', title: 'More formatting options', icon: <Ellipsis className="w-5 h-5" />, select: () => setMenuOpen(true) },
+        ]
+      : TOOLS.map((t) => ({ key: t.format, label: t.label, title: t.title, icon: t.icon, select: () => onApply(t.format) }))),
+  ]
+  // A resized window can shrink the list under a stale index.
+  const activeIndex = Math.min(focusIndex, actions.length - 1)
 
-  const cheatButton = (
-    <button
-      key="cheat-sheet"
-      type="button"
-      aria-label="Markdown cheat sheet"
-      title="Markdown cheat sheet"
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => setCheatOpen(true)}
-      className={btnClass}
-    >
-      <CircleHelp className="w-5 h-5" />
-    </button>
-  )
-
-  const toolButtons = TOOLS.map((t) => (
-    <button
-      key={t.format}
-      type="button"
-      aria-label={t.label}
-      title={t.title}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => onApply(t.format)}
-      className={btnClass}
-    >
-      {t.icon}
-    </button>
-  ))
+  // Roving tabindex: toolbar is one Tab stop, arrows move between its buttons.
+  const handleToolbarKeys = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    if (!step && e.key !== 'Home' && e.key !== 'End') return
+    const toolbar = e.currentTarget.closest('[role="toolbar"]')
+    if (!toolbar) return
+    const buttons = Array.from(toolbar.querySelectorAll<HTMLButtonElement>('button'))
+    if (buttons.length === 0) return
+    e.preventDefault()
+    const current = buttons.indexOf(e.currentTarget)
+    const next =
+      e.key === 'Home' ? 0
+        : e.key === 'End' ? buttons.length - 1
+          : (current + step + buttons.length) % buttons.length
+    buttons[next]?.focus()
+  }
 
   return (
     <>
-      {!hidden && (
-      <div role="toolbar" aria-label="Text formatting" className="flex items-center justify-end gap-0.5 px-2 sm:px-0">
-        {cheatButton}
-        {!isNarrow && toolButtons}
-        {isNarrow && (
-          <>
-            <button
-              type="button"
-              aria-label={TOOLS[0].label}
-              title={TOOLS[0].title}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onApply(TOOLS[0].format)}
-              className={btnClass}
-            >
-              {TOOLS[0].icon}
-            </button>
-            <button
-              type="button"
-              aria-label="More formatting options"
-            aria-haspopup="dialog"
-            aria-expanded={menuOpen}
-            title="More formatting options"
+      <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5 px-2 py-1">
+        {actions.map((a, i) => (
+          <button
+            key={a.key}
+            type="button"
+            aria-label={a.label}
+            title={a.title}
+            tabIndex={i === activeIndex ? 0 : -1}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setMenuOpen(true)}
+            onClick={a.select}
+            onFocus={() => setFocusIndex(i)}
+            onKeyDown={handleToolbarKeys}
+            aria-haspopup={a.key === 'more' ? 'dialog' : undefined}
+            aria-expanded={a.key === 'more' ? menuOpen : undefined}
             className={btnClass}
           >
-            <Ellipsis className="w-5 h-5" />
-            </button>
-          </>
-        )}
+            {a.icon}
+          </button>
+        ))}
       </div>
-      )}
       {menuOpen && (
         <BottomSheet title="Formatting" onClose={() => setMenuOpen(false)}>
           <div className="flex flex-col">

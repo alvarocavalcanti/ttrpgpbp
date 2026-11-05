@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MessageComposer } from './MessageComposer'
 import { useImageUpload } from '../../hooks/useImageUpload'
@@ -1217,13 +1217,13 @@ describe('MessageComposer', () => {
     fireEvent.click(screen.getByLabelText('Toggle options'))
 
     const messageInput = screen.getByRole('combobox', { name: 'Message' })
-    expect(messageInput).toHaveClass('dark:bg-gray-800')
+    expect(screen.getByTestId('composer-shell')).toHaveClass('dark:bg-gray-800')
     expect(messageInput).toHaveClass('text-gray-900')
     expect(messageInput).toHaveClass('dark:text-gray-100')
     expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
-    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveClass('dark:bg-parchment-dark')
+    expect(screen.getByTestId('composer-shell')).toHaveClass('dark:bg-parchment-dark')
   })
 
   it('keeps the typed message text visible on dark backgrounds', () => {
@@ -1416,13 +1416,13 @@ describe('MessageComposer', () => {
     })
   })
 
-  it('shows the formatting toolbar only while the message box is focused', () => {
+  it('shows the formatting toolbar without focusing the message box', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
-    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
     fireEvent.focus(screen.getByRole('combobox', { name: 'Message' }))
     expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
     fireEvent.blur(screen.getByRole('combobox', { name: 'Message' }))
-    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
   })
 
   it('applies bold to the selected text and persists the draft', () => {
@@ -1436,14 +1436,50 @@ describe('MessageComposer', () => {
     expect(localStorage.getItem('composer_draft_c1')).toBe('**hello**')
   })
 
-  it('hides the toolbar while the mention listbox is open', () => {
+  it('keeps the toolbar visible while the mention listbox is open', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
     fireEvent.focus(ta)
     expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
     fireEvent.change(ta, { target: { value: '@He' } })
     expect(screen.getByRole('listbox', { name: 'Mention options' })).toBeInTheDocument()
-    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
+  })
+
+  it('applies a format straight from the always-visible bar without focusing first', async () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    expect(ta).not.toHaveFocus()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
+    // Focused synchronously so iOS treats it as part of the tap.
+    expect(ta).toHaveFocus()
+    await settleFrame()
+
+    expect(ta.value).toBe('**bold**')
+    expect(ta).toHaveFocus()
+  })
+
+  it('keeps the formatting bar, options toggle and send button inside the composer shell', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const shell = screen.getByTestId('composer-shell')
+    expect(within(shell).getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
+    expect(within(shell).getByRole('combobox', { name: 'Message' })).toBeInTheDocument()
+    expect(within(shell).getByRole('button', { name: 'Toggle options' })).toBeInTheDocument()
+    expect(within(shell).getByRole('button', { name: 'Send' })).toBeInTheDocument()
+  })
+
+  it('puts the focus highlight on the composer shell, not the message box', () => {
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    expect(screen.getByTestId('composer-shell').className).toContain('focus-within:border-indigo-500')
+    expect(screen.getByRole('combobox', { name: 'Message' }).className).not.toContain('border-gray-300')
+  })
+
+  it('tints the whole composer shell in scene mode', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    expect(screen.getByTestId('composer-shell').className).toContain('bg-parchment')
   })
 
   it('refuses a format that would exceed the message limit', () => {
@@ -1470,6 +1506,22 @@ describe('MessageComposer', () => {
     expect(ta.value).toBe('*hi*')
   })
 
+  it('keeps focus in the message box after a format from the overflow sheet', () => {
+    setMobileViewport()
+    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'hi' } })
+    ta.setSelectionRange(0, 2)
+    // Keyboard path: the three-dot button holds focus when the sheet opens, so
+    // the trap's teardown is what used to pull focus back out of the box.
+    const more = screen.getByRole('button', { name: 'More formatting options' })
+    more.focus()
+    fireEvent.click(more)
+    fireEvent.click(screen.getByRole('button', { name: 'Italic' }))
+    expect(ta).toHaveFocus()
+    expect(more).not.toHaveFocus()
+  })
+
   it('keeps the cheat sheet open when focus moves into it', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
@@ -1478,24 +1530,6 @@ describe('MessageComposer', () => {
     expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
     fireEvent.blur(ta)
     expect(screen.getByRole('dialog', { name: 'Markdown cheat sheet' })).toBeInTheDocument()
-  })
-
-  it('keeps the toolbar mounted when focus moves into it via Shift+Tab', () => {
-    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
-    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
-    fireEvent.focus(ta)
-    const bold = screen.getByRole('button', { name: 'Bold' })
-    fireEvent.blur(ta, { relatedTarget: bold })
-    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
-  })
-
-  it('hides the toolbar when focus leaves the editor region', () => {
-    render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
-    const ta = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
-    fireEvent.focus(ta)
-    expect(screen.getByRole('toolbar', { name: 'Text formatting' })).toBeInTheDocument()
-    fireEvent.blur(ta, { relatedTarget: document.body })
-    expect(screen.queryByRole('toolbar', { name: 'Text formatting' })).not.toBeInTheDocument()
   })
 })
 
