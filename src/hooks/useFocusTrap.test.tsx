@@ -121,6 +121,36 @@ describe('useFocusTrap', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('leaves focus alone when it moved outside the dialog before closing', () => {
+    // Regression: the composer's formatting sheet applies a format, which
+    // focuses the textarea on purpose, then closes. Restoring the trigger on
+    // teardown would take focus back out of the message box.
+    function Wrapper({ open }: { open: boolean }) {
+      const ref = useRef<HTMLDivElement>(null)
+      useFocusTrap(ref)
+      return (
+        <div>
+          <button type="button">Trigger</button>
+          <button type="button">Elsewhere</button>
+          {open && (
+            <div ref={ref} role="dialog">
+              <button type="button">First</button>
+            </div>
+          )}
+        </div>
+      )
+    }
+    const { getByRole, rerender } = render(<Wrapper open={false} />)
+    const trigger = getByRole('button', { name: 'Trigger' })
+    trigger.focus()
+    rerender(<Wrapper open />)
+    const elsewhere = getByRole('button', { name: 'Elsewhere' })
+    elsewhere.focus()
+    rerender(<Wrapper open={false} />)
+    expect(elsewhere).toHaveFocus()
+    expect(trigger).not.toHaveFocus()
+  })
+
   it('restores focus without scrolling ancestors (#731)', () => {
     function Drawer({ open }: { open: boolean }) {
       const ref = useRef<HTMLDivElement>(null)

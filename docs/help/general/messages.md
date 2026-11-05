@@ -15,7 +15,7 @@ Scene and NPC text is set in an easy-reading serif typeface, sized to read comfo
 
 Messages support **Markdown** and emoji. Bold, italics, lists, headings and code all work. URLs you post become clickable links. Pressing Enter starts a new line, and a blank line starts a new paragraph.
 
-Tapping into the message box shows a formatting toolbar at the top right with one-tap buttons for bold, italics, lists, quotes, code and spoilers. The left-most button opens a Markdown cheat sheet. On a phone Bold stays out and the rest tuck behind a three-dot menu, and the toolbar hides while mention or NPC suggestions are open.
+The message box carries its formatting bar along the top edge, left-aligned, with one-tap buttons for bold, italics, lists, quotes, code and spoilers. The first button opens a Markdown cheat sheet. The bar is visible as soon as you open the channel, and the **+** options and **Send** sit inside the same box below the text. On a phone Bold stays out and the rest tuck behind a three-dot menu.
 
 You can also type the markers: `*`, `**`, `~~` and a backtick close themselves as you type, so the cursor stays inside and you never have to arrow back. Typing over a closing marker you already have steps past it instead of doubling it. This works the same with a phone keyboard, except on keyboards that swap in whole words as you type — there the marker is left exactly as typed.
 

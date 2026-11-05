@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-04
+
+### Changed
+
+- **The message box is one piece now** — the formatting bar sits along the top of the box, left-aligned, and is visible as soon as you open the channel. The **+** options and **Send** moved inside the same box underneath the text, so the composer no longer jumps or leaves an empty strip when the bar appears. On a phone, Bold stays out and the rest tuck behind the three-dot menu.
+
 ## 2026-11-03
 
 ### Changed
