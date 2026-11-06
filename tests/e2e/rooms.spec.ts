@@ -29,10 +29,11 @@ test.describe('Rooms', () => {
     await expect(page).toHaveURL(/\/channel\/.+/);
     await expect(page.getByRole('heading', { name: channelName })).toBeVisible();
 
-    // GM Tools → Rooms → create "OOC". The sidebar is sticky on desktop.
-    await page.getByTestId('sidebar-menu').getByRole('button', { name: 'Rooms', exact: true }).click();
-    await page.getByLabel('New room').fill('OOC');
-    await page.getByRole('button', { name: 'Create room' }).click();
+    // + Room opens the create dialog (#774) and is visible before any room
+    // exists. The gear keeps the manager, which no longer creates.
+    await page.getByRole('button', { name: 'Add room' }).click();
+    await page.getByLabel('Room name').fill('OOC');
+    await page.getByRole('button', { name: 'Create room', exact: true }).click();
 
     // Creating a room navigates into it; the tab bar shows Main + OOC.
     await expect(page).toHaveURL(/\/channel\/.+\/sub\/.+/);

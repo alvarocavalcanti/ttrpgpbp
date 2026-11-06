@@ -1675,7 +1675,9 @@ export type Database = {
           p_allow_scenes?: boolean
           p_allow_whispers?: boolean
           p_channel_id: string
+          p_member_ids?: string[]
           p_name: string
+          p_visibility?: string
         }
         Returns: string
       }

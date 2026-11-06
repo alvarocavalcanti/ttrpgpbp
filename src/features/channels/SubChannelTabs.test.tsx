@@ -33,6 +33,7 @@ const renderTabs = (props: Partial<Parameters<typeof SubChannelTabs>[0]> = {}) =
         loading={false}
         error={null}
         isGM={false}
+        onCreate={vi.fn()}
         onManage={vi.fn()}
         onRetry={vi.fn()}
         {...props}
@@ -45,9 +46,18 @@ describe('SubChannelTabs', () => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
   })
 
-  it('renders nothing when the channel has no rooms', () => {
+  it('renders nothing for a player when the channel has no rooms', () => {
     const { container } = renderTabs({ subChannels: [] })
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders the bar for a GM before the first room exists', () => {
+    renderTabs({ subChannels: [], isGM: true })
+    expect(screen.getByRole('tablist', { name: 'Rooms' })).toBeInTheDocument()
+    // Main is the only tab and is the current view.
+    expect(screen.getByRole('tab', { name: 'Main' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Add room' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage rooms' })).toBeInTheDocument()
   })
 
   it('renders Main + rooms and links them to their routes', () => {
@@ -89,8 +99,21 @@ describe('SubChannelTabs', () => {
     expect(screen.getByRole('button', { name: 'Manage rooms' })).toBeInTheDocument()
   })
 
-  it('hides GM affordances for a player', () => {
-    renderTabs({ subChannels: [room()], isGM: false })
+  it('opens create from + Room and the manager from the gear', () => {
+    const onCreate = vi.fn()
+    const onManage = vi.fn()
+    renderTabs({ subChannels: [room()], isGM: true, onCreate, onManage })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add room' }))
+    expect(onCreate).toHaveBeenCalledTimes(1)
+    expect(onManage).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage rooms' }))
+    expect(onManage).toHaveBeenCalledTimes(1)
+    expect(onCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides GM affordances for a player', () => {    renderTabs({ subChannels: [room()], isGM: false })
     expect(screen.queryByRole('button', { name: 'Add room' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Manage rooms' })).not.toBeInTheDocument()
   })

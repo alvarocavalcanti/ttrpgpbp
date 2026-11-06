@@ -134,8 +134,11 @@ export function useSubChannels(channelId: string | undefined) {
   }, [channelId, user?.id, refetchTrigger])
 
   const create = useCallback(
-    async (name: string, caps: RoomCapabilities) => {
+    async (name: string, caps: RoomCapabilities, visibility: RoomVisibility = 'all', memberIds: string[] = []) => {
       if (!channelId) throw new Error('No channel.')
+      // Invites only matter for a private room; a stale pick must never reach a
+      // public or GM-only room (#774).
+      const invitedIds = visibility === 'private' ? memberIds : []
       const { data, error } = await supabase.rpc('create_sub_channel', {
         p_channel_id: channelId,
         p_name: name,
@@ -143,9 +146,15 @@ export function useSubChannels(channelId: string | undefined) {
         p_allow_scenes: caps.allow_scenes,
         p_allow_npc: caps.allow_npc,
         p_allow_whispers: caps.allow_whispers,
+        p_visibility: visibility,
+        p_member_ids: invitedIds,
       })
       if (error) throw error
-      return data as string
+      const roomId = data as string
+      // The rooms list only refetches its invite map on a reconnect, so seed
+      // the new room here or the manager would show an empty audience.
+      setRoomMembers(prev => ({ ...prev, [roomId]: invitedIds }))
+      return roomId
     },
     [channelId],
   )

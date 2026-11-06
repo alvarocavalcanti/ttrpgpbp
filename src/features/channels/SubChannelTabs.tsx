@@ -12,6 +12,7 @@ interface SubChannelTabsProps {
   loading: boolean
   error: Error | null
   isGM: boolean
+  onCreate: () => void
   onManage: () => void
   onRetry: () => void
 }
@@ -23,9 +24,11 @@ const TAB_IDLE = 'text-surface-600 dark:text-surface-300 hover:bg-surface-100 da
 const ICON_BUTTON =
   'flex-shrink-0 inline-flex items-center justify-center min-h-11 min-w-11 rounded-full text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
 
-// The room bar (#621). Renders nothing until a channel has at least one room,
-// so legacy channels are pixel-identical. Main is the existing `/channel/:id`
-// timeline; rooms are `/channel/:id/sub/:subId`.
+// The room bar (#621). Players see nothing until a channel has at least one
+// room, so legacy channels are pixel-identical for them; the GM always gets the
+// bar so the "+ Room" create entry point exists before the first room (#774).
+// Main is the existing `/channel/:id` timeline; rooms are
+// `/channel/:id/sub/:subId`.
 export function SubChannelTabs({
   channelId,
   channelName,
@@ -35,6 +38,7 @@ export function SubChannelTabs({
   loading,
   error,
   isGM,
+  onCreate,
   onManage,
   onRetry,
 }: SubChannelTabsProps) {
@@ -79,7 +83,7 @@ export function SubChannelTabs({
     )
   }
 
-  if (subChannels.length === 0) return null
+  if (subChannels.length === 0 && !isGM) return null
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
@@ -140,7 +144,7 @@ export function SubChannelTabs({
         <div className="flex-shrink-0 flex items-center gap-1 pr-2">
           <button
             type="button"
-            onClick={onManage}
+            onClick={onCreate}
             aria-label="Add room"
             className={`${ICON_BUTTON} w-auto px-3 text-sm font-medium`}
           >

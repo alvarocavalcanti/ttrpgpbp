@@ -167,7 +167,78 @@ describe('useSubChannels', () => {
       p_allow_scenes: true,
       p_allow_npc: true,
       p_allow_whispers: true,
+      p_visibility: 'all',
+      p_member_ids: [],
     })
+  })
+
+  it('create sends the audience and its invitees in one call', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    vi.mocked(supabase.from).mockReturnValue({ select: mockList([]).select } as never)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'new-id', error: null } as never)
+
+    const { result } = renderHook(() => useSubChannels('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(() => result.current.create('Secret', {
+      allow_dice: true,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }, 'private', ['p1', 'p2']))
+
+    expect(supabase.rpc).toHaveBeenCalledWith('create_sub_channel', {
+      p_channel_id: 'c1',
+      p_name: 'Secret',
+      p_allow_dice: true,
+      p_allow_scenes: true,
+      p_allow_npc: true,
+      p_allow_whispers: true,
+      p_visibility: 'private',
+      p_member_ids: ['p1', 'p2'],
+    })
+    // The manager reads this map for its invite checkboxes, so the new room's
+    // audience must be seeded without waiting for a reconnect refetch.
+    expect(result.current.roomMembers['new-id']).toEqual(['p1', 'p2'])
+  })
+
+  it('create drops a stale player pick when the audience is not private', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    vi.mocked(supabase.from).mockReturnValue({ select: mockList([]).select } as never)
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'new-id', error: null } as never)
+
+    const { result } = renderHook(() => useSubChannels('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(() => result.current.create('Open', {
+      allow_dice: true,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }, 'all', ['p1']))
+
+    expect(supabase.rpc).toHaveBeenCalledWith('create_sub_channel', expect.objectContaining({
+      p_visibility: 'all',
+      p_member_ids: [],
+    }))
+    expect(result.current.roomMembers['new-id']).toEqual([])
+  })
+
+  it('create rethrows and leaves the invite map untouched when the RPC fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    vi.mocked(supabase.from).mockReturnValue({ select: mockList([]).select } as never)
+    vi.mocked(supabase.rpc).mockResolvedValue({ error: new Error('duplicate') } as never)
+
+    const { result } = renderHook(() => useSubChannels('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.create('Secret', {
+      allow_dice: true,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }, 'private', ['p1'])).rejects.toThrow('duplicate')
+    expect(result.current.roomMembers).toEqual({})
   })
 
   it('rename / setArchived / remove call the room RPCs and rethrow errors', async () => {

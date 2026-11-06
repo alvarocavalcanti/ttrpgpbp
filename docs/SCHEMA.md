@@ -286,7 +286,7 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field length limits |
 | `update_channel_status` | Update a room's status (`channels.status_text` for Main, `sub_channels.status_text` for a named room) + system message in that room | GM-only, suspended blocked, room must belong to the channel, no-op (unchanged text) skipped, archived allowed (matches settings) |
 | `join_channel` | Join + attributes + join system message | password/invite, archived, channel cap, attribute bounds |
-| `create_sub_channel` | Create a room | GM-only, suspended, archived channel, trimmed name 1–40 chars, unique per channel, not `Main` (reserved), hardcoded cap of 10 active rooms (server admins bypass) |
+| `create_sub_channel` | Create a room with its audience and invited players in one transaction (#774) | GM-only, suspended, archived channel, trimmed name 1–40 chars, unique per channel, not `Main` (reserved), hardcoded cap of 10 active rooms (server admins bypass), `visibility` ∈ `all`/`gm`/`private`, invitees must be unblocked channel members (ignored unless `private`) |
 | `update_sub_channel` | Rename, archive/restore, and set per-room capability flags (`allow_dice` / `allow_scenes` / `allow_npc` / `allow_whispers`) | GM-only, same name validation (reserved `Main` included); restoring at the active cap is rejected |
 | `delete_sub_channel` | Hard-delete an empty room | GM-only, refused when the room has any messages (archive instead) |
 | `mark_sub_channel_read` | Advance the caller's per-room read mark | membership |

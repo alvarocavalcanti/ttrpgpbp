@@ -24,7 +24,6 @@ const room = (over: Partial<SubChannel> = {}): SubChannel => ({
 const renderModal = (props: Partial<Parameters<typeof ManageSubChannelsModal>[0]> = {}) => {
   const handlers = {
     onClose: vi.fn(),
-    onCreate: vi.fn().mockResolvedValue('new-room'),
     onRename: vi.fn().mockResolvedValue(undefined),
     onSetArchived: vi.fn().mockResolvedValue(undefined),
     onSetCapabilities: vi.fn().mockResolvedValue(undefined),
@@ -34,7 +33,6 @@ const renderModal = (props: Partial<Parameters<typeof ManageSubChannelsModal>[0]
     members: [],
     roomMembers: {},
     onRemove: vi.fn().mockResolvedValue(undefined),
-    onOpenRoom: vi.fn(),
     onRetry: vi.fn(),
   }
   render(
@@ -63,62 +61,6 @@ describe('ManageSubChannelsModal', () => {
     expect(screen.getByText(/No rooms yet/)).toBeInTheDocument()
   })
 
-  it('creates a room with a trimmed name and opens it', async () => {
-    const h = renderModal()
-    fireEvent.change(screen.getByLabelText('New room'), { target: { value: '  OOC  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
-
-    await waitFor(() => expect(h.onCreate).toHaveBeenCalledWith('OOC', {
-      allow_dice: true,
-      allow_scenes: true,
-      allow_npc: true,
-      allow_whispers: true,
-    }))
-    expect(h.onOpenRoom).toHaveBeenCalledWith('new-room')
-  })
-
-  it('creates the room with the features picked in the form (#722)', async () => {
-    const h = renderModal()
-    fireEvent.change(screen.getByLabelText('New room'), { target: { value: 'Dice Only' } })
-    fireEvent.click(screen.getByLabelText('Dice'))
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
-
-    await waitFor(() => expect(h.onCreate).toHaveBeenCalledWith('Dice Only', {
-      allow_dice: false,
-      allow_scenes: true,
-      allow_npc: true,
-      allow_whispers: true,
-    }))
-  })
-
-  it('resets the picked features after a create', async () => {
-    const h = renderModal()
-    fireEvent.click(screen.getByLabelText('Scenes'))
-    fireEvent.change(screen.getByLabelText('New room'), { target: { value: 'OOC' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
-
-    await waitFor(() => expect(h.onCreate).toHaveBeenCalled())
-    expect(screen.getByLabelText('Scenes')).toBeChecked()
-  })
-
-  it('rejects an empty name inline without calling the RPC', async () => {
-    const h = renderModal()
-    // Bypass the disabled button to exercise the guard.
-    fireEvent.change(screen.getByLabelText('New room'), { target: { value: '   ' } })
-    const input = screen.getByLabelText('New room') as HTMLInputElement
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(h.onCreate).not.toHaveBeenCalled()
-  })
-
-  it('surfaces a friendly message for a duplicate name', async () => {
-    const h = renderModal({ onCreate: vi.fn().mockRejectedValue(new Error('duplicate key value violates unique constraint')) })
-    fireEvent.change(screen.getByLabelText('New room'), { target: { value: 'OOC' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
-
-    expect(await screen.findByText('A room with that name already exists.')).toBeInTheDocument()
-    expect(h.onOpenRoom).not.toHaveBeenCalled()
-  })
-
   it('archives and restores rooms', async () => {
     const h = renderModal({
       subChannels: [room({ id: 'r1', name: 'OOC' })],
@@ -139,19 +81,18 @@ describe('ManageSubChannelsModal', () => {
   })
 
   it('surfaces the server refusal when a non-empty room cannot be deleted', async () => {
-    const h = renderModal({
+    renderModal({
       subChannels: [room({ id: 'r1', name: 'OOC' })],
       onRemove: vi.fn().mockRejectedValue(new Error('This room still has messages. Archive it instead.')),
     })
     fireEvent.click(screen.getByRole('button', { name: 'Delete OOC' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Delete room' }))
     expect(await screen.findByText('This room still has messages. Archive it instead.')).toBeInTheDocument()
-    expect(h.onOpenRoom).not.toHaveBeenCalled()
   })
 
   it('shows a skeleton while loading', () => {
     renderModal({ loading: true })
-    expect(screen.queryByLabelText('New room')).not.toBeInTheDocument()
+    expect(screen.queryByText(/No rooms yet/)).not.toBeInTheDocument()
   })
 
   it('offers Retry when the rooms fetch fails', () => {
