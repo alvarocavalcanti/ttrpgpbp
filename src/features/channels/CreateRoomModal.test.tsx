@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
 import { CreateRoomModal } from './CreateRoomModal'
 import { ToastProvider } from '../../contexts/ToastContext'
 
@@ -40,6 +41,120 @@ describe('CreateRoomModal', () => {
     }
     expect(screen.getByLabelText('Everyone')).toBeChecked()
     expect(screen.queryByLabelText('Hero')).not.toBeInTheDocument()
+  })
+
+  it('creates a room with the features picked in the form', async () => {
+    const h = renderModal()
+    fillName('Dice Only')
+    fireEvent.click(screen.getByLabelText('Dice'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    await waitFor(() => expect(h.onCreated).toHaveBeenCalled())
+    expect(h.onCreate).toHaveBeenCalledWith('Dice Only', {
+      allow_dice: false,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }, 'all', [])
+  })
+
+  it('moves focus into the name field and gives it back to + Room on Escape', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(false)
+      return (
+        <ToastProvider>
+          <button type="button" onClick={() => setOpen(true)}>Add room</button>
+          {open && (
+            <CreateRoomModal
+              existingActiveRoomCount={0}
+              isArchived={false}
+              members={members}
+              membersLoading={false}
+              membersError={null}
+              onRetryMembers={vi.fn()}
+              onCreate={vi.fn()}
+              onCreated={vi.fn()}
+              onClose={() => setOpen(false)}
+            />
+          )}
+        </ToastProvider>
+      )
+    }
+    render(<Harness />)
+
+    const trigger = screen.getByRole('button', { name: 'Add room' })
+    // jsdom does not move focus on click the way a browser does.
+    trigger.focus()
+    fireEvent.click(trigger)
+    // The name field gets focus only after the trap captured + Room, so the
+    // dialog has somewhere to give focus back to.
+    expect(screen.getByLabelText('Room name')).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add room' })).toHaveFocus())
+    expect(screen.queryByRole('dialog', { name: 'Create room' })).not.toBeInTheDocument()
+  })
+
+  it('refuses to send a player who is no longer in the game', async () => {
+    const { rerender } = render(
+      <ToastProvider>
+        <CreateRoomModal
+          existingActiveRoomCount={0}
+          isArchived={false}
+          members={members}
+          membersLoading={false}
+          membersError={null}
+          onRetryMembers={vi.fn()}
+          onCreate={vi.fn().mockResolvedValue('new-room')}
+          onCreated={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ToastProvider>,
+    )
+    fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'Secret' } })
+    fireEvent.click(screen.getByLabelText('Invited players'))
+    fireEvent.click(screen.getByLabelText('Hero'))
+
+    // The roster changed under the open dialog (the player left or got blocked).
+    const onCreate = vi.fn().mockResolvedValue('new-room')
+    rerender(
+      <ToastProvider>
+        <CreateRoomModal
+          existingActiveRoomCount={0}
+          isArchived={false}
+          members={[{ user_id: 'p2', character_name: 'Rogue' }]}
+          membersLoading={false}
+          membersError={null}
+          onRetryMembers={vi.fn()}
+          onCreate={onCreate}
+          onCreated={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ToastProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    expect(await screen.findByText('Some invited players are no longer in this game. Choose who to invite again.')).toBeInTheDocument()
+    expect(onCreate).not.toHaveBeenCalled()
+    // The stale pick is dropped so a second click cannot resend it.
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    expect(onCreate).toHaveBeenCalledWith('Secret', expect.any(Object), 'private', [])
+  })
+
+  it('shows the server refusal for a structured Postgres error', async () => {
+    // Supabase hands back a plain object, not an Error instance.
+    const h = renderModal({
+      onCreate: vi.fn().mockRejectedValue({
+        message: 'duplicate key value violates unique constraint "sub_channels_channel_lower_name_idx"',
+        code: '23505',
+      }),
+    })
+    fillName('OOC')
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    expect(await screen.findByText('A room with that name already exists.')).toBeInTheDocument()
+    expect(h.onCreated).not.toHaveBeenCalled()
   })
 
   it('reveals the player checklist only for Invited players', () => {

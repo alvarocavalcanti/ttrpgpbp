@@ -3156,10 +3156,13 @@ describe('ChannelView rooms (#621)', () => {
 
   it('creates a private room in one RPC and lands in it', async () => {
     const create = vi.fn().mockResolvedValue('r2')
-    vi.mocked(useSubChannels).mockReturnValue({
-      subChannels: [], archivedRooms: [], loading: false, error: null,
+    // The rooms list resolves from the hook on every render, so the created
+    // room can appear in it before the realtime echo would have landed.
+    let roomList: ReturnType<typeof room>[] = []
+    vi.mocked(useSubChannels).mockImplementation(() => ({
+      subChannels: roomList, archivedRooms: [], loading: false, error: null,
       create, rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
-    } as any)
+    } as any))
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
       members: [
@@ -3180,6 +3183,8 @@ describe('ChannelView rooms (#621)', () => {
     expect(screen.queryByLabelText('GM')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Muted')).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Hero'))
+
+    roomList = [room({ id: 'r2', name: 'Secret', visibility: 'private' })]
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
 
     expect(await screen.findByText('Room Secret created. Visible to 1 invited player.')).toBeInTheDocument()
@@ -3193,6 +3198,8 @@ describe('ChannelView rooms (#621)', () => {
     }, 'private', ['p1'])
     await waitFor(() => expect(vi.mocked(useMessages)).toHaveBeenLastCalledWith('c1', 'r2', expect.any(Function)))
     expect(screen.queryByRole('dialog', { name: 'Create room' })).not.toBeInTheDocument()
+    // The GM lands in the new room, not on Main.
+    expect(screen.getByRole('tab', { name: 'Secret' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('passes the route room through to useMessages', () => {

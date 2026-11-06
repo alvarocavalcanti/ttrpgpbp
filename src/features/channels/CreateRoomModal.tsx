@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useToast } from '../../contexts/ToastContext'
@@ -47,8 +47,15 @@ export function CreateRoomModal({
   onClose,
 }: CreateRoomModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
+  // Focus the name field only AFTER useFocusTrap has captured the element that
+  // opened the dialog (the + Room chip). `autoFocus` would run during commit,
+  // before the trap's effect, so Escape would have nobody to restore focus to.
+  useEffect(() => {
+    nameInputRef.current?.focus({ preventScroll: true })
+  }, [])
   const { addToast } = useToast()
 
   const [name, setName] = useState('')
@@ -82,6 +89,18 @@ export function CreateRoomModal({
     // Only a private room carries invites; a stale pick is dropped here and
     // again by the server.
     const sentIds = visibility === 'private' ? invitedIds : []
+    if (visibility === 'private') {
+      // The roster can change while the dialog is open (a player leaves or is
+      // blocked). Inviting them would make the whole server call fail, so stop
+      // and let the GM re-pick instead of silently dropping them.
+      const eligible = new Set(members.map(m => m.user_id))
+      if (sentIds.some(id => !eligible.has(id))) {
+        setInvitedIds(sentIds.filter(id => eligible.has(id)))
+        setCreating(false)
+        setError('Some invited players are no longer in this game. Choose who to invite again.')
+        return
+      }
+    }
     try {
       const roomId = await onCreate(trimmed, caps, visibility, sentIds)
       trackEvent('room_create', { audience: visibility, invited: sentIds.length })
@@ -121,11 +140,11 @@ export function CreateRoomModal({
           </label>
           <input
             id="create-room-name"
+            ref={nameInputRef}
             value={name}
             onChange={(e) => { setName(e.target.value); setError(null) }}
             placeholder="e.g. OOC, Dice, Chapter 1"
             maxLength={MAX_ROOM_NAME_LENGTH}
-            autoFocus
             className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-surface-600 dark:bg-surface-800"
           />
 

@@ -9,7 +9,7 @@ Every channel starts with **Main**, the original conversation. Rooms sit beside 
 
 ## Creating and managing rooms
 
-The **GM** creates rooms from the **+ Room** chip in the room bar, or from the channel sidebar → **GM Tools → Rooms**. The room bar is there for the GM from the first visit, even before the first room exists, so **+ Room** is always one tap away. A channel can hold up to **10 active rooms**.
+The **GM** creates rooms from the **+ Room** chip in the room bar. The bar is there for the GM from the first visit, even before the first room exists, so **+ Room** is always one tap away. A channel can hold up to **10 active rooms**. (**GM Tools → Rooms** opens the manager, not the create dialog.)
 
 **+ Room** opens one dialog with everything the room needs:
 

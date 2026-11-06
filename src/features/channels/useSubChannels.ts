@@ -108,6 +108,27 @@ export function useSubChannels(channelId: string | undefined) {
                   (a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''),
                 )
               })
+              // A room created elsewhere in the game (another tab or device)
+              // arrives with its invites already written, so fetch them or the
+              // manager would show that private room with nobody checked.
+              if (next.visibility === 'private') {
+                void (async () => {
+                  const { data: memberRows, error: memberError } = await supabase
+                    .from('sub_channel_members')
+                    .select('user_id')
+                    .eq('sub_channel_id', next.id)
+                  if (memberError) {
+                    console.error('Error fetching room invites:', memberError)
+                    return
+                  }
+                  if (mounted) {
+                    setRoomMembers(prev => ({
+                      ...prev,
+                      [next.id]: (memberRows ?? []).map(m => m.user_id),
+                    }))
+                  }
+                })()
+              }
             }
           } else if (payload.eventType === 'UPDATE') {
             const next = parseRow(SubChannelRowSchema, payload.new)

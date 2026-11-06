@@ -22,6 +22,21 @@ VALUES
   ('00000000-0000-0000-0000-000000077433', '00000000-0000-0000-0000-000000077421', '00000000-0000-0000-0000-000000077413', 'P2', false),
   ('00000000-0000-0000-0000-000000077435', '00000000-0000-0000-0000-000000077421', '00000000-0000-0000-0000-000000077415', 'Blocked', true);
 
+-- The RPC's grants are checked BEFORE this test's blanket grant below, which
+-- would otherwise make the assertion restate itself.
+SELECT ok(
+  NOT has_function_privilege('anon', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean,text,uuid[])', 'EXECUTE'),
+  'anon cannot create a room'
+);
+SELECT ok(
+  has_function_privilege('authenticated', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean,text,uuid[])', 'EXECUTE'),
+  'authenticated can create a room'
+);
+SELECT ok(
+  has_function_privilege('service_role', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean,text,uuid[])', 'EXECUTE'),
+  'service_role can create a room'
+);
+
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
 
@@ -173,21 +188,9 @@ SELECT throws_ok(
 );
 
 -- ==========================================
--- 7. Grants and the dropped overload
+-- 7. The dropped overload
 -- ==========================================
 
-SELECT ok(
-  NOT has_function_privilege('anon', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean,text,uuid[])', 'EXECUTE'),
-  'anon cannot create a room'
-);
-SELECT ok(
-  has_function_privilege('authenticated', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean,text,uuid[])', 'EXECUTE'),
-  'authenticated can create a room'
-);
-SELECT ok(
-  has_function_privilege('service_role', 'public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean,text,uuid[])', 'EXECUTE'),
-  'service_role can create a room'
-);
 SELECT is(
   to_regprocedure('public.create_sub_channel(uuid,text,boolean,boolean,boolean,boolean)'),
   NULL,
