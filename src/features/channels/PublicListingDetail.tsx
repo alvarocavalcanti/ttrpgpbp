@@ -110,7 +110,7 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
     try {
       const reportError = await reportChannelListing(channelId, trimmed)
       if (reportError) throw reportError
-      addToast('Thanks — the report is with the moderators. You can message the server admin directly from Messages → Message Admin.', 'success')
+      addToast('Thanks — the report is with the server admin. You can message the server admin directly from Messages → Message Admin.', 'success')
       setReportOpen(false)
     } catch (err) {
       addToast(toError(err).message, 'error')

@@ -246,7 +246,7 @@ describe('PublicChannelDetailSheet', () => {
         }),
       )
       expect(addToast).toHaveBeenCalledWith(
-        'Thanks — the report is with the moderators. You can message the server admin directly from Messages → Message Admin.',
+        'Thanks — the report is with the server admin. You can message the server admin directly from Messages → Message Admin.',
         'success',
       )
       // The prompt closes on success.

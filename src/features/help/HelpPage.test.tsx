@@ -184,4 +184,30 @@ describe('HelpPage', () => {
     // `#%` would blow up a decodeURIComponent() call.
     expect(() => renderPage(['/help/dice-rolling#%'])).not.toThrow()
   })
+
+  it('decodes a percent-encoded fragment before looking the heading up (#789)', () => {
+    // cspell:ignore Dnotation
+    const scrollIntoView = vi.fn()
+    const original = window.HTMLElement.prototype.scrollIntoView
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
+
+    try {
+      renderPage(['/help/dice-rolling#inline%2Dnotation'])
+
+      expect(scrollIntoView.mock.instances[0]).toBe(document.getElementById('inline-notation'))
+    } finally {
+      window.HTMLElement.prototype.scrollIntoView = original
+    }
+  })
+
+  it('returns the article to the top when the hash is dropped (#789)', () => {
+    renderPage(['/help/dice-rolling#inline-notation'])
+    const article = screen.getByRole('main')
+    article.scrollTop = 500
+
+    // The sidebar links to the bare topic, which keeps this pane mounted.
+    fireEvent.click(screen.getAllByRole('link', { name: 'Dice Rolling' })[0])
+
+    expect(article.scrollTop).toBe(0)
+  })
 })

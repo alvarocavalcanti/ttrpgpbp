@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import MarkdownImpl from '../../components/MarkdownImpl'
 import { Seo } from '../../components/Seo'
@@ -18,14 +18,27 @@ export function HelpPage() {
   const entries = [...general, ...channel]
 
   const active = entries.find((e) => e.slug === topic) ?? entries[0]
+  const articleRef = useRef<HTMLElement>(null)
 
   // Deep links (`/help/messages#reporting-a-message`) must land on the heading:
   // ScrollToTop only resets the window, and this article scrolls in its own pane.
-  // The hash is used raw — heading ids are ASCII slugs, and decoding it would
-  // throw on a hand-mangled URL such as `#%`.
+  // A hash is usually a plain ASCII slug, but it can arrive percent-encoded, so
+  // decode it when it parses and fall back to the raw value otherwise — a
+  // mangled fragment such as `#%` must never throw.
   useEffect(() => {
-    if (!hash) return
-    document.getElementById(hash.slice(1))?.scrollIntoView?.({ block: 'start' })
+    if (!hash) {
+      // Navigating back to the bare topic keeps this pane mounted, so clear the
+      // deep-link scroll instead of leaving the reader mid-section.
+      if (articleRef.current) articleRef.current.scrollTop = 0
+      return
+    }
+    let id = hash.slice(1)
+    try {
+      id = decodeURIComponent(id)
+    } catch {
+      // Keep the raw fragment.
+    }
+    document.getElementById(id)?.scrollIntoView?.({ block: 'start' })
   }, [active?.slug, hash])
 
   if (entries.length === 0) {
@@ -85,7 +98,7 @@ export function HelpPage() {
 
         {/* Content. Keyed by topic so switching topics resets the pane scroll
             (ScrollToTop only scrolls the window, not this internal pane). */}
-        <main key={active.slug} data-testid="help-article" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main key={active.slug} ref={articleRef} data-testid="help-article" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <article className="max-w-3xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{active.title}</h1>
             {active.screenshot && (
