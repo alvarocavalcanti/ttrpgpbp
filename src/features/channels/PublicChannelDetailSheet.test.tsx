@@ -222,6 +222,9 @@ describe('PublicChannelDetailSheet', () => {
   })
 
   describe('report a listing (#674)', () => {
+    const acceptReport = () =>
+      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this report goes to the server admin/ }))
+
     it('offers reporting to a non-member and submits the reason', async () => {
       const addToast = vi.fn()
       vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
@@ -233,6 +236,7 @@ describe('PublicChannelDetailSheet', () => {
       fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
         target: { value: 'Recruiting for a paid game' },
       })
+      acceptReport()
       fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
 
       await waitFor(() =>
@@ -241,7 +245,10 @@ describe('PublicChannelDetailSheet', () => {
           p_reason: 'Recruiting for a paid game',
         }),
       )
-      expect(addToast).toHaveBeenCalledWith('Thanks — the report is with the moderators.', 'success')
+      expect(addToast).toHaveBeenCalledWith(
+        'Thanks — the report is with the server admin. You can message the server admin directly from Messages → Message Admin.',
+        'success',
+      )
       // The prompt closes on success.
       await waitFor(() =>
         expect(screen.queryByLabelText('Why are you reporting this listing?')).not.toBeInTheDocument(),
@@ -270,6 +277,7 @@ describe('PublicChannelDetailSheet', () => {
       fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
         target: { value: 'again' },
       })
+      acceptReport()
       fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
 
       await waitFor(() =>
@@ -298,6 +306,7 @@ describe('PublicChannelDetailSheet', () => {
         target: { value: 'spam' },
       })
       const submit = screen.getByRole('button', { name: 'Submit report' })
+      acceptReport()
       fireEvent.click(submit)
       fireEvent.click(submit)
 
@@ -312,8 +321,6 @@ describe('PublicChannelDetailSheet', () => {
     })
 
     it('refuses a blank reason without a round-trip', () => {
-      const addToast = vi.fn()
-      vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
       mockApply()
 
       renderSheet()
@@ -321,10 +328,61 @@ describe('PublicChannelDetailSheet', () => {
       fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
         target: { value: '   ' },
       })
+      acceptReport()
+
+      // Whitespace does not unlock Submit (#789).
+      expect(screen.getByRole('button', { name: 'Submit report' })).toBeDisabled()
       fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
 
       expect(supabase.rpc).not.toHaveBeenCalled()
-      expect(addToast).toHaveBeenCalledWith('Enter a reason.', 'error')
+    })
+
+    it('shows listing-specific consequences and never promises a suspension', () => {
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+
+      expect(
+        screen.getByText(/A listing that breaks the Acceptable Use Policy can be taken down\./),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /the listing can be taken down/ })).not.toBeChecked()
+      // The message flow's promise must never appear on a listing report.
+      expect(screen.queryByText(/suspended or terminated/i)).not.toBeInTheDocument()
+      expect(screen.queryByRole('checkbox', { name: /account being suspended/ })).not.toBeInTheDocument()
+    })
+
+    it('gates Submit behind the consent box', () => {
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+      fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
+        target: { value: 'spam' },
+      })
+
+      expect(screen.getByRole('button', { name: 'Submit report' })).toBeDisabled()
+      acceptReport()
+      expect(screen.getByRole('button', { name: 'Submit report' })).toBeEnabled()
+    })
+
+    it('reveals help guidance without navigating away or losing the typed reason', () => {
+      mockApply()
+
+      renderSheet()
+      fireEvent.click(screen.getByRole('button', { name: 'Report this listing' }))
+      fireEvent.change(screen.getByLabelText('Why are you reporting this listing?'), {
+        target: { value: 'paid recruitment' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Learn more' }))
+
+      expect(screen.getByRole('link', { name: 'Read more in Help' })).toHaveAttribute(
+        'href',
+        '/help/lobby#reporting-a-listing',
+      )
+      // The sheet stays mounted — same dialog, same typed reason.
+      expect(screen.getByLabelText('Why are you reporting this listing?')).toHaveValue('paid recruitment')
+      expect(screen.getByRole('checkbox', { name: /the listing can be taken down/ })).not.toBeChecked()
     })
   })
 

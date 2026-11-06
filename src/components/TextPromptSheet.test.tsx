@@ -105,4 +105,49 @@ describe('TextPromptSheet', () => {
     expect(input.className).toContain('bg-white')
     expect(input.className).toContain('focus:border-primary-500')
   })
+
+  it('renders children between the input and the buttons', () => {
+    render(
+      <TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" onConfirm={vi.fn()} onClose={vi.fn()}>
+        <p>Extra guidance</p>
+      </TextPromptSheet>,
+    )
+
+    expect(screen.getByText('Extra guidance')).toBeInTheDocument()
+  })
+
+  it('blocks Confirm while requireValue is set and the value is empty or whitespace', () => {
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" requireValue onConfirm={vi.fn()} onClose={vi.fn()} />)
+
+    const confirm = screen.getByRole('button', { name: 'Save' })
+    expect(confirm).toBeDisabled()
+
+    // Whitespace is not a reason.
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: '   ' } })
+    expect(confirm).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'spam' } })
+    expect(confirm).toBeEnabled()
+  })
+
+  it('does not confirm an implicit Enter submit while requireValue blocks it', () => {
+    const onConfirm = vi.fn()
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" requireValue onConfirm={onConfirm} onClose={vi.fn()} />)
+
+    fireEvent.submit(screen.getByLabelText('Message').closest('form') as HTMLFormElement)
+
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('lets the caller block Confirm via confirmDisabled even with a value typed', () => {
+    const onConfirm = vi.fn()
+    render(<TextPromptSheet title="Prompt" label="Message" maxLength={200} confirmLabel="Save" confirmDisabled onConfirm={onConfirm} onClose={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'spam' } })
+    const confirm = screen.getByRole('button', { name: 'Save' })
+    expect(confirm).toBeDisabled()
+
+    fireEvent.submit(screen.getByLabelText('Message').closest('form') as HTMLFormElement)
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
 })

@@ -7,7 +7,7 @@ import { linkifyDice, isValidDiceNotation } from '../dice/parser'
 import { getSystemAttributes, clampModifier, getModifierLimits } from '../../game-systems'
 import { BottomSheet } from '../../components/BottomSheet'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { TextPromptSheet } from '../../components/TextPromptSheet'
+import { ReportPromptSheet } from '../../components/ReportPromptSheet'
 import { ModifierInput } from '../../components/ModifierInput'
 import { EmojiPicker } from './EmojiPicker'
 import { proseParchment } from './composerChip'
@@ -575,14 +575,45 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
 
   // 1000 = abuse_reports.reason DB cap; enforced at input via maxLength.
   const reportSheet = reportOpen && onReport ? (
-    <TextPromptSheet
+    <ReportPromptSheet
       title="Report this message"
       label="Why are you reporting this message?"
-      placeholder="Describe the problem"
       maxLength={1000}
+      placeholder="Describe the problem"
       confirmLabel="Submit report"
       onConfirm={submitReport}
       onClose={() => setReportOpen(false)}
+      consequence={
+        <>
+          Reports go to the server admin. Accounts that break the Acceptable Use Policy can be suspended or terminated — see{' '}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary-600 dark:text-primary-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+          >
+            the Terms
+          </a>
+          . We review reports in good faith, but we can&apos;t promise a reply within a set timeframe.
+        </>
+      }
+      consentLabel="I understand this report goes to the server admin and can lead to an account being suspended."
+      learnMore={
+        <>
+          <p>A report can&apos;t be withdrawn once it&apos;s sent.</p>
+          {isGM && (
+            <p>Reporting does not remove the player from this game. To remove them, use Kick Player or Block Player in the member list.</p>
+          )}
+          <a
+            href="/help/messages#reporting-a-message"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center font-medium text-primary-600 dark:text-primary-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+          >
+            Read more in Help
+          </a>
+        </>
+      }
     />
   ) : null
 

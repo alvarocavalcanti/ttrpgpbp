@@ -35,7 +35,13 @@ Wrap text in `||double bars||` to **hide it as a spoiler**. Readers see a blurre
 
 ## Reporting a message
 
-If another player posts something inappropriate, hover their message (or tap the **"⋯"** button on mobile) and choose **Report**. Describe the problem in your own words and submit — the server administrators will see the report together with the message and channel it came from. You can report any message posted by someone else, including deleted ones; messages that are still sending or that failed to send can't be reported. Reasons are required and can be up to 1,000 characters. Your own messages, system notices and GM-run NPC speech can't be reported.
+If another player posts something inappropriate, hover their message (or tap the **"⋯"** button on mobile) and choose **Report**. Describe the problem in your own words, tick the box that says you understand where the report goes, and submit. You can report any message posted by someone else, including deleted ones; messages that are still sending or that failed to send can't be reported. Reasons are required and can be up to 1,000 characters. Your own messages, system notices and GM-run NPC speech can't be reported.
+
+Reports go to the server admin. Accounts that break the Acceptable Use Policy can be suspended or terminated — see the Terms. We review reports in good faith, but we can't promise a reply within a set timeframe, and a report can't be withdrawn once it's sent. **Learn more** in the report sheet expands this guidance without closing it, so anything you've typed stays put.
+
+Reporting a message doesn't remove the player from the game. If you're the GM and want them gone, use **Kick Player** or **Block Player** in the member list.
+
+After you submit, the message that confirms it tells you where to go if you'd rather talk to the server admin directly: **Messages** → **Message Admin**.
 
 ## Replies
 

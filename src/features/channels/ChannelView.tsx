@@ -278,7 +278,7 @@ export function ChannelView() {
       )
       throw error
     }
-    addToast('Report submitted. Thank you for helping keep the game safe.')
+    addToast('Report submitted. Thank you for helping keep the game safe. You can message the server admin directly from Messages → Message Admin.')
   }, [user, reportMessage, addToast])
 
   // The toggle (optimistic flip + in-flight guard) lives in useMessages;

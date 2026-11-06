@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-06
+
+### Changed
+
+- **Reporting now says what it does** — before you submit a report, the sheet tells you who reads it, that an account (for a message report) or the listing (for a listing report) can be suspended, terminated or taken down under the Acceptable Use Policy, and that reports can't be withdrawn. **Submit report** stays disabled until you type a reason and tick the box saying you understand where the report goes. **Learn more** expands more detail right inside the sheet — on a phone as well as on a computer — so nothing you've typed is lost. GMs also see a reminder that reporting doesn't remove the player from the game; that takes **Kick Player** or **Block Player**. The confirmation now points you at **Messages** → **Message Admin** if you'd rather talk to the server admin directly.
+- **Help sections can be linked directly** — pages in the in-app help now have shareable anchors, so a link lands on the section it names instead of the top of the page.
+
 ## 2026-11-04
 
 ### Changed
