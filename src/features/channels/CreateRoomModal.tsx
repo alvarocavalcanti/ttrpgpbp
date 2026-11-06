@@ -114,138 +114,153 @@ export function CreateRoomModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-600 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80">
-      <div className="fixed inset-0" aria-hidden="true" onClick={onClose}></div>
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Create room"
+      className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-surface-800 sm:items-center sm:justify-center sm:bg-transparent sm:p-6"
+    >
       <div
-        ref={dialogRef}
-        className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-surface-800"
-        role="dialog"
-        aria-label="Create room"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100">New room</h3>
+        className="fixed inset-0 bg-surface-500 bg-opacity-75 transition-opacity dark:bg-surface-900 dark:bg-opacity-80"
+        aria-hidden="true"
+        onClick={onClose}
+      ></div>
+
+      {/* One shell for every audience (#774): full-screen on a phone, a dialog
+          capped at 80dvh on desktop, with the middle scrolling. Revealing the
+          player checklist must never make the dialog itself grow. */}
+      <div className="relative flex h-full w-full flex-col overflow-hidden bg-white dark:bg-surface-800 sm:h-auto sm:max-h-[80dvh] sm:max-w-lg sm:rounded-lg sm:shadow-xl">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+          <h3 className="text-lg font-bold leading-6 text-surface-900 dark:text-surface-100">New room</h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-surface-400 hover:text-surface-600 dark:text-surface-400"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-surface-400 hover:text-surface-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-surface-400"
             aria-label="Close create room"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <label htmlFor="create-room-name" className="mb-1 block text-sm font-medium text-surface-900 dark:text-surface-100">
-            Room name
-          </label>
-          <input
-            id="create-room-name"
-            ref={nameInputRef}
-            value={name}
-            onChange={(e) => { setName(e.target.value); setError(null) }}
-            placeholder="e.g. OOC, Dice, Chapter 1"
-            maxLength={MAX_ROOM_NAME_LENGTH}
-            className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-surface-600 dark:bg-surface-800"
-          />
+        <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+          <div data-testid="create-room-body" className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <label htmlFor="create-room-name" className="mb-1 block text-sm font-medium text-surface-900 dark:text-surface-100">
+              Room name
+            </label>
+            <input
+              id="create-room-name"
+              ref={nameInputRef}
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(null) }}
+              placeholder="e.g. OOC, Dice, Chapter 1"
+              maxLength={MAX_ROOM_NAME_LENGTH}
+              className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-surface-600 dark:bg-surface-800"
+            />
 
-          <fieldset className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-surface-600 dark:text-surface-300">
-            <legend className="mb-1 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">Features</legend>
-            {CAPABILITY_FLAGS.map(flag => (
-              <label key={flag.key} className="inline-flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={caps[flag.key]}
-                  onChange={() => setCaps(prev => ({ ...prev, [flag.key]: !prev[flag.key] }))}
-                  className="h-4 w-4 rounded border border-surface-300 text-primary-600 focus:ring-primary-500 dark:border-surface-600"
-                />
-                {flag.label}
-              </label>
-            ))}
-          </fieldset>
-
-          <fieldset className="mt-4">
-            <legend className="mb-1 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">Who can see it</legend>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-700 dark:text-surface-300">
-              {([
-                { value: 'all', label: 'Everyone' },
-                { value: 'gm', label: 'Only the GM' },
-                { value: 'private', label: 'Invited players' },
-              ] as { value: RoomVisibility; label: string }[]).map(option => (
-                <label key={option.value} className="inline-flex min-h-11 items-center gap-1.5">
+            <fieldset className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-surface-600 dark:text-surface-300">
+              <legend className="mb-1 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">Features</legend>
+              {CAPABILITY_FLAGS.map(flag => (
+                <label key={flag.key} className="inline-flex items-center gap-1.5">
                   <input
-                    type="radio"
-                    name="room-audience"
-                    value={option.value}
-                    checked={visibility === option.value}
-                    onChange={() => setVisibility(option.value)}
-                    className="h-4 w-4 border border-surface-300 text-primary-600 focus:ring-primary-500 dark:border-surface-600"
+                    type="checkbox"
+                    checked={caps[flag.key]}
+                    onChange={() => setCaps(prev => ({ ...prev, [flag.key]: !prev[flag.key] }))}
+                    className="h-4 w-4 rounded border border-surface-300 text-primary-600 focus:ring-primary-500 dark:border-surface-600"
                   />
-                  {option.label}
+                  {flag.label}
                 </label>
               ))}
+            </fieldset>
+
+            <fieldset className="mt-4">
+              <legend className="mb-1 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">Who can see it</legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-700 dark:text-surface-300">
+                {([
+                  { value: 'all', label: 'Everyone' },
+                  { value: 'gm', label: 'Only the GM' },
+                  { value: 'private', label: 'Invited players' },
+                ] as { value: RoomVisibility; label: string }[]).map(option => (
+                  <label key={option.value} className="inline-flex min-h-11 items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="room-audience"
+                      value={option.value}
+                      checked={visibility === option.value}
+                      onChange={() => setVisibility(option.value)}
+                      className="h-4 w-4 border border-surface-300 text-primary-600 focus:ring-primary-500 dark:border-surface-600"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            {visibility === 'private' && (
+              <div className="mt-3 rounded-md bg-surface-50 p-2 dark:bg-surface-900">
+                {membersLoading ? (
+                  <p className="p-1 text-sm text-surface-500 dark:text-surface-400" role="status">Loading players…</p>
+                ) : membersError ? (
+                  <div role="alert" className="flex items-center justify-between gap-3 p-1 text-sm text-red-700 dark:text-red-300">
+                    <span>{"Couldn't load players."}</span>
+                    <button type="button" onClick={onRetryMembers} className="font-semibold hover:underline">Retry</button>
+                  </div>
+                ) : members.length === 0 ? (
+                  <p className="p-1 text-sm text-surface-500 dark:text-surface-400">
+                    No players to invite yet. Players join the game with its invite code.
+                  </p>
+                ) : (
+                  // Three rows tall, then it scrolls: a ten-player game must not
+                  // push the buttons off the dialog.
+                  <ul className="max-h-[9.5rem] space-y-1 overflow-y-auto overscroll-contain">
+                    {members.map(member => (
+                      <li key={member.user_id}>
+                        <label className="inline-flex min-h-11 w-full items-center gap-2 rounded px-1 text-sm text-surface-700 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800">
+                          <input
+                            type="checkbox"
+                            checked={invitedIds.includes(member.user_id)}
+                            onChange={() => toggleInvite(member.user_id)}
+                            className="h-4 w-4 flex-shrink-0 rounded border border-surface-300 text-primary-600 focus:ring-primary-500 dark:border-surface-600"
+                          />
+                          <span className="truncate">{member.character_name}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {isArchived ? (
+              <p className="mt-4 text-xs text-surface-500 dark:text-surface-400">
+                This channel is archived and can no longer receive new rooms.
+              </p>
+            ) : atCap && (
+              <p className="mt-4 text-xs text-surface-500 dark:text-surface-400">
+                Room limit reached ({MAX_ROOMS_PER_CHANNEL}). Archive or delete a room first.
+              </p>
+            )}
+          </div>
+
+          <div className="flex shrink-0 flex-col gap-2 border-t border-surface-200 px-4 py-3 dark:border-surface-700">
+            {/* Always visible: a refusal must never hide below the scroll. */}
+            {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md px-3 text-sm font-medium text-surface-600 hover:bg-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-surface-300 dark:hover:bg-surface-700 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!canCreate}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 sm:w-auto"
+              >
+                {creating ? 'Creating…' : 'Create room'}
+              </button>
             </div>
-          </fieldset>
-
-          {visibility === 'private' && (
-            <div className="mt-3 rounded-md bg-surface-50 p-3 dark:bg-surface-900">
-              {membersLoading ? (
-                <p className="text-sm text-surface-500 dark:text-surface-400" role="status">Loading players…</p>
-              ) : membersError ? (
-                <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-700 dark:text-red-300">
-                  <span>{"Couldn't load players."}</span>
-                  <button type="button" onClick={onRetryMembers} className="font-semibold hover:underline">Retry</button>
-                </div>
-              ) : members.length === 0 ? (
-                <p className="text-sm text-surface-500 dark:text-surface-400">
-                  No players to invite yet. Players join the game with its invite code.
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {members.map(member => (
-                    <li key={member.user_id}>
-                      <label className="inline-flex min-h-11 items-center gap-2 text-sm text-surface-700 dark:text-surface-300">
-                        <input
-                          type="checkbox"
-                          checked={invitedIds.includes(member.user_id)}
-                          onChange={() => toggleInvite(member.user_id)}
-                          className="h-4 w-4 rounded border border-surface-300 text-primary-600 focus:ring-primary-500 dark:border-surface-600"
-                        />
-                        {member.character_name}
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {isArchived ? (
-            <p className="mt-4 text-xs text-surface-500 dark:text-surface-400">
-              This channel is archived and can no longer receive new rooms.
-            </p>
-          ) : atCap && (
-            <p className="mt-4 text-xs text-surface-500 dark:text-surface-400">
-              Room limit reached ({MAX_ROOMS_PER_CHANNEL}). Archive or delete a room first.
-            </p>
-          )}
-
-          {error && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
-
-          <div className="mt-5 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-surface-600 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!canCreate}
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {creating ? 'Creating…' : 'Create room'}
-            </button>
           </div>
         </form>
       </div>
