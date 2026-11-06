@@ -1,3 +1,4 @@
+import { toError } from '../../lib/errors'
 import type { RoomCapabilities, RoomVisibility } from './useSubChannels'
 
 // Per-room capability toggles (#621 Phase 2), shared by the create dialog and
@@ -17,9 +18,11 @@ export const DEFAULT_ROOM_CAPABILITIES: RoomCapabilities = {
 }
 
 // The RPC's refusal or a unique violation arrives as a Postgres error message;
-// translate the ones a GM will actually hit into player-facing copy.
+// translate the ones a GM will actually hit into player-facing copy. Supabase
+// errors are plain objects, not Error instances, so normalize first — reading
+// String(err) would show the GM "[object Object]".
 export function friendlyRoomError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err)
+  const msg = toError(err).message
   if (/duplicate key|unique/i.test(msg)) return 'A room with that name already exists.'
   return msg
 }

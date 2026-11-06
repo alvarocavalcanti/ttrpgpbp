@@ -121,6 +121,34 @@ describe('useSubChannels', () => {
     expect(result.current.subChannels).toEqual([])
   })
 
+  it('loads the invitees of a private room created in another session', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    const list = mockList([])
+    const memberSelect = vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ data: [], error: null }),
+      eq: vi.fn().mockResolvedValue({ data: [{ user_id: 'p1' }, { user_id: 'p2' }], error: null }),
+    })
+    vi.mocked(supabase.from).mockImplementation(((table: string) =>
+      table === 'sub_channel_members' ? { select: memberSelect } : { select: list.select }) as never)
+
+    let handler: ((payload: unknown) => void) | undefined
+    const mockOn = vi.fn().mockImplementation((_event, config, cb) => {
+      if (config.table === 'sub_channels') handler = cb
+      return { on: mockOn, subscribe: vi.fn().mockImplementation(cb2 => { cb2?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } }) }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as never)
+
+    const { result } = renderHook(() => useSubChannels('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      handler?.({ eventType: 'INSERT', new: room({ id: 'r2', name: 'Secret', visibility: 'private' }) })
+    })
+    // The create dialog seeds its own room; a room made in another tab must
+    // show its invitees too.
+    await waitFor(() => expect(result.current.roomMembers['r2']).toEqual(['p1', 'p2']))
+  })
+
   it('patchRoomStatus updates only that room and mirrors the RPC blank handling', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     const list = mockList([
