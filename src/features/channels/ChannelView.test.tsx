@@ -2819,6 +2819,9 @@ describe('ChannelView report a message (#467)', () => {
 
   const insertMock = vi.fn()
 
+  const acceptReport = () =>
+    fireEvent.click(screen.getByRole('checkbox', { name: /I understand this report goes to the server admin/ }))
+
   beforeEach(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
     vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
@@ -2888,6 +2891,7 @@ describe('ChannelView report a message (#467)', () => {
     fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
       target: { value: 'inappropriate content' },
     })
+    acceptReport()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
 
     expect(supabase.from).toHaveBeenCalledWith('abuse_reports')
@@ -2901,7 +2905,7 @@ describe('ChannelView report a message (#467)', () => {
       }),
     )
     await waitFor(() =>
-      expect(screen.getByText('Report submitted. Thank you for helping keep the game safe.')).toBeInTheDocument(),
+      expect(screen.getByText('Report submitted. Thank you for helping keep the game safe. You can message the server admin directly from Messages → Message Admin.')).toBeInTheDocument(),
     )
     // Sheet closes on success.
     await waitFor(() =>
@@ -2917,6 +2921,7 @@ describe('ChannelView report a message (#467)', () => {
     fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
       target: { value: 'inappropriate content' },
     })
+    acceptReport()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
 
     await waitFor(() =>
@@ -2933,6 +2938,7 @@ describe('ChannelView report a message (#467)', () => {
     fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
       target: { value: 'inappropriate content' },
     })
+    acceptReport()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
 
     await waitFor(() =>

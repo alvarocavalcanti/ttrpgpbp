@@ -1703,6 +1703,9 @@ describe('MessageItem report action (#467)', () => {
       />,
     )
 
+  const acceptReport = () =>
+    fireEvent.click(screen.getByRole('checkbox', { name: /I understand this report goes to the server admin/ }))
+
   it('shows the Report action on another player’s regular message', () => {
     renderMsg({ ...baseMsg })
     expect(screen.getByLabelText('Report')).toBeInTheDocument()
@@ -1751,10 +1754,50 @@ describe('MessageItem report action (#467)', () => {
     const onReport = vi.fn().mockResolvedValue(undefined)
     renderMsg({ ...baseMsg }, { onReport })
     fireEvent.click(screen.getByLabelText('Report'))
+    // Submit stays disabled until the reason and the consent box are both set.
+    expect(screen.getByRole('button', { name: 'Submit report' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
     expect(onReport).not.toHaveBeenCalled()
     // Sheet stays open so the user can fill the reason in.
     expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
+  })
+
+  it('tells the reporter who reads the report and what it can lead to (#789)', () => {
+    renderMsg({ ...baseMsg })
+    fireEvent.click(screen.getByLabelText('Report'))
+
+    expect(
+      screen.getByText(/Accounts that break the Acceptable Use Policy can be suspended or terminated/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /can lead to an account being suspended/ })).not.toBeChecked()
+    // The listing promise must never leak into the message flow.
+    expect(screen.queryByText(/listing can be taken down/i)).not.toBeInTheDocument()
+  })
+
+  it('tells a GM that reporting does not remove the player from the game', () => {
+    renderMsg({ ...baseMsg }, { isGM: true })
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.click(screen.getByRole('button', { name: 'Learn more' }))
+
+    expect(
+      screen.getByText(/Reporting does not remove the player from this game\. To remove them, use Kick Player or Block Player in the member list\./),
+    ).toBeInTheDocument()
+  })
+
+  it('hides the Kick/Block guidance from players', () => {
+    renderMsg({ ...baseMsg }, { isGM: false })
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.click(screen.getByRole('button', { name: 'Learn more' }))
+
+    expect(screen.queryByText(/use Kick Player or Block Player in the member list/)).not.toBeInTheDocument()
+  })
+
+  it('never ticks the consent box when Learn more is pressed', () => {
+    renderMsg({ ...baseMsg })
+    fireEvent.click(screen.getByLabelText('Report'))
+    fireEvent.click(screen.getByRole('button', { name: 'Learn more' }))
+
+    expect(screen.getByRole('checkbox', { name: /I understand this report goes to the server admin/ })).not.toBeChecked()
   })
 
   it('submits the report with the typed reason and closes the sheet', async () => {
@@ -1764,6 +1807,7 @@ describe('MessageItem report action (#467)', () => {
     fireEvent.click(screen.getByLabelText('Report'))
     const input = screen.getByLabelText('Why are you reporting this message?')
     fireEvent.change(input, { target: { value: '  harassment in chat  ' } })
+    acceptReport()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
     await waitFor(() => expect(onReport).toHaveBeenCalledWith(msg, 'harassment in chat'))
     await waitFor(() =>
@@ -1778,9 +1822,12 @@ describe('MessageItem report action (#467)', () => {
     fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
       target: { value: 'spam' },
     })
+    acceptReport()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
     await waitFor(() => expect(onReport).toHaveBeenCalled())
     expect(screen.getByRole('dialog', { name: 'Report this message' })).toBeInTheDocument()
+    // The typed reason survives the failure so the reporter can retry.
+    expect(screen.getByLabelText('Why are you reporting this message?')).toHaveValue('spam')
   })
 
   // Post-then-delete abuse: a deleted message can still be reported, and the
@@ -1802,6 +1849,7 @@ describe('MessageItem report action (#467)', () => {
     fireEvent.change(screen.getByLabelText('Why are you reporting this message?'), {
       target: { value: 'posted harassment then deleted it' },
     })
+    acceptReport()
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }))
     await waitFor(() => expect(onReport).toHaveBeenCalledWith(msg, 'posted harassment then deleted it'))
     await waitFor(() =>

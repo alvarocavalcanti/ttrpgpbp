@@ -32,7 +32,13 @@ Listed games are **application-only** — there's no instant join, and every app
 
 While it's pending, the listing shows *Your application is waiting for the GM to review it* with a **Withdraw application** button, in case you change your mind. Once the GM decides, a notice appears at the top of the lobby: **You're in — (game)** with a button straight into the channel, or that the game declined. Either one has a **Dismiss** button, and it stays until you clear it. You'll also get a notification if you have them turned on.
 
-If a listing doesn't look right, **Report this listing** at the bottom of it sends it to the server admins.
+## Reporting a listing
+
+If a listing doesn't look right, **Report this listing** at the bottom of it sends it to the server admins. Describe the problem, tick the box that says you understand where the report goes, and submit.
+
+Reports go to the server admin. A listing that breaks the Acceptable Use Policy can be taken down. We review reports in good faith, but we can't promise a reply within a set timeframe, and a report can't be withdrawn once it's sent. **Learn more** in the report sheet expands this guidance without closing it, so anything you've typed stays put.
+
+Once it's sent, the confirmation tells you where to go if you'd rather talk to the server admin directly: **Messages** → **Message Admin**.
 
 ## Creating a channel
 

@@ -12,15 +12,22 @@ interface TextPromptSheetProps {
   onClose: () => void
   /** Disables Confirm while the caller's request is in flight. */
   pending?: boolean
+  /** Caller-owned block, e.g. an unchecked consent box above the buttons. */
+  confirmDisabled?: boolean
+  /** Blocks Confirm (and implicit Enter submit) while the trimmed value is empty. */
+  requireValue?: boolean
+  /** Extra content between the input and the buttons (e.g. report consent). */
+  children?: React.ReactNode
 }
 
 // One-field text prompt replacing window.prompt (UX #413): themed bottom
 // sheet with the length cap enforced at input via native maxLength. Confirm
 // returns the trimmed value; Cancel, Escape and backdrop tap all abort.
-export function TextPromptSheet({ title, label, maxLength, initialValue = '', placeholder, confirmLabel, onConfirm, onClose, pending = false }: TextPromptSheetProps) {
+export function TextPromptSheet({ title, label, maxLength, initialValue = '', placeholder, confirmLabel, onConfirm, onClose, pending = false, confirmDisabled = false, requireValue = false, children }: TextPromptSheetProps) {
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
+  const blocked = pending || confirmDisabled || (requireValue && !value.trim())
 
   // The focus trap lands on the sheet's close button (first focusable), so
   // move focus to the input to open the mobile keyboard immediately.
@@ -31,7 +38,7 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
   return (
     <BottomSheet title={title} onClose={onClose}>
       <form
-        onSubmit={(e) => { e.preventDefault(); onConfirm(value.trim()) }}
+        onSubmit={(e) => { e.preventDefault(); if (blocked) return; onConfirm(value.trim()) }}
         className="space-y-4"
       >
         <div>
@@ -52,6 +59,7 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
             {value.length}/{maxLength}
           </p>
         </div>
+        {children}
         <div className="flex justify-end space-x-3">
           <button
             type="button"
@@ -62,7 +70,7 @@ export function TextPromptSheet({ title, label, maxLength, initialValue = '', pl
           </button>
           <button
             type="submit"
-            disabled={pending}
+            disabled={blocked}
             className="inline-flex min-h-11 items-center justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
           >
             {confirmLabel}

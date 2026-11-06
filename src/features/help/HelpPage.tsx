@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import MarkdownImpl from '../../components/MarkdownImpl'
 import { Seo } from '../../components/Seo'
@@ -10,11 +11,22 @@ import { getChannelHelp, getGeneralHelp } from './helpContent'
 
 export function HelpPage() {
   const { topic } = useParams<{ topic: string }>()
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
   const { user } = useAuth()
   const general = getGeneralHelp()
   const channel = getChannelHelp()
   const entries = [...general, ...channel]
+
+  const active = entries.find((e) => e.slug === topic) ?? entries[0]
+
+  // Deep links (`/help/messages#reporting-a-message`) must land on the heading:
+  // ScrollToTop only resets the window, and this article scrolls in its own pane.
+  // The hash is used raw — heading ids are ASCII slugs, and decoding it would
+  // throw on a hand-mangled URL such as `#%`.
+  useEffect(() => {
+    if (!hash) return
+    document.getElementById(hash.slice(1))?.scrollIntoView?.({ block: 'start' })
+  }, [active?.slug, hash])
 
   if (entries.length === 0) {
     return (
@@ -23,8 +35,6 @@ export function HelpPage() {
       </div>
     )
   }
-
-  const active = entries.find((e) => e.slug === topic) ?? entries[0]
 
   if (topic && !entries.some((e) => e.slug === topic)) {
     return <Navigate to="/help" replace />
@@ -85,8 +95,8 @@ export function HelpPage() {
                 className="w-full max-w-xl mb-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
               />
             )}
-            <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
-              <MarkdownImpl>{active.content}</MarkdownImpl>
+            <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert [&_h2]:scroll-mt-4 [&_h3]:scroll-mt-4">
+              <MarkdownImpl headingIds>{active.content}</MarkdownImpl>
             </div>
             <AuthorByline />
           </article>

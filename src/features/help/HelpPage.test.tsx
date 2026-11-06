@@ -142,4 +142,46 @@ describe('HelpPage', () => {
     expect(article).toHaveClass('min-h-0')
     expect(article).toHaveClass('overflow-y-auto')
   })
+
+  it('gives markdown headings stable ids so help sections can be deep-linked (#789)', () => {
+    renderPage(['/help/dice-rolling'])
+
+    expect(document.getElementById('inline-notation')).toBeInTheDocument()
+    expect(document.getElementById('inline-notation')?.textContent).toBe('Inline notation')
+  })
+
+  it('scrolls the article to the hashed section (#789)', () => {
+    const scrollIntoView = vi.fn()
+    const original = window.HTMLElement.prototype.scrollIntoView
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
+
+    try {
+      renderPage(['/help/dice-rolling#inline-notation'])
+
+      expect(scrollIntoView).toHaveBeenCalled()
+      // Called on the heading itself, not on some unrelated node.
+      expect(scrollIntoView.mock.instances[0]).toBe(document.getElementById('inline-notation'))
+    } finally {
+      window.HTMLElement.prototype.scrollIntoView = original
+    }
+  })
+
+  it('ignores a hash that matches no heading (#789)', () => {
+    const scrollIntoView = vi.fn()
+    const original = window.HTMLElement.prototype.scrollIntoView
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
+
+    try {
+      renderPage(['/help/dice-rolling#no-such-section'])
+
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    } finally {
+      window.HTMLElement.prototype.scrollIntoView = original
+    }
+  })
+
+  it('does not throw on a mangled hash (#789)', () => {
+    // `#%` would blow up a decodeURIComponent() call.
+    expect(() => renderPage(['/help/dice-rolling#%'])).not.toThrow()
+  })
 })

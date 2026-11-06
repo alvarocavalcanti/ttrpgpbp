@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BottomSheet } from '../../components/BottomSheet'
 import { LinkifiedText } from '../../components/LinkifiedText'
-import { TextPromptSheet } from '../../components/TextPromptSheet'
+import { ReportPromptSheet } from '../../components/ReportPromptSheet'
 import { useToast } from '../../contexts/ToastContext'
 import { copyToClipboard } from '../../lib/clipboard'
 import { toError } from '../../lib/errors'
@@ -96,9 +96,8 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
   // report_channel_listing raises on every refusal (own listing, already open
   // report), so its message is what the reporter needs to see.
   const handleReport = async (reason: string) => {
-    // TextPromptSheet carries no pending state, so guard reentry here: a double
-    // tap on a slow connection would otherwise fire twice and the second call
-    // would come back refused as a duplicate.
+    // The sheet disables Submit while busy, so this only guards a programmatic
+    // double call (the RPC refuses the second as a duplicate).
     if (reportBusy) return
     // The server trims and rejects an empty reason; refuse it here so the
     // reporter gets the answer immediately instead of after a round-trip.
@@ -111,7 +110,7 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
     try {
       const reportError = await reportChannelListing(channelId, trimmed)
       if (reportError) throw reportError
-      addToast('Thanks — the report is with the moderators.', 'success')
+      addToast('Thanks — the report is with the moderators. You can message the server admin directly from Messages → Message Admin.', 'success')
       setReportOpen(false)
     } catch (err) {
       addToast(toError(err).message, 'error')
@@ -264,14 +263,30 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
   )
 
   const reportSheet = reportOpen && (
-    <TextPromptSheet
+    <ReportPromptSheet
       title="Report this listing"
       label="Why are you reporting this listing?"
       placeholder="Describe the problem"
       maxLength={MAX_LISTING_REPORT_REASON_LENGTH}
       confirmLabel="Submit report"
+      pending={reportBusy}
       onConfirm={handleReport}
       onClose={() => setReportOpen(false)}
+      consequence="Reports go to the server admin. A listing that breaks the Acceptable Use Policy can be taken down. We review reports in good faith, but we can't promise a reply within a set timeframe."
+      consentLabel="I understand this report goes to the server admin and the listing can be taken down."
+      learnMore={
+        <>
+          <p>A report can&apos;t be withdrawn once it&apos;s sent.</p>
+          <a
+            href="/help/lobby#reporting-a-listing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center font-medium text-primary-600 dark:text-primary-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+          >
+            Read more in Help
+          </a>
+        </>
+      }
     />
   )
 
