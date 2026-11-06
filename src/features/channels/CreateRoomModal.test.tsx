@@ -157,6 +157,20 @@ describe('CreateRoomModal', () => {
     expect(h.onCreated).not.toHaveBeenCalled()
   })
 
+  it('keeps the actions outside the scrolling body so a long player list cannot push them away', () => {
+    const crowd = Array.from({ length: 12 }, (_, i) => ({
+      user_id: `p${i}`,
+      character_name: `Player ${i}`,
+    }))
+    renderModal({ members: crowd })
+    fireEvent.click(screen.getByLabelText('Invited players'))
+
+    const body = screen.getByTestId('create-room-body')
+    expect(body).toContainElement(screen.getByLabelText('Player 11'))
+    expect(body).not.toContainElement(screen.getByRole('button', { name: 'Create room' }))
+    expect(body).not.toContainElement(screen.getByRole('button', { name: 'Cancel' }))
+  })
+
   it('reveals the player checklist only for Invited players', () => {
     renderModal()
     fireEvent.click(screen.getByLabelText('Invited players'))
