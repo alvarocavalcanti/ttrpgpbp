@@ -84,6 +84,7 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 | `listing_open` | App | A Discover card was opened. Param `game_system`. Fires once per opened card, not on refetch | `PublicChannelDetailSheet.tsx:45` |
 | `listing_apply_submit` | App | An application to a listed game was submitted. Param `game_system` | `PublicChannelDetailSheet.tsx:54` |
 | `listing_publish` | App | A GM listed a channel (the private → listed transition, not later edits). Param `game_system` | `ChannelSettings.tsx:209` |
+| `room_create` | App | A GM created a room (#774). Params `audience` = `all`, `gm` or `private`, and `invited` = how many players were invited. Never carries room names, ids or player identities | `CreateRoomModal.tsx:84` |
 | `join_request_decide` | App | A GM approved or rejected an application. Param `decision` = `approve` or `reject` | `ChannelSettings.tsx:274` |
 | `directory_signin_click` | App | On the public `/directory`, a visitor tapped a listing to sign in | `DirectoryPage.tsx:26` |
 

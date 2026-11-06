@@ -9,6 +9,7 @@ import { MessageList } from '../chat/MessageList'
 import { useMessageFavorites } from '../chat/useMessageFavorites'
 import { MessageComposer, type MessageComposerHandle, type ReplyTarget } from '../chat/MessageComposer'
 import { SubChannelTabs } from './SubChannelTabs'
+import { CreateRoomModal } from './CreateRoomModal'
 import { ManageSubChannelsModal } from './ManageSubChannelsModal'
 import { useSubChannels } from './useSubChannels'
 import { usePendingJoinRequests } from './usePendingJoinRequests'
@@ -105,6 +106,9 @@ export function ChannelView() {
   const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(isGM ? id : undefined)
   const { counts: roomUnread, markRoomRead, markMainRead } = useSubChannelUnread(id, subId ?? null)
   const [showManageRooms, setShowManageRooms] = useState(false)
+  // Create is its own dialog (#774): + Room opens this, the gear opens the
+  // manager, and the manager no longer creates.
+  const [showCreateRoom, setShowCreateRoom] = useState(false)
   // Active room and its capability flags (#621 Phase 2). Main (no room) and an
   // unknown room allow everything.
   const activeRoom = subChannels.find(r => r.id === subId) ?? archivedRooms.find(r => r.id === subId)
@@ -116,6 +120,14 @@ export function ChannelView() {
     allow_npc: activeRoom?.allow_npc ?? true,
     allow_whispers: activeRoom?.allow_whispers ?? true,
   }
+  // Players the GM can invite (#621 Phase 3). Shared by the create dialog and
+  // the manager so the two can never disagree about who is eligible.
+  const inviteCandidates = useMemo(
+    () => members
+      .filter(m => m.user_id !== channel?.gm_id && !m.is_blocked)
+      .map(m => ({ user_id: m.user_id, character_name: m.character_name })),
+    [members, channel?.gm_id],
+  )
   
   const [showSettings, setShowSettings] = useState(false)
   const [showRollHistory, setShowRollHistory] = useState(false)
@@ -615,6 +627,7 @@ export function ChannelView() {
           loading={roomsLoading}
           error={roomsError}
           isGM={isGM}
+          onCreate={() => setShowCreateRoom(true)}
           onManage={() => setShowManageRooms(true)}
           onRetry={refetchRooms}
         />
@@ -1012,6 +1025,25 @@ export function ChannelView() {
         />
       )}
 
+      {showCreateRoom && isGM && (
+        <CreateRoomModal
+          existingActiveRoomCount={subChannels.length}
+          isArchived={channel.is_archived}
+          members={inviteCandidates}
+          membersLoading={channelLoading}
+          membersError={error}
+          // Roster-only refetch: a full refetch would blank the channel behind
+          // the dialog (and unmount it) while the GM retries.
+          onRetryMembers={refreshMembers}
+          onCreate={createRoom}
+          onCreated={(roomId) => {
+            setShowCreateRoom(false)
+            navigate(channelRoomPath(channel.id, roomId))
+          }}
+          onClose={() => setShowCreateRoom(false)}
+        />
+      )}
+
       {showManageRooms && isGM && (
         <ManageSubChannelsModal
           channelId={channel.id}
@@ -1020,20 +1052,15 @@ export function ChannelView() {
           loading={roomsLoading}
           error={roomsError}
           onClose={() => setShowManageRooms(false)}
-          onCreate={createRoom}
           onRename={renameRoom}
           onSetArchived={setRoomArchived}
           onSetCapabilities={setRoomCapabilities}
           onSetVisibility={setRoomVisibility}
           onAddMember={addRoomMember}
           onRemoveMember={removeRoomMember}
-          members={members.filter(m => m.user_id !== channel.gm_id && !m.is_blocked).map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+          members={inviteCandidates}
           roomMembers={roomMembers}
           onRemove={removeRoom}
-          onOpenRoom={(roomId) => {
-            setShowManageRooms(false)
-            navigate(channelRoomPath(channel.id, roomId))
-          }}
           onRetry={refetchRooms}
         />
       )}

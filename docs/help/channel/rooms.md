@@ -9,11 +9,19 @@ Every channel starts with **Main**, the original conversation. Rooms sit beside 
 
 ## Creating and managing rooms
 
-The **GM** creates rooms from the **+ Room** chip in the room bar, or from the channel sidebar → **GM Tools → Rooms**. A channel can hold up to **10 active rooms**.
+The **GM** creates rooms from the **+ Room** chip in the room bar, or from the channel sidebar → **GM Tools → Rooms**. The room bar is there for the GM from the first visit, even before the first room exists, so **+ Room** is always one tap away. A channel can hold up to **10 active rooms**.
 
-From **GM Tools → Rooms** the GM can:
+**+ Room** opens one dialog with everything the room needs:
 
-- **Create** a room — name up to 40 characters ("Main" is reserved), with its features already chosen (see below)
+- **Name** — up to 40 characters ("Main" is reserved)
+- **Features** — Dice, Scenes, NPCs and whispers, all on by default
+- **Who can see it** — Everyone, Only the GM, or Invited players
+- **Players** — when you pick **Invited players**, a checklist of the channel's players appears; the GM is never on it, and neither is anyone blocked in the game
+
+The room and its invited players are saved together, so if the server refuses the room nothing half-built is left behind, and the confirmation says who can see it — "Visible to 3 invited players", never "everyone" for a private room.
+
+The **gear** beside **+ Room**, and **GM Tools → Rooms**, open the room manager. From there the GM can:
+
 - **Rename** a room
 - **Archive** a room — it leaves the room bar but stays readable, and frees a slot for a new one
 - **Restore** an archived room
@@ -21,7 +29,7 @@ From **GM Tools → Rooms** the GM can:
 - **Choose who can see it** — Everyone, Only the GM, or Invited players
 - **Turn features on or off** for that room — dice, Scenes, NPC posts, and whispers
 
-The features are on by default. Pick them in the **New room** form and the room starts that way, or change them on a room you already have.
+The manager does not create rooms; **+ Room** does.
 
 ## Who can see a room
 

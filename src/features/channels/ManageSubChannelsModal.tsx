@@ -3,8 +3,9 @@ import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useToast } from '../../contexts/ToastContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { MAX_ROOM_NAME_LENGTH, MAX_ROOMS_PER_CHANNEL } from '../../constants'
+import { MAX_ROOM_NAME_LENGTH } from '../../constants'
 import type { RoomCapabilities, RoomVisibility, SubChannel } from './useSubChannels'
+import { CAPABILITY_FLAGS, friendlyRoomError } from './roomForm'
 
 interface ManageSubChannelsModalProps {
   channelId: string
@@ -13,7 +14,6 @@ interface ManageSubChannelsModalProps {
   loading: boolean
   error: Error | null
   onClose: () => void
-  onCreate: (name: string, caps: RoomCapabilities) => Promise<string>
   onRename: (roomId: string, name: string) => Promise<void>
   onSetArchived: (roomId: string, archived: boolean) => Promise<void>
   onSetCapabilities: (roomId: string, caps: Partial<RoomCapabilities>) => Promise<void>
@@ -25,36 +25,19 @@ interface ManageSubChannelsModalProps {
   // Invited user ids per room.
   roomMembers: Record<string, string[]>
   onRemove: (roomId: string) => Promise<void>
-  onOpenRoom: (roomId: string) => void
   onRetry: () => void
 }
 
-// The RPC's refusal or a unique violation arrives as a Postgres error message;
-// translate the ones a GM will actually hit into player-facing copy.
-function friendlyRoomError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err)
-  if (/duplicate key|unique/i.test(msg)) return 'A room with that name already exists.'
-  return msg
-}
-
-// Per-room capability toggles (#621 Phase 2).
-const CAPABILITY_FLAGS: { key: keyof RoomCapabilities; label: string }[] = [
-  { key: 'allow_dice', label: 'Dice' },
-  { key: 'allow_scenes', label: 'Scenes' },
-  { key: 'allow_npc', label: 'NPCs' },
-  { key: 'allow_whispers', label: 'Whispers' },
-]
-
-// GM-only room manager (#621): create, rename, archive/restore, and hard-delete
-// empty rooms. All writes are server-owned RPCs; this modal only collects input
-// and surfaces their errors.
+// GM-only room manager (#621). Rename, archive/restore, delete, and the
+// per-room toggles; creation lives in its own dialog behind + Room (#774, D9).
+// All writes are server-owned RPCs; this modal only collects input and surfaces
+// their errors.
 export function ManageSubChannelsModal({
   subChannels,
   archivedRooms,
   loading,
   error,
   onClose,
-  onCreate,
   onRename,
   onSetArchived,
   onSetCapabilities,
@@ -64,7 +47,6 @@ export function ManageSubChannelsModal({
   members,
   roomMembers,
   onRemove,
-  onOpenRoom,
   onRetry,
 }: ManageSubChannelsModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -72,44 +54,10 @@ export function ManageSubChannelsModal({
   useFocusTrap(dialogRef)
   const { addToast } = useToast()
 
-  const [newName, setNewName] = useState('')
-  // Feature flags for the room being created (#722): the GM picks them up
-  // front instead of creating the room and then hunting for the toggles.
-  const [newCaps, setNewCaps] = useState<RoomCapabilities>({
-    allow_dice: true,
-    allow_scenes: true,
-    allow_npc: true,
-    allow_whispers: true,
-  })
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<SubChannel | null>(null)
-
-  const canCreate = newName.trim().length > 0 && !creating && subChannels.length < MAX_ROOMS_PER_CHANNEL
-
-  const handleCreate = async () => {
-    const name = newName.trim()
-    if (!name) {
-      setCreateError('Enter a room name.')
-      return
-    }
-    setCreating(true)
-    setCreateError(null)
-    try {
-      const roomId = await onCreate(name, newCaps)
-      addToast(`Room ${name} created. Everyone in the channel can see it.`, 'success')
-      setNewName('')
-      setNewCaps({ allow_dice: true, allow_scenes: true, allow_npc: true, allow_whispers: true })
-      onOpenRoom(roomId)
-    } catch (err) {
-      setCreateError(friendlyRoomError(err))
-    } finally {
-      setCreating(false)
-    }
-  }
 
   const handleRename = async (room: SubChannel) => {
     const name = editName.trim()
@@ -224,7 +172,7 @@ export function ManageSubChannelsModal({
           <>
             {!error && subChannels.length === 0 && (
               <p className="text-sm text-surface-500 dark:text-surface-400 py-2">
-                No rooms yet. Add one below to give the table a place for out-of-character chat, dice, or a scene.
+                No rooms yet. Use + Room in the room bar to make one — a place for out-of-character chat, dice, or a scene.
               </p>
             )}
 
@@ -325,56 +273,6 @@ export function ManageSubChannelsModal({
                 ))}
               </ul>
             )}
-
-            <div className="border-t border-surface-100 dark:border-surface-700 pt-4">
-              <label htmlFor="new-room-name" className="block text-sm font-semibold text-surface-900 dark:text-surface-100 uppercase tracking-wider mb-2">
-                New room
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="new-room-name"
-                  value={newName}
-                  onChange={(e) => { setNewName(e.target.value); setCreateError(null) }}
-                  placeholder="e.g. OOC, Dice, Chapter 1"
-                  maxLength={MAX_ROOM_NAME_LENGTH}
-                  className="flex-1 min-w-0 w-full bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md text-sm py-1.5 px-3 focus:ring-primary-500 focus:border-primary-500"
-                  onKeyDown={(e) => { if (e.key === 'Enter' && canCreate) handleCreate() }}
-                />
-                <button
-                  type="button"
-                  onClick={handleCreate}
-                  disabled={!canCreate}
-                  className="shrink-0 inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                >
-                  {creating ? 'Creating…' : 'Create room'}
-                </button>
-              </div>
-              {createError && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">{createError}</p>}
-              {/* The room's features, chosen up front (#722). A GM creating
-                  their first room otherwise never learns these exist. The
-                  legend names the group, so each checkbox is labelled by its
-                  own visible text and no aria-label can shadow the "New room"
-                  field above. */}
-              <fieldset className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-600 dark:text-surface-300">
-                <legend className="text-xs text-surface-500 dark:text-surface-400">Features</legend>
-                {CAPABILITY_FLAGS.map(flag => (
-                  <label key={flag.key} className="inline-flex items-center gap-1.5">
-                    <input
-                      type="checkbox"
-                      checked={newCaps[flag.key]}
-                      onChange={() => setNewCaps(prev => ({ ...prev, [flag.key]: !prev[flag.key] }))}
-                      className="h-4 w-4 rounded border border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500"
-                    />
-                    {flag.label}
-                  </label>
-                ))}
-              </fieldset>
-              <p className="mt-2 text-xs text-surface-500 dark:text-surface-400">
-                {subChannels.length >= MAX_ROOMS_PER_CHANNEL
-                  ? `Room limit reached (${MAX_ROOMS_PER_CHANNEL}). Archive or delete a room first.`
-                  : `Up to ${MAX_ROOMS_PER_CHANNEL} rooms per channel. Images can only be shared in Main.`}
-              </p>
-            </div>
 
             {archivedRooms.length > 0 && (
               <details className="mt-4 border-t border-surface-100 dark:border-surface-700 pt-3">

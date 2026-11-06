@@ -3106,6 +3106,95 @@ describe('ChannelView rooms (#621)', () => {
     expect(screen.getByRole('tab', { name: 'OOC' })).toBeInTheDocument()
   })
 
+  it('renders the room bar for a GM before the first room exists', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
+      members: [{ user_id: 'gm1', character_name: 'GM', is_blocked: false }],
+      loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'gm1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    // The create entry point must exist before the first room (#774).
+    expect(screen.getByRole('tablist', { name: 'Rooms' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Main' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add room' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage rooms' })).toBeInTheDocument()
+  })
+
+  it('opens create from + Room and the manager from the gear', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
+      members: [
+        { user_id: 'gm1', character_name: 'GM', is_blocked: false },
+        { user_id: 'p1', character_name: 'Hero', is_blocked: false },
+      ],
+      loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'gm1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add room' }))
+    expect(screen.getByRole('dialog', { name: 'Create room' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Manage rooms' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close create room' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage rooms' }))
+    expect(screen.getByRole('dialog', { name: 'Manage rooms' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Create room' })).not.toBeInTheDocument()
+  })
+
+  it('creates a private room in one RPC and lands in it', async () => {
+    const create = vi.fn().mockResolvedValue('r2')
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [], archivedRooms: [], loading: false, error: null,
+      create, rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
+      members: [
+        { user_id: 'gm1', character_name: 'GM', is_blocked: false },
+        { user_id: 'p1', character_name: 'Hero', is_blocked: false },
+        { user_id: 'p2', character_name: 'Muted', is_blocked: true },
+      ],
+      loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'gm1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add room' }))
+    fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'Secret' } })
+    fireEvent.click(screen.getByLabelText('Invited players'))
+    // The GM and blocked players are never offered.
+    expect(screen.queryByLabelText('GM')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Muted')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Hero'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    expect(await screen.findByText('Room Secret created. Visible to 1 invited player.')).toBeInTheDocument()
+    // One atomic RPC — never a create-then-invite chain (D10).
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(create).toHaveBeenCalledWith('Secret', {
+      allow_dice: true,
+      allow_scenes: true,
+      allow_npc: true,
+      allow_whispers: true,
+    }, 'private', ['p1'])
+    await waitFor(() => expect(vi.mocked(useMessages)).toHaveBeenLastCalledWith('c1', 'r2', expect.any(Function)))
+    expect(screen.queryByRole('dialog', { name: 'Create room' })).not.toBeInTheDocument()
+  })
+
   it('passes the route room through to useMessages', () => {
     vi.mocked(useSubChannels).mockReturnValue({
       subChannels: [room()], archivedRooms: [], loading: false, error: null,
