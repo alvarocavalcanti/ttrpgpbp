@@ -738,20 +738,44 @@ describe('MessageItem', () => {
       expect(screen.queryByLabelText('Modifier')).not.toBeInTheDocument()
     })
 
-    it('rolls the notation unchanged when the modifier text is not a whole number', async () => {
+    it('rejects malformed modifier text as it is typed', async () => {
       const mockOnRollDice = renderDice('Roll 1d20 now')
       fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
-      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: 'abc' } })
+      const input = screen.getByLabelText('Modifier') as HTMLInputElement
+      fireEvent.change(input, { target: { value: '1e3' } })
+      expect(input.value).toBe('0')
+      fireEvent.change(input, { target: { value: 'abc' } })
+      expect(input.value).toBe('0')
+      fireEvent.change(input, { target: { value: '--5' } })
+      expect(input.value).toBe('0')
       fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
       expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
     })
 
-    it('clamps an out-of-range modifier to the notation limit', async () => {
+    it('accepts a four-digit modifier', async () => {
       const mockOnRollDice = renderDice('Roll 1d20 now')
       fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
-      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '10000' } })
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '9999' } })
       fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
       expect(mockOnRollDice).toHaveBeenCalledWith('1d20+9999', 'm1')
+    })
+
+    it('rejects a fifth digit instead of rolling a clamped value', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+      const input = screen.getByLabelText('Modifier') as HTMLInputElement
+      fireEvent.change(input, { target: { value: '10000' } })
+      expect(input.value).toBe('0')
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
+    })
+
+    it('treats an emptied field as no modifier', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20+3 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20+3' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
     })
 
     it('rolls pool notation immediately without the modifier sheet', async () => {

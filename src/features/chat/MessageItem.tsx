@@ -398,8 +398,9 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   }, [onRollDice, message.id])
 
   // Rolls the sheet's notation with the player's modifier — replacing the one
-  // the GM wrote, never stacking on it. Garbage text counts as 0 and the value
-  // clamps to the grammar's ±9999; an invalid rebuild keeps the sheet open.
+  // the GM wrote, never stacking on it. The field rejects malformed text as it
+  // is typed; an empty field (or a lone minus) means no modifier, and the
+  // ±9999 clamp stays as a guard. An invalid rebuild keeps the sheet open.
   const rollDiceWithModifier = () => {
     if (!diceDraft || !onRollDice) return
     const entered = /^-?\d+$/.test(diceDraft.modifier.trim()) ? parseInt(diceDraft.modifier.trim(), 10) : 0
@@ -627,7 +628,13 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
     <DiceModifierSheet
       notation={diceDraft.notation}
       modifier={diceDraft.modifier}
-      onModifierChange={(value) => setDiceDraft(d => d ? { ...d, modifier: value } : d)}
+      onModifierChange={(value) => {
+        // Reject what the grammar can't express as it is typed (letters,
+        // exponents, double signs, a fifth digit) instead of rolling a
+        // different modifier than the field showed.
+        if (!/^-?\d{0,4}$/.test(value)) return
+        setDiceDraft(d => d ? { ...d, modifier: value } : d)
+      }}
       onRoll={rollDiceWithModifier}
       onClose={() => setDiceDraft(null)}
     />
