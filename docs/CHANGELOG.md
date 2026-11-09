@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Add your own bonus to a dice roll** — clicking a dice in a message now opens a small **Modifier** sheet before the roll. The field starts at the bonus already written in the roll (a `1d20+3` starts at +3), so you can adjust it for your character and tap **Roll**. Dice pools and success rolls carry no bonus, so they roll straight away, and the message that asked for the roll is never changed.
 - **Report a Bug** — the main menu and the channel **Help** panel now have a **Report a Bug** button. It opens your conversation with the server admin already filled in with a bug-report template and the app version, so you can describe what went wrong without hunting for where to send it.
 
 ## 2026-11-06
