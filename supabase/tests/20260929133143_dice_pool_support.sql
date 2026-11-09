@@ -132,12 +132,12 @@ SELECT is(
 -- the #397 test).
 SELECT is(
   build_dice_content('2d6', '{3,5}', 0, 8),
-  'Rolled 2d6: 3 + 5 = **8**',
+  'Rolled 2d6: `3` + `5` = **8**',
   'plain sum breakdown unchanged'
 );
 SELECT is(
   build_dice_content('1d20+5', '{20}', 5, 25),
-  'Rolled 1d20+5: 20 + 5 = **25**' || E'\n\n**Critical Success**',
+  'Rolled 1d20+5: `20` + 5 = **25**' || E'\n\n**Critical Success**',
   'sum crit label unchanged'
 );
 

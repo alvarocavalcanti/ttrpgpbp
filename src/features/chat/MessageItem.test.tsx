@@ -189,6 +189,38 @@ describe('MessageItem', () => {
     expect(screen.getByText('15').tagName).toBe('STRONG')
   })
 
+  it('boxes each rolled die face in the dice card (#796)', async () => {
+    const dice: any = {
+      type: 'dice_roll',
+      content: 'Rolled 1d20+6: `6` + 6 = **12**',
+      sender: { display_name: 'Hero' }
+    }
+    render(<MessageItem message={dice} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+
+    const die = await screen.findByText('6')
+    expect(die.tagName).toBe('CODE')
+    const card = die.closest('.prose-chat')
+    expect(card?.className).toContain('[&_code]:border-surface-300')
+    expect(card?.className).toContain('[&_code]:before:content-none')
+
+    // Regular messages keep today's plain inline code (the chip styling is
+    // scoped to the dice card's prose container).
+    const regular: any = {
+      type: 'regular',
+      content: 'run `npm test` first',
+      created_at: new Date().toISOString(),
+      sender_id: 'u2',
+      sender: { display_name: 'Hero' }
+    }
+    const { container } = render(<MessageItem message={regular} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const code = await waitFor(() => {
+      const el = container.querySelector('.prose-chat code')
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    })
+    expect(code.closest('.prose-chat')?.className).not.toContain('[&_code]:border')
+  })
+
   it('renders dice roll content at the same font size as regular messages (#500)', () => {
     const msg: any = {
       type: 'dice_roll',

@@ -89,4 +89,5 @@ The **Messages** item in the app menu is a separate space from channel chat:
 
 - **Announcements** from the server administrator appear for everyone, or for GMs only when they're addressed to GMs — a small chip ("All users" / "GMs") on each announcement shows the audience. Suspended players and GMs don't see announcements while suspended (but can still message the server admin).
 - **Message the server admin** — tap **Message Admin** to start a conversation with the server administrator. You keep one support conversation; sending again reuses it (suspended players included).
+- **Report a Bug** — the app menu and the channel **Help** panel both offer **Report a Bug**. It opens that same conversation with a bug-report template already filled in (what happened, what you expected, steps to reproduce, device/browser) plus the app version, so you can describe the problem without hunting for where to send it.
 - An unread dot on the menu item shows when there's something new for you.

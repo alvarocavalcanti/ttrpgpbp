@@ -6,9 +6,12 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface ChannelHelpModalProps {
   onClose: () => void
+  // Bug report shortcut (#796): opens the support composer prefilled. Optional
+  // so the modal stays usable (and Router-free) without a navigation handler.
+  onReportBug?: () => void
 }
 
-export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
+export function ChannelHelpModal({ onClose, onReportBug }: ChannelHelpModalProps) {
   const entries = getChannelHelp()
   const [selected, setSelected] = useState<HelpEntry | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -76,6 +79,18 @@ export function ChannelHelpModal({ onClose }: ChannelHelpModalProps) {
               </div>
             )}
           </>
+        )}
+
+        {onReportBug && (
+          <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-4">
+            <button
+              type="button"
+              onClick={onReportBug}
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+            >
+              Report a Bug
+            </button>
+          </div>
         )}
       </div>
     </div>

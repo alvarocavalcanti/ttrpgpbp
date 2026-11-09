@@ -1101,7 +1101,10 @@ export function ChannelView() {
       )}
 
       {showHelp && (
-        <ChannelHelpModal onClose={() => setShowHelp(false)} />
+        <ChannelHelpModal
+          onClose={() => setShowHelp(false)}
+          onReportBug={() => { setShowHelp(false); navigate('/messages?compose=bug') }}
+        />
       )}
 
       {showNpcs && isGM && (

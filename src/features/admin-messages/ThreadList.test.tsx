@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ThreadList } from './ThreadList'
+import { ThreadList, BUG_REPORT_TEMPLATE } from './ThreadList'
 import { useAdminThreads } from './useAdminThreads'
 import { useMessageRecipients } from './useMessageRecipients'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
@@ -147,6 +147,37 @@ describe('ThreadList', () => {
     await waitFor(() => {
       expect(screen.queryByText('New Message')).not.toBeInTheDocument()
     })
+  })
+
+  it('opens the composer prefilled for a bug report request (#796)', async () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    const createThread = vi.fn().mockResolvedValue(null)
+    mockHookReturn({ createThread })
+
+    const { rerender } = render(<ThreadList onSelectThread={vi.fn()} composeRequest={0} />)
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+
+    rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={1} />)
+    await waitFor(() => screen.getByText('New Message'))
+
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
+    expect(textarea.value).toContain('Bug report (Role by Post v')
+    expect(textarea.value).toContain('What happened:')
+    expect(textarea.value).toContain('Device / browser:')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => {
+      expect(createThread).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'dm', gmId: null, content: BUG_REPORT_TEMPLATE,
+      }))
+    })
+
+    // The template is used once: a later manual composer tap starts empty.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByText('New Message')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('Message Admin'))
+    await waitFor(() => screen.getByText('New Message'))
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
   })
 
   it('keeps the modal open without selecting when creation fails (hook toasts)', async () => {

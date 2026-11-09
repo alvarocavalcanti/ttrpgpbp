@@ -53,14 +53,14 @@ SELECT is(
 -- A chained sum breaks its dice down flat, group order preserved.
 SELECT is(
   build_dice_content('2d6+1d8+3', '{4,2,6}', 3, 15),
-  'Rolled 2d6+1d8+3: 4 + 2 + 6 + 3 = **15**',
+  'Rolled 2d6+1d8+3: `4` + `2` + `6` + 3 = **15**',
   'chained sum prints a flat breakdown'
 );
 
 -- A chained sum never crits, even when its total lands on 20.
 SELECT is(
   build_dice_content('1d20+1d6', '{14,6}', 0, 20),
-  'Rolled 1d20+1d6: 14 + 6 = **20**',
+  'Rolled 1d20+1d6: `14` + `6` = **20**',
   'chained sum with a natural-20 total shows no critical label'
 );
 
@@ -74,7 +74,7 @@ SELECT is(
 -- A chained sum with no modifier still breaks down when it has more than one die.
 SELECT is(
   build_dice_content('2d6+1d8', '{3,5,1}', 0, 9),
-  'Rolled 2d6+1d8: 3 + 5 + 1 = **9**',
+  'Rolled 2d6+1d8: `3` + `5` + `1` = **9**',
   'chained sum breaks down without a modifier'
 );
 
