@@ -18,7 +18,7 @@ Write dice notation directly in a message and it becomes **clickable** — anyon
 - `5d6ps` / `5d6>=4s` — sorted pools: same as above, but the faces are listed highest-first, so you can read off how many beat a number at a glance
 - `2d8+1d6+2` — combined dice: several groups roll together, each keeps or drops on its own, and every kept face is added up with the trailing modifier
 
-Roll messages break the total down into its parts, for example `Rolled 1d20+3: 10 + 3 = **13**` or `Rolled 2d6: 3 + 5 = **8**`. Advantage / disadvantage rolls show both dice, for example `Rolled 2d20 with DIS [2, 15]: **2**`. Pool rolls never add up: `Rolled 5d6p: 2, 5, 3, 6, 1`.
+Roll messages break the total down into its parts, for example `Rolled 1d20+3: 10 + 3 = **13**` or `Rolled 2d6: 3 + 5 = **8**`. On rolls that add dice together, each rolled die is shown in a small outlined square, the modifier stays plain, and the total is bold, so it is easy to tell which number came from the die and which is the bonus. A plain single-die roll such as `1d20` shows just its bold result, with no breakdown. Any modifier from −9999 to 9999 is allowed — a game system's usual attribute limits do not cap a roll. Advantage / disadvantage rolls show both dice, for example `Rolled 2d20 with DIS [2, 15]: **2**`. Pool rolls never add up and list their faces plainly: `Rolled 5d6p: 2, 5, 3, 6, 1`.
 
 ## Critical rolls
 
@@ -33,7 +33,7 @@ Both GMs and players can use the **Dice Roller Panel**, opened from the round di
 - Pick a die from the icon grid (d4, d6, d8, d10, d12, d20, d100) — tap it to add one and keep tapping to add more. A small badge shows how many of each you've picked
 - Combine different dice in one roll: pick 2d6 and 1d8 and they roll and add up together
 - **Clear** the whole dice selection with one tap — it sits with the modifier controls and is always shown (dimmed until you pick a die); the Roll button stays off until you pick at least one die
-- Add a modifier (+N / -N) in Sum mode only — on phones, use the − / + steppers
+- Add a modifier (+N / -N) in Sum mode only — on phones, use the − / + steppers. Any value up to four digits is kept as written; rolling in any game system does not cap it
 - Switch between **Sum**, **Pool**, and **Successes**: Pool lists every face with no total; Successes adds a target number and counts how many dice hit it; a **Sort highest first** checkbox lists pool faces highest-first. Pools use a single die type, so they're unavailable while you have several types picked
 - Tap a chip to load one of the last three distinct roll notations used in the channel into the roller — check the values, then tap **Roll** to confirm, so an accidental tap no longer rolls. A few exotic rolls the panel can't rebuild (like drop-lowest) still roll the instant you tap.
 - Pin up to three favorite notations per channel with the star checkbox on each chip — favorites stay pinned to the front in amber, and unchecking one frees the slot

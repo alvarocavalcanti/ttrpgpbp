@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ThreadList } from './ThreadList'
+import { ThreadList, BUG_REPORT_TEMPLATE } from './ThreadList'
 import { useAdminThreads } from './useAdminThreads'
 import { useMessageRecipients } from './useMessageRecipients'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
@@ -146,6 +146,62 @@ describe('ThreadList', () => {
     expect(onSelectThread).toHaveBeenCalledWith(mockThread)
     await waitFor(() => {
       expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+    })
+  })
+
+  it('opens the composer prefilled for a bug report request (#796)', async () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    const createThread = vi.fn().mockResolvedValue(null)
+    mockHookReturn({ createThread })
+
+    const { rerender, container } = render(<ThreadList onSelectThread={vi.fn()} composeRequest={0} />)
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+
+    rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={1} />)
+    await waitFor(() => screen.getByText('New Message'))
+    // Portaled out of the list pane, which mobile hides when a thread is open.
+    expect(container.contains(screen.getByText('New Message'))).toBe(false)
+
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
+    expect(textarea.value).toContain('Bug report (Role by Post v')
+    expect(textarea.value).toContain('What happened:')
+    expect(textarea.value).toContain('Device / browser:')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => {
+      expect(createThread).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'dm', gmId: null, content: BUG_REPORT_TEMPLATE,
+      }))
+    })
+
+    // The template is used once: a later manual composer tap starts empty.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByText('New Message')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('Message Admin'))
+    await waitFor(() => screen.getByText('New Message'))
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('applies a bug report request to an already-open, empty composer without clobbering a draft', async () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    mockHookReturn({})
+
+    const { rerender } = render(<ThreadList onSelectThread={vi.fn()} composeRequest={0} />)
+    fireEvent.click(screen.getByText('Message Admin'))
+    await waitFor(() => screen.getByText('New Message'))
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+
+    // Open and empty: the request fills it in.
+    rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={1} />)
+    await waitFor(() => {
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('What happened:')
+    })
+
+    // Open with a draft: the request must not replace what was typed.
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my draft' } })
+    rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={2} />)
+    await waitFor(() => {
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('my draft')
     })
   })
 

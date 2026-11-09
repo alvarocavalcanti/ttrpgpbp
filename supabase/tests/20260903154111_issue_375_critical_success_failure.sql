@@ -79,10 +79,10 @@ SELECT ok(
   build_dice_content('1d6', '{6}', 0, 6) NOT LIKE '%**Critical%',
   'single d6 max roll shows no critical label'
 );
--- Non-crit format stays byte-identical (ADV breakdown preserved)
+-- Non-crit format keeps the ADV breakdown (faces boxed since #796)
 SELECT is(
   build_dice_content('2d20kh1', '{12,5}', 0, 12),
-  'Rolled 2d20 with ADV [12, 5]: **12**',
+  'Rolled 2d20 with ADV [`12`, `5`]: **12**',
   'non-crit advantage roll keeps the existing format'
 );
 -- Non-crit plain format stays byte-identical

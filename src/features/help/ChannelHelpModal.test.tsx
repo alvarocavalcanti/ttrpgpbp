@@ -44,6 +44,18 @@ describe('ChannelHelpModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('offers a Report a Bug button that calls the handler (#796)', () => {
+    const onReportBug = vi.fn()
+    render(<ChannelHelpModal onClose={vi.fn()} onReportBug={onReportBug} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Report a Bug' }))
+    expect(onReportBug).toHaveBeenCalled()
+  })
+
+  it('hides the Report a Bug button when no handler is given', () => {
+    render(<ChannelHelpModal onClose={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Report a Bug' })).not.toBeInTheDocument()
+  })
+
   it('calls onClose on Escape', () => {
     const onClose = vi.fn()
     render(<ChannelHelpModal onClose={onClose} />)

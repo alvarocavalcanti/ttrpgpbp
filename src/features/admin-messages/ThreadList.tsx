@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Thread } from './types'
 import { useAdminThreads, type CreateThreadInput } from './useAdminThreads'
 import { useMessageRecipients } from './useMessageRecipients'
@@ -6,14 +7,45 @@ import { Avatar } from '../../components/Avatar'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useToast } from '../../contexts/ToastContext'
 
+// Bug report shortcut (#796): the composer opens with this template when the
+// user arrives from the dedicated Report a Bug entry. The app version is what
+// makes the report actionable without a follow-up question.
+export const BUG_REPORT_TEMPLATE = [
+  `Bug report (Role by Post v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown'})`,
+  '',
+  'What happened:',
+  '',
+  'What you expected:',
+  '',
+  'Steps to reproduce:',
+  '',
+  'Device / browser:',
+].join('\n')
+
 /**
  * Server-admin inbox sidebar: message threads with unread state, plus the
  * new-thread composer for server admins.
  */
-export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void }) {
+export function ThreadList({ selectedThreadId, onSelectThread, composeRequest }: { selectedThreadId?: string, onSelectThread: (t: Thread) => void, composeRequest?: number }) {
   const { threads, loading, hasMore, loadMore, refetch, error, createThread } = useAdminThreads()
   const { isServerAdmin } = useIsServerAdmin()
   const [showNewModal, setShowNewModal] = useState(false)
+  // Held separately from composeRequest so the template is used once: a later
+  // manual "New"/"Message Admin" tap must open an empty composer.
+  const [composePrefill, setComposePrefill] = useState<string | undefined>(undefined)
+
+  // A new request (not just a truthy flag) reopens the composer, so tapping
+  // the menu entry again after closing still works.
+  useEffect(() => {
+    if (!composeRequest) return
+    setComposePrefill(BUG_REPORT_TEMPLATE)
+    setShowNewModal(true)
+  }, [composeRequest])
+
+  const closeNewModal = () => {
+    setShowNewModal(false)
+    setComposePrefill(undefined)
+  }
 
   if (loading && threads.length === 0) {
     return (
@@ -118,15 +150,28 @@ export function ThreadList({ selectedThreadId, onSelectThread }: { selectedThrea
         )}
       </div>
 
-      {showNewModal && <NewThreadModal onClose={() => setShowNewModal(false)} onCreated={onSelectThread} isServerAdmin={isServerAdmin} createThread={createThread} />}
+      {/* Portaled: on mobile the thread-list pane is `hidden` once a thread is
+          selected, and a fixed overlay inside a display:none ancestor would not
+          render — the bug-report composer must show even then. */}
+      {showNewModal && createPortal(
+        <NewThreadModal onClose={closeNewModal} onCreated={onSelectThread} isServerAdmin={isServerAdmin} createThread={createThread} initialContent={composePrefill} prefillRequest={composeRequest} />,
+        document.body,
+      )}
     </div>
   )
 }
 
-function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | 'committed' | null> }) {
+function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, initialContent, prefillRequest }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | 'committed' | null>, initialContent?: string, prefillRequest?: number }) {
   const [type, setType] = useState<'announcement' | 'dm'>(isServerAdmin ? 'announcement' : 'dm')
   const [subject, setSubject] = useState('')
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(initialContent ?? '')
+  // A bug-report request can land while the composer is already open (keyboard
+  // reach into the menu). Apply the template then too, but never replace an
+  // unsent draft.
+  useEffect(() => {
+    if (!prefillRequest || !initialContent) return
+    setContent(prev => (prev.trim() ? prev : initialContent))
+  }, [prefillRequest, initialContent])
   // Announcements default to the GM-only audience.
   const [audience, setAudience] = useState<'gms' | 'all_users'>('gms')
   const [gmId, setGmId] = useState('')

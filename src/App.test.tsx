@@ -688,6 +688,49 @@ describe('App', () => {
     window.history.replaceState({}, '', '/')
   })
 
+  it('offers a Report a Bug entry that opens the prefilled support composer', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: '123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: '123', display_name: 'Test User', avatar_url: null, terms_version: '2026-09-29' },
+      error: null,
+    })
+    const profileChain = { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+
+    const empty = { data: [], error: null }
+    const listChain = {
+      select: () => listChain,
+      eq: () => listChain,
+      order: () => Promise.resolve(empty),
+      gt: () => Promise.resolve({ count: 0, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      // eslint-disable-next-line unicorn/no-thenable
+      then: (cb: any) => Promise.resolve(empty).then(cb),
+    }
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain as any
+      return listChain as any
+    })
+
+    render(<App />)
+
+    await screen.findByRole('link', { name: 'Role by Post' })
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(screen.getByRole('link', { name: 'Report a Bug' })).toHaveAttribute(
+      'href',
+      '/messages?compose=bug',
+    )
+    window.history.replaceState({}, '', '/')
+  })
+
   it('shows the About menu item and navigates to the About page', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },

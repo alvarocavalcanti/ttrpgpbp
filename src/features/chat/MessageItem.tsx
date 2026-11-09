@@ -825,7 +825,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             )}
             {isFavorite && <FavoriteStar />}
           </div>
-          <div className={`prose prose-sm prose-chat dark:prose-invert max-w-none text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT}`}>
+          <div className={`prose prose-sm prose-chat dark:prose-invert max-w-none text-surface-900 dark:text-surface-100 ${MESSAGE_BODY_TEXT} [&_code]:rounded [&_code]:border [&_code]:border-surface-300 [&_code]:bg-surface-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:font-semibold [&_code]:text-[0.9em] [&_code]:text-surface-900 [&_code]:before:content-none [&_code]:after:content-none dark:[&_code]:border-surface-600 dark:[&_code]:bg-surface-800 dark:[&_code]:text-surface-100`}>
             <Markdown breaks spoilers>{message.content}</Markdown>
           </div>
           {errorOverlay}

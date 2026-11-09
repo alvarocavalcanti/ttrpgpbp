@@ -281,7 +281,7 @@ All commands are SECURITY DEFINER with `search_path = public`, derive the caller
 | Function | Purpose | Enforces |
 |---|---|---|
 | `send_message` | Create a `regular`/`scene`/`npc` message in Main or a room (+ optional active-player flip) | membership, archived, type authz (scene/NPC GM-only), content length, room belongs to channel, reply target same room, whisper target is member, mention resolution + `@all` GM-only, NPC roster snapshot, idempotency |
-| `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, warning maximum 500 characters, modifier clamped to game-system bounds, DC success (meets beats), archived, membership, room belongs to channel, reply target same room, idempotency |
+| `roll_dice` | Roll dice and persist the message + `dice_rolls` row atomically | notation regex, dice/sides limits, warning maximum 500 characters, modifier 1–4 digits (±9999) and not game-system bounded, DC success (meets beats), archived, membership, room belongs to channel, reply target same room, idempotency |
 | `moderate_member` | Block / unblock / kick / leave + system message | GM-only (block/unblock/kick), self-only (leave), GM is never removable |
 | `update_channel_settings` | Save `channels` + `channel_secrets` + `channel_safety_tools` in one transaction | GM-only, field length limits |
 | `update_channel_status` | Update a room's status (`channels.status_text` for Main, `sub_channels.status_text` for a named room) + system message in that room | GM-only, suspended blocked, room must belong to the channel, no-op (unchanged text) skipped, archived allowed (matches settings) |

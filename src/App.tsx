@@ -323,6 +323,13 @@ function AppNav() {
               Help
             </Link>
             <Link
+              to="/messages?compose=bug"
+              className={NAV_MENU_ITEM}
+              onClick={() => closeMenu('action')}
+            >
+              Report a Bug
+            </Link>
+            <Link
               to="/about"
               className={NAV_MENU_ITEM}
               onClick={() => closeMenu('action')}
