@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Thread } from './types'
 import { useAdminThreads, type CreateThreadInput } from './useAdminThreads'
 import { useMessageRecipients } from './useMessageRecipients'
@@ -149,15 +150,28 @@ export function ThreadList({ selectedThreadId, onSelectThread, composeRequest }:
         )}
       </div>
 
-      {showNewModal && <NewThreadModal onClose={closeNewModal} onCreated={onSelectThread} isServerAdmin={isServerAdmin} createThread={createThread} initialContent={composePrefill} />}
+      {/* Portaled: on mobile the thread-list pane is `hidden` once a thread is
+          selected, and a fixed overlay inside a display:none ancestor would not
+          render — the bug-report composer must show even then. */}
+      {showNewModal && createPortal(
+        <NewThreadModal onClose={closeNewModal} onCreated={onSelectThread} isServerAdmin={isServerAdmin} createThread={createThread} initialContent={composePrefill} prefillRequest={composeRequest} />,
+        document.body,
+      )}
     </div>
   )
 }
 
-function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, initialContent }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | 'committed' | null>, initialContent?: string }) {
+function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, initialContent, prefillRequest }: { onClose: () => void, onCreated: (t: Thread) => void, isServerAdmin: boolean, createThread: (input: CreateThreadInput) => Promise<Thread | 'committed' | null>, initialContent?: string, prefillRequest?: number }) {
   const [type, setType] = useState<'announcement' | 'dm'>(isServerAdmin ? 'announcement' : 'dm')
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState(initialContent ?? '')
+  // A bug-report request can land while the composer is already open (keyboard
+  // reach into the menu). Apply the template then too, but never replace an
+  // unsent draft.
+  useEffect(() => {
+    if (!prefillRequest || !initialContent) return
+    setContent(prev => (prev.trim() ? prev : initialContent))
+  }, [prefillRequest, initialContent])
   // Announcements default to the GM-only audience.
   const [audience, setAudience] = useState<'gms' | 'all_users'>('gms')
   const [gmId, setGmId] = useState('')

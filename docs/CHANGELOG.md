@@ -6,8 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- **Dice rolls keep their whole modifier** — a roll like `1d20+6` used to be quietly cut down to +5 (and +4 in Shadowdark), which broke games with bigger bonuses. The modifier you type is now the modifier that gets rolled and shown. Notations with more than four digits of modifier are refused instead of being changed behind your back.
-- **Roll messages show which number was the die** — each rolled die now sits in a small outlined square, the modifier stays plain, and the total stays bold, so a result like "10 + 3 = 13" is easy to read at a glance. This applies to new rolls; older rolls keep their original text.
+- **Dice rolls keep their whole modifier** — a roll like `1d20+6` used to be quietly cut down to +5 (and +4 in Shadowdark), which broke games with bigger bonuses. The modifier you type in dice notation is now the modifier that gets rolled and shown. Modifiers on ability checks and your saved character stats still follow your game system's limits. Notations with more than four digits of modifier are refused instead of being changed behind your back.
+- **Roll messages show which number was the die** — on rolls that add dice together (including advantage and disadvantage), each die now sits in a small outlined square, the modifier stays plain, and the total stays bold, so a result like "10 + 3 = 13" is easy to read at a glance. A plain single-die roll such as `1d20` still shows just its bold result, and pool rolls still list their faces plainly. This applies to new rolls; older rolls keep their original text.
 
 ### Added
 

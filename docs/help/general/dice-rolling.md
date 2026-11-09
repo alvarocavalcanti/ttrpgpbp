@@ -18,7 +18,7 @@ Write dice notation directly in a message and it becomes **clickable** — anyon
 - `5d6ps` / `5d6>=4s` — sorted pools: same as above, but the faces are listed highest-first, so you can read off how many beat a number at a glance
 - `2d8+1d6+2` — combined dice: several groups roll together, each keeps or drops on its own, and every kept face is added up with the trailing modifier
 
-Roll messages break the total down into its parts, for example `Rolled 1d20+3: 10 + 3 = **13**` or `Rolled 2d6: 3 + 5 = **8**`. Each rolled die is shown in a small outlined square, the modifier stays plain, and the total is bold, so it is easy to tell which number came from the die and which is the bonus. Any modifier from −9999 to 9999 is allowed — a game system's usual attribute limits do not cap a roll. Advantage / disadvantage rolls show both dice, for example `Rolled 2d20 with DIS [2, 15]: **2**`. Pool rolls never add up: `Rolled 5d6p: 2, 5, 3, 6, 1`.
+Roll messages break the total down into its parts, for example `Rolled 1d20+3: 10 + 3 = **13**` or `Rolled 2d6: 3 + 5 = **8**`. On rolls that add dice together, each rolled die is shown in a small outlined square, the modifier stays plain, and the total is bold, so it is easy to tell which number came from the die and which is the bonus. A plain single-die roll such as `1d20` shows just its bold result, with no breakdown. Any modifier from −9999 to 9999 is allowed — a game system's usual attribute limits do not cap a roll. Advantage / disadvantage rolls show both dice, for example `Rolled 2d20 with DIS [2, 15]: **2**`. Pool rolls never add up and list their faces plainly: `Rolled 5d6p: 2, 5, 3, 6, 1`.
 
 ## Critical rolls
 

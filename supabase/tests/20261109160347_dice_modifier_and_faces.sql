@@ -12,7 +12,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(21);
+SELECT plan(29);
 
 -- ===== 1. Grammar: modifier digits =====
 SELECT is(
@@ -36,6 +36,12 @@ SELECT is(
   'five-digit chain modifier is rejected'
 );
 
+-- Both signs and the 3/4-digit forms are accepted (single and chain).
+SELECT is(parse_dice_notation('1d20+123')->>'modifier', '123', 'three-digit modifier is accepted');
+SELECT is(parse_dice_notation('1d20-1234')->>'modifier', '-1234', 'four-digit negative modifier is accepted');
+SELECT is(parse_dice_notation('2d6+1d8+123')->>'modifier', '123', 'three-digit chain modifier is accepted');
+SELECT is(parse_dice_notation('2d6+1d8-1234')->>'modifier', '-1234', 'four-digit negative chain modifier is accepted');
+
 -- ===== 2. Content: faces are wrapped, other shapes unchanged =====
 SELECT is(
   build_dice_content('1d20+6', '{6}', 6, 12),
@@ -56,6 +62,12 @@ SELECT is(
   build_dice_content('2d20kh1', '{12,5}', 0, 12),
   'Rolled 2d20 with ADV [`12`, `5`]: **12**',
   'advantage boxes both faces inside the bracket list'
+);
+-- Accepted spacing is normalized, so the ADV branch still matches (#796 review).
+SELECT is(
+  build_dice_content('2d20 kh1 +6', '{12,5}', 6, 18),
+  'Rolled 2d20 with ADV [`12`, `5`]+6: **18**',
+  'spaced advantage notation keeps the ADV label and face list'
 );
 SELECT is(
   build_dice_content('1d20', '{15}', 0, 15),
@@ -132,6 +144,12 @@ SELECT is(
   6,
   'shadowdark channel also stores +6 instead of clamping to 4'
 );
+SELECT ok(
+  (SELECT dr.result = (dr.breakdown->'rolls'->>0)::int + 6
+    FROM dice_rolls dr
+    WHERE dr.channel_id = '00000000-0000-0000-0000-0000000079b2' AND dr.notation = '1d20+6'),
+  'shadowdark roll total includes the full modifier'
+);
 
 SELECT is(
   (SELECT count(*) FROM roll_dice('00000000-0000-0000-0000-0000000079b1', '1d20-7')),
@@ -151,6 +169,21 @@ SELECT ok(
     JOIN dice_rolls dr ON dr.message_id = m.id
     WHERE dr.channel_id = '00000000-0000-0000-0000-0000000079b1' AND dr.notation = '1d20-7'),
   'negative modifier message boxes the die'
+);
+
+-- Replaying the same client_request_id returns the original rows (both the
+-- message insert and the roll insert share one exception handler).
+CREATE TEMP TABLE first_roll ON COMMIT DROP AS
+  SELECT message_id FROM roll_dice('00000000-0000-0000-0000-0000000079b1', '2d6+1', NULL, NULL, NULL, '00000000-0000-0000-0000-0000000079c1');
+SELECT is(
+  (SELECT message_id FROM roll_dice('00000000-0000-0000-0000-0000000079b1', '2d6+1', NULL, NULL, NULL, '00000000-0000-0000-0000-0000000079c1')),
+  (SELECT message_id FROM first_roll),
+  'replaying the same client_request_id returns the original message'
+);
+SELECT is(
+  (SELECT count(*) FROM dice_rolls WHERE message_id = (SELECT message_id FROM first_roll)),
+  1::bigint,
+  'replaying does not create a second dice roll'
 );
 
 SELECT throws_ok(

@@ -335,11 +335,14 @@ BEGIN
     v_content := v_content || E'\n\n' || p_warning;
   END IF;
 
-  INSERT INTO messages (channel_id, sender_id, type, content, reply_to, roll_dc, roll_success, client_request_id, sub_channel_id)
-  VALUES (p_channel_id, v_uid, 'dice_roll', v_content, p_reply_to, p_dc, v_success, p_client_request_id, p_sub_channel_id)
-  RETURNING id INTO v_msg_id;
-
+  -- Both inserts share one exception block: the messages table has its own
+  -- partial unique index on (channel_id, sender_id, client_request_id), so a
+  -- concurrent replay can conflict there before reaching the roll insert.
   BEGIN
+    INSERT INTO messages (channel_id, sender_id, type, content, reply_to, roll_dc, roll_success, client_request_id, sub_channel_id)
+    VALUES (p_channel_id, v_uid, 'dice_roll', v_content, p_reply_to, p_dc, v_success, p_client_request_id, p_sub_channel_id)
+    RETURNING id INTO v_msg_id;
+
     INSERT INTO dice_rolls (message_id, channel_id, roller_id, notation, result, breakdown)
     VALUES (v_msg_id, p_channel_id, v_uid, p_notation, v_total,
       jsonb_strip_nulls(jsonb_build_object(
@@ -390,7 +393,11 @@ STABLE
 SET search_path = public
 AS $$
   WITH parsed AS (
-    SELECT parse_dice_notation(p_notation) AS p
+    SELECT
+      parse_dice_notation(p_notation) AS p,
+      -- Match on the same normalized form the parser uses, so accepted spacing
+      -- (`2d20 kh1 +6`) still hits the ADV/DIS branch.
+      regexp_replace(lower(p_notation), '\s+', '', 'g') AS norm
   ),
   mode AS (
     SELECT
@@ -449,9 +456,9 @@ AS $$
           || ' — **' || (SELECT n FROM successes)
           || CASE WHEN (SELECT n FROM successes) = 1 THEN ' success' ELSE ' successes' END
           || ' (≥' || (SELECT target FROM kept) || ')**'
-      WHEN p_notation ~* '^(\d+)d(\d+)(kh|kl)\d*(?:([+-])(\d+))?$' THEN
-        'Rolled ' || regexp_replace(p_notation, '^(\d+)d(\d+).*$', '\1d\2', 'i')
-          || ' with ' || CASE WHEN p_notation ~* 'kh' THEN 'ADV' ELSE 'DIS' END
+      WHEN (SELECT norm FROM parsed) ~* '^(\d+)d(\d+)(kh|kl)\d*(?:([+-])(\d+))?$' THEN
+        'Rolled ' || regexp_replace((SELECT norm FROM parsed), '^(\d+)d(\d+).*$', '\1d\2')
+          || ' with ' || CASE WHEN (SELECT norm FROM parsed) ~* 'kh' THEN 'ADV' ELSE 'DIS' END
           || CASE WHEN array_length(p_rolls, 1) > 0
                THEN ' [' || array_to_string(ARRAY(SELECT '`' || x::text || '`' FROM unnest(p_rolls) AS x), ', ') || ']'
                ELSE '' END

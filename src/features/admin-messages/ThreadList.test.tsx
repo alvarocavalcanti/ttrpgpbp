@@ -154,11 +154,13 @@ describe('ThreadList', () => {
     const createThread = vi.fn().mockResolvedValue(null)
     mockHookReturn({ createThread })
 
-    const { rerender } = render(<ThreadList onSelectThread={vi.fn()} composeRequest={0} />)
+    const { rerender, container } = render(<ThreadList onSelectThread={vi.fn()} composeRequest={0} />)
     expect(screen.queryByText('New Message')).not.toBeInTheDocument()
 
     rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={1} />)
     await waitFor(() => screen.getByText('New Message'))
+    // Portaled out of the list pane, which mobile hides when a thread is open.
+    expect(container.contains(screen.getByText('New Message'))).toBe(false)
 
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
     expect(textarea.value).toContain('Bug report (Role by Post v')
@@ -178,6 +180,29 @@ describe('ThreadList', () => {
     fireEvent.click(screen.getByText('Message Admin'))
     await waitFor(() => screen.getByText('New Message'))
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('applies a bug report request to an already-open, empty composer without clobbering a draft', async () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: false, loading: false })
+    mockHookReturn({})
+
+    const { rerender } = render(<ThreadList onSelectThread={vi.fn()} composeRequest={0} />)
+    fireEvent.click(screen.getByText('Message Admin'))
+    await waitFor(() => screen.getByText('New Message'))
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+
+    // Open and empty: the request fills it in.
+    rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={1} />)
+    await waitFor(() => {
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('What happened:')
+    })
+
+    // Open with a draft: the request must not replace what was typed.
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my draft' } })
+    rerender(<ThreadList onSelectThread={vi.fn()} composeRequest={2} />)
+    await waitFor(() => {
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('my draft')
+    })
   })
 
   it('keeps the modal open without selecting when creation fails (hook toasts)', async () => {
