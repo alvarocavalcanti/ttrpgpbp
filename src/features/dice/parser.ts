@@ -99,6 +99,16 @@ export function isValidDiceNotation(notation: string): boolean {
   return parseDiceNotation(notation) !== null
 }
 
+// Rebuilds a sum notation with a different trailing modifier (#795): the chip's
+// click sheet replaces the one the GM wrote. Mirrors the server's `base` CTE —
+// strip one trailing `[+-]\d{1,4}`, then append. The 4-digit anchor cannot eat
+// a closing `+1d8` group or a `kh2`/`dl1` suffix, so chains are safe.
+export function withDiceModifier(notation: string, modifier: number): string {
+  const base = notation.replace(/\s+/g, '').replace(/[+-]\d{1,4}$/, '')
+  if (modifier === 0) return base
+  return `${base}${modifier > 0 ? '+' : ''}${modifier}`
+}
+
 // Fallback attribute set for channels with no game system (none/generic).
 const GENERIC_CHECK_ATTRIBUTES = [
   'STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA',

@@ -1,9 +1,9 @@
 import { Avatar } from '../../components/Avatar';
 import { SignedImg } from '../../components/SignedImg';
 import { ImageViewerModal } from '../../components/ImageViewerModal';
-import { useState, useRef, useEffect, useMemo, memo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react'
 import { Markdown } from '../../components/Markdown'
-import { linkifyDice, isValidDiceNotation } from '../dice/parser'
+import { linkifyDice, parseDiceNotation, withDiceModifier } from '../dice/parser'
 import { getSystemAttributes, clampModifier, getModifierLimits } from '../../game-systems'
 import { BottomSheet } from '../../components/BottomSheet'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -150,6 +150,29 @@ interface CheckSheetProps {
   onClose: () => void
 }
 
+// Shared Roll/Cancel footer for the check and dice sheets: same primary and
+// secondary buttons, so a restyle or touch-target change lands in one place.
+function SheetRollActions({ onRoll, onClose }: { onRoll: () => void; onClose: () => void }) {
+  return (
+    <div className="mt-4 flex space-x-2">
+      <button
+        type="button"
+        onClick={onRoll}
+        className="flex-1 flex justify-center py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+      >
+        Roll
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex-1 flex justify-center py-3 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm text-sm font-medium text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700"
+      >
+        Cancel
+      </button>
+    </div>
+  )
+}
+
 // Styled replacement for the old window.prompt flow when tapping an ability
 // check chip: modifier pre-filled from the profile, Adv/Dis toggle, Roll/Cancel.
 function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEditCharacter, onRoll, onClose }: CheckSheetProps) {
@@ -188,22 +211,31 @@ function CheckSheet({ draft, gameSystem, onModifierChange, onAdvDisChange, onEdi
         <button type="button" onClick={() => onAdvDisChange('adv')} className={advBtn(draft.advDis === 'adv')}>Adv</button>
         <button type="button" onClick={() => onAdvDisChange('dis')} className={disBtn(draft.advDis === 'dis')}>Dis</button>
       </div>
-      <div className="mt-4 flex space-x-2">
-        <button
-          type="button"
-          onClick={onRoll}
-          className="flex-1 flex justify-center py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        >
-          Roll
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 flex justify-center py-3 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm text-sm font-medium text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700"
-        >
-          Cancel
-        </button>
-      </div>
+      <SheetRollActions onRoll={onRoll} onClose={onClose} />
+    </BottomSheet>
+  )
+}
+
+interface DiceModifierSheetProps {
+  notation: string
+  modifier: string
+  onModifierChange: (value: string) => void
+  onRoll: () => void
+  onClose: () => void
+}
+
+// Small replacement for the instant inline roll (#795): a chip click opens this
+// sheet so the player can add their own bonus before the server rolls. The
+// rebuilt notation belongs to the new roll — the message that prompted it is
+// never edited. ADV/DIS stays out: that's the GM's call, not the player's.
+function DiceModifierSheet({ notation, modifier, onModifierChange, onRoll, onClose }: DiceModifierSheetProps) {
+  return (
+    <BottomSheet title={`Roll ${notation}`} onClose={onClose}>
+      <label htmlFor="dice-roll-modifier" className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+        Modifier
+      </label>
+      <ModifierInput attr="dice-roll-modifier" value={modifier} onChange={onModifierChange} min={-9999} max={9999} />
+      <SheetRollActions onRoll={onRoll} onClose={onClose} />
     </BottomSheet>
   )
 }
@@ -229,6 +261,8 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkDraft, setCheckDraft] = useState<CheckDraft | null>(null)
+  // Pending inline dice roll (#795): notation plus the modifier field's text.
+  const [diceDraft, setDiceDraft] = useState<{ notation: string; modifier: string } | null>(null)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [reactionsOpen, setReactionsOpen] = useState(false)
   // Emoji of the reaction chip whose "who reacted" popover is open (#510).
@@ -347,6 +381,35 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
     onEditCharacter?.()
   }
 
+  // Chip click opens the modifier sheet for summed rolls; pool and success
+  // rolls carry no modifier (the parser rejects one), so they stay one tap.
+  const openDiceSheet = useCallback((notation: string) => {
+    if (!onRollDice) return
+    // Validate at the click site: a hand-crafted `dice:` href with invalid
+    // notation would otherwise mint a misleading "Rolling" bubble before the
+    // server rejects it.
+    const parsed = parseDiceNotation(notation)
+    if (!parsed) return
+    if (parsed.mode !== 'sum') {
+      onRollDice(notation, message.id)
+      return
+    }
+    setDiceDraft({ notation, modifier: String(parsed.modifier) })
+  }, [onRollDice, message.id])
+
+  // Rolls the sheet's notation with the player's modifier — replacing the one
+  // the GM wrote, never stacking on it. Garbage text counts as 0 and the value
+  // clamps to the grammar's ±9999; an invalid rebuild keeps the sheet open.
+  const rollDiceWithModifier = () => {
+    if (!diceDraft || !onRollDice) return
+    const entered = /^-?\d+$/.test(diceDraft.modifier.trim()) ? parseInt(diceDraft.modifier.trim(), 10) : 0
+    const modifier = Math.min(9999, Math.max(-9999, entered))
+    const notation = withDiceModifier(diceDraft.notation, modifier)
+    if (!parseDiceNotation(notation)) return
+    onRollDice(notation, message.id)
+    setDiceDraft(null)
+  }
+
   // Submits the report reason collected by the report sheet. Empty reasons are
   // rejected before any insert; the parent owns the insert, toasts and error
   // surface — the sheet closes only on success so a failure can be retried.
@@ -372,11 +435,7 @@ export const MessageItem = memo(function MessageItem({ message, currentUserId, i
             type="button"
             onClick={(e) => {
               e.preventDefault()
-              // Validate at the click site: a hand-crafted `dice:` href with
-              // invalid notation would otherwise mint a misleading "Rolling"
-              // bubble before the server rejects it.
-              if (!isValidDiceNotation(notation)) return
-              onRollDice?.(notation, message.id)
+              openDiceSheet(notation)
             }}
             className={`inline-flex items-center px-2 py-0.5 rounded ${MESSAGE_CHIP_TEXT} font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors cursor-pointer border border-primary-200 dark:border-primary-800 shadow-sm`}
             title={`Roll ${notation}`}
@@ -451,7 +510,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         </button>
       )
     }
-  }), [onRollDice, systemAttributes, members, currentUserId, message.id])
+  }), [onRollDice, systemAttributes, members, currentUserId, message.id, openDiceSheet])
 
   // Per-message actions, gated by role/edit-window. Rendered as hover icons on
   // desktop and collapsed behind a single "…" button opening a sheet on mobile,
@@ -562,6 +621,16 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         ))}
       </div>
     </BottomSheet>
+  ) : null
+
+  const diceSheet = diceDraft ? (
+    <DiceModifierSheet
+      notation={diceDraft.notation}
+      modifier={diceDraft.modifier}
+      onModifierChange={(value) => setDiceDraft(d => d ? { ...d, modifier: value } : d)}
+      onRoll={rollDiceWithModifier}
+      onClose={() => setDiceDraft(null)}
+    />
   ) : null
 
   const deleteConfirmDialog = confirmDelete ? (
@@ -764,6 +833,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             onClose={() => setCheckDraft(null)}
           />
         )}
+        {diceSheet}
         {!message.pending && !isEditing && actions.length > 0 && (
           <div className="flex-shrink-0 flex items-center gap-1 mt-3">
             <div className={`${MESSAGE_ACTION_SIZING.desktopRowVisibility} items-center gap-1`}>{actionIcons}</div>
@@ -960,6 +1030,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
             onClose={() => setCheckDraft(null)}
           />
         )}
+        {diceSheet}
 
         {!message.is_deleted && !message.pending && !isEditing && (
           <div className="mt-3 flex items-center gap-0.5">

@@ -169,8 +169,8 @@
 
 ## Dice
 
-- Clickable dice notation in messages (GM writes them, players click)
-- Each click generates a roll result message in the history
+- Clickable dice notation in messages (GM writes them, players click) — each click opens a small modifier sheet preloaded with the notation's modifier (±9999, replaced rather than stacked; pool and success rolls skip the sheet and roll straight away)
+- Each click generates a roll result message in the history without changing the message that prompted it
 - Roll result messages can be reacted to from their **Reactions** action
 - **Supported notation (v1)**:
   - `NdX`, `NdX+M`, `NdX-M` (basics)

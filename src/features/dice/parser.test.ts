@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { linkifyDice, isValidDiceNotation, parseDiceNotation } from './parser'
+import { linkifyDice, isValidDiceNotation, parseDiceNotation, withDiceModifier } from './parser'
 
 describe('isValidDiceNotation', () => {
   it('accepts the notations linkifyDice produces', () => {
@@ -116,6 +116,33 @@ describe('parseDiceNotation', () => {
     expect(parseDiceNotation('banana')).toBeNull()
     expect(parseDiceNotation('5d6>=4p')).toBeNull()
     expect(parseDiceNotation('5d6>=7')).toBeNull()
+  })
+})
+
+describe('withDiceModifier', () => {
+  it('appends a positive or negative modifier to a bare notation', () => {
+    expect(withDiceModifier('1d20', 3)).toBe('1d20+3')
+    expect(withDiceModifier('1d20', -2)).toBe('1d20-2')
+  })
+
+  it('replaces the modifier already written in the notation', () => {
+    expect(withDiceModifier('1d20+3', 5)).toBe('1d20+5')
+    expect(withDiceModifier('1d20+3', -2)).toBe('1d20-2')
+  })
+
+  it('drops the modifier when it becomes zero', () => {
+    expect(withDiceModifier('1d20+3', 0)).toBe('1d20')
+    expect(withDiceModifier('1d20', 0)).toBe('1d20')
+  })
+
+  it('keeps chained groups and keep/drop suffixes intact', () => {
+    expect(withDiceModifier('2d8+1d6+2', -1)).toBe('2d8+1d6-1')
+    expect(withDiceModifier('2d20kh1+4', 0)).toBe('2d20kh1')
+    expect(withDiceModifier('4d6dl1', 2)).toBe('4d6dl1+2')
+  })
+
+  it('normalizes whitespace the way the parser does', () => {
+    expect(withDiceModifier('1 d20 + 3', 5)).toBe('1d20+5')
   })
 })
 

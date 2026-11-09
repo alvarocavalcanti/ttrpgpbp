@@ -5,7 +5,7 @@ screenshot: /help-images/dice-panel.png
 
 ## Inline dice notation
 
-Write dice notation directly in a message and it becomes **clickable** — anyone can click it to roll. The result is posted to the channel history.
+Write dice notation directly in a message and it becomes **clickable** — anyone can click it to roll. Clicking one opens a small **Modifier** sheet first: the field starts at the modifier already written in the notation (0 when there is none), so you can add your own bonus or penalty (from −9999 to 9999) and tap **Roll**. Cancel, Escape, or tapping outside closes the sheet without rolling. Dice pools and success rolls take no modifier, so they roll straight away. A roll never changes the message that asked for it.
 
 ## Supported notation
 

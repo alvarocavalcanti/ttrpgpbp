@@ -481,6 +481,7 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm-dice-spoiler')
     expect(await screen.findByRole('button', { name: /spoiler/i })).toBeInTheDocument()
   })
@@ -502,6 +503,7 @@ describe('MessageItem', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /spoiler/i }))
     fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm-dice-inside')
   })
 
@@ -671,7 +673,101 @@ describe('MessageItem', () => {
     }
     render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
     fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
     expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
+  })
+
+  describe('inline dice modifier sheet (#795)', () => {
+    const renderDice = (content: string, mockOnRollDice = vi.fn()) => {
+      const msg: any = {
+        id: 'm1',
+        type: 'regular',
+        content,
+        created_at: new Date().toISOString(),
+        sender_id: 'u1'
+      }
+      render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} onRollDice={mockOnRollDice} />)
+      return mockOnRollDice
+    }
+
+    it('adds the positive modifier the player types', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '3' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1')
+    })
+
+    it('adds a negative modifier', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '-2' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20-2', 'm1')
+    })
+
+    it('preloads the modifier already written in the notation', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20+3 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20+3' }))
+      expect((screen.getByLabelText('Modifier') as HTMLInputElement).value).toBe('3')
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20+3', 'm1')
+    })
+
+    it('replaces the notation modifier instead of stacking on it', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20+3 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20+3' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '5' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20+5', 'm1')
+    })
+
+    it('drops the modifier when it is set back to zero', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20+3 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20+3' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '0' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
+    })
+
+    it('does not roll when the modifier sheet is cancelled', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(mockOnRollDice).not.toHaveBeenCalled()
+      expect(screen.queryByLabelText('Modifier')).not.toBeInTheDocument()
+    })
+
+    it('rolls the notation unchanged when the modifier text is not a whole number', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: 'abc' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20', 'm1')
+    })
+
+    it('clamps an out-of-range modifier to the notation limit', async () => {
+      const mockOnRollDice = renderDice('Roll 1d20 now')
+      fireEvent.click(await screen.findByRole('button', { name: '1d20' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '10000' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('1d20+9999', 'm1')
+    })
+
+    it('rolls pool notation immediately without the modifier sheet', async () => {
+      const mockOnRollDice = renderDice('Roll 5d6>=4 now')
+      fireEvent.click(await screen.findByRole('button', { name: '5d6>=4' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('5d6>=4', 'm1')
+      expect(screen.queryByLabelText('Modifier')).not.toBeInTheDocument()
+    })
+
+    it('keeps chained groups intact when changing the modifier', async () => {
+      const mockOnRollDice = renderDice('Roll 2d8+1d6+2 now')
+      fireEvent.click(await screen.findByRole('button', { name: '2d8+1d6+2' }))
+      fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '3' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+      expect(mockOnRollDice).toHaveBeenCalledWith('2d8+1d6+3', 'm1')
+    })
   })
 
   it('ignores clicks on dice links with invalid notation', async () => {
