@@ -205,16 +205,22 @@ export function usePushNotifications() {
   // test that display works (#800).
   const sendTestNotification = async () => {
     if (!isSupported || !user) throw new Error('Push not supported or not logged in')
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-      throw new Error('Notifications are blocked for this app on this device.')
-    }
-    // getRegistration, not `.ready`: after the worker is unregistered `.ready`
-    // never resolves and the button would hang.
-    const registration = await navigator.serviceWorker.getRegistration()
-    if (!registration) throw new Error('Notifications are not set up on this device yet.')
 
     try {
-      await registration.showNotification('Role by Post', {
+      // Permission can be revoked between the toggle rendering and this tap, and
+      // a setup failure is as diagnostic as a display failure — both are logged.
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+        throw new Error('Notifications are blocked for this app on this device.')
+      }
+      // getRegistration, not `.ready`: after the worker is unregistered `.ready`
+      // never resolves and the button would hang.
+      const registration = await navigator.serviceWorker.getRegistration()
+      if (!registration) throw new Error('Notifications are not set up on this device yet.')
+
+      // `renotify` is a standard member the bundled DOM lib omits, and without
+      // it a second test silently replaces the first instead of alerting again
+      // (the service worker sets it for the same reason).
+      const options: NotificationOptions & { renotify?: boolean } = {
         body: 'This is how a chat ping will look. Nothing to do — you can dismiss it.',
         // Mirrors the service worker's private icon paths; importing lib/swPush
         // here would pull the push-payload schema into the page bundle.
@@ -222,9 +228,11 @@ export function usePushNotifications() {
         badge: '/notification-badge.png',
         // Its own tag, so a test never collapses a real message notification.
         tag: 'rbp-test',
+        renotify: true,
         // Reuses the worker's click handler, which only follows site-relative urls.
         data: { url: ROUTES.settings }
-      })
+      }
+      await registration.showNotification('Role by Post', options)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       // Only failures are worth a row: the call resolving does not prove the

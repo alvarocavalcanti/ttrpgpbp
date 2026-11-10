@@ -565,12 +565,18 @@ describe('usePushNotifications', () => {
 
     expect(showNotification).toHaveBeenCalledWith('Role by Post', expect.objectContaining({
       tag: 'rbp-test',
+      renotify: true,
       data: { url: '/settings' }
     }))
   })
 
   it('refuses a test notification when notifications are blocked', async () => {
     vi.stubGlobal('Notification', { permission: 'denied' })
+    const insert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      insert
+    } as any))
 
     const { result } = renderHook(() => usePushNotifications())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -578,6 +584,12 @@ describe('usePushNotifications', () => {
     await expect(result.current.sendTestNotification()).rejects.toThrow(
       'Notifications are blocked for this app on this device.'
     )
+    // A setup failure is diagnostic too: it must leave a row.
+    await waitFor(() => expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 'u1',
+      status: 'show_error',
+      detail: 'test_notification: Notifications are blocked for this app on this device.'
+    })))
   })
 
   it('refuses a test notification when no worker is registered', async () => {

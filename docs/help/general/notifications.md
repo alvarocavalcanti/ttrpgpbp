@@ -18,7 +18,10 @@ You don't have to keep watching the toggle: if a device's subscription is ever d
 
 ## Android support
 
-On Android, a browser or an app installed to your home screen can be blocked from showing notifications even when the website is allowed. If your phone stays silent, allow notifications for the browser or app itself in **Settings → Apps → Notifications** — pick **RoleByPost** if you installed the app, or your browser (Chrome or Firefox) if you did not.
+On Android, the phone can block notifications separately from the website.
+
+- **Chrome installs the app as its own app** — look for **RoleByPost** in **Settings → Apps → RoleByPost → Notifications** and allow it there.
+- **Firefox's "Add to home screen" is only a shortcut inside Firefox**, not a separate app, so there is nothing to allow for RoleByPost — allow notifications for **Firefox** itself instead.
 
 Android can also hold a push back while the phone is asleep, even with everything allowed, so a ping may arrive late rather than immediately.
 
