@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { classifyWebPushError, sendWithRetry } from './deliver.ts'
+import { classifyWebPushError, sendWithRetry, PUSH_SEND_OPTIONS } from './deliver.ts'
 
 describe('classifyWebPushError', () => {
   it('classifies 404 and 410 as invalid', () => {
@@ -23,6 +23,12 @@ describe('classifyWebPushError', () => {
     expect(classifyWebPushError({ message: 'network down' })).toBe('transient')
     expect(classifyWebPushError(undefined)).toBe('transient')
     expect(classifyWebPushError(null)).toBe('transient')
+  })
+})
+
+describe('PUSH_SEND_OPTIONS', () => {
+  it('sends at high urgency so a dozing Android device is woken', () => {
+    expect(PUSH_SEND_OPTIONS).toEqual({ urgency: 'high' })
   })
 })
 

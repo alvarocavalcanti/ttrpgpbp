@@ -6,6 +6,11 @@
 
 export type ErrorCategory = 'invalid' | 'transient' | 'other'
 
+// Send every push at high urgency: web-push defaults to `normal`, which Android
+// defers while the device dozes, so chat pings were held back until the browser
+// was reopened (#800). TTL stays at the web-push default (4 weeks) on purpose.
+export const PUSH_SEND_OPTIONS = { urgency: 'high' }
+
 // Invalid: the subscription is gone (HTTP 404/410) and must be deleted.
 // Transient: provider/network trouble worth retrying (5xx, no HTTP status).
 // Other: permanent client/provider errors that retrying won't fix.
