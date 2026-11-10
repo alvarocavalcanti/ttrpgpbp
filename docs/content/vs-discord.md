@@ -20,6 +20,18 @@ Play-by-post has specific problems that a general chat platform is not designed 
 
 A generic channel is built for fast, ephemeral conversation. A play-by-post campaign needs a readable, searchable timeline: scene breaks, quoted replies, and reactions that stay attached to the post they belong to. Role by Post is built around that timeline, with full-text search and the ability to **export the whole campaign to Markdown**.
 
+### Rooms, not channel sprawl
+
+Discord has channels, and servers add threads on top of them. Role by Post scopes the split to the campaign: **Main** plus up to ten **rooms** inside the same game, each with its own status bar, its own unread dot, and its own privacy. A dice room, an out-of-character room, a rules room, and a private room for one player's side scene all sit beside the story, and the GM controls which features are on in each. Nothing leaks into another campaign, and the story channel stays prose. [How rooms work](/help/rooms)
+
+### A character for each campaign
+
+A Discord nickname is per server, but your picture and your sheet are not. Role by Post gives each campaign a **character name**, a **portrait** that replaces your account picture only in that game, and an optional **character sheet link**, so three campaigns can be three different characters without a second account. [Characters](/help/account)
+
+### Notes the table can find
+
+Pinned messages hold what fits in one message, then scroll away with the rest. Role by Post keeps three notebooks per campaign — **Character Notes**, **Party Notes**, and **GM Notes** — readable by the right people, editable by their authors, and updated live. [Campaign notes](/help/notes)
+
 ### Game tools are part of the conversation
 
 On Discord, dice and character tools usually mean adding bots. In Role by Post the [dice roller](/help/dice-rolling) is native: tap `1d20+5` in a post to roll it, open an [ability check](/help/ability-checks) with your modifier pre-filled, or roll **pools and success dice** for systems that read each die on its own. NPCs, character names, and portraits are part of the message flow.
@@ -41,6 +53,9 @@ Role by Post is mobile-first and installable, so a campaign opens like a native 
 | | Discord | Role by Post |
 | --- | --- | --- |
 | Best for | Communities, live voice/video, general chat | Asynchronous tabletop campaigns |
+| Character | Per-server nickname | Per-campaign name, portrait, and sheet link |
+| Rooms | Channels and threads | Up to 10 rooms per campaign, private rooms |
+| Notes | Pinned messages | Character, party, and GM notebooks |
 | Dice | Bots | Built in, with ability checks and pools |
 | NPCs | Manual | Names and portraits in the timeline |
 | Turn alerts | Manual @mentions | Per-channel push, including "your turn" |
