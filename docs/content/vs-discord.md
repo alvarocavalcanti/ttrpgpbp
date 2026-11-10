@@ -26,11 +26,11 @@ Discord has channels, and servers add threads on top of them. Role by Post scope
 
 ### A character for each campaign
 
-A Discord nickname is per server, but your picture and your sheet are not. Role by Post gives each campaign a **character name**, a **portrait** that replaces your account picture only in that game, and an optional **character sheet link**, so three campaigns can be three different characters without a second account. [Characters](/help/account)
+A Discord nickname — and, with Nitro, an avatar — is per server, but your sheet is not. Role by Post gives each campaign a **character name**, a **portrait** that replaces your account picture only in that game, and an optional **character sheet link**, so three campaigns can be three different characters without a second account. [Characters](/help/account)
 
 ### Notes the table can find
 
-Pinned messages hold what fits in one message, then scroll away with the rest. Role by Post keeps three notebooks per campaign — **Character Notes**, **Party Notes**, and **GM Notes** — readable by the right people, editable by their authors, and updated live. [Campaign notes](/help/notes)
+Pinned messages keep a post one tap away, but they hold only what fits in a message. Role by Post keeps three notebooks per campaign — **Character Notes**, **Party Notes**, and **GM Notes** — readable by the right people, editable by their authors, and updated live. [Campaign notes](/help/notes)
 
 ### Game tools are part of the conversation
 

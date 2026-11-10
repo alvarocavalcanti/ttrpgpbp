@@ -18,7 +18,7 @@ One account holds a different character in each game. Every channel gives you it
 
 ## Rooms keep the story clean
 
-Every campaign starts with **Main**, and the GM can add up to ten **rooms** beside it: one for out-of-character chatter, one for dice, one for rules questions, or a private room for a single player. Messages, replies, and dice stay in the room they were posted in, each room keeps its own **status bar** and its own **unread dot**, and a private room only appears for the players the GM invited. The GM can also switch dice, scene breaks, NPC posts, and whispers on or off per room, so a dice room can stay dice-only while the story room stays prose. [How rooms work](/help/rooms)
+Every campaign starts with **Main**, and the GM can add up to ten **rooms** beside it: one for out-of-character chatter, one for dice, one for rules questions, or a private room for a single player. Messages, replies, and dice stay in the room they were posted in, each room keeps its own **status bar** and its own **unread dot**, and a private room only appears for the players the GM invited. The GM can also switch dice, scene breaks, NPC posts, and whispers on or off per room, so dice and NPC posts stay in the rooms that need them and the story room stays prose. [How rooms work](/help/rooms)
 
 ## Mobile and feel
 
