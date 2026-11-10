@@ -16,6 +16,16 @@ On first load you may see a banner asking to enable push notifications. Accept i
 
 You don't have to keep watching the toggle: if a device's subscription is ever dropped (browsers rotate and expire them on their own), simply opening the app again re-enables notifications for that device.
 
+## Android support
+
+On Android, a browser or an app installed to your home screen can be blocked from showing notifications even when the website is allowed. If your phone stays silent, allow notifications for the browser or app itself in **Settings → Apps → Notifications** — pick **RoleByPost** if you installed the app, or your browser (Chrome or Firefox) if you did not.
+
+Android can also hold a push back while the phone is asleep, even with everything allowed, so a ping may arrive late rather than immediately.
+
+## Checking this device
+
+Under **Settings → Push Notifications on this device**, **Send test notification** shows a notification right away. If it appears, notifications work on this device; if nothing appears, the phone is blocking them and the screen tells you where to allow them.
+
 ## iOS support
 
 On iOS, push notifications require **installing the app to your Home Screen** — iOS only exposes the Push API inside installed web apps. The UI shows install guidance and disables push controls until the app is installed. For the home-screen badge to show, **Badges** must be enabled under iOS Settings → Notifications → the app.

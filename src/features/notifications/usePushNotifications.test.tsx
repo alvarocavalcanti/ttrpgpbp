@@ -540,4 +540,89 @@ describe('usePushNotifications', () => {
       )
     })
   })
+
+  it('shows a test notification through the service worker registration', async () => {
+    vi.stubGlobal('Notification', { permission: 'granted', requestPermission: vi.fn().mockResolvedValue('granted') })
+    const showNotification = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', {
+      userAgent: 'test-agent',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager }),
+        getRegistration: vi.fn().mockResolvedValue({ showNotification })
+      }
+    })
+    vi.mocked(supabase.from).mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      insert: vi.fn().mockResolvedValue({ error: null })
+    } as any))
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendTestNotification()
+    })
+
+    expect(showNotification).toHaveBeenCalledWith('Role by Post', expect.objectContaining({
+      tag: 'rbp-test',
+      data: { url: '/settings' }
+    }))
+  })
+
+  it('refuses a test notification when notifications are blocked', async () => {
+    vi.stubGlobal('Notification', { permission: 'denied' })
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.sendTestNotification()).rejects.toThrow(
+      'Notifications are blocked for this app on this device.'
+    )
+  })
+
+  it('refuses a test notification when no worker is registered', async () => {
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    vi.stubGlobal('navigator', {
+      userAgent: 'test-agent',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager }),
+        getRegistration: vi.fn().mockResolvedValue(undefined)
+      }
+    })
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.sendTestNotification()).rejects.toThrow(
+      'Notifications are not set up on this device yet.'
+    )
+  })
+
+  it('logs a show_error and rethrows when the test notification fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    const showNotification = vi.fn().mockRejectedValue(new Error('display blocked'))
+    vi.stubGlobal('navigator', {
+      userAgent: 'test-agent',
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: mockPushManager }),
+        getRegistration: vi.fn().mockResolvedValue({ showNotification })
+      }
+    })
+    const insert = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabase.from).mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }) }) }),
+      insert
+    } as any))
+
+    const { result } = renderHook(() => usePushNotifications())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(result.current.sendTestNotification()).rejects.toThrow('display blocked')
+    await waitFor(() => expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 'u1',
+      status: 'show_error',
+      detail: 'test_notification: display blocked'
+    })))
+  })
 })

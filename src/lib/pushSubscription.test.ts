@@ -14,10 +14,11 @@ import {
 
 function mockClient(upsertResult: { error?: Error | null } = {}, existingRow: unknown = null) {
   const upsert = vi.fn().mockResolvedValue(upsertResult)
+  const insert = vi.fn().mockResolvedValue({ error: null })
   const maybeSingle = vi.fn().mockResolvedValue({ data: existingRow, error: null })
   const select = vi.fn().mockReturnValue({ eq: () => ({ eq: () => ({ maybeSingle }) }) })
-  const from = vi.fn().mockReturnValue({ upsert, select })
-  return { from, upsert, select, maybeSingle }
+  const from = vi.fn().mockReturnValue({ upsert, select, insert })
+  return { from, upsert, select, maybeSingle, insert }
 }
 
 describe('subscriptionToRow', () => {
@@ -123,7 +124,7 @@ describe('ensurePushSubscription (existing subscription only)', () => {
     mockPushManager.getSubscription.mockResolvedValue(null)
     const client = mockClient({ error: null })
 
-    await expect(ensurePushSubscription('u1', '', client as any)).resolves.toEqual({ ok: true })
+    await expect(ensurePushSubscription('u1', '', client as any)).resolves.toEqual({ ok: true, skipped: 'missing_vapid_key' })
     expect(client.upsert).not.toHaveBeenCalled()
   })
 
@@ -212,7 +213,7 @@ describe('ensurePushSubscription', () => {
     vi.stubGlobal('Notification', { permission: 'default' })
     const client = mockClient()
 
-    await expect(ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any)).resolves.toEqual({ ok: true })
+    await expect(ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any)).resolves.toEqual({ ok: true, skipped: 'permission_default' })
     expect(mockPushManager.subscribe).not.toHaveBeenCalled()
     expect(client.upsert).not.toHaveBeenCalled()
   })
@@ -222,7 +223,7 @@ describe('ensurePushSubscription', () => {
     vi.stubGlobal('Notification', { permission: 'granted' })
     const client = mockClient()
 
-    await expect(ensurePushSubscription('u1', '', client as any)).resolves.toEqual({ ok: true })
+    await expect(ensurePushSubscription('u1', '', client as any)).resolves.toEqual({ ok: true, skipped: 'missing_vapid_key' })
     expect(mockPushManager.subscribe).not.toHaveBeenCalled()
   })
 
@@ -296,9 +297,111 @@ describe('ensurePushSubscription', () => {
     const client = mockClient()
 
     await expect(ensurePushSubscription('u1', 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus', client as any))
-      .resolves.toEqual({ ok: true })
+      .resolves.toEqual({ ok: true, skipped: 'opted_out' })
     expect(mockPushManager.subscribe).not.toHaveBeenCalled()
     expect(client.upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('ensurePushSubscription skip reasons', () => {
+  let mockPushManager: any
+  const vapidKey = 'BKkocaBKa6mLOSX5eX2Rbn21sm_mHbo0Her3UPiBcXHsO31TRLfLyOuSOBQLVJ-vqE-CMPoBgjunINMm6KlTAus'
+
+  beforeEach(() => {
+    clearPushOptedOut()
+    mockPushManager = { getSubscription: vi.fn().mockResolvedValue(null), subscribe: vi.fn() }
+    vi.stubGlobal('navigator', {
+      userAgent: 'test-agent',
+      serviceWorker: { ready: Promise.resolve({ pushManager: mockPushManager }) }
+    })
+    vi.stubGlobal('PushManager', vi.fn())
+  })
+
+  afterEach(() => clearPushOptedOut())
+
+  // The log is deliberately fire-and-forget, so every assertion polls.
+  async function expectLogged(client: ReturnType<typeof mockClient>, detail: string) {
+    await vi.waitFor(() => expect(client.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', status: 'reconcile_ok', detail })
+    ))
+  }
+
+  it('logs permission_default when the browser was never asked', async () => {
+    vi.stubGlobal('Notification', { permission: 'default' })
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', vapidKey, client as any)).resolves.toEqual({
+      ok: true,
+      skipped: 'permission_default'
+    })
+    await expectLogged(client, 'permission_default')
+    expect(mockPushManager.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('logs permission_denied when the user blocked notifications', async () => {
+    vi.stubGlobal('Notification', { permission: 'denied' })
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', vapidKey, client as any)).resolves.toEqual({
+      ok: true,
+      skipped: 'permission_denied'
+    })
+    await expectLogged(client, 'permission_denied')
+  })
+
+  it('logs missing_vapid_key when no key is configured', async () => {
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', '', client as any)).resolves.toEqual({
+      ok: true,
+      skipped: 'missing_vapid_key'
+    })
+    await expectLogged(client, 'missing_vapid_key')
+  })
+
+  it('logs notifications_unavailable when the browser has no Notification API', async () => {
+    Reflect.deleteProperty(window, 'Notification')
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', vapidKey, client as any)).resolves.toEqual({
+      ok: true,
+      skipped: 'notifications_unavailable'
+    })
+    await expectLogged(client, 'notifications_unavailable')
+  })
+
+  it('logs opted_out when the device opted out', async () => {
+    markPushOptedOut()
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', vapidKey, client as any)).resolves.toEqual({
+      ok: true,
+      skipped: 'opted_out'
+    })
+    await expectLogged(client, 'opted_out')
+  })
+
+  it('logs unsupported when the browser cannot do push', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'test-agent' })
+    const client = mockClient()
+
+    await expect(ensurePushSubscription('u1', vapidKey, client as any)).resolves.toEqual({
+      ok: true,
+      skipped: 'unsupported'
+    })
+    await expectLogged(client, 'unsupported')
+  })
+
+  it('logs nothing when the stored subscription is already current', async () => {
+    mockPushManager.getSubscription.mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/e', keys: { p256dh: 'p', auth: 'a' } })
+    })
+    const client = mockClient({ error: null }, { id: 's1' })
+
+    await expect(ensurePushSubscription('u1', vapidKey, client as any)).resolves.toEqual({ ok: true })
+    expect(client.from).not.toHaveBeenCalledWith('push_client_log')
   })
 })
 

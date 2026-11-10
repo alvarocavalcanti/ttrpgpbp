@@ -218,6 +218,7 @@
 - **Email** — off by default
 - Distinct notification for active player (e.g. "It's your turn")
 - **Permission banner** — prompts to enable push notifications on first load
+- **Test notification** — **Settings → Push Notifications on this device** can show a test notification on demand, so a player can confirm notifications display on that device; on an installed Android app it also points at the phone's own per-app notification setting, which can block an app the website is allowed in
 - **iOS support** — push requires installing the app to the Home Screen (iOS exposes the Push API only in installed PWAs); UI shows install guidance and disables push controls when unavailable
 - **Per-channel settings** — each member controls which notifications they receive per channel:
   - All new messages

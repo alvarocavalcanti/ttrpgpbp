@@ -213,19 +213,36 @@ order by 3 desc;
 ```sql
 -- Self-heals: a device that lost its subscription and rebuilt it. Frequent
 -- rows here mean subscriptions are churning and worth investigating.
-select user_id, count(*) filter (where status = 'reconcile_ok') as recreated,
+select user_id, count(*) filter (where status = 'reconcile_ok' and detail = 'recreated') as recreated,
        count(*) filter (where status = 'reconcile_error') as failed
 from public.push_client_log
 where created_at > now() - interval '30 days'
 group by 1
-having count(*) filter (where status = 'reconcile_ok') > 0
+having count(*) filter (where status = 'reconcile_ok' and detail = 'recreated') > 0
+order by 2 desc;
+```
+
+```sql
+-- Devices that never (re)subscribed, and why. `reconcile_ok` rows carry either
+-- 'recreated' or a skip reason: unsupported, opted_out, missing_vapid_key,
+-- notifications_unavailable, permission_denied, permission_default. A device
+-- that only ever reports a skip reason was never subscribed at all — which is
+-- a different problem from a push that was sent and never arrived.
+select detail, count(*) as devices, max(created_at) as last_seen
+from public.push_client_log
+where status = 'reconcile_ok'
+  and detail is not null
+  and detail <> 'recreated'
+  and created_at > now() - interval '7 days'
+group by 1
 order by 2 desc;
 ```
 
 The client reports these receipts through the `push-receipt` edge function,
 authenticated by the per-subscription `ack_token` (never by a JWT — a push can
 arrive while the app is closed). The page also writes `subscribed`,
-`unsubscribed`, `reconcile_ok`, and `reconcile_error` rows directly.
+`unsubscribed`, `reconcile_ok` (a subscription was `recreated`, or skipped with
+the reason in `detail`), and `reconcile_error` rows directly.
 
 ### Realtime Connection Health
 
