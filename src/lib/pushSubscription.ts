@@ -17,11 +17,23 @@ export interface PersistResult {
   error?: Error
 }
 
+// Why a reconcile did not (re)create a subscription. Logged as `reconcile_ok`
+// with the reason in `detail` so a device that never subscribed is visible in
+// push_client_log, not just a device whose push never arrived (#800).
+export type PushSkipReason =
+  | 'unsupported'
+  | 'opted_out'
+  | 'missing_vapid_key'
+  | 'notifications_unavailable'
+  | 'permission_denied'
+  | 'permission_default'
+
 // `created` distinguishes a heal (a fresh subscription was minted) from a
 // routine reconcile of an existing one, so callers only log the interesting
 // case.
 export interface EnsureResult extends PersistResult {
   created?: boolean
+  skipped?: PushSkipReason
 }
 
 // Maps a PushSubscription object (as handed to the page) to its DB columns.
@@ -147,9 +159,9 @@ async function endpointSaved(
 // the server no longer holds (its row was deleted after a 410) is rotated for a
 // fresh endpoint, since re-persisting it would only restore a dead one. Never
 // prompts (only `Notification.requestPermission` does): creating a subscription
-// needs a prior grant, so a silent mild-absence of one just no-ops. A device the
-// user deliberately opted out on is left alone. Surfaces failures instead of
-// throwing.
+// needs a prior grant, so a device with no grant just no-ops — reporting the
+// reason so it shows up in the device trail. A device the user deliberately
+// opted out on is left alone. Surfaces failures instead of throwing.
 // Single-flight guard. `usePushNotifications` is mounted by several components
 // at once (Lobby, ChannelView, badge sync, banner), and each runs a reconcile
 // on mount. Without this they race: each sees no (or a not-yet-persisted)
@@ -168,6 +180,7 @@ export function ensurePushSubscription(
       .then((result) => {
         // Logged once for the whole operation, not once per caller.
         if (result.created) void logPushClientEvent(userId, 'reconcile_ok', 'recreated', client)
+        else if (result.skipped) void logPushClientEvent(userId, 'reconcile_ok', result.skipped, client)
         else if (!result.ok) void logPushClientEvent(userId, 'reconcile_error', result.error?.message, client)
         return result
       })
@@ -183,8 +196,8 @@ async function runEnsurePushSubscription(
   vapidPublicKey: string,
   client: PushSubscriptionsClient = supabase
 ): Promise<EnsureResult> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: true }
-  if (isPushOptedOut()) return { ok: true }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: true, skipped: 'unsupported' }
+  if (isPushOptedOut()) return { ok: true, skipped: 'opted_out' }
   try {
     const existing = await getActiveSubscription()
     if (existing && await endpointSaved(userId, existing.endpoint, client)) {
@@ -200,8 +213,13 @@ async function runEnsurePushSubscription(
       }
     }
 
-    if (!vapidPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-      return { ok: true }
+    if (!vapidPublicKey) return { ok: true, skipped: 'missing_vapid_key' }
+    if (typeof Notification === 'undefined') return { ok: true, skipped: 'notifications_unavailable' }
+    if (Notification.permission !== 'granted') {
+      return {
+        ok: true,
+        skipped: Notification.permission === 'denied' ? 'permission_denied' : 'permission_default'
+      }
     }
 
     const registration = await navigator.serviceWorker.ready
@@ -216,10 +234,11 @@ async function runEnsurePushSubscription(
   }
 }
 
-// Client-side push milestone (subscribed / unsubscribed / reconcile_ok /
-// reconcile_error). Written straight through PostgREST under the user's own
-// RLS policy; best-effort — observability must never break the flow.
-export type PushClientStatus = 'subscribed' | 'unsubscribed' | 'reconcile_ok' | 'reconcile_error'
+// Client-side push milestone. Written straight through PostgREST under the
+// user's own RLS policy; best-effort — observability must never break the flow.
+// `show_error` is only used by the on-demand test notification (the service
+// worker reports real pushes through push-receipt instead).
+export type PushClientStatus = 'subscribed' | 'unsubscribed' | 'reconcile_ok' | 'reconcile_error' | 'show_error'
 
 export async function logPushClientEvent(
   userId: string,

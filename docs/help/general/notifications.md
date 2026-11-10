@@ -16,6 +16,21 @@ On first load you may see a banner asking to enable push notifications. Accept i
 
 You don't have to keep watching the toggle: if a device's subscription is ever dropped (browsers rotate and expire them on their own), simply opening the app again re-enables notifications for that device.
 
+## Android support
+
+On Android, the phone can block notifications separately from the website.
+
+- **Chrome installs the app as its own app** — look for **RoleByPost** in **Settings → Apps → RoleByPost → Notifications** and allow it there.
+- **Firefox's "Add to home screen" is only a shortcut inside Firefox**, not a separate app, so there is nothing to allow for RoleByPost — allow notifications for **Firefox** itself instead.
+
+Android can also hold a push back while the phone is asleep, even with everything allowed, so a ping may arrive late rather than immediately.
+
+## Checking this device
+
+**Send test notification** sits under **Settings → Push Notifications on this device**, and only appears once push is switched on for this device and your browser allows notifications. It shows a notification right away and checks that the display works — nothing is sent to your phone, so it can't tell you whether a chat ping was delayed.
+
+If the button is not there, switch push on first; if your browser has blocked notifications, allow them in the browser's site settings. If nothing appears after tapping it, the phone is blocking notifications for the app, and on an installed Android app the screen tells you where to allow them.
+
 ## iOS support
 
 On iOS, push notifications require **installing the app to your Home Screen** — iOS only exposes the Push API inside installed web apps. The UI shows install guidance and disables push controls until the app is installed. For the home-screen badge to show, **Badges** must be enabled under iOS Settings → Notifications → the app.

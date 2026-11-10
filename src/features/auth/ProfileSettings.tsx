@@ -30,6 +30,7 @@ export function ProfileSettings() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [isResettingAvatar, setIsResettingAvatar] = useState(false)
+  const [isSendingTest, setIsSendingTest] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
@@ -42,6 +43,7 @@ export function ProfileSettings() {
     loading: prefsLoading,
     subscribeToPush,
     unsubscribeFromPush,
+    sendTestNotification,
     updatePreferences
   } = usePushNotifications()
 
@@ -168,6 +170,30 @@ export function ProfileSettings() {
   }
 
   const pushUnavailable = !isConfigured || !isSupported || needsInstall
+
+  // Installed Android apps have their own notification permission, separate
+  // from the website's — the only place our own UI can point a player at it.
+  const installedOnAndroid =
+    typeof navigator !== 'undefined' &&
+    /android/i.test(navigator.userAgent) &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(display-mode: standalone)').matches
+
+  const handleSendTestNotification = async () => {
+    setIsSendingTest(true)
+    try {
+      await sendTestNotification()
+      addToast('Test notification sent — check your notification shade.', 'success')
+    } catch (err) {
+      console.error('Test notification error:', err)
+      addToast(
+        err instanceof Error ? err.message : 'Could not show a test notification on this device.',
+        'error'
+      )
+    } finally {
+      setIsSendingTest(false)
+    }
+  }
 
   const handleExport = async () => {
     if (!user) return
@@ -387,7 +413,7 @@ export function ProfileSettings() {
                         : needsInstall
                           ? 'Push notifications require installing the app. Tap Share → Add to Home Screen.'
                           : isSupported
-                            ? 'Receive notifications even when the app is closed.'
+                            ? 'Receive notifications even when the app is closed. Your browser may hold them back while the phone sleeps.'
                             : 'Push notifications are not supported on this browser/device.'}
                     </p>
                     {isConfigured && isSupported && permission === 'denied' && (
@@ -413,6 +439,25 @@ export function ProfileSettings() {
                     </button>
                   )}
                 </div>
+                {isConfigured && isSupported && isSubscribed && permission === 'granted' && (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={handleSendTestNotification}
+                      disabled={isSendingTest}
+                      className="rounded-lg border border-surface-300 dark:border-surface-600 px-3 py-1.5 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSendingTest ? 'Sending…' : 'Send test notification'}
+                    </button>
+                    {installedOnAndroid && (
+                      <p className="text-sm text-surface-500 dark:text-surface-400 mt-2">
+                        If nothing appears, your phone is blocking notifications for this app or your
+                        browser. Allow them in Settings → Apps → RoleByPost (or your browser) →
+                        Notifications.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Notification Preferences - Account wide */}

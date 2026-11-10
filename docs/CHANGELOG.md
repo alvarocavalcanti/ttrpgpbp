@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-10
+
+### Fixed
+
+- **Notifications reach a sleeping Android phone** — a chat ping sent while the phone was asleep could be held back until the browser was opened again. Notifications now ask the phone to wake for them, so messages, turn alerts and admin notices arrive without reopening anything. Some browsers still hold them back while they are closed or the phone is locked.
+
+### Added
+
+- **Send test notification** — under **Settings → Push Notifications on this device**, a **Send test notification** button shows what a chat ping looks like on this device, so you can check that notifications display without waiting for someone to post. It only checks the display on this device; a delayed or missing chat ping is a separate problem. On an installed Android app it also tells you where to allow notifications for the app itself, which the phone can block separately from the website.
+
 ## 2026-11-09
 
 ### Fixed

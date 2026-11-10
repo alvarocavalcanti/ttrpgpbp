@@ -60,6 +60,7 @@ describe('ProfileSettings', () => {
   const mockUpdatePreferences = vi.fn()
   const mockSubscribe = vi.fn()
   const mockUnsubscribe = vi.fn()
+  const mockSendTestNotification = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -84,12 +85,28 @@ describe('ProfileSettings', () => {
       error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
+      sendTestNotification: mockSendTestNotification,
       updatePreferences: mockUpdatePreferences
     })
   })
 
   function renderWithRouter(ui: ReactElement) {
     return render(<MemoryRouter>{ui}</MemoryRouter>)
+  }
+
+  function mockSubscribedDevice() {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true, needsInstall: false,
+      permission: 'granted',
+      isSubscribed: true,
+      preferences: { push_enabled: true, badge_enabled: true } as any,
+      loading: false,
+      error: null,
+      subscribeToPush: mockSubscribe,
+      unsubscribeFromPush: mockUnsubscribe,
+      sendTestNotification: mockSendTestNotification,
+      updatePreferences: mockUpdatePreferences
+    })
   }
 
   it('renders nothing if profile is null', () => {
@@ -565,6 +582,7 @@ describe('ProfileSettings', () => {
       error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
+      sendTestNotification: mockSendTestNotification,
       updatePreferences: mockUpdatePreferences
     })
 
@@ -602,6 +620,116 @@ describe('ProfileSettings', () => {
     })
   })
 
+  it('shows a test notification from settings', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+    mockSubscribedDevice()
+    mockSendTestNotification.mockResolvedValue(undefined)
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send test notification' }))
+
+    await waitFor(() => expect(mockSendTestNotification).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith(
+        'Test notification sent — check your notification shade.',
+        'success'
+      )
+    })
+  })
+
+  it('shows the reason when a test notification cannot be shown', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+    mockSubscribedDevice()
+    mockSendTestNotification.mockRejectedValue(new Error('Notifications are blocked for this app on this device.'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderWithRouter(<ProfileSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send test notification' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith(
+        'Notifications are blocked for this app on this device.',
+        'error'
+      )
+    })
+  })
+
+  it('does not offer a test notification before the device is subscribed', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    expect(screen.queryByRole('button', { name: 'Send test notification' })).toBeNull()
+  })
+
+  it('explains the Android app permission only for an installed Android app', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+    mockSubscribedDevice()
+    const originalMatchMedia = window.matchMedia
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)' })
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as any
+
+    const { unmount } = renderWithRouter(<ProfileSettings />)
+    expect(screen.getByText(/Settings → Apps → RoleByPost/)).toBeInTheDocument()
+
+    unmount()
+    vi.unstubAllGlobals()
+    window.matchMedia = originalMatchMedia
+
+    renderWithRouter(<ProfileSettings />)
+    expect(screen.queryByText(/Settings → Apps → RoleByPost/)).toBeNull()
+  })
+
   it('shows not configured message when isConfigured is false', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
@@ -629,6 +757,7 @@ describe('ProfileSettings', () => {
       error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
+      sendTestNotification: mockSendTestNotification,
       updatePreferences: mockUpdatePreferences
     })
 
@@ -662,6 +791,7 @@ describe('ProfileSettings', () => {
       error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
+      sendTestNotification: mockSendTestNotification,
       updatePreferences: mockUpdatePreferences
     })
 
@@ -696,6 +826,7 @@ describe('ProfileSettings', () => {
       error: null,
       subscribeToPush: mockSubscribe,
       unsubscribeFromPush: mockUnsubscribe,
+      sendTestNotification: mockSendTestNotification,
       updatePreferences: mockUpdatePreferences
     })
 

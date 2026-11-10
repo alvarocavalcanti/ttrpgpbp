@@ -3,7 +3,7 @@ import { timingSafeEqual } from "jsr:@std/crypto@1/timing-safe-equal"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.111.0"
 import webPush from "npm:web-push@3.6.7"
 import { resolvePushTargets, buildPushPayload, extractMentionUserIds, resolveMentionTargets, isAllowedOrigin, resolveAnnouncementTargets, mergeUnreadTotals, filterMembersByRoomVisibility } from "./filter.ts"
-import { sendWithRetry } from "./deliver.ts"
+import { createWebPushSender, sendWithRetry } from "./deliver.ts"
 import { TriggerPayloadSchema, PushSubscriptionSchema } from "./validation.ts"
 import type { MessageTrigger, TurnTrigger, AdminTrigger, PushSubscription, JoinRequestTrigger } from "./validation.ts"
 import type { PushEvent, PushMember } from "./filter.ts"
@@ -518,11 +518,7 @@ serve(async (req) => {
         ))
 
         const outcome = await sendWithRetry(
-          (subscription, payload) =>
-            webPush.sendNotification(
-              subscription as { endpoint: string; keys: { p256dh: string; auth: string } },
-              payload as string
-            ),
+          createWebPushSender(webPush),
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           pushPayload
         )
