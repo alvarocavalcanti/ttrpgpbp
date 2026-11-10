@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { classifyWebPushError, sendWithRetry, PUSH_SEND_OPTIONS } from './deliver.ts'
+import { classifyWebPushError, createWebPushSender, sendWithRetry } from './deliver.ts'
 
 describe('classifyWebPushError', () => {
   it('classifies 404 and 410 as invalid', () => {
@@ -26,9 +26,16 @@ describe('classifyWebPushError', () => {
   })
 })
 
-describe('PUSH_SEND_OPTIONS', () => {
-  it('sends at high urgency so a dozing Android device is woken', () => {
-    expect(PUSH_SEND_OPTIONS).toEqual({ urgency: 'high' })
+describe('createWebPushSender', () => {
+  it('passes high urgency to web-push as the third argument', async () => {
+    const sendNotification = vi.fn().mockResolvedValue(undefined)
+    const send = createWebPushSender({ sendNotification })
+    const subscription = { endpoint: 'https://push.example.com/x' }
+    const payload = '{"title":"hi"}'
+
+    await send(subscription, payload)
+
+    expect(sendNotification).toHaveBeenCalledWith(subscription, payload, { urgency: 'high' })
   })
 })
 

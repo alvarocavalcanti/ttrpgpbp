@@ -228,7 +228,7 @@ order by 2 desc;
 -- notifications_unavailable, permission_denied, permission_default. A device
 -- that only ever reports a skip reason was never subscribed at all — which is
 -- a different problem from a push that was sent and never arrived.
-select detail, count(*) as devices, max(created_at) as last_seen
+select detail, count(distinct user_id) as users, count(*) as events, max(created_at) as last_seen
 from public.push_client_log
 where status = 'reconcile_ok'
   and detail is not null

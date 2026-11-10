@@ -11,6 +11,15 @@ export type ErrorCategory = 'invalid' | 'transient' | 'other'
 // was reopened (#800). TTL stays at the web-push default (4 weeks) on purpose.
 export const PUSH_SEND_OPTIONS = { urgency: 'high' }
 
+// The `send` that sendWithRetry injects. Kept here (not inline in the handler)
+// so a test can assert the options web-push actually receives: the handler
+// imports Deno and calls serve() at module load, so it is not importable.
+export function createWebPushSender(webPush: {
+  sendNotification: (subscription: unknown, payload: unknown, options?: unknown) => Promise<unknown>
+}): (subscription: unknown, payload: unknown) => Promise<unknown> {
+  return (subscription, payload) => webPush.sendNotification(subscription, payload, PUSH_SEND_OPTIONS)
+}
+
 // Invalid: the subscription is gone (HTTP 404/410) and must be deleted.
 // Transient: provider/network trouble worth retrying (5xx, no HTTP status).
 // Other: permanent client/provider errors that retrying won't fix.

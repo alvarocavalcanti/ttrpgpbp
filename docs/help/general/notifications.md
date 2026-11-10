@@ -24,7 +24,9 @@ Android can also hold a push back while the phone is asleep, even with everythin
 
 ## Checking this device
 
-Under **Settings → Push Notifications on this device**, **Send test notification** shows a notification right away. If it appears, notifications work on this device; if nothing appears, the phone is blocking them and the screen tells you where to allow them.
+**Send test notification** sits under **Settings → Push Notifications on this device**, and only appears once push is switched on for this device and your browser allows notifications. It shows a notification right away and checks that the display works — nothing is sent to your phone, so it can't tell you whether a chat ping was delayed.
+
+If the button is not there, switch push on first; if your browser has blocked notifications, allow them in the browser's site settings. If nothing appears after tapping it, the phone is blocking notifications for the app, and on an installed Android app the screen tells you where to allow them.
 
 ## iOS support
 
