@@ -256,7 +256,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     path: ROUTES.vsDiscord,
     title: 'Role by Post vs Discord — Role by Post',
     description:
-      'How Role by Post compares with Discord for play-by-post tabletop RPGs: campaign structure, dice, NPCs, and keeping the story readable.',
+      'How Role by Post compares with Discord for play-by-post tabletop RPGs: rooms, per-campaign characters, dice, NPCs, and a readable story.',
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.7,
@@ -265,7 +265,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     path: ROUTES.altRpol,
     title: 'Role by Post vs RPOL — Role by Post',
     description:
-      'Comparing Role by Post with RPOL for play-by-post RPGs: mobile-first chat, dice rolling, safety tools, and a modern interface.',
+      'Comparing Role by Post with RPOL for play-by-post RPGs: rooms, per-campaign characters, mobile-first chat, dice, and safety tools.',
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.7,
@@ -274,7 +274,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     path: ROUTES.altMythWeavers,
     title: 'Role by Post vs Myth-Weavers — Role by Post',
     description:
-      'Comparing Role by Post with Myth-Weavers for play-by-post RPGs: a chat-first timeline, campaign tools, and play from any device.',
+      'Comparing Role by Post with Myth-Weavers for play-by-post RPGs: rooms, per-campaign characters, campaign notes, and a chat-first timeline.',
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.7,

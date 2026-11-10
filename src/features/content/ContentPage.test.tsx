@@ -16,6 +16,9 @@ function renderAt(path: string) {
       <Routes>
         <Route path="/play-by-post" element={<ContentPage />} />
         <Route path="/how-to/run-play-by-post" element={<ContentPage />} />
+        <Route path="/vs/discord" element={<ContentPage />} />
+        <Route path="/alternatives/rpol" element={<ContentPage />} />
+        <Route path="/alternatives/myth-weavers" element={<ContentPage />} />
         <Route path="/ai-disclaimer" element={<ContentPage />} />
         <Route path="/not-content" element={<ContentPage />} />
       </Routes>
@@ -81,6 +84,52 @@ describe('ContentPage', () => {
     mockAuth(null)
     const { container } = renderAt('/not-content')
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('highlights rooms on the RPOL comparison', () => {
+    mockAuth(null)
+    renderAt('/alternatives/rpol')
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Role by Post vs RPOL — A Modern Play-by-Post Alternative',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Rooms keep the story clean' }),
+    ).toBeInTheDocument()
+  })
+
+  it('highlights rooms and notes on the Myth-Weavers comparison', () => {
+    mockAuth(null)
+    renderAt('/alternatives/myth-weavers')
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Role by Post vs Myth-Weavers — A Modern Play-by-Post Alternative',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Rooms and side conversations' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Notes that live with the campaign' }),
+    ).toBeInTheDocument()
+  })
+
+  it('highlights rooms on the Discord comparison with the registry title', () => {
+    mockAuth(null)
+    renderAt('/vs/discord')
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Role by Post vs Discord for Play-by-Post' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Rooms, not channel sprawl' }),
+    ).toBeInTheDocument()
+    expect(document.title).toBe('Role by Post vs Discord — Role by Post')
   })
 
   it('hides the slim header for signed-in visitors', () => {
