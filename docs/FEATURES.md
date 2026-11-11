@@ -68,6 +68,7 @@
 - **Lobby sorts by most recent activity** (channels with recent messages first; channels with no messages last)
 - **Lobby search** allows fuzzy finding channels by name
 - **App menu drawer** — the main app menu (Profile, Archived Channels, Help, etc.) slides in as a right-side drawer, opened from the header ☰ button or by swiping in from the right screen edge on touch devices; the channel sidebar supports the same edge swipe on mobile. Swiping back out (to the right) closes the open drawer or sidebar. On small screens the header **Search** and **Dark mode** controls fold into the drawer so they never crowd the app title
+- **Text size** — the main menu's **Text size** row opens a slider from 75% to 150% that scales the whole interface, like browser zoom, and is remembered per device. It is not reachable inside a channel (the main menu is hidden there), but the chosen size applies to chats too. Drawers and popovers cap their width against the viewport so they stay usable at the largest size
 - **Empty lobby onboarding** — with no channels joined, the lobby opens on Discover; the My Games tab also explains the invite-only model and offers both paths inline: a "Create a channel" button and a "Paste an invite link" field (paste a full invite URL to jump to the join screen, with a clear error for anything else)
 - Channels are either **private** (joined via invite link, optionally with a password) or **listed** (apply-only, vetted by the GM)
 - **Create a channel private or listed in one step** — the create form carries the same **List this game publicly** switch as Channel Settings → Listing, with the description, expectations, and optional application prompt (capped at input to match the server) kept on screen but greyed out while the switch is off. The channel, its listing, and the GM's membership commit in one transaction
@@ -99,7 +100,7 @@
   - **Regular** — normal conversation
   - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced).
   - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (server-enforced). The NPC's identity is validated against the channel's roster, so messages always carry a real roster portrait/name. Parchment bubble style, distinct from both regular and scene messages.
-- **Narrative serif typography** — scene and NPC text renders in the **Crimson Pro** reading serif (self-hosted, offline-safe). App text is sized to be legible by default and follows your device's text-size setting
+- **Narrative serif typography** — scene and NPC text renders in the **Crimson Pro** reading serif (self-hosted, offline-safe). App text is legible by default and follows OS/browser text scaling; the main menu's **Text size** slider additionally scales the whole app from 75% to 150% on this device
 - **Daily Dividers** — chat history is grouped by date visually
 - **Scroll-to-top history loading** — scrolling near the top of an overflowing chat automatically loads older messages; short first pages keep a manual "Load older messages" button
 - **Editable** within 15 minutes, marked as "edited" (scene messages editable/deletable by the GM; NPC messages follow the 15-minute window)

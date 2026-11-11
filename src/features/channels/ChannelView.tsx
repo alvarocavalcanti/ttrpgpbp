@@ -792,7 +792,7 @@ export function ChannelView() {
 
       {/* Sidebar */}
       <div ref={sidebarRef} className={`
-        absolute inset-y-0 right-0 z-30 w-80 bg-white dark:bg-surface-800 overflow-y-auto border-l border-surface-200 dark:border-surface-700
+        absolute inset-y-0 right-0 z-30 w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-surface-800 overflow-y-auto border-l border-surface-200 dark:border-surface-700
         transform transition-transform duration-300 ease-in-out motion-reduce:transition-none
         lg:relative lg:translate-x-0
         ${showMobileSidebar ? 'translate-x-0' : 'translate-x-full'}

@@ -22,6 +22,18 @@
       })()
     </script>
     <script>
+      // Restore the saved Text size before first paint so it never flashes at
+      // 100% on reload. Key and bounds are duplicated from
+      // src/hooks/useTextSize.ts — keep them in sync.
+      (function () {
+        try {
+          var saved = Number(localStorage.getItem('rolebypost-text-size'))
+          if (!isFinite(saved) || saved < 75 || saved > 150) return
+          document.documentElement.style.setProperty('--text-scale', String(saved / 100))
+        } catch (e) {}
+      })()
+    </script>
+    <script>
       // Hide the prerendered landing before first paint when a Supabase session
       // is already persisted, so a signed-in visitor reloading `/` never sees
       // the marketing page flash before the lobby loads (issue #658). Scoped to

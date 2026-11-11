@@ -5,9 +5,9 @@
 @layer base {
   /* Base type scale: 17px (106.25% of the 16px browser default). Every
      rem-based Tailwind size and spacing follows it, so the app reads closer
-     to a native messaging app. Users who need more rely on OS/browser text
-     scaling, which this relative base respects. */
-  html { font-size: 106.25%; }
+     to a native messaging app. `--text-scale` is the Text size preference
+     (75%–150%, see useTextSize) and is the only knob that scales the app. */
+  html { font-size: calc(106.25% * var(--text-scale, 1)); }
 
   /* Hide the prerendered landing until React has committed its first tree for
      visitors with a persisted session (issue #658). The attribute is set by the

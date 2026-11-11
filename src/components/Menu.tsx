@@ -105,7 +105,7 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
         <div
           role="menu"
           aria-label={label}
-          className="absolute bottom-full mb-2 left-0 w-64 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
+          className="absolute bottom-full mb-2 left-0 w-64 max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
         >
           {optionButtons}
         </div>

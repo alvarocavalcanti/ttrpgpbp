@@ -24,6 +24,9 @@ interface DiceRollerProps {
   align?: 'left' | 'right'
   // Open the anchored panel below the trigger (when there isn't room above).
   panelBelow?: boolean
+  // Pixel cap for the anchored panel, derived from the FAB's anchor so a
+  // scaled-up panel can't extend past the message area's edge.
+  panelMaxWidth?: number
   // Opens the channel roll history from inside the panel.
   onOpenHistory?: () => void
 }
@@ -142,7 +145,7 @@ export function parseRollerNotation(notation: string): RollerValues | null {
   }
 }
 
-export function DiceRoller({ onRoll, popup = false, channelId, fab = false, align = 'left', panelBelow = false, onOpenHistory }: DiceRollerProps) {
+export function DiceRoller({ onRoll, popup = false, channelId, fab = false, align = 'left', panelBelow = false, panelMaxWidth, onOpenHistory }: DiceRollerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selection, setSelection] = useState<DiceSelection[]>([])
   const [modifier, setModifier] = useState(0)
@@ -440,7 +443,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
         </BottomSheet>
       )}
       {isOpen && !popup && (
-        <div className={`absolute ${panelBelow ? 'top-full mt-2' : 'bottom-full mb-2'} ${align === 'right' ? 'right-0' : 'left-0'} w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50`}>
+        <div className={`absolute ${panelBelow ? 'top-full mt-2' : 'bottom-full mb-2'} ${align === 'right' ? 'right-0' : 'left-0'} w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50`} style={panelMaxWidth === undefined ? undefined : { maxWidth: panelMaxWidth }}>
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dice Roller</h3>
             <button type="button" onClick={() => setIsOpen(false)} aria-label="Close dice roller" className="text-gray-400 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-400">
