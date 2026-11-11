@@ -14,6 +14,7 @@ interface TextSizeSheetProps {
 // range input keeps touch, keyboard and screen-reader support without a
 // custom widget; the app scales live behind the sheet, so it is its own
 // preview.
+/** Bottom sheet that adjusts the app-wide text size with a native slider. */
 export function TextSizeSheet({ onClose }: TextSizeSheetProps) {
   const { percent, setPercent } = useTextSize()
 

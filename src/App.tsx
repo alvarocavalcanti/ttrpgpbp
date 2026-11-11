@@ -146,8 +146,17 @@ function AppNav() {
     trackEvent('menu_close', { menu: 'main', method })
   }
   // Right-edge swipe opens the menu drawer (touch devices); same gesture as
-  // the channel sidebar so both menus behave identically.
-  useEdgeSwipe({ open: menuOpen, onOpen: () => openMenu('swipe'), onClose: () => closeMenu('swipe') })
+  // the channel sidebar so both menus behave identically. Suppressed while the
+  // Text size sheet is open — a slider drag that starts near the right edge
+  // would otherwise open the drawer behind it.
+  useEdgeSwipe({
+    open: menuOpen,
+    onOpen: () => {
+      if (textSizeOpen) return
+      openMenu('swipe')
+    },
+    onClose: () => closeMenu('swipe'),
+  })
   // Dedicated close X (issue #511); also closes via backdrop tap, edge
   // swipe, the hamburger toggle, or Escape — every method is tracked.
   useEscapeToClose(() => closeMenu('escape'))

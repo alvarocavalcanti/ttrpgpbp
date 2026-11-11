@@ -32,6 +32,17 @@ export interface FabAnchor {
   bottom: number
 }
 
+/**
+ * Widest panel the chosen anchor can show without leaving the message area.
+ * Right-aligned panels grow leftward from the FAB, left-aligned ones rightward,
+ * so the available space depends on the FAB position — at large text sizes the
+ * old viewport-only cap still let the panel clip past the edge at small widths.
+ */
+export function panelMaxWidth(align: 'left' | 'right', x: number, fabW: number, areaW: number, margin = MARGIN): number {
+  const available = align === 'right' ? x + fabW : areaW - x
+  return Math.max(0, Math.floor(available - margin))
+}
+
 // The FAB lives against the bottom-right corner of its area (the composer
 // edge). Expressing its position as the gap to that corner lets a container
 // resize re-derive the position instead of clamping a stale absolute pixel,
@@ -75,6 +86,7 @@ function loadStoredAnchor(): FabAnchor | null {
 interface Layout {
   x: number
   y: number
+  fabW: number
   areaW: number
   areaH: number
 }
@@ -105,7 +117,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
     // Record the anchor on every placement (mount + drag) so a later resize
     // can re-derive the position. Reclamping does not go through here.
     anchorRef.current = anchorFromPoint(clamped, dims.areaW, dims.areaH, dims.fabW, dims.fabH)
-    setLayout({ ...clamped, areaW: dims.areaW, areaH: dims.areaH })
+    setLayout({ ...clamped, fabW: dims.fabW, areaW: dims.areaW, areaH: dims.areaH })
   }, [])
 
   // Re-derive the FAB position from its bottom-right anchor. A transient
@@ -119,7 +131,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
       return
     }
     const point = pointFromAnchor(anchor, dims.areaW, dims.areaH, dims.fabW, dims.fabH)
-    setLayout({ ...point, areaW: dims.areaW, areaH: dims.areaH })
+    setLayout({ ...point, fabW: dims.fabW, areaW: dims.areaW, areaH: dims.areaH })
   }, [place])
 
   useLayoutEffect(() => {
@@ -198,6 +210,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
   // Open toward whichever side has more room, so a FAB dragged near the top
   // doesn't clip its panel against the channel's top edge.
   const panelBelow = layout ? layout.y < layout.areaH - layout.y : false
+  const panelWidth = layout ? panelMaxWidth(align, layout.x, layout.fabW, layout.areaW) : undefined
 
   return (
     <div
@@ -217,7 +230,7 @@ export function DiceRollerFab({ channelId, popup, onRoll, onOpenHistory }: DiceR
         }
       }}
     >
-      <DiceRoller fab align={align} panelBelow={panelBelow} popup={popup} channelId={channelId} onRoll={onRoll} onOpenHistory={onOpenHistory} />
+      <DiceRoller fab align={align} panelBelow={panelBelow} panelMaxWidth={panelWidth} popup={popup} channelId={channelId} onRoll={onRoll} onOpenHistory={onOpenHistory} />
     </div>
   )
 }

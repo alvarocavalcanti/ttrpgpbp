@@ -1096,6 +1096,21 @@ describe('App main menu drawer', () => {
     act(() => setTextSize(100))
   })
 
+  it('ignores the edge-swipe gesture while the Text size sheet is open', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Text size' }))
+
+    // A slider drag that starts near the right edge must not open the drawer
+    // behind the sheet.
+    swipe('touchstart', 380)
+    swipe('touchend', 260)
+
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Text size' })).toBeInTheDocument()
+  })
+
   it('does not open on swipes that start mid-screen', async () => {
     await renderLobby()
 

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { DiceRollerFab, clampFabPosition, defaultFabPosition, anchorFromPoint, pointFromAnchor } from './DiceRollerFab'
+import { DiceRollerFab, clampFabPosition, defaultFabPosition, anchorFromPoint, pointFromAnchor, panelMaxWidth } from './DiceRollerFab'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: { rpc: vi.fn().mockResolvedValue({ data: [], error: null }) }
@@ -52,6 +52,17 @@ describe('dice roller fab position', () => {
 
   it('clamps a corner anchor when the area is smaller than the fab', () => {
     expect(pointFromAnchor({ right: 12, bottom: 12 }, 40, 40, 56, 56, 12)).toEqual({ x: 12, y: 12 })
+  })
+
+  it('caps the panel to the space beside the fab so it cannot clip at large text sizes', () => {
+    // Right-aligned panels grow leftward from the fab's right edge.
+    expect(panelMaxWidth('right', 400, 56, 768)).toBe(444)
+    // Left-aligned panels grow rightward from the fab's left edge.
+    expect(panelMaxWidth('left', 400, 56, 768)).toBe(356)
+    // A fab near the left edge can barely show a right-aligned panel.
+    expect(panelMaxWidth('right', 10, 56, 400)).toBe(54)
+    // No room left at all never yields a negative width.
+    expect(panelMaxWidth('left', 395, 56, 400)).toBe(0)
   })
 })
 
