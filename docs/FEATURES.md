@@ -106,7 +106,7 @@
 - **Deletable** — replaced with "deleted" marker (soft-delete). Deleting asks for confirmation inside the app (no browser popup)
 - **In-app confirmations everywhere** — destructive actions (delete message, kick/block/leave channel, delete NPC, archive channel, delete admin thread/message) all confirm with a styled in-app dialog instead of the browser popup
 - **Message actions** — reply/edit/delete/Favorite/Reactions/Report appear as hover icons on desktop; on mobile they collapse behind a single **"⋯"** button that opens a bottom sheet with large, easy-to-tap actions
-- **Favorite messages** — mark any message or dice roll with the **Favorite** action to save it for later. The channel header's **Favorites** toggle shows every message you've saved in that channel, even old ones — they load for you, no manual paging needed; favorites are personal to you and persist across sessions
+- **Favorite messages** — mark any message or dice roll with the **Favorite** action to save it for later. The channel header's **Favorites** toggle shows every message you've saved in that channel, even old ones — they load for you, no manual paging needed; favorites are personal to you and persist across sessions. A message or roll you send while the filter is on stays visible until it is sent, so a failed one keeps its **Retry** in place
 - **Report a message** — any player can report another player's message from the message actions; a free-text reason (up to 1,000 characters) is submitted to the server administrators together with the message and channel context. The sheet says who reads the report and that accounts breaking the Acceptable Use Policy can be suspended or terminated, **Learn more** expands the guidance inline without losing the typed reason, and Submit stays disabled until the reporter ticks the consent box and types a reason. GMs also see that reporting doesn't remove the player from the game — that needs **Kick Player** or **Block Player**. The confirmation toast points at **Messages** → **Message Admin**; empty reasons are rejected.
 - Messages are limited to 4,000 characters. URLs posted as plain text with external link, no previews or embeds
 - **Reply/Quote** — any message can be replied to; replies render a quote of the original message and jump to it on click
@@ -153,7 +153,7 @@
 - Messages visible only to GM + one specific player
 - Visible within the same channel timeline (but hidden from others)
 - **Whisper from the player list** — the member's **⋯** menu has **Whisper**: it jumps to the message box with that player already selected and the cursor ready
-- **Whispers-only view** — the channel header's **Whispers** toggle (next to Favorites) shows just the whispers you sent or received; for a GM it shows every whisper in the channel. It filters the loaded messages, and turns Favorites off while it's on
+- **Whispers-only view** — the channel header's **Whispers** toggle (next to Favorites) shows just the whispers you sent or received; for a GM it shows every whisper in the channel. It filters the loaded messages, and turns Favorites off while it's on. Anything you send while it's on stays visible until it is sent, so a failed whisper or roll keeps its **Retry** in place
 
 ## Server Messages (announcements & admin DMs)
 

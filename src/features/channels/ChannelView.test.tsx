@@ -241,6 +241,139 @@ describe('ChannelView search functionality', () => {
     expect(screen.getByText('No favorite messages yet. Star a message to find it here.')).toBeInTheDocument()
   })
 
+  it('keeps a failed dice roll visible in the Favorites view so it can be retried (#799)', () => {
+    const retryMessage = vi.fn()
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'pub', content: 'public post', type: 'regular', sender_id: 'user2', whisper_to: null, created_at: '2026-10-05T10:00:00Z' },
+        {
+          id: 'cr-1',
+          content: 'Rolling `1d20`',
+          type: 'dice_roll',
+          sender_id: 'user1',
+          whisper_to: null,
+          pending: true,
+          error: 'Roll was not confirmed. Tap retry to reroll.',
+          roll_dc: null,
+          roll_success: null,
+          created_at: '2026-10-05T10:01:00Z'
+        }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      retryMessage,
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+
+    expect(screen.getByText(/Failed to send:/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retryMessage).toHaveBeenCalledWith('cr-1')
+    expect(screen.queryByText('public post')).not.toBeInTheDocument()
+    expect(screen.queryByText('No favorite messages yet. Star a message to find it here.')).not.toBeInTheDocument()
+  })
+
+  it('does not show another player\u2019s pending message in the Favorites view (#799)', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        { id: 'pub', content: 'public post', type: 'regular', sender_id: 'user2', whisper_to: null, created_at: '2026-10-05T10:00:00Z' },
+        {
+          id: 'cr-2',
+          content: 'Rolling `1d20`',
+          type: 'dice_roll',
+          sender_id: 'user2',
+          whisper_to: null,
+          pending: true,
+          error: 'Roll was not confirmed. Tap retry to reroll.',
+          roll_dc: null,
+          roll_success: null,
+          created_at: '2026-10-05T10:01:00Z'
+        }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      retryMessage: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+
+    expect(screen.queryByText(/Failed to send:/)).not.toBeInTheDocument()
+    expect(screen.getByText('No favorite messages yet. Star a message to find it here.')).toBeInTheDocument()
+  })
+
+  it('keeps a failed plain message visible in the Favorites view (#799)', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        {
+          id: 'cr-3',
+          content: 'my unsent message',
+          type: 'regular',
+          sender_id: 'user1',
+          whisper_to: null,
+          pending: true,
+          error: 'Message was not confirmed. Tap retry to resend.',
+          created_at: '2026-10-05T10:01:00Z'
+        }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      retryMessage: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+
+    expect(screen.getByText(/Failed to send:/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+
   it('toggles a message favorite from its action (#634)', () => {
     const toggleFavorite = vi.fn()
     vi.mocked(useMessageFavorites).mockReturnValue({
@@ -2522,6 +2655,78 @@ describe('ChannelView whispers (#632)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
 
     expect(screen.getByText('No whispers here yet. Whispers you send or receive show up in this view.')).toBeInTheDocument()
+  })
+
+  it('keeps a failed dice roll visible in the Whispers view (#799)', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        ...messages,
+        {
+          id: 'cr-4',
+          content: 'Rolling `1d20`',
+          type: 'dice_roll',
+          sender_id: 'user1',
+          whisper_to: null,
+          pending: true,
+          error: 'Roll was not confirmed. Tap retry to reroll.',
+          roll_dc: null,
+          roll_success: null,
+          created_at: '2026-10-05T10:04:00Z'
+        }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      retryMessage: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    renderChannel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+
+    expect(screen.getByText(/Failed to send:/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.queryByText('public post')).not.toBeInTheDocument()
+    expect(screen.queryByText('No whispers here yet. Whispers you send or receive show up in this view.')).not.toBeInTheDocument()
+  })
+
+  it('does not show another player\u2019s pending roll in the Whispers view (#799)', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [
+        ...messages,
+        {
+          id: 'cr-5',
+          content: 'Rolling `1d20`',
+          type: 'dice_roll',
+          sender_id: 'user2',
+          whisper_to: null,
+          pending: true,
+          error: 'Roll was not confirmed. Tap retry to reroll.',
+          roll_dc: null,
+          roll_success: null,
+          created_at: '2026-10-05T10:04:00Z'
+        }
+      ],
+      reactions: {},
+      loading: false,
+      sendMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(),
+      toggleReaction: vi.fn(),
+      retryMessage: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue('found')
+    } as any)
+    renderChannel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+
+    expect(screen.queryByText(/Failed to send:/)).not.toBeInTheDocument()
+    expect(screen.getByText('my whisper')).toBeInTheDocument()
   })
 
   it('keeps Favorites and Whispers mutually exclusive', () => {

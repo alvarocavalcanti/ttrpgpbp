@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-11
+
+### Fixed
+
+- **Failed sends stay in view in a filtered channel** — a dice roll or message you send while the channel is showing only **Favorites** or only **Whispers** now stays on screen until it goes through. If it fails, its **Retry** and **Remove** buttons are right there instead of hidden behind the filter.
+
 ## 2026-11-10
 
 ### Fixed

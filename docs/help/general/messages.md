@@ -61,7 +61,7 @@ If a message or dice roll fails to send because of a network drop, it will appea
 
 ## Favorites
 
-Hover a message (or tap **"⋯"** on mobile) and choose **Favorite** to save it for later. Saved messages show a filled star. The **Favorites** toggle in the channel header shows every message you've saved — even old ones, which load for you automatically with a brief loading state; tap it again to show everything. If saving ever fails, the star flips back and you'll see a message saying it couldn't be saved. Favorites are private to you and stick around between sessions.
+Hover a message (or tap **"⋯"** on mobile) and choose **Favorite** to save it for later. Saved messages show a filled star. The **Favorites** toggle in the channel header shows every message you've saved — even old ones, which load for you automatically with a brief loading state; tap it again to show everything. If saving ever fails, the star flips back and you'll see a message saying it couldn't be saved. Favorites are private to you and stick around between sessions. A message or dice roll you send while this view is on stays visible until it is actually sent, so a failed send keeps its **Retry** button in front of you instead of hiding behind the filter.
 
 ## Reactions
 
@@ -73,7 +73,7 @@ The GM can send a **whisper** visible only to themselves and one specific player
 
 To whisper someone without opening the composer's whisper menu, open their **⋯** menu in the player list and choose **Whisper**. The message box opens with that player already chosen and your cursor ready — type and send as usual.
 
-The **Whispers** toggle in the channel header (next to Favorites) shows only the whispers you sent or received; a GM sees every whisper in the channel. Turning it on turns Favorites off, and turning Favorites on turns it off. It filters the messages already loaded in the timeline: to reach an older whisper, turn the toggle off, scroll up to load older messages, then turn it back on.
+The **Whispers** toggle in the channel header (next to Favorites) shows only the whispers you sent or received; a GM sees every whisper in the channel. Turning it on turns Favorites off, and turning Favorites on turns it off. It filters the messages already loaded in the timeline: to reach an older whisper, turn the toggle off, scroll up to load older messages, then turn it back on. Anything you send while this view is on stays visible until it is actually sent, so a failed whisper or roll keeps its **Retry** button in front of you instead of hiding behind the filter.
 
 ## Connection status
 

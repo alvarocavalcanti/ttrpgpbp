@@ -362,14 +362,19 @@ export function ChannelView() {
   // from favoriteIds; a row held in the live window wins over its snapshot
   // copy, which keeps edits/deletes/reactions consistent for in-window
   // favorites.
+  // A send the viewer just started is exempt from both filters (#799): an
+  // optimistic row is neither favorite nor whisper, so filtering it out would
+  // hide its failed bubble and Retry until the filter is turned off.
   const visibleMessages = useMemo(() => {
+    const isOwnPending = (m: ChatMessage) => Boolean(m.pending) && m.sender_id === user?.id
     if (showWhispersOnly) {
       // Same visibility clause as the messages SELECT policy: sender, target
       // and the channel GM (#632). RLS already hides everyone else's.
       // shortcut: only the loaded 50-message window is filtered; fold this
       // into the server-backed filter when the favorites lookup lands.
       return messages.filter(m =>
-        !!m.whisper_to && (m.sender_id === user?.id || m.whisper_to === user?.id || isGM),
+        isOwnPending(m) ||
+        (!!m.whisper_to && (m.sender_id === user?.id || m.whisper_to === user?.id || isGM)),
       )
     }
     if (!showFavoritesOnly) return messages
@@ -377,7 +382,7 @@ export function ChannelView() {
     const snapshotById = new Map(favoriteMessages.map(m => [m.id, m]))
     const out: ChatMessage[] = []
     for (const m of messages) {
-      if (favoriteIds.has(m.id)) out.push(m)
+      if (favoriteIds.has(m.id) || isOwnPending(m)) out.push(m)
     }
     for (const id of favoriteIds) {
       if (liveById.has(id)) continue
