@@ -13,6 +13,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { ChangelogProvider, useChangelog } from './features/changelog/useChangelog'
 import { useIsServerAdmin } from './hooks/useIsServerAdmin'
 import { ThemeToggle } from './components/ThemeToggle'
+import { TextSizeSheet } from './components/TextSizeSheet'
 import { RealtimeBanner } from './components/RealtimeBanner'
 import { PermissionBanner } from './features/notifications/PermissionBanner'
 import { CURRENT_TERMS_VERSION } from './features/auth/terms'
@@ -131,6 +132,7 @@ function AppNav() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [textSizeOpen, setTextSizeOpen] = useState(false)
   // Track how the menu is opened/closed (issue #511): usage counts decide
   // later which dismissal methods are worth keeping.
   const openMenu = (method: string) => {
@@ -250,7 +252,7 @@ function AppNav() {
             <nav
               ref={menuRef}
               aria-label="Main menu"
-              className="fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-surface-800 overflow-y-auto border-l border-surface-200 dark:border-surface-700 shadow-lg motion-safe:animate-slide-in-right"
+              className="fixed inset-y-0 right-0 z-50 w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-surface-800 overflow-y-auto border-l border-surface-200 dark:border-surface-700 shadow-lg motion-safe:animate-slide-in-right"
             >
 
             {/* Close X (issue #511): same size/position as the header
@@ -272,6 +274,16 @@ function AppNav() {
             >
               Profile
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                closeMenu('action')
+                setTextSizeOpen(true)
+              }}
+              className={NAV_MENU_ITEM}
+            >
+              Text size
+            </button>
             {/* Folded-in header controls on compact screens (issue #382): search + dark
               mode. Search is lobby-only, matching the header search. */}
             {showLobbySearch && (
@@ -398,6 +410,9 @@ function AppNav() {
           </>
         )}
       </div>
+      {/* Outside the drawer <nav>: its slide-in transform would become the
+          containing block for the sheet's fixed backdrop. */}
+      {textSizeOpen && <TextSizeSheet onClose={() => setTextSizeOpen(false)} />}
     </header>
   )
 }

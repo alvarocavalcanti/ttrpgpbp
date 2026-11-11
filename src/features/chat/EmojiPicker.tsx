@@ -68,7 +68,7 @@ export function EmojiPicker({ onPick, open, onOpenChange }: EmojiPickerProps) {
         </button>
       )}
       {isOpen && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-4 gap-1 w-64">
+        <div className="absolute bottom-full mb-1 left-0 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 grid grid-cols-4 gap-1 w-64 max-w-[calc(100vw-2rem)]">
           {QUICK_EMOJIS.map(emoji => (
             <button
               key={emoji}

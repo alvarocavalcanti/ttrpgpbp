@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import App from './App'
 import { supabase } from './lib/supabase'
 import { trackEvent } from './lib/analytics'
+import { setTextSize } from './hooks/useTextSize'
 import { clearRealtimeStatus, reportRealtimeStatus } from './lib/realtime'
 
 vi.mock('./lib/analytics', () => ({
@@ -1061,6 +1062,38 @@ describe('App main menu drawer', () => {
       'href',
       '/ai-disclaimer',
     )
+  })
+
+  it('opens the Text size sheet from the menu and applies the size', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Text size' }))
+
+    // The drawer hands over to the sheet instead of stacking the two.
+    expect(screen.queryByRole('navigation', { name: 'Main menu' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Text size' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Text size' }), { target: { value: '125' } })
+
+    expect(document.documentElement.style.getPropertyValue('--text-scale')).toBe('1.25')
+    expect(localStorage.getItem('rolebypost-text-size')).toBe('125')
+    act(() => setTextSize(100))
+  })
+
+  it('keeps the chosen size after the sheet closes', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Text size' }))
+    const dialog = screen.getByRole('dialog', { name: 'Text size' })
+    fireEvent.change(screen.getByRole('slider', { name: 'Text size' }), { target: { value: '75' } })
+
+    fireEvent.click(dialog.firstElementChild as Element)
+
+    expect(screen.queryByRole('dialog', { name: 'Text size' })).not.toBeInTheDocument()
+    expect(document.documentElement.style.getPropertyValue('--text-scale')).toBe('0.75')
+    act(() => setTextSize(100))
   })
 
   it('does not open on swipes that start mid-screen', async () => {

@@ -16,6 +16,12 @@ Select the pencil badge on the avatar to upload a replacement picture. Uploads a
 
 A **sun/moon toggle** in the app header (and on the login page) switches between light and dark theme. Your choice is remembered; by default the app follows your device's light/dark preference.
 
+## Text size
+
+Open the main menu (the ☰ button in the top-right) and choose **Text size** for a slider that runs from **75%** to **150%**. It makes everything in the app — messages, buttons, menus — bigger or smaller, like zooming the browser, and the app changes as you drag. Your choice is remembered on this device.
+
+The main menu isn't shown inside a game, so open it from the lobby or any page outside a channel. The size you pick there applies everywhere, including your channels.
+
 ## Per-channel character name and portrait
 
 Each channel has its own **character name** (max 20 characters) and **portrait**, so you can play a different character in each campaign. Open **Edit Character** from your entry in the channel's member list to change either one.

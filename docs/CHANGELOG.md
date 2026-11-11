@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-11-11
 
+### Added
+
+- **Make the app bigger or smaller** — the main menu now has a **Text size** slider, from 75% to 150%. It makes everything on screen — messages, buttons and menus — bigger or smaller, and it stays that way after a reload on this device. You won't find it inside a game: open the main menu from the lobby or any page outside a channel, and the size you pick applies everywhere, including your games.
+
 ### Fixed
 
 - **Failed sends stay in view in a filtered channel** — a dice roll or message you send while the channel is showing only **Favorites** or only **Whispers** now stays on screen until it goes through. If it fails, its **Retry** and **Remove** buttons are right there instead of hidden behind the filter.

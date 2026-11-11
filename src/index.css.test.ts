@@ -23,11 +23,11 @@ describe('index.css dark-mode base rules', () => {
     expect(css).toMatch(/--tw-ring-offset-color: #1f2937/)
   })
 
-  it('sets a larger-than-default root font size for legibility (#523)', () => {
-    expect(css).toMatch(/html\s*\{\s*font-size:\s*106\.25%/)
+  it('scales the root font size from the Text size preference (#807)', () => {
+    expect(css).toMatch(/html\s*\{\s*font-size:\s*calc\(106\.25%\s*\*\s*var\(--text-scale,\s*1\)\)/)
   })
 
-  it('has no leftover text-size setting rules (#523)', () => {
+  it('has no leftover text-size setting attribute rules (#523)', () => {
     expect(css).not.toMatch(/data-text-size/)
   })
 })
