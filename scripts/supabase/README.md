@@ -48,4 +48,10 @@ Deterministic start/stop/reset/prune for the local Supabase stack, wired into
 - **`ci-start.sh` is CI-only.** The workflows start the stack through it
   (`SUPABASE_BIN=supabase sh scripts/supabase/ci-start.sh [db-start|start]`), so a
   stale container still holding the published 54322 port is cleaned up and the
-  start is retried instead of failing the job before any test runs.
+  start is retried instead of failing the job before any test runs. Retries back
+  off (5s, then 20s) because 5432x sits in Linux's ephemeral port range — an
+  outbound socket such as the daemon's image pulls can hold the port with no
+  container to remove. When every attempt fails, the script dumps the
+  containers and the TCP sockets on 5432x — a wildcard bind conflicts with an
+  outbound connection too, not just with a listener — so the next occurrence is
+  diagnosable.

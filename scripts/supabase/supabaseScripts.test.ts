@@ -324,6 +324,35 @@ describe('scripts/supabase', () => {
       expect(result.stderr).toContain('failed after 3 attempts')
     })
 
+    it('dumps the port holders when every attempt fails', () => {
+      const result = run('ci-start.sh', ['db-start'], {
+        CI_START_RETRY_SLEEP: '0',
+        STUB_DB_START_COUNT_FILE: countFile(),
+        STUB_DB_START_FAIL_TIMES: '99',
+      })
+
+      // Cleanup cannot free a holder that is not a container, so the exhausted
+      // run must say what was there instead of just "failed".
+      expect(result.stderr).toContain('state after cleanup')
+      expect(calls()).toContain("docker ps -a --format {{.Names}} {{.Status}} {{.Ports}}")
+    })
+
+    it('waits the configured backoff between attempts, in order', () => {
+      // `sleep` is stubbed via PATH so no real wait happens. Two failures and
+      // distinct delays, so a wrong index in the delay picker cannot pass.
+      writeStub(dir, 'sleep', 'printf \'sleep %s\\n\' "$*" >> "$STUB_LOG"')
+      const result = run('ci-start.sh', ['db-start'], {
+        CI_START_RETRY_SLEEP: '7 11',
+        PATH: `${dir}:${process.env.PATH}`,
+        STUB_DB_START_COUNT_FILE: countFile(),
+        STUB_DB_START_FAIL_TIMES: '2',
+      })
+
+      expect(result.status).toBe(0)
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(3)
+      expect(calls().match(/^sleep .*$/gm)).toEqual(['sleep 7', 'sleep 11'])
+    })
+
     it('starts the full stack in start mode', () => {
       const result = run('ci-start.sh', ['start'], { CI_START_RETRY_SLEEP: '0' })
 
