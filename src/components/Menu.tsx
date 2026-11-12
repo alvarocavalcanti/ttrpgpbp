@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { BottomSheet } from './BottomSheet'
+import { chipBase, chipIdle, chipActive } from '../features/chat/composerChip'
 
 export interface MenuOption {
   value: string
@@ -16,12 +17,14 @@ interface MenuProps {
   options: MenuOption[]
   onSelect: (value: string) => void
   popup?: boolean
+  // Highlights the trigger when the menu holds an active (non-default) choice.
+  active?: boolean
 }
 
-// A labelled chip that opens the options as a popup (bottom sheet) on small
-// screens, or an anchored dropdown elsewhere. The current selection is shown
-// alongside the label so the control is never a bare icon.
-export function Menu({ icon, label, value, options, onSelect, popup = false }: MenuProps) {
+// A chip that opens the options as a popup (bottom sheet) on small screens, or
+// an anchored dropdown elsewhere. The current selection is shown inline so the
+// control is never a bare icon, and the trigger matches the composer's chips.
+export function Menu({ icon, label, value, options, onSelect, popup = false, active = false }: MenuProps) {
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
   const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false), open)
@@ -77,23 +80,20 @@ export function Menu({ icon, label, value, options, onSelect, popup = false }: M
   const optionsMenu = <div role="menu" aria-label={label} className="py-1">{optionButtons}</div>
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
+    <div ref={containerRef} className="relative flex shrink-0">
       <button
         type="button"
         aria-haspopup={popup ? 'dialog' : 'menu'}
         aria-expanded={open}
         onKeyDown={handleKeyDown}
         onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+        className={`${chipBase} ${active ? chipActive : chipIdle}`}
       >
-        {icon && <span className="text-indigo-500 dark:text-indigo-400 flex-shrink-0">{icon}</span>}
-        <span className="text-left">
-          <span className="block font-medium leading-tight">{label}</span>
-          <span className="block text-xs text-gray-500 dark:text-gray-400 leading-tight">
-            {selected ? selected.label : 'Select…'}
-          </span>
+        {icon && <span className="inline-flex flex-shrink-0">{icon}</span>}
+        <span className="truncate max-w-[12rem]">
+          {label}: {selected ? selected.label : 'Select…'}
         </span>
-        <svg className="w-4 h-4 text-gray-400 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
