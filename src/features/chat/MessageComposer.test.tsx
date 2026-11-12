@@ -935,7 +935,7 @@ describe('MessageComposer', () => {
     expect(within(row).getByLabelText('Upload Image').closest('label')).toBeInTheDocument()
     expect(within(row).getByRole('button', { name: 'Scene Description' })).toBeInTheDocument()
     expect(within(row).getByRole('button', { name: 'NPC Mode' })).toBeInTheDocument()
-    expect(within(row).getByText('Whisper')).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /Whisper/ })).toBeInTheDocument()
   })
 
   it('uploads an image and inserts the markdown at the cursor', async () => {
@@ -1235,7 +1235,7 @@ describe('MessageComposer', () => {
     expect(screen.getByTestId('composer-shell')).toHaveClass('dark:bg-gray-800')
     expect(messageInput).toHaveClass('text-gray-900')
     expect(messageInput).toHaveClass('dark:text-gray-100')
-    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-surface-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     expect(screen.getByTestId('composer-shell')).toHaveClass('dark:bg-parchment-dark')
@@ -1595,7 +1595,7 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     openOptions()
     expect(screen.queryByRole('button', { name: 'Scene Description' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'NPC Mode' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Whisper')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Whisper/ })).not.toBeInTheDocument()
     expect(screen.getByText(/Turned off in this room: Dice, Scenes, NPCs, Whispers\./)).toBeInTheDocument()
   })
 
@@ -1612,7 +1612,7 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     openOptions()
     expect(screen.getByRole('button', { name: 'Scene Description' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'NPC Mode' })).toBeInTheDocument()
-    expect(screen.getByText('Whisper')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Whisper/ })).toBeInTheDocument()
     expect(screen.queryByText(/Turned off in this room/)).not.toBeInTheDocument()
   })
 

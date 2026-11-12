@@ -689,6 +689,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             value={whisperTo}
             onSelect={setWhisperTo}
             popup={isMobile}
+            active={whisperTo !== ''}
             options={[
               { value: '', label: 'Everyone (Public)' },
               ...members.map(m => ({ value: m.user_id, label: m.character_name, hint: m.profile?.display_name || undefined })),
