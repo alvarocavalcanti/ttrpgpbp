@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file.
 
 - **The composer's options take less room** — the buttons behind the composer's **+** menu (X-Card, Upload, Scene, NPC and Whisper) are now the same compact size and sit on one line whenever they fit, instead of one line per group. The Whisper button shows who you are whispering to and lights up while a whisper is queued. On a narrow phone they still wrap, but the panel is noticeably shorter.
 
+### Fixed
+
+- **Searched NPC portraits actually show up** — typing a name in the NPC portrait picker used to fill the grid with blank placeholders, and a portrait you picked from those results stayed broken after saving. Both work now: the matching icons appear, the one you pick sticks, and NPCs whose portrait already went missing get their picture back.
+
 ## 2026-11-11
 
 ### Added
