@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-12
+
+### Changed
+
+- **The composer's options take less room** — the buttons behind the composer's **+** menu (X-Card, Upload, Scene, NPC and Whisper) are now smaller and sit on one line whenever they fit, instead of one line per group. On a narrow phone they still wrap, but the panel is noticeably shorter.
+
 ## 2026-11-11
 
 ### Added

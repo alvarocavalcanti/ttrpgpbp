@@ -600,8 +600,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   if (!capabilities.allow_whispers) offCapabilities.push('Whispers')
 
   const optionsContent = (
-    <div className="flex flex-col gap-4 w-full">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-2 w-full">
+      <div data-testid="composer-options-row" className="flex flex-wrap items-center gap-1.5">
         {onXCard && (
           <button
             type="button"
@@ -644,11 +644,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             <span role="status">{uploading ? 'Uploading...' : 'Upload'}</span>
           </label>
         )}
-      </div>
 
-      {isGM && (capabilities.allow_scenes || capabilities.allow_npc) && (
-        <div className="flex flex-wrap items-center gap-3">
-          {capabilities.allow_scenes && (
+        {isGM && capabilities.allow_scenes && (
           <button
             type="button"
             aria-pressed={isScene}
@@ -662,9 +659,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             </svg>
             Scene
           </button>
-          )}
+        )}
 
-          {capabilities.allow_npc && (
+        {isGM && capabilities.allow_npc && (
           <button
             type="button"
             aria-pressed={isNpc}
@@ -678,11 +675,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             </svg>
             NPC
           </button>
-          )}
-        </div>
-      )}
+        )}
 
-      <div className="flex flex-wrap items-center gap-3">
         {!isScene && capabilities.allow_whispers && (
           <Menu
             icon={
@@ -953,7 +947,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                   type="button"
                   onClick={() => setIsExpanded(true)}
                   aria-label={`Edit ${chip.label}`}
-                  className={`${chipBase} ${chipActive} !px-2 !py-1 text-xs`}
+                  className={`${chipBase} ${chipActive}`}
                 >
                   {chip.icon}
                   {chip.label}
