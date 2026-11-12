@@ -92,7 +92,7 @@ export function MarkdownToolbar({ onApply }: MarkdownToolbarProps) {
 
   return (
     <>
-      <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5 px-2 py-1">
+      <div role="toolbar" aria-label="Text formatting" className="flex items-center px-1 py-0.5">
         {actions.map((a, i) => (
           <button
             key={a.key}

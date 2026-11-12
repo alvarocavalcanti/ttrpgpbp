@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-12
+
+### Changed
+
+- **The composer's options take less room** — the buttons behind the composer's **+** menu (X-Card, Upload, Scene, NPC and Whisper) are now the same compact size and sit on one line whenever they fit, instead of one line per group. The Whisper button shows who you are whispering to and lights up while a whisper is queued. On a narrow phone they still wrap, but the panel is noticeably shorter.
+
 ## 2026-11-11
 
 ### Added
