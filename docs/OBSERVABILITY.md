@@ -30,8 +30,9 @@ only (any query string is stripped), and no message content is captured.
 - The NPC portrait picker also reports **non-fatal diagnostics** here, tagged
   `[npc-icon-search]`: Iconify search results dropped because they came from
   another icon collection, or a search payload with no `icons` array. These are
-  warnings, not crashes — one row per page load per kind, and no search text is
-  sent. Find them with:
+  warnings, not crashes — one row per page load per kind, and the search text is
+  never logged at all (Sentry would otherwise carry console output along). Find
+  them with:
 
   ```sql
   select created_at, route, message

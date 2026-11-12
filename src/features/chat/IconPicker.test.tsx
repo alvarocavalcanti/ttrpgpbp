@@ -101,12 +101,14 @@ describe('IconPicker', () => {
       vi.unstubAllGlobals()
     }
 
-    // Local warning fires every time, including the search term (never sent).
+    // Local warning fires every time, without the search term: Sentry turns
+    // console output into breadcrumbs attached to the reported error event.
     expect(warnSpy).toHaveBeenCalledTimes(2)
     expect(warnSpy).toHaveBeenCalledWith(
       '[npc-icon-search] ignored non-game-icons results',
-      expect.objectContaining({ query: 'dragon', ignored: 1, kept: 1, prefixes: ['mdi'] }),
+      expect.objectContaining({ ignored: 1, kept: 1, prefixes: ['mdi'] }),
     )
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain('dragon')
 
     // Durable report: one per page load, counts and prefixes only.
     expect(reportMock).toHaveBeenCalledTimes(1)

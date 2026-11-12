@@ -39,17 +39,17 @@ export function toGameIconIds(names: string[]): { ids: string[]; ignored: string
 }
 
 // Diagnostics survive the tab closing only through app_error_log, whose RPC
-// clamps messages to 500 chars and stores no user-authored text — so the query
-// stays local and the remote row carries counts and prefixes only. One row per
-// failure kind per page load keeps a wedged client from crowding out real errors
-// (the RPC itself caps at 20 rows/minute).
+// clamps messages to 500 chars and stores no user-authored text. The search
+// term is never logged at all: Sentry turns console output into breadcrumbs
+// that ride along with the error event this code reports, so it would leave
+// the device that way. One row per failure kind per page load keeps a wedged
+// client from crowding out real errors (the RPC itself caps at 20 rows/minute).
 let mismatchReported = false
 let malformedPayloadReported = false
 
-function reportDroppedResults(ignored: string[], kept: number, query: string): void {
+function reportDroppedResults(ignored: string[], kept: number): void {
   const prefixes = [...new Set(ignored.map(name => name.split(':')[0]))].slice(0, 5)
   console.warn('[npc-icon-search] ignored non-game-icons results', {
-    query,
     ignored: ignored.length,
     kept,
     prefixes,
@@ -106,7 +106,7 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
         }
         const { ids, ignored } = toGameIconIds(data.icons)
         setIcons(ids)
-        if (ignored.length > 0) reportDroppedResults(ignored, ids.length, trimmed)
+        if (ignored.length > 0) reportDroppedResults(ignored, ids.length)
       })
       .catch(() => {
         // Fall back to curated subset on failure.
