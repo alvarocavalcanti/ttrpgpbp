@@ -52,4 +52,6 @@ Deterministic start/stop/reset/prune for the local Supabase stack, wired into
   off (5s, then 20s) because 5432x sits in Linux's ephemeral port range — an
   outbound socket such as the daemon's image pulls can hold the port with no
   container to remove. When every attempt fails, the script dumps the
-  containers and the 5432x listeners so the next occurrence is diagnosable.
+  containers and the TCP sockets on 5432x — a wildcard bind conflicts with an
+  outbound connection too, not just with a listener — so the next occurrence is
+  diagnosable.

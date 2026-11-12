@@ -49,10 +49,12 @@ cleanup() {
 # only removes containers; a non-container socket on the port survives it, which
 # is why the retries can exhaust without a single Supabase container in sight.
 diagnose() {
-  echo "ci-start: state after cleanup — containers (name status ports), then listeners on 5432x:" >&2
+  echo "ci-start: state after cleanup — containers (name status ports), then TCP sockets on 5432x:" >&2
   $DOCKER_BIN ps -a --format '{{.Names}} {{.Status}} {{.Ports}}' >&2 || true
-  ss -ltn 2>/dev/null | grep -E ':5432[0-9]' >&2 ||
-    echo "ci-start: no listener on 5432x (ss unavailable, or the port is free)" >&2
+  # -a, not just -l: an outbound connection that took the port is not listening,
+  # which is exactly the holder cleanup cannot remove.
+  ss -atn 2>/dev/null | grep -E ':5432[0-9]' >&2 ||
+    echo "ci-start: no socket on 5432x (ss unavailable, or the port is free)" >&2
 }
 
 attempt=1

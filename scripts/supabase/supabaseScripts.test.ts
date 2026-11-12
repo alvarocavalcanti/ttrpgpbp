@@ -337,15 +337,20 @@ describe('scripts/supabase', () => {
       expect(calls()).toContain("docker ps -a --format {{.Names}} {{.Status}} {{.Ports}}")
     })
 
-    it('accepts a sleep per retry', () => {
+    it('waits the configured backoff between attempts, in order', () => {
+      // `sleep` is stubbed via PATH so no real wait happens. Two failures and
+      // distinct delays, so a wrong index in the delay picker cannot pass.
+      writeStub(dir, 'sleep', 'printf \'sleep %s\\n\' "$*" >> "$STUB_LOG"')
       const result = run('ci-start.sh', ['db-start'], {
-        CI_START_RETRY_SLEEP: '0 0',
+        CI_START_RETRY_SLEEP: '7 11',
+        PATH: `${dir}:${process.env.PATH}`,
         STUB_DB_START_COUNT_FILE: countFile(),
-        STUB_DB_START_FAIL_TIMES: '1',
+        STUB_DB_START_FAIL_TIMES: '2',
       })
 
       expect(result.status).toBe(0)
-      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(2)
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(3)
+      expect(calls().match(/^sleep .*$/gm)).toEqual(['sleep 7', 'sleep 11'])
     })
 
     it('starts the full stack in start mode', () => {
