@@ -324,6 +324,30 @@ describe('scripts/supabase', () => {
       expect(result.stderr).toContain('failed after 3 attempts')
     })
 
+    it('dumps the port holders when every attempt fails', () => {
+      const result = run('ci-start.sh', ['db-start'], {
+        CI_START_RETRY_SLEEP: '0',
+        STUB_DB_START_COUNT_FILE: countFile(),
+        STUB_DB_START_FAIL_TIMES: '99',
+      })
+
+      // Cleanup cannot free a holder that is not a container, so the exhausted
+      // run must say what was there instead of just "failed".
+      expect(result.stderr).toContain('state after cleanup')
+      expect(calls()).toContain("docker ps -a --format {{.Names}} {{.Status}} {{.Ports}}")
+    })
+
+    it('accepts a sleep per retry', () => {
+      const result = run('ci-start.sh', ['db-start'], {
+        CI_START_RETRY_SLEEP: '0 0',
+        STUB_DB_START_COUNT_FILE: countFile(),
+        STUB_DB_START_FAIL_TIMES: '1',
+      })
+
+      expect(result.status).toBe(0)
+      expect(calls().match(/supabase db start/g) ?? []).toHaveLength(2)
+    })
+
     it('starts the full stack in start mode', () => {
       const result = run('ci-start.sh', ['start'], { CI_START_RETRY_SLEEP: '0' })
 

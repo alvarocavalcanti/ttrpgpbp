@@ -13,6 +13,12 @@
 # 38736496032). Clean up first, then retry the start so a slow port release
 # cannot fail the job.
 #
+# Cleanup cannot free every holder: the published ports sit in Linux's ephemeral
+# range, so an outbound socket (the daemon pulling images) can take one and no
+# container owns it (run 43270322593: three clean retries, no container left,
+# still "address already in use"). The retries back off long enough for such a
+# socket to close, and the final failure dumps who holds what.
+#
 # CI sets SUPABASE_BIN=supabase so the pinned setup-cli binary on PATH is used
 # instead of _common.sh's `npx supabase` default.
 #
@@ -39,10 +45,24 @@ cleanup() {
   $DOCKER_BIN ps -aq --filter name=supabase_ | xargs -r $DOCKER_BIN rm -f >/dev/null 2>&1 || true
 }
 
+# Dump the last state so a failure nobody can reproduce is diagnosable. cleanup
+# only removes containers; a non-container socket on the port survives it, which
+# is why the retries can exhaust without a single Supabase container in sight.
+diagnose() {
+  echo "ci-start: state after cleanup — containers (name status ports), then listeners on 5432x:" >&2
+  $DOCKER_BIN ps -a --format '{{.Names}} {{.Status}} {{.Ports}}' >&2 || true
+  ss -ltn 2>/dev/null | grep -E ':5432[0-9]' >&2 ||
+    echo "ci-start: no listener on 5432x (ss unavailable, or the port is free)" >&2
+}
+
 attempt=1
 max_attempts=3
-# Overridable so tests do not have to wait the real delay.
-retry_sleep="${CI_START_RETRY_SLEEP:-5}"
+# One sleep per retry, in order; the last value repeats. The published ports
+# (5432x) sit inside Linux's ephemeral range (32768-60999), so an outbound
+# socket — the daemon pulling images, in CI — can hold one until it closes.
+# A short wait covers a slow port release; the longer one covers that socket.
+# Overridable so tests do not have to wait the real delays.
+retry_sleeps="${CI_START_RETRY_SLEEP:-5 20}"
 cleanup
 while [ "$attempt" -le "$max_attempts" ]; do
   if [ "$MODE" = "start" ]; then
@@ -53,11 +73,14 @@ while [ "$attempt" -le "$max_attempts" ]; do
   if [ "$attempt" -lt "$max_attempts" ]; then
     echo "ci-start: supabase $MODE failed (attempt $attempt/$max_attempts); cleaning up and retrying..." >&2
     cleanup
-    # Give the daemon a moment to release the published ports.
+    # shellcheck disable=SC2086 # intentional word splitting: nth value of the list
+    retry_sleep=$(printf '%s\n' $retry_sleeps | sed -n "${attempt}p")
+    [ -n "$retry_sleep" ] || retry_sleep=$(printf '%s\n' $retry_sleeps | tail -n 1)
     sleep "$retry_sleep"
   fi
   attempt=$((attempt + 1))
 done
 
 echo "ci-start: supabase $MODE failed after $max_attempts attempts." >&2
+diagnose
 exit 1
