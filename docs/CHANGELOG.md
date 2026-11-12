@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-12
+
+### Fixed
+
+- **Searched NPC portraits actually show up** — typing a name in the NPC portrait picker used to fill the grid with blank placeholders, and a portrait you picked from those results stayed broken after saving. Both work now: the matching icons appear, the one you pick sticks, and NPCs whose portrait already went missing get their picture back.
+
 ## 2026-11-11
 
 ### Added

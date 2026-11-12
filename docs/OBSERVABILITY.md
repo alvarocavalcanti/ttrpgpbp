@@ -27,6 +27,19 @@ only (any query string is stripped), and no message content is captured.
 
 - Reads are **server-admin only** (RLS); writes go only through the RPC, so
   clients cannot insert directly.
+- The NPC portrait picker also reports **non-fatal diagnostics** here, tagged
+  `[npc-icon-search]`: Iconify search results dropped because they came from
+  another icon collection, or a search payload with no `icons` array. These are
+  warnings, not crashes — one row per page load per kind, and no search text is
+  sent. Find them with:
+
+  ```sql
+  select created_at, route, message
+  from public.app_error_log
+  where message like '[npc-icon-search]%'
+  order by created_at desc;
+  ```
+
 - Query from the SQL editor / Studio:
 
   ```sql

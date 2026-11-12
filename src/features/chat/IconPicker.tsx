@@ -3,6 +3,7 @@ import { CURATED_NPC_ICONS, npcIconUrl } from './npcIcons'
 import { useDebounce } from '../../hooks/useDebounce'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { reportAppError } from '../../lib/appErrorLog'
 
 interface IconPickerProps {
   onPick: (iconUrl: string) => void
@@ -11,6 +12,60 @@ interface IconPickerProps {
 
 interface IconifySearchResult {
   icons: string[]
+}
+
+const GAME_ICONS_PREFIX = 'game-icons:'
+
+// Iconify /search returns collection-namespaced names ("game-icons:dragon-head")
+// even when the request pins prefix=game-icons, while npcIconUrl expects a bare
+// id — concatenating the namespaced form produced 404s (#811). Bare names stay
+// accepted, and results from other collections are dropped rather than stripped,
+// because `mdi:sword` would otherwise render an unrelated icon.
+export function toGameIconIds(names: string[]): { ids: string[]; ignored: string[] } {
+  const ids: string[] = []
+  const ignored: string[] = []
+  for (const name of names) {
+    if (typeof name !== 'string' || !name) continue
+    if (name.startsWith(GAME_ICONS_PREFIX)) {
+      const id = name.slice(GAME_ICONS_PREFIX.length)
+      if (id) ids.push(id)
+    } else if (!name.includes(':')) {
+      ids.push(name)
+    } else {
+      ignored.push(name)
+    }
+  }
+  return { ids, ignored }
+}
+
+// Diagnostics survive the tab closing only through app_error_log, whose RPC
+// clamps messages to 500 chars and stores no user-authored text — so the query
+// stays local and the remote row carries counts and prefixes only. One row per
+// failure kind per page load keeps a wedged client from crowding out real errors
+// (the RPC itself caps at 20 rows/minute).
+let mismatchReported = false
+let malformedPayloadReported = false
+
+function reportDroppedResults(ignored: string[], kept: number, query: string): void {
+  const prefixes = [...new Set(ignored.map(name => name.split(':')[0]))].slice(0, 5)
+  console.warn('[npc-icon-search] ignored non-game-icons results', {
+    query,
+    ignored: ignored.length,
+    kept,
+    prefixes,
+  })
+  if (mismatchReported) return
+  mismatchReported = true
+  reportAppError(new Error(
+    `[npc-icon-search] ignored ${ignored.length} non-game-icons results ` +
+    `(prefixes: ${prefixes.join(',') || 'none'}; kept ${kept}; total ${ignored.length + kept})`
+  ))
+}
+
+function reportMalformedPayload(): void {
+  if (malformedPayloadReported) return
+  malformedPayloadReported = true
+  reportAppError(new Error('[npc-icon-search] Iconify search payload missing icons array'))
 }
 
 // Search game-icons.net via the Iconify API; fall back to the curated subset
@@ -34,27 +89,47 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
       return
     }
     const controller = new AbortController()
+    // A superseded query (or an unmount) rejects later; the flag keeps that
+    // stale rejection from overwriting the results of the live request.
+    let active = true
     setLoading(true)
+    const fallback = () => setIcons(CURATED_NPC_ICONS.filter(n => n.includes(trimmed.toLowerCase().replace(/\s+/g, '-'))))
     fetch(`https://api.iconify.design/search?query=${encodeURIComponent(trimmed)}&prefix=game-icons&limit=48`, { signal: controller.signal })
       .then(res => res.json())
       .then((data: IconifySearchResult) => {
-        setIcons(data.icons || [])
+        if (!active) return
+        if (!Array.isArray(data?.icons)) {
+          console.warn('[npc-icon-search] unexpected Iconify payload', data)
+          reportMalformedPayload()
+          fallback()
+          return
+        }
+        const { ids, ignored } = toGameIconIds(data.icons)
+        setIcons(ids)
+        if (ignored.length > 0) reportDroppedResults(ignored, ids.length, trimmed)
       })
       .catch(() => {
         // Fall back to curated subset on failure.
-        setIcons(CURATED_NPC_ICONS.filter(n => n.includes(trimmed.toLowerCase().replace(/\s+/g, '-'))))
-      })      .finally(() => setLoading(false))
-    return () => controller.abort()
+        if (!active) return
+        fallback()
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [debouncedQuery])
 
   return (
-    <div ref={dialogRef} className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Choose NPC portrait">
+    <div ref={dialogRef} className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div aria-hidden="true" className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" onClick={onClose}></div>
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Choose NPC Portrait</h3>
+            <h3 id="icon-picker-title" className="text-lg font-medium text-gray-900 dark:text-gray-100">Choose NPC Portrait</h3>
             <button type="button" onClick={onClose} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400" aria-label="Close">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
