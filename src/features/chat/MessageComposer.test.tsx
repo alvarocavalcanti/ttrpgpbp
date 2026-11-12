@@ -605,10 +605,11 @@ describe('MessageComposer', () => {
     expect(screen.queryByRole('option', { name: /All players/ })).not.toBeInTheDocument()
   })
 
-  it('hides NPC mode from players', () => {
+  it('hides NPC mode and scene description from players', () => {
     render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('Toggle options'))
     expect(screen.queryByLabelText('NPC Mode')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Scene Description')).not.toBeInTheDocument()
   })
 
   it('sizes the NPC portrait controls to 44px touch targets (issue #561)', () => {
@@ -919,8 +920,22 @@ describe('MessageComposer', () => {
 
     for (const chip of chips) {
       expect(chip).not.toBeNull()
-      expect(chip).toHaveClass('px-3', 'py-2', 'text-sm', 'font-medium', 'rounded-lg', 'border')
+      expect(chip).toHaveClass('px-2', 'py-1', 'text-xs', 'font-medium', 'rounded-lg', 'border')
     }
+  })
+
+  it('lays the composer options out in one wrapping row', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} onXCard={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+
+    const row = screen.getByTestId('composer-options-row')
+    expect(row).toHaveClass('flex-wrap')
+
+    expect(within(row).getByLabelText('X-Card')).toBeInTheDocument()
+    expect(within(row).getByLabelText('Upload Image').closest('label')).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: 'Scene Description' })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: 'NPC Mode' })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /Whisper/ })).toBeInTheDocument()
   })
 
   it('uploads an image and inserts the markdown at the cursor', async () => {
@@ -1220,7 +1235,7 @@ describe('MessageComposer', () => {
     expect(screen.getByTestId('composer-shell')).toHaveClass('dark:bg-gray-800')
     expect(messageInput).toHaveClass('text-gray-900')
     expect(messageInput).toHaveClass('dark:text-gray-100')
-    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-gray-800')
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('dark:bg-surface-800')
 
     fireEvent.click(screen.getByLabelText('NPC Mode'))
     expect(screen.getByTestId('composer-shell')).toHaveClass('dark:bg-parchment-dark')
@@ -1580,7 +1595,7 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     openOptions()
     expect(screen.queryByRole('button', { name: 'Scene Description' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'NPC Mode' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Whisper')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Whisper/ })).not.toBeInTheDocument()
     expect(screen.getByText(/Turned off in this room: Dice, Scenes, NPCs, Whispers\./)).toBeInTheDocument()
   })
 
@@ -1597,7 +1612,7 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     openOptions()
     expect(screen.getByRole('button', { name: 'Scene Description' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'NPC Mode' })).toBeInTheDocument()
-    expect(screen.getByText('Whisper')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Whisper/ })).toBeInTheDocument()
     expect(screen.queryByText(/Turned off in this room/)).not.toBeInTheDocument()
   })
 

@@ -18,6 +18,24 @@ describe('Menu', () => {
     expect(screen.getByRole('button', { name: /Whisper/ })).toHaveTextContent('Hero')
   })
 
+  it('renders the trigger as a compact chip', () => {
+    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('px-2', 'py-1', 'text-xs')
+  })
+
+  it('shows the default option inline when nothing is selected', () => {
+    render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveTextContent('Whisper: Everyone (Public)')
+  })
+
+  it('highlights the trigger only when active', () => {
+    const { rerender } = render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('bg-white')
+
+    rerender(<Menu label="Whisper" value="u1" options={options} onSelect={vi.fn()} active />)
+    expect(screen.getByRole('button', { name: /Whisper/ })).toHaveClass('bg-primary-50')
+  })
+
   it('opens and lists the options', () => {
     render(<Menu label="Whisper" value="" options={options} onSelect={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
