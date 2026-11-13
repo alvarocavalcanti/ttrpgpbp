@@ -96,6 +96,9 @@ export function ChannelView() {
   const surfaceKeyRef = useRef(surfaceKey)
   surfaceKeyRef.current = surfaceKey
   const unreadHoldRef = useRef<string | null>(null)
+  // The hold belongs to the visit that set it: once the viewer moves to another
+  // surface, coming back must read normally again.
+  if (unreadHoldRef.current !== null && unreadHoldRef.current !== surfaceKey) unreadHoldRef.current = null
   const canMarkRead = useCallback(() => messagesLoadedRef.current && unreadHoldRef.current !== surfaceKeyRef.current, [])
   // Switching channels or rooms re-gates: the new room's history must load
   // before its read mark advances.
@@ -114,7 +117,7 @@ export function ChannelView() {
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
   const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(isGM ? id : undefined)
-  const { counts: roomUnread, markRoomRead, markMainRead } = useSubChannelUnread(id, subId ?? null, canMarkRead)
+  const { counts: roomUnread, markRoomRead, markMainRead, refetch: refetchRoomUnread } = useSubChannelUnread(id, subId ?? null, canMarkRead)
   const [showManageRooms, setShowManageRooms] = useState(false)
   // Create is its own dialog (#774): + Room opens this, the gear opens the
   // manager, and the manager no longer creates.
@@ -339,25 +342,32 @@ export function ChannelView() {
   }, [toggleFavorite, addToast])
 
   // Mark as unread (#806): the RPC rewinds the surface's read mark, and the
-  // gate above then holds it until the viewer leaves. The hold is taken only
-  // after the write succeeds, so a failure cannot freeze the read mark; the
-  // write lands immediately (not on unmount) so closing the tab keeps it.
-  // stable deps: MessageItem is memoized (#408).
+  // gate above then holds it until the viewer leaves. The gate closes BEFORE
+  // the write — otherwise a live message or a foreground return can advance the
+  // read mark between request and reply and silently erase the rewind — and
+  // reopens if the write fails. The write lands immediately (not on unmount) so
+  // closing the tab keeps it.
+  // shortcut: a read already past its gate check can still reach the server
+  // after the rewind; closing that window needs useChannel's write chain.
   const { markUnreadMessage } = useMarkMessageUnread()
   const handleMarkUnread = useCallback(async (message: ChatMessage) => {
     if (!user?.id) return
+    unreadHoldRef.current = `${message.channel_id}:${message.sub_channel_id ?? 'main'}`
     const error = await markUnreadMessage(message.id)
     if (error) {
+      unreadHoldRef.current = null
       console.error('Failed to mark message unread:', error)
       addToast('Could not mark that message as unread.', 'error')
       return
     }
-    unreadHoldRef.current = `${message.channel_id}:${message.sub_channel_id ?? 'main'}`
+    // The room tabs read their own counts; without this the marked room keeps
+    // showing "read" until the channel remounts.
+    refetchRoomUnread()
     addToast("Marked as unread. You'll see it in the Lobby.")
     // The Lobby/message INSERT listeners refresh on their own; the launcher
     // badge has no listener on this surface, so refresh it here.
     void refreshAppBadge(user.id, preferences?.badge_enabled !== false)
-  }, [user?.id, markUnreadMessage, addToast, preferences?.badge_enabled])
+  }, [user?.id, markUnreadMessage, addToast, preferences?.badge_enabled, refetchRoomUnread])
 
   // Snapshot parity (#672): the favorites snapshot holds rows the timeline
   // may not, so a local edit/delete patches it too — otherwise an old

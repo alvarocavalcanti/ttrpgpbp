@@ -193,6 +193,8 @@ describe('ChannelView search functionality', () => {
   it('marks another player’s message unread and holds the read mark until the surface changes (#806)', async () => {
     const markUnreadMessage = vi.fn().mockResolvedValue(null)
     vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
+    const refetchRoomUnread = vi.fn()
+    vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), markMainRead: vi.fn(), refetch: refetchRoomUnread } as any)
     // History has loaded, so the read gate is open before the click.
     vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
       useEffect(() => { onLoaded?.() }, [onLoaded])
@@ -232,6 +234,65 @@ describe('ChannelView search functionality', () => {
     // cannot erase the rewind the RPC just wrote.
     expect(gate()).toBe(false)
     expect(refreshAppBadge).toHaveBeenCalledWith('user1', true)
+    // The room tabs read their own counts, so the marked surface must refetch
+    // or it would keep showing "read" until the channel remounts.
+    expect(refetchRoomUnread).toHaveBeenCalled()
+  })
+
+  it('releases the unread hold when the viewer moves to another surface (#806)', async () => {
+    const markUnreadMessage = vi.fn().mockResolvedValue(null)
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
+    vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
+      // No dep array: the gate re-closes on every channel/room switch, so the
+      // mock has to re-open it the way a real history load would.
+      useEffect(() => { onLoaded?.() })
+      return {
+        messages: [{
+          id: 'msg1', channel_id: 'c1', sub_channel_id: null, content: 'from a teammate',
+          type: 'regular', sender_id: 'user2', created_at: new Date().toISOString(),
+        }],
+        reactions: {},
+        loading: false,
+        sendMessage: vi.fn(),
+        editMessage: vi.fn(),
+        deleteMessage: vi.fn(),
+        sendDiceRoll: vi.fn(),
+        toggleReaction: vi.fn().mockResolvedValue(undefined),
+        jumpToMessage: vi.fn().mockResolvedValue('found'),
+      }
+    }) as never)
+    const gate = () => vi.mocked(useSubChannelUnread).mock.calls.at(-1)![2]!()
+
+    function NavProbe() {
+      const navigate = useNavigate()
+      return (
+        <>
+          <button type="button" onClick={() => navigate('/channel/c2')} data-testid="to-c2">c2</button>
+          <button type="button" onClick={() => navigate('/channel/c1')} data-testid="to-c1">c1</button>
+        </>
+      )
+    }
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<><ChannelView /><NavProbe /></>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    await waitFor(() => expect(gate()).toBe(true))
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+    await waitFor(() => expect(gate()).toBe(false))
+
+    // Leaving the surface ends the hold, and coming back must read normally
+    // again — otherwise the marked surface would stay unread forever.
+    fireEvent.click(screen.getByTestId('to-c2'))
+    await waitFor(() => expect(gate()).toBe(true))
+    fireEvent.click(screen.getByTestId('to-c1'))
+    await waitFor(() => expect(gate()).toBe(true))
   })
 
   it('keeps reading normally when the mark-unread write fails (#806)', async () => {
