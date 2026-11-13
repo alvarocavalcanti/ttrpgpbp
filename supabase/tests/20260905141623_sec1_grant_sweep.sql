@@ -386,7 +386,7 @@ SELECT is(
 );
 
 SELECT is(
-  has_function_privilege('authenticated', 'public.send_message(uuid,text,text,uuid,uuid,uuid[],text,text,uuid,uuid)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.send_message(uuid,text,text,uuid,uuid,uuid[],text,text,uuid,uuid,boolean)', 'EXECUTE'),
   true,
   'authenticated keeps send_message (client RPC)'
 );

@@ -618,6 +618,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         (p.reply_to ?? null) === (payload.reply_to ?? null) &&
         (p.npc_name ?? null) === (payload.npc_name ?? null) &&
         (p.npc_avatar_url ?? null) === (payload.npc_avatar_url ?? null) &&
+        (p.emphasize_last_paragraph ?? true) === (payload.emphasize_last_paragraph ?? true) &&
         (p.sub_channel_id ?? null) === roomId &&
         JSON.stringify(p.active_player_ids ?? null) === JSON.stringify(payload.active_player_ids ?? null)
     }
@@ -641,6 +642,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       reply_to: payload.reply_to ?? null,
       npc_name: payload.npc_name ?? null,
       npc_avatar_url: payload.npc_avatar_url ?? null,
+      // #806: the pending bubble must match what the server row will render,
+      // or the scene restyles when the confirmation lands.
+      emphasize_last_paragraph: payload.emphasize_last_paragraph ?? true,
       sub_channel_id: roomId,
       is_deleted: false,
       is_edited: false,
@@ -675,6 +679,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       p_npc_avatar_url: payload.npc_avatar_url ?? undefined,
       p_client_request_id: clientRequestId,
       p_sub_channel_id: roomId ?? undefined,
+      p_emphasize_last_paragraph: payload.type === 'scene' ? (payload.emphasize_last_paragraph ?? true) : undefined,
     })
 
     if (error) {
@@ -732,6 +737,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       reply_to: replyToId ?? null,
       npc_name: null,
       npc_avatar_url: null,
+      emphasize_last_paragraph: true,
       sub_channel_id: roomId,
       is_deleted: false,
       is_edited: false,
@@ -887,7 +893,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         applyRpcResult(msg.client_request_id ?? id, rollData)
       }
     } else {
-      const { content, type, whisper_to, reply_to, active_player_ids, npc_name, npc_avatar_url, sub_channel_id } = pending
+      const { content, type, whisper_to, reply_to, active_player_ids, npc_name, npc_avatar_url, sub_channel_id, emphasize_last_paragraph } = pending
       const { data, error } = await supabase.rpc('send_message', {
         p_channel_id: channelId as string,
         p_content: content,
@@ -901,6 +907,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         // Replay into the room the message was written in, not the room the
         // user is now looking at (#621, B10).
         p_sub_channel_id: sub_channel_id ?? undefined,
+        // Replay the scene emphasis choice too (#806), or a retried scene
+        // silently reverts to the emphasized default.
+        p_emphasize_last_paragraph: emphasize_last_paragraph,
       })
       if (error) {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, error: error.message } : m))

@@ -6,7 +6,7 @@ screenshot: /help-images/message-actions.png
 ## Message types
 
 - **Regular** — normal conversation between players.
-- **Scene** — a GM-only styled message that acts as a visual scene break.
+- **Scene** — a GM-only styled message that acts as a visual scene break. The last paragraph is emphasized by default; if a scene should simply stop, turn **Emphasize ending** off in the composer's **+** options while Scene is on, and the whole scene reads in the same type.
 - **NPC** — the GM speaks as an NPC, with a name and portrait.
 
 Scene and NPC text is set in an easy-reading serif typeface, sized to read comfortably.

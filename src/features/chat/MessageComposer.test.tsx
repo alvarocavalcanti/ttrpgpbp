@@ -213,9 +213,77 @@ describe('MessageComposer', () => {
         content: 'A dark cave.',
         type: 'scene',
         whisper_to: undefined,
-        active_player_ids: undefined
+        active_player_ids: undefined,
+        // #806: scenes emphasize their closing paragraph unless turned off.
+        emphasize_last_paragraph: true
       })
     })
+  })
+
+  it('lets the GM turn off the scene ending emphasis', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    const toggle = screen.getByLabelText('Emphasize ending')
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'The hall goes quiet.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'scene',
+        emphasize_last_paragraph: false,
+      }))
+    })
+  })
+
+  it('only offers the ending-emphasis control while writing a scene as the GM', () => {
+    const { rerender } = render(<MessageComposer isGM={false} members={members} onSendMessage={vi.fn()} />)
+    // Non-GM never sees Scene, so never sees its emphasis control.
+    expect(screen.queryByLabelText('Emphasize ending')).toBeNull()
+
+    rerender(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    // GM, but not in Scene mode yet.
+    expect(screen.queryByLabelText('Emphasize ending')).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    expect(screen.getByLabelText('Emphasize ending')).toHaveAttribute('aria-pressed', 'true')
+
+    // Leaving Scene mode drops the control and forgets the choice.
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    expect(screen.queryByLabelText('Emphasize ending')).toBeNull()
+  })
+
+  it('resets the ending emphasis to on after a scene is sent', async () => {
+    const mockOnSend = vi.fn().mockResolvedValue(undefined)
+    render(<MessageComposer isGM={true} members={members} onSendMessage={mockOnSend} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    fireEvent.click(screen.getByLabelText('Emphasize ending'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'Plain scene.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => expect(mockOnSend).toHaveBeenCalled())
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    expect(screen.getByLabelText('Emphasize ending')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('flags a scene with no ending emphasis in the collapsed indicator bar', () => {
+    render(<MessageComposer isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    fireEvent.click(screen.getByLabelText('Emphasize ending'))
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+
+    expect(screen.getByLabelText('Edit Scene · no ending emphasis')).toBeInTheDocument()
   })
 
   it('caps NPC names at 40 characters', () => {

@@ -918,6 +918,7 @@ export type Database = {
           client_request_id: string | null
           content: string
           created_at: string
+          emphasize_last_paragraph: boolean
           id: string
           is_deleted: boolean
           is_edited: boolean
@@ -938,6 +939,7 @@ export type Database = {
             client_request_id: string | null
             content: string
             created_at: string
+            emphasize_last_paragraph: boolean
             id: string
             is_deleted: boolean
             is_edited: boolean
@@ -960,6 +962,7 @@ export type Database = {
           client_request_id?: string | null
           content: string
           created_at?: string
+          emphasize_last_paragraph?: boolean
           id?: string
           is_deleted?: boolean
           is_edited?: boolean
@@ -981,6 +984,7 @@ export type Database = {
           client_request_id?: string | null
           content?: string
           created_at?: string
+          emphasize_last_paragraph?: boolean
           id?: string
           is_deleted?: boolean
           is_edited?: boolean
@@ -1870,6 +1874,7 @@ export type Database = {
           client_request_id: string | null
           content: string
           created_at: string
+          emphasize_last_paragraph: boolean
           id: string
           is_deleted: boolean
           is_edited: boolean
@@ -1963,6 +1968,7 @@ export type Database = {
           p_channel_id: string
           p_client_request_id?: string
           p_content: string
+          p_emphasize_last_paragraph?: boolean
           p_npc_avatar_url?: string
           p_npc_name?: string
           p_reply_to?: string

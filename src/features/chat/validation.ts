@@ -48,6 +48,9 @@ export const ServerMessageSchema = z.object({
   // schema strips it and the realtime room filter reads `undefined` for every
   // row, silently disabling room realtime.
   sub_channel_id: z.string().nullable().optional(),
+  // Scene-only emphasis flag (#806). Without this key zod strips it and every
+  // scene falls back to the emphasized default.
+  emphasize_last_paragraph: z.boolean().nullish(),
   mention_user_ids: z.array(z.string()).nullable().optional(),
   search_vector: z.unknown().optional(),
   sender: JoinedProfileSchema.optional(),

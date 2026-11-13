@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ReportPromptSheet } from '../../components/ReportPromptSheet'
 import { ModifierInput } from '../../components/ModifierInput'
 import { EmojiPicker } from './EmojiPicker'
-import { proseParchment } from './composerChip'
+import { proseParchment, proseParchmentBase } from './composerChip'
 import { useClickOutside } from '../../hooks/useClickOutside'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import type { ReactionSummary } from './useMessages'
@@ -791,10 +791,14 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
   }
 
   if (isScene) {
+    // #806: the closing-paragraph emphasis is the GM's choice per scene. Strict
+    // `=== false` so rows without the flag (older payloads, cached rows) keep
+    // the styling they have always had.
+    const sceneProse = message.emphasize_last_paragraph === false ? proseParchmentBase : proseParchment
     return (
       <div ref={itemRef} className={`relative my-3 px-4 py-6 bg-parchment dark:bg-parchment-dark border-y-2 border-parchment-border dark:border-parchment-border-dark shadow-sm flex flex-col items-center transition-colors duration-1000 ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2' : ''} ${message.pending ? 'opacity-60' : ''}`}>
         {pendingOverlay}
-        <div className={proseParchment}>
+        <div className={sceneProse}>
           {isEditing ? (
             <div className="mt-2 text-left">
               <textarea
