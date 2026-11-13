@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(9);
+SELECT plan(11);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -79,14 +79,29 @@ SELECT is(
   'the flag does not affect regular messages'
 );
 
--- Idempotent replay returns the original row, so the choice survives a retry.
+-- Idempotent replay: a retried send must return the ORIGINAL row, so the
+-- emphasis choice made the first time cannot be overwritten by a replay that
+-- carries a different value.
 SELECT is(
-  (SELECT count(*) FROM send_message(
-    '00000000-0000-0000-0000-00000000eb01', 'A plain scene.', 'scene',
+  (SELECT message_id FROM send_message(
+    '00000000-0000-0000-0000-00000000eb01', 'A retried scene.', 'scene',
     NULL, NULL, NULL, NULL, NULL, '00000000-0000-0000-0000-00000000ef01', NULL, false
   )),
+  (SELECT message_id FROM send_message(
+    '00000000-0000-0000-0000-00000000eb01', 'A retried scene.', 'scene',
+    NULL, NULL, NULL, NULL, NULL, '00000000-0000-0000-0000-00000000ef01', NULL, true
+  )),
+  'a replayed send returns the same message id'
+);
+SELECT is(
+  (SELECT count(*) FROM messages WHERE client_request_id = '00000000-0000-0000-0000-00000000ef01'),
   1::bigint,
-  'a replayed scene send still returns exactly one row'
+  'a replayed send leaves exactly one row behind'
+);
+SELECT is(
+  (SELECT emphasize_last_paragraph FROM messages WHERE client_request_id = '00000000-0000-0000-0000-00000000ef01'),
+  false,
+  'the replayed send keeps the emphasis choice made the first time'
 );
 
 SELECT * FROM finish();
