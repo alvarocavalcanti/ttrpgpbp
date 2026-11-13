@@ -8,7 +8,7 @@ You sign in with your **Google account**, or with a **one-time sign-in link** se
 
 ## Display name and avatar
 
-Your account has a **display name** (up to 40 characters) and **avatar**, shown in the app header. Edit them from the **Settings** page, reachable from the menu in the top-right.
+Your account has a **display name** (up to 40 characters) and **avatar**, shown in the app header. Edit them from the **Account** page, reachable from the menu in the top-right, under **Profile**.
 
 Select the pencil badge on the avatar to upload a replacement picture. Uploads are available only when the server admin has enabled image uploads. If your Google account has a picture and your current avatar is different, you can restore it with **Use Google picture**.
 
@@ -34,7 +34,7 @@ You can link an optional **character sheet URL** (up to 500 characters) per user
 
 ## Email updates (opt-in)
 
-In **Settings** there is an **"Email me about Role by Post"** checkbox. It is off by default. When you switch it on, the server admin may email you about product updates, beta invitations, and replies to feedback or reports you submit. You can turn it off again at any time in the same place — see the Privacy Policy for full details. Account and security notices may always be sent.
+On the **Account** page, under **Profile**, there is an **"Email me about Role by Post"** checkbox. It is off by default. When you switch it on, the server admin may email you about product updates, beta invitations, and replies to feedback or reports you submit. You can turn it off again at any time in the same place — see the Privacy Policy for full details. Account and security notices may always be sent.
 
 ## Server admin
 
@@ -44,15 +44,15 @@ In the **Users** tab you can search by name or email, and filter by status (All,
 
 ## Download your data
 
-From **Settings → Account & Data → Download My Data** you can export your profile, channel memberships, authored messages (including your whispers), campaign notes, dice rolls, reactions, and notification preferences as a JSON file.
+From **Account → Account & Data → Download My Data** you can export your profile, channel memberships, authored messages (including your whispers), campaign notes, dice rolls, reactions, and notification preferences as a JSON file.
 
 ## Delete your account
 
-From **Settings → Account & Data → Delete Account** you can permanently erase your account and personal data. To confirm, type `DELETE`. After deletion your past messages and campaign notes stay in the app but are shown without your name, and any channels you ran become available to the server admin. This cannot be undone.
+From **Account → Account & Data → Delete Account** you can permanently erase your account and personal data. To confirm, type `DELETE`. After deletion your past messages and campaign notes stay in the app but are shown without your name, and any channels you ran become available to the server admin. This cannot be undone.
 
 ## Privacy policy & Terms of Service
 
-The **Privacy Policy** and **Terms of Service** (linked from the login page footer, Settings, and the app menu) explain what data we collect, where it is stored, your access and erasure rights, and the terms governing your use of the platform.
+The **Privacy Policy** and **Terms of Service** (linked from the login page footer, the Account page, and the app menu) explain what data we collect, where it is stored, your access and erasure rights, and the terms governing your use of the platform.
 
 ## About RoleByPost
 

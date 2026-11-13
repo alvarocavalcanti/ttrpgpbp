@@ -72,7 +72,7 @@ Use the **Search** box in the header to filter **My Games**. On the Discover tab
 
 ## The app menu
 
-Tap the ☰ button in the top-right to open the app menu (Profile, Archived Channels, Help, and more). Close it with the ✕ at the menu's top-right corner, by tapping anywhere outside it, or by pressing Escape. On a touchscreen you can also swipe in from the right edge of the screen to open it, and swipe back out to close it. Inside a channel, the sidebar's own ☰ button opens the player sidebar, which closes the same way (✕, tap outside, swipe, or Escape).
+Tap the ☰ button in the top-right to open the app menu (Account, Notifications, Archived Channels, Help, and more), grouped so settings, messages, browsing, and legal links sit apart. Close it with the ✕ at the menu's top-right corner, by tapping anywhere outside it, or by pressing Escape. On a touchscreen you can also swipe in from the right edge of the screen to open it, and swipe back out to close it. Inside a channel, the sidebar's own ☰ button opens the player sidebar, which closes the same way (✕, tap outside, swipe, or Escape).
 
 ## Archived channels
 

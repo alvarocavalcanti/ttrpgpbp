@@ -6,7 +6,8 @@ describe('titleForPath', () => {
     // DAMP literals: an accidental change to the map must break these rather
     // than silently re-flatten the Pages report.
     expect(titleForPath('/', true)).toBe('Lobby — Role by Post')
-    expect(titleForPath('/settings', true)).toBe('Settings — Role by Post')
+    expect(titleForPath('/settings', true)).toBe('Account — Role by Post')
+    expect(titleForPath('/notifications', true)).toBe('Notifications — Role by Post')
     expect(titleForPath('/admin', true)).toBe('Server Admin — Role by Post')
     expect(titleForPath('/archived', true)).toBe('Archived Channels — Role by Post')
     expect(titleForPath('/messages', true)).toBe('Messages — Role by Post')
@@ -44,7 +45,7 @@ describe('titleForPath', () => {
   })
 
   it('normalizes a trailing slash, and titles an unmatched path as not found', () => {
-    expect(titleForPath('/settings/', true)).toBe('Settings — Role by Post')
+    expect(titleForPath('/settings/', true)).toBe('Account — Role by Post')
     // An unmatched path renders the not-found screen, which titles itself so.
     expect(titleForPath('/nothing-here', true)).toBe('Page not found — Role by Post')
     expect(titleForPath('/nothing-here', false)).toBe('Page not found — Role by Post')

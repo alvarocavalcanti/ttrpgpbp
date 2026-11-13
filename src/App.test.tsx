@@ -133,7 +133,7 @@ describe('App', () => {
     window.history.replaceState({}, '', '/')
   })
 
-  it('renders lobby and lists Profile in the menu drawer when authenticated', async () => {
+  it('renders lobby and lists Account in the menu drawer when authenticated', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: '123' } } },
       error: null,
@@ -178,7 +178,7 @@ describe('App', () => {
     // with the leading logo instead of sitting 8px further in.
     expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('-mr-2')
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Account' })).toBeInTheDocument()
   })
 
   it('pins the shell to the viewport on /messages so the inbox scrolls internally', async () => {
@@ -606,7 +606,7 @@ describe('App', () => {
 
     await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByText('Server Admin')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Server Admin' })).toBeInTheDocument()
   })
 
   it('hides Server Admin menu item for non-admin users', async () => {
@@ -1056,12 +1056,40 @@ describe('App main menu drawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByLabelText('Search channels in menu')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Dark mode' })).toBeInTheDocument()
-    // The menu also lists the profile as a plain labeled item now.
-    expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument()
+    // Account and Notifications are the two top-level settings destinations.
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/settings')
+    expect(screen.getByRole('link', { name: 'Notifications' })).toHaveAttribute(
+      'href',
+      '/notifications',
+    )
     expect(screen.getByRole('link', { name: 'AI Disclaimer' })).toHaveAttribute(
       'href',
       '/ai-disclaimer',
     )
+  })
+
+  it('serves the notifications page at /notifications', async () => {
+    window.history.pushState({}, '', '/notifications')
+    await renderLobby()
+
+    expect(await screen.findByRole('heading', { name: 'Notifications' })).toBeInTheDocument()
+    window.history.replaceState({}, '', '/')
+  })
+
+  it('groups the drawer rows under labelled sections', async () => {
+    await renderLobby()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+
+    const sections = [...screen.getByRole('navigation', { name: 'Main menu' }).querySelectorAll('p')].map(
+      (label) => label.textContent,
+    )
+    // Order matters: settings first, then inbox, reference, legal, operator.
+    expect(sections).toEqual(['You', 'Messages', 'Browse', 'Legal'])
+
+    // Report a Bug is a Messages deep link, so it sits in that group.
+    const messagesGroup = screen.getByRole('link', { name: 'Report a Bug' }).parentElement
+    expect(messagesGroup).toContainElement(screen.getByRole('link', { name: 'Messages' }))
   })
 
   it('opens the Text size sheet from the menu and applies the size', async () => {
@@ -1163,8 +1191,8 @@ describe('App messages menu item', () => {
 
     await screen.findByRole('link', { name: 'Role by Post' })
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    expect(screen.getByText('Messages')).toBeInTheDocument()
-    expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Messages' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Server Admin' })).not.toBeInTheDocument()
   })
 })
 

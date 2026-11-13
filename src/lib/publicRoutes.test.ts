@@ -112,6 +112,7 @@ describe('APP_ROUTE_KEYS', () => {
       'channel',
       'channelRoom',
       'settings',
+      'notifications',
       'changelog',
       'about',
     ])
