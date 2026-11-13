@@ -5,17 +5,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProfileSettings } from './ProfileSettings'
 import { useAuth } from './useAuth'
 import { useProfileAvatar } from './useProfileAvatar'
-import { usePushNotifications } from '../notifications/usePushNotifications'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
 import { buildUserDataExport, downloadJson } from './exportUserData'
 
 vi.mock('./useAuth', () => ({
   useAuth: vi.fn(),
-}))
-
-vi.mock('../notifications/usePushNotifications', () => ({
-  usePushNotifications: vi.fn(),
 }))
 
 vi.mock('./useProfileAvatar', () => ({
@@ -57,11 +52,6 @@ vi.mock('../../contexts/ToastContext', () => ({
 }))
 
 describe('ProfileSettings', () => {
-  const mockUpdatePreferences = vi.fn()
-  const mockSubscribe = vi.fn()
-  const mockUnsubscribe = vi.fn()
-  const mockSendTestNotification = vi.fn()
-
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
@@ -76,37 +66,10 @@ describe('ProfileSettings', () => {
       uploading: false,
       uploadAvatar: vi.fn(),
     })
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: true, needsInstall: false,
-      permission: 'granted',
-      isSubscribed: false,
-      preferences: { push_enabled: true, badge_enabled: true } as any,
-      loading: false,
-      error: null,
-      subscribeToPush: mockSubscribe,
-      unsubscribeFromPush: mockUnsubscribe,
-      sendTestNotification: mockSendTestNotification,
-      updatePreferences: mockUpdatePreferences
-    })
   })
 
   function renderWithRouter(ui: ReactElement) {
     return render(<MemoryRouter>{ui}</MemoryRouter>)
-  }
-
-  function mockSubscribedDevice() {
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: true, needsInstall: false,
-      permission: 'granted',
-      isSubscribed: true,
-      preferences: { push_enabled: true, badge_enabled: true } as any,
-      loading: false,
-      error: null,
-      subscribeToPush: mockSubscribe,
-      unsubscribeFromPush: mockUnsubscribe,
-      sendTestNotification: mockSendTestNotification,
-      updatePreferences: mockUpdatePreferences
-    })
   }
 
   it('renders nothing if profile is null', () => {
@@ -127,6 +90,32 @@ describe('ProfileSettings', () => {
 
     const { container } = renderWithRouter(<ProfileSettings />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('is an Account page split into Profile and Account & Data sections', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      error: null,
+      user: { id: '123', email: 'user@example.com' } as any,
+      profile: { id: '123', display_name: 'Test Player' } as any,
+      session: null,
+
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    renderWithRouter(<ProfileSettings />)
+
+    expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Account & Data' })).toBeInTheDocument()
+    // Notification settings moved to their own page (#818).
+    expect(screen.queryByText('Send me Push Notifications')).toBeNull()
+    expect(screen.queryByText('Push Notifications on this device')).toBeNull()
   })
 
   it('renders profile form with pre-filled values', () => {
@@ -525,317 +514,6 @@ describe('ProfileSettings', () => {
     })
   })
 
-  it('allows toggling notification preferences', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    renderWithRouter(<ProfileSettings />)
-
-    fireEvent.click(screen.getByLabelText('Send me Push Notifications'))
-    expect(mockUpdatePreferences).toHaveBeenCalledWith({ push_enabled: false }) // since it was true
-
-    fireEvent.click(screen.getByLabelText('Show App Icon Badge'))
-    expect(mockUpdatePreferences).toHaveBeenCalledWith({ badge_enabled: false })
-  })
-
-  it('allows subscribing and unsubscribing from push', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    const { rerender } = renderWithRouter(<ProfileSettings />)
-
-    // Initially isSubscribed is false
-    fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
-    expect(mockSubscribe).toHaveBeenCalled()
-
-    // Rerender with isSubscribed = true
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: true, needsInstall: false,
-      permission: 'granted',
-      isSubscribed: true,
-      preferences: { push_enabled: true, badge_enabled: true } as any,
-      loading: false,
-      error: null,
-      subscribeToPush: mockSubscribe,
-      unsubscribeFromPush: mockUnsubscribe,
-      sendTestNotification: mockSendTestNotification,
-      updatePreferences: mockUpdatePreferences
-    })
-
-    rerender(<MemoryRouter><ProfileSettings /></MemoryRouter>)
-    
-    fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
-    expect(mockUnsubscribe).toHaveBeenCalled()
-  })
-
-  it('shows a toast when the push toggle fails', async () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    mockSubscribe.mockRejectedValue(new Error('boom'))
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    renderWithRouter(<ProfileSettings />)
-
-    fireEvent.click(screen.getByRole('switch', { name: 'Use push notifications' }))
-
-    await waitFor(() => {
-      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith('Failed to update push notification settings. Please try again.', 'error')
-    })
-  })
-
-  it('shows a test notification from settings', async () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-    mockSubscribedDevice()
-    mockSendTestNotification.mockResolvedValue(undefined)
-
-    renderWithRouter(<ProfileSettings />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Send test notification' }))
-
-    await waitFor(() => expect(mockSendTestNotification).toHaveBeenCalled())
-    await waitFor(() => {
-      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith(
-        'Test notification sent — check your notification shade.',
-        'success'
-      )
-    })
-  })
-
-  it('shows the reason when a test notification cannot be shown', async () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-    mockSubscribedDevice()
-    mockSendTestNotification.mockRejectedValue(new Error('Notifications are blocked for this app on this device.'))
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    renderWithRouter(<ProfileSettings />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Send test notification' }))
-
-    await waitFor(() => {
-      expect(vi.mocked(useToast)().addToast).toHaveBeenCalledWith(
-        'Notifications are blocked for this app on this device.',
-        'error'
-      )
-    })
-  })
-
-  it('does not offer a test notification before the device is subscribed', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    renderWithRouter(<ProfileSettings />)
-
-    expect(screen.queryByRole('button', { name: 'Send test notification' })).toBeNull()
-  })
-
-  it('explains the Android app permission only for an installed Android app', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123', email: 'user@example.com' } as any,
-      profile: { id: '123', display_name: 'Test Player' } as any,
-      session: null,
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-    mockSubscribedDevice()
-    const originalMatchMedia = window.matchMedia
-    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)' })
-    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as any
-
-    const { unmount } = renderWithRouter(<ProfileSettings />)
-    expect(screen.getByText(/Settings → Apps → RoleByPost/)).toBeInTheDocument()
-
-    unmount()
-    vi.unstubAllGlobals()
-    window.matchMedia = originalMatchMedia
-
-    renderWithRouter(<ProfileSettings />)
-    expect(screen.queryByText(/Settings → Apps → RoleByPost/)).toBeNull()
-  })
-
-  it('shows not configured message when isConfigured is false', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123' } as any,
-      profile: { id: '123' } as any,
-      session: null,
-
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: false,
-      isSupported: true,
-      needsInstall: false,
-      permission: 'granted',
-      isSubscribed: false,
-      preferences: { push_enabled: true, badge_enabled: true } as any,
-      loading: false,
-      error: null,
-      subscribeToPush: mockSubscribe,
-      unsubscribeFromPush: mockUnsubscribe,
-      sendTestNotification: mockSendTestNotification,
-      updatePreferences: mockUpdatePreferences
-    })
-
-    renderWithRouter(<ProfileSettings />)
-    expect(screen.getByText('Push notifications are not configured on the server.')).toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'Use push notifications' })).not.toBeInTheDocument()
-  })
-
-  it('disables the push checkbox when push is unavailable and keeps badges enabled', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123' } as any,
-      profile: { id: '123' } as any,
-      session: null,
-
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: false, needsInstall: false,
-      permission: 'default',
-      isSubscribed: false,
-      preferences: { push_enabled: true, badge_enabled: true } as any,
-      loading: false,
-      error: null,
-      subscribeToPush: mockSubscribe,
-      unsubscribeFromPush: mockUnsubscribe,
-      sendTestNotification: mockSendTestNotification,
-      updatePreferences: mockUpdatePreferences
-    })
-
-    renderWithRouter(<ProfileSettings />)
-
-    expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
-    expect(screen.getByLabelText('Show App Icon Badge')).toBeEnabled()
-  })
-
-  it('shows iOS install message when needsInstall is true', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      loading: false,
-      error: null,
-      user: { id: '123' } as any,
-      profile: { id: '123' } as any,
-      session: null,
-
-      signInWithGoogle: vi.fn(),
-      signInWithEmail: vi.fn(),
-      signOut: vi.fn(),
-      refreshProfile: vi.fn(),
-      termsConfirmState: 'idle',
-      retryTermsConfirm: vi.fn(),
-    })
-
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isConfigured: true, isSupported: false, needsInstall: true,
-      permission: 'default',
-      isSubscribed: false,
-      preferences: { push_enabled: true, badge_enabled: true } as any,
-      loading: false,
-      error: null,
-      subscribeToPush: mockSubscribe,
-      unsubscribeFromPush: mockUnsubscribe,
-      sendTestNotification: mockSendTestNotification,
-      updatePreferences: mockUpdatePreferences
-    })
-
-    renderWithRouter(<ProfileSettings />)
-
-    expect(screen.getByText(/Add to Home Screen/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Send me Push Notifications')).toBeDisabled()
-  })
-
   it('downloads user data on export', async () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,
@@ -1038,12 +716,6 @@ describe('ProfileSettings email consent', () => {
   const updateEq = vi.fn()
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(usePushNotifications).mockReturnValue({
-      isSupported: false, needsInstall: true, isConfigured: true,
-      permission: 'default', isSubscribed: false, preferences: null,
-      loading: false, subscribeToPush: vi.fn(), unsubscribeFromPush: vi.fn(),
-      updatePreferences: vi.fn()
-    } as any)
     // profiles.update(...).eq('id', ...) — unchecked by default, error-less.
     vi.mocked(supabase.from).mockReturnValue({
       update: vi.fn(() => ({ eq: updateEq }))

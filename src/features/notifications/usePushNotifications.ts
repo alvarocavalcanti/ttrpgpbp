@@ -230,7 +230,7 @@ export function usePushNotifications() {
         tag: 'rbp-test',
         renotify: true,
         // Reuses the worker's click handler, which only follows site-relative urls.
-        data: { url: ROUTES.settings }
+        data: { url: ROUTES.notifications }
       }
       await registration.showNotification('Role by Post', options)
     } catch (err) {

@@ -109,5 +109,7 @@ describe('Cache-Control (public/_headers)', () => {
     const content = fs.readFileSync(HEADERS_PATH, 'utf-8')
     expect(content).toMatch(/\/join\/:id\n\s+Cache-Control: no-cache/)
     expect(content).toMatch(/\/game\/:id\n\s+Cache-Control: no-cache/)
+    // #818: the notification settings page is its own app route.
+    expect(content).toMatch(/\/notifications\n\s+Cache-Control: no-cache/)
   })
 })

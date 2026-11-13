@@ -45,6 +45,7 @@ import { DirectoryPage } from './features/directory/DirectoryPage'
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const ProfileSettings = lazy(() => import('./features/auth/ProfileSettings').then(m => ({ default: m.ProfileSettings })))
+const NotificationSettings = lazy(() => import('./features/notifications/NotificationSettings').then(m => ({ default: m.NotificationSettings })))
 const AboutPage = lazy(() => import('./features/auth/AboutPage').then(m => ({ default: m.AboutPage })))
 const Lobby = lazy(() => import('./features/channels/Lobby').then(m => ({ default: m.Lobby })))
 const JoinChannel = lazy(() => import('./features/channels/JoinChannel').then(m => ({ default: m.JoinChannel })))
@@ -88,8 +89,25 @@ export function NotFound() {
 
 // Shared styling for the nav drawer menu rows; variants compose the prefix
 // (e.g. `md:hidden`) or differ in color/layout and stay inline.
-const NAV_MENU_ITEM =
-  'block w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
+const NAV_MENU_ROW =
+  'w-full text-left px-4 py-2.5 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors'
+const NAV_MENU_ITEM = `block ${NAV_MENU_ROW}`
+
+// Grouped rows, same shape as the channel sidebar: an uppercase micro-label and
+// a divided block.
+const MENU_GROUP_LABEL =
+  'px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-400'
+const MENU_GROUP =
+  'divide-y divide-surface-100 dark:divide-surface-700 border-t border-surface-100 dark:border-surface-700'
+
+function MenuGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <>
+      <p className={MENU_GROUP_LABEL}>{label}</p>
+      <div className={MENU_GROUP}>{children}</div>
+    </>
+  )
+}
 
 // Fires a GA page_view on every SPA route change (initial load is covered by
 // initAnalytics). Only the pathname is reported; search terms (e.g. lobby
@@ -236,7 +254,7 @@ function AppNav() {
           type="button"
           onClick={() => (menuOpen ? closeMenu('toggle') : openMenu('toggle'))}
           className="relative p-2 -mr-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          aria-label="Menu"
+          aria-label={adminUnreadCount > 0 ? 'Menu, unread messages' : 'Menu'}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -276,133 +294,152 @@ function AppNav() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>            <Link
-              to="/settings"
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Profile
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                closeMenu('action')
-                setTextSizeOpen(true)
-              }}
-              className={NAV_MENU_ITEM}
-            >
-              Text size
             </button>
-            {/* Folded-in header controls on compact screens (issue #382): search + dark
-              mode. Search is lobby-only, matching the header search. */}
+
+            {/* Folded-in header controls on compact screens (issue #382): search.
+                Lobby-only, matching the header search; the wrapper hides the
+                whole row on desktop so it leaves no empty border behind. */}
             {showLobbySearch && (
-              <>
-                <div className="md:hidden border-t border-surface-100 dark:border-surface-700 my-1"></div>
-                <div className="md:hidden px-4 py-2">
-                  <form onSubmit={(e) => e.preventDefault()}>
-                    <input
-                      type="text"
-                      aria-label="Search channels in menu"
-                      placeholder="Search channels..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      className="w-full bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </form>
-                </div>
-              </>
+              <div className="md:hidden border-t border-surface-100 dark:border-surface-700 px-4 py-2">
+                <form onSubmit={(e) => e.preventDefault()}>
+                  <input
+                    type="text"
+                    aria-label="Search channels in menu"
+                    placeholder="Search channels..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="w-full bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </form>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className={`md:hidden ${NAV_MENU_ITEM}`}
-            >
-              {isDark ? 'Light mode' : 'Dark mode'}
-            </button>
-            <Link 
-              to="/archived" 
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Archived Channels
-            </Link>
-            <Link
-              to="/messages"
-              className="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
-              onClick={() => closeMenu('action')}
-            >
-              <span>Messages</span>
-              {adminUnreadCount > 0 && (
-                <span className="flex h-2 w-2 rounded-full bg-red-500" />
-              )}
-            </Link>
-            <Link 
-              to="/help" 
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Help
-            </Link>
-            <Link
-              to="/messages?compose=bug"
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Report a Bug
-            </Link>
-            <Link
-              to="/about"
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              About
-            </Link>
-            <Link
-              to="/features"
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Features
-            </Link>
-            <Link
-              to="/ai-disclaimer"
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              AI Disclaimer
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                closeMenu('action')
-                openChangelog()
-              }}
-              className={NAV_MENU_ITEM}
-            >
-              Change Log
-            </button>
-            <Link 
-              to="/privacy" 
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Privacy Policy
-            </Link>
-            <Link 
-              to="/terms" 
-              className={NAV_MENU_ITEM}
-              onClick={() => closeMenu('action')}
-            >
-              Terms of Service
-            </Link>
-            {isServerAdmin && (
-              <Link 
-                to="/admin" 
+            <MenuGroup label="You">
+              <Link
+                to={ROUTES.settings}
                 className={NAV_MENU_ITEM}
                 onClick={() => closeMenu('action')}
               >
-                Server Admin
+                Account
               </Link>
+              <Link
+                to={ROUTES.notifications}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Notifications
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  closeMenu('action')
+                  setTextSizeOpen(true)
+                }}
+                className={NAV_MENU_ITEM}
+              >
+                Text size
+              </button>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`md:hidden ${NAV_MENU_ITEM}`}
+              >
+                {isDark ? 'Light mode' : 'Dark mode'}
+              </button>
+            </MenuGroup>
+            <MenuGroup label="Messages">
+              <Link
+                to={ROUTES.messages}
+                className={`flex justify-between items-center ${NAV_MENU_ROW}`}
+                onClick={() => closeMenu('action')}
+              >
+                <span>Messages</span>
+                {adminUnreadCount > 0 && (
+                  <span role="img" aria-label="Unread messages" className="h-2 w-2 rounded-full bg-red-500" />
+                )}
+              </Link>
+              {/* Report a Bug is a Messages deep link (#796), so it lives with
+                  its destination instead of next to Help. */}
+              <Link
+                to={`${ROUTES.messages}?compose=bug`}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Report a Bug
+              </Link>
+            </MenuGroup>
+            <MenuGroup label="Browse">
+              <Link
+                to={ROUTES.archived}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Archived Channels
+              </Link>
+              <Link
+                to={ROUTES.help}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Help
+              </Link>
+              <Link
+                to={ROUTES.features}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Features
+              </Link>
+              <Link
+                to={ROUTES.about}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                About
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  closeMenu('action')
+                  openChangelog()
+                }}
+                className={NAV_MENU_ITEM}
+              >
+                Change Log
+              </button>
+            </MenuGroup>
+            <MenuGroup label="Legal">
+              <Link
+                to={ROUTES.aiDisclaimer}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                AI Disclaimer
+              </Link>
+              <Link
+                to={ROUTES.privacy}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to={ROUTES.terms}
+                className={NAV_MENU_ITEM}
+                onClick={() => closeMenu('action')}
+              >
+                Terms of Service
+              </Link>
+            </MenuGroup>
+            {isServerAdmin && (
+              <MenuGroup label="Server Admin">
+                <Link
+                  to={ROUTES.admin}
+                  className={NAV_MENU_ITEM}
+                  onClick={() => closeMenu('action')}
+                >
+                  Server Admin
+                </Link>
+              </MenuGroup>
             )}
             <div className="border-t border-surface-100 dark:border-surface-700 my-1"></div>
             <button
@@ -519,6 +556,7 @@ export default function App() {
                   <Route path={ROUTES.channel} element={<Lazy><ChannelView /></Lazy>} />
                   <Route path={ROUTES.channelRoom} element={<Lazy><ChannelView /></Lazy>} />
                   <Route path={ROUTES.settings} element={<Lazy><ProfileSettings /></Lazy>} />
+                  <Route path={ROUTES.notifications} element={<Lazy><NotificationSettings /></Lazy>} />
                   <Route path={ROUTES.changelog} element={<Lazy><ChangelogPage /></Lazy>} />
                   <Route path={ROUTES.about} element={<Lazy><AboutPage /></Lazy>} />
                 </Route>

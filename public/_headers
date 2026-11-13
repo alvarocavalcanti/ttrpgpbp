@@ -39,6 +39,8 @@
   Cache-Control: no-cache
 /settings
   Cache-Control: no-cache
+/notifications
+  Cache-Control: no-cache
 /help
   Cache-Control: no-cache
 /changelog

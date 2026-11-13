@@ -28,6 +28,7 @@ export const ROUTES = {
   channel: '/channel/:id',
   channelRoom: '/channel/:id/sub/:subId',
   settings: '/settings',
+  notifications: '/notifications',
   help: '/help',
   helpTopic: '/help/:topic',
   changelog: '/changelog',
@@ -376,6 +377,7 @@ export const APP_ROUTE_KEYS: RouteKey[] = [
   'channel',
   'channelRoom',
   'settings',
+  'notifications',
   'changelog',
   'about',
 ]

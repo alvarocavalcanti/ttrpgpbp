@@ -566,7 +566,7 @@ describe('usePushNotifications', () => {
     expect(showNotification).toHaveBeenCalledWith('Role by Post', expect.objectContaining({
       tag: 'rbp-test',
       renotify: true,
-      data: { url: '/settings' }
+      data: { url: '/notifications' }
     }))
   })
 

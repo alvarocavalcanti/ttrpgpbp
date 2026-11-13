@@ -4,6 +4,8 @@ title: Notifications
 
 ## Notification types
 
+Your own notification settings live in the app menu under **Notifications** (the ☰ button in the top-right) — push for this device, the notification types below, and the test notification. Each game also has its own per-channel settings, further down.
+
 - **Push** — browser push notifications, on by default. Delivery is handled by the server as soon as a message lands, so it works even if the sender closes the app right after sending.
 - **In-app markers** — the count on each game in the Lobby and the dot on Main and each room tab, so you can always tell where new messages are. Always shown.
 - **Home-screen badge** — when the app is installed, the icon on your home screen shows your total unread count. Supported on iOS 16.4+ and desktop; it updates even when the app is closed. On Android the badge is handled by the OS and only shows a dot while a notification is active.
@@ -27,7 +29,7 @@ Android can also hold a push back while the phone is asleep, even with everythin
 
 ## Checking this device
 
-**Send test notification** sits under **Settings → Push Notifications on this device**, and only appears once push is switched on for this device and your browser allows notifications. It shows a notification right away and checks that the display works — nothing is sent to your phone, so it can't tell you whether a chat ping was delayed.
+**Send test notification** sits under **Notifications → Push Notifications on this device**, and only appears once push is switched on for this device and your browser allows notifications. It shows a notification right away and checks that the display works — nothing is sent to your phone, so it can't tell you whether a chat ping was delayed.
 
 If the button is not there, switch push on first; if your browser has blocked notifications, allow them in the browser's site settings. If nothing appears after tapping it, the phone is blocking notifications for the app, and on an installed Android app the screen tells you where to allow them.
 

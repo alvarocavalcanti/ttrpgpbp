@@ -83,7 +83,7 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 
 | Event | Origin | UX path it represents | Emitted from |
 | --- | --- | --- | --- |
-| `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). Fires on each route: sign-in, lobby, archived, admin, join, channel, settings, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query), and `page_title` — sent explicitly because the Pages report keys on it and leaving it to GA's `document.title` fallback recorded `(not set)` for hits that landed before a title existed. Titles are resolved from the route (`src/lib/routeTitles.ts`): the signed-in screens name themselves (Lobby, Channel, Server Admin, …) rather than sharing the bare brand, and '/' is split by sign-in state | `App.tsx:99`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
+| `page_view` | App | Visitor loaded or navigated to a screen (SPA route change). Fires on each route: sign-in, lobby, archived, admin, join, channel, account (settings), notifications, changelog, about, legal, `/features`, dice roller, game-system/content pages, help. Params: `page_path`, `page_location` (origin + path, no query), and `page_title` — sent explicitly because the Pages report keys on it and leaving it to GA's `document.title` fallback recorded `(not set)` for hits that landed before a title existed. Titles are resolved from the route (`src/lib/routeTitles.ts`): the signed-in screens name themselves (Lobby, Channel, Server Admin, …) rather than sharing the bare brand, and '/' is split by sign-in state. `/settings` reports as **Account** and `/notifications` is its own row since #818, so the Pages report splits the old **Settings** row at that release | `App.tsx:99`, `AnalyticsConsentBanner.tsx:27`, `ProfileSettings.tsx:79` |
 | `menu_open` | App | A nav drawer opened. Param `menu` = `main` (top hamburger) or `sidebar` (in-channel); `method` = `toggle`, `swipe`, or `action` | `App.tsx:131`, `ChannelView.tsx:110` |
 | `menu_close` | App | Same drawer closed. `method` = `button`, `backdrop`, `swipe`, `escape`, `modal`, `toggle`, or `action` (sidebar auto-closed when an overlay opens) | `App.tsx:136`, `ChannelView.tsx:115,157` |
 | `marketing_track_toggle` | App | On `/features`: visitor switched the GM vs Player feature track. Param `track` | `FeaturesPage.tsx:149` |
@@ -114,7 +114,7 @@ The Dashboard's Events card only shows the overall count. To break `page_view`
 down by screen:
 
 1. **Reports → Engagement → Pages and screens.** The table lists each
-   `page_path` (e.g. `/`, `/settings`, `/channel/<id>`) with its **Views** —
+   `page_path` (e.g. `/`, `/settings`, `/notifications`, `/channel/<id>`) with its **Views** —
    "Views" is the count of `page_view` events for that path. Sort, search, or
    click a row to filter the whole report to that screen.
 2. **Reports → Realtime** for the last 30 minutes — its views card groups by
