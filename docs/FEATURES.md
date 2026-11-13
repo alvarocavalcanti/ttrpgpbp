@@ -98,7 +98,7 @@
 - **Spoilers** — `||hidden text||` renders blurred until tapped; secrets stay out of reply quotes, channel previews, and push notifications
 - **Three message types**:
   - **Regular** — normal conversation
-  - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced).
+  - **Scene** — styled distinctly (scroll/parchment theme), acts as visual scene break. **GM-only** (server-enforced). Its closing paragraph is emphasized by default; the GM can switch that off per scene (**Emphasize ending**) when a scene should just end, and the choice is stored with the message.
   - **NPC** — GM speaks as an NPC with name + portrait. **GM-only** (server-enforced). The NPC's identity is validated against the channel's roster, so messages always carry a real roster portrait/name. Parchment bubble style, distinct from both regular and scene messages.
 - **Narrative serif typography** — scene and NPC text renders in the **Crimson Pro** reading serif (self-hosted, offline-safe). App text is legible by default and follows OS/browser text scaling; the main menu's **Text size** slider additionally scales the whole app from 75% to 150% on this device
 - **Daily Dividers** — chat history is grouped by date visually

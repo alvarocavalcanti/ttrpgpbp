@@ -49,7 +49,7 @@ interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
   npcs?: Npc[]
-  onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string }) => Promise<void>
+  onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string, emphasize_last_paragraph?: boolean }) => Promise<void>
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
   onXCard?: () => void
@@ -68,6 +68,10 @@ export interface MessageComposerHandle {
 export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({ channelId, subChannelId = null, roomName, capabilities = ALL_CAPABILITIES, isGM, members, npcs = [], onSendMessage, replyTo, onCancelReply, onXCard }: MessageComposerProps, ref) {
   const [content, setContent] = useState('')
   const [isScene, setIsScene] = useState(false)
+  // Scene-only (#806): the closing paragraph is emphasized unless the GM says
+  // otherwise. Resets to on whenever Scene mode ends, so the next scene never
+  // inherits a stale choice.
+  const [emphasizeLast, setEmphasizeLast] = useState(true)
 
   // Draft is scoped to the room: without the room suffix, text typed in one
   // room would bleed into another and be silently lost on switch (#621). Main
@@ -135,7 +139,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   // When the active room turns a feature off, drop any in-progress use of it so
   // a hidden control never leaves a stale scene/NPC/whisper queued (#621).
   useEffect(() => {
-    if (!capabilities.allow_scenes) setIsScene(false)
+    if (!capabilities.allow_scenes) {
+      setIsScene(false)
+      setEmphasizeLast(true)
+    }
     if (!capabilities.allow_npc) {
       setIsNpc(false)
       setNpcName('')
@@ -170,6 +177,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const toggleNpc = (on: boolean) => {
     setIsNpc(on)
     setIsScene(false)
+    setEmphasizeLast(true)
     if (on && !npcAvatarUrl) setNpcAvatarUrl(randomNpcIconUrl())
   }
 
@@ -361,6 +369,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const startWhisper = useCallback((userId: string) => {
     if (!capabilities.allow_whispers) return
     setIsScene(false)
+    setEmphasizeLast(true)
     setWhisperTo(userId)
     textareaRef.current?.focus()
   }, [capabilities.allow_whispers])
@@ -473,12 +482,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         payload.npc_name = npcName.trim()
         payload.npc_avatar_url = resolvedNpcAvatar ?? undefined
       }
+      if (isScene) payload.emphasize_last_paragraph = emphasizeLast
       if (replyTo) payload.reply_to = replyTo.id
 
       await onSendMessage(payload)
       setContent('')
       if (draftKey) safeRemoveItem(draftKey)
       setIsScene(false)
+      setEmphasizeLast(true)
       setIsNpc(false)
       setNpcName('')
       setNpcAvatarUrl(null)
@@ -650,7 +661,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             type="button"
             aria-pressed={isScene}
             aria-label="Scene Description"
-            onClick={() => { setIsScene(!isScene); if (!isScene) setIsNpc(false) }}
+            onClick={() => {
+              const next = !isScene
+              setIsScene(next)
+              if (next) setIsNpc(false)
+              else setEmphasizeLast(true)
+            }}
             className={`${chipBase} ${isScene ? chipActive : chipIdle}`}
             title="Scene Description"
           >
@@ -658,6 +674,25 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
             </svg>
             Scene
+          </button>
+        )}
+
+        {/* Scene-only (#806): turns the closing-paragraph emphasis off for the
+            next scene. On by default, so writing a scene is unchanged. */}
+        {isGM && isScene && (
+          <button
+            type="button"
+            aria-pressed={emphasizeLast}
+            aria-label="Emphasize ending"
+            onClick={() => setEmphasizeLast(prev => !prev)}
+            className={`${chipBase} ${emphasizeLast ? chipActive : chipIdle}`}
+            title="Highlight the scene's last paragraph"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16M4 11h16M4 17h9" />
+              <rect x="3" y="15" width="12" height="4" rx="1.5" fill="currentColor" stroke="none" opacity={0.28} />
+            </svg>
+            Emphasize ending
           </button>
         )}
 
@@ -713,8 +748,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const indicatorChips: { key: string; label: string; icon: React.ReactNode }[] = []
   if (isScene) {
     indicatorChips.push({
+      // #806: the qualifier rides on the Scene chip so the bar keeps one chip
+      // per queued mode.
       key: 'scene',
-      label: 'Scene',
+      label: emphasizeLast ? 'Scene' : 'Scene · no ending emphasis',
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />

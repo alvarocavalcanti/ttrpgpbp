@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MessageItem } from './MessageItem'
-import { proseParchment, proseAmber } from './composerChip'
+import { proseParchment, proseParchmentBase, proseParchmentEmphasis, proseAmber } from './composerChip'
 
 describe('MessageItem', () => {
   it('renders system message correctly', () => {
@@ -1728,6 +1728,33 @@ it('proseParchment constant keeps the extracted scene-prose classes (P2-18)', ()
   expect(proseParchment).toContain('prose-ul:text-left prose-ol:text-left')
   expect(proseParchment).toContain('max-w-none break-words')
   expect(proseParchment).toContain('[&>p:last-child]:text-parchment-ink-strong dark:[&>p:last-child]:text-parchment-ink-strong-dark')
+})
+
+it('proseParchment is the base plus the closing-paragraph emphasis (#806)', () => {
+  expect(proseParchmentBase.endsWith('max-w-none break-words')).toBe(true)
+  expect(proseParchmentBase).not.toContain('[&>p:last-child]')
+  expect(proseParchmentEmphasis.startsWith('[&>p:last-child]:bg-parchment-shade')).toBe(true)
+  expect(proseParchmentEmphasis).toContain('[&>p:last-child]:font-bold [&>p:last-child]:italic')
+  expect(proseParchment).toBe(`${proseParchmentBase} ${proseParchmentEmphasis}`)
+})
+
+it('drops the closing-paragraph styling when the GM turns the scene emphasis off (#806)', () => {
+  const msg: any = {
+    id: 'sc-plain', type: 'scene', content: 'The hall falls silent', created_at: new Date().toISOString(),
+    sender_id: 'u2', emphasize_last_paragraph: false,
+  }
+  const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const scene = container.querySelector('.prose')!
+  // Layout/prose classes stay; only the last-child emphasis goes away.
+  expect(scene.className).toContain('max-w-2xl w-full text-center font-serif')
+  expect(scene.className).toContain('prose-p:text-parchment-ink dark:prose-p:text-parchment-ink-dark')
+  expect(scene.className).not.toContain('[&>p:last-child]')
+})
+
+it('keeps the closing-paragraph styling for scenes without the flag (#806)', () => {
+  const msg: any = { id: 'sc-legacy', type: 'scene', content: 'An old scene', created_at: new Date().toISOString(), sender_id: 'u2' }
+  const { container } = render(<MessageItem message={msg} currentUserId="u1" isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  expect(container.querySelector('.prose')!.className).toContain('[&>p:last-child]:bg-parchment-shade')
 })
 
 it('proseAmber constant keeps the extracted status-prose classes (P2-18)', () => {

@@ -1151,6 +1151,103 @@ describe('useMessages', () => {
     }))
   })
 
+  it('sends the scene ending-emphasis choice and keeps it on the pending bubble (#806)', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),
+      tableHandler: (table) => {
+        if (table === 'messages') return { select: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) }
+        if (table === 'message_reactions') return { select: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+        return {}
+      }
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', null))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'The hall goes quiet.', type: 'scene', emphasize_last_paragraph: false })
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith('send_message', expect.objectContaining({
+      p_type: 'scene',
+      p_emphasize_last_paragraph: false,
+    }))
+    // Without this the bubble restyles the moment the server row lands.
+    expect(result.current.messages.find(m => m.type === 'scene')!.emphasize_last_paragraph).toBe(false)
+  })
+
+  it('defaults the scene ending emphasis to on when the payload omits it (#806)', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', null))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'A scene.', type: 'scene' })
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith('send_message', expect.objectContaining({
+      p_type: 'scene',
+      p_emphasize_last_paragraph: true,
+    }))
+  })
+
+  it('omits the scene ending-emphasis parameter for non-scene messages (#806)', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', null))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendMessage({ content: 'hello', type: 'regular' })
+    })
+
+    const sendArgs = mockRpc.mock.calls[0][1] as Record<string, unknown>
+    expect(sendArgs.p_emphasize_last_paragraph).toBeUndefined()
+  })
+
+  it('replays the scene ending-emphasis choice on retry (#806)', async () => {
+    const mockRpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error('boom') })
+      .mockResolvedValueOnce({ data: [{ message_id: 'real-scene-id' }], error: null })
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockImplementation(mockRpc)
+    mockChannels()
+
+    const { result } = renderHook(() => useMessages('c1', null))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await expect(result.current.sendMessage({ content: 'A plain scene.', type: 'scene', emphasize_last_paragraph: false })).rejects.toThrow('boom')
+    })
+    const pending = result.current.messages.find(m => m.pending)!
+    expect(pending).toBeDefined()
+
+    await act(async () => {
+      await result.current.retryMessage(pending.id)
+    })
+
+    expect(mockRpc).toHaveBeenLastCalledWith('send_message', expect.objectContaining({
+      p_type: 'scene',
+      p_emphasize_last_paragraph: false,
+    }))
+  })
+
   it('handles reactions fetch error without failing the view', async () => {    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom({
       fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }),

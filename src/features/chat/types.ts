@@ -27,6 +27,9 @@ export interface MessageSendPayload {
   reply_to?: string
   npc_name?: string
   npc_avatar_url?: string
+  // Scene only (#806): emphasize the closing paragraph. Stored on the message
+  // so the styling choice survives reloads; ignored by other types.
+  emphasize_last_paragraph?: boolean
   // Room the message was written in (NULL = Main). Stamped by useMessages when
   // the pending payload is stored, so a retry replays into the original room
   // even after the user switched rooms (#621).

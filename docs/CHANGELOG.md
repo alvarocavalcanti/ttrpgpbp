@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-13
+
+### Added
+
+- **Scenes can end plainly** — writing a scene now offers **Emphasize ending**, on by default, so the closing paragraph keeps its shaded, bold-and-italic finish. Turn it off for a scene that simply needs to stop: its last paragraph then reads like the rest of the text. The choice is saved with the message, so the scene looks the same after a reload.
+
 ## 2026-11-12
 
 ### Changed
