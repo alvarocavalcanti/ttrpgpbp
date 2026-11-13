@@ -107,7 +107,7 @@ export function ChannelView() {
     setMessagesLoaded(false)
   }, [id, subId])
 
-  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead, !subId)
+  const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, waitForReads: waitForMainReads, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead, !subId)
   const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, subId ?? null, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
@@ -117,7 +117,7 @@ export function ChannelView() {
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
   const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(isGM ? id : undefined)
-  const { counts: roomUnread, markRoomRead, markMainRead, refetch: refetchRoomUnread } = useSubChannelUnread(id, subId ?? null, canMarkRead)
+  const { counts: roomUnread, markRoomRead, markMainRead, refetch: refetchRoomUnread, waitForReads: waitForRoomReads } = useSubChannelUnread(id, subId ?? null, canMarkRead)
   const [showManageRooms, setShowManageRooms] = useState(false)
   // Create is its own dialog (#774): + Room opens this, the gear opens the
   // manager, and the manager no longer creates.
@@ -345,17 +345,19 @@ export function ChannelView() {
   // gate above then holds it until the viewer leaves. The gate closes BEFORE
   // the write — otherwise a live message or a foreground return can advance the
   // read mark between request and reply and silently erase the rewind — and
-  // reopens if the write fails. The write lands immediately (not on unmount) so
-  // closing the tab keeps it.
-  // shortcut: a read already past its gate check can still reach the server
-  // after the rewind; closing that window needs useChannel's write chain.
+  // reopens if the write fails. Reads already in flight are awaited (both hooks
+  // serialize their read writes), so nothing can commit after the rewind. The
+  // write lands immediately (not on unmount) so closing the tab keeps it.
   const { markUnreadMessage } = useMarkMessageUnread()
   const handleMarkUnread = useCallback(async (message: ChatMessage) => {
     if (!user?.id) return
+    const previousHold = unreadHoldRef.current
     unreadHoldRef.current = `${message.channel_id}:${message.sub_channel_id ?? 'main'}`
+    // A failed write must not release an earlier successful mark.
+    await Promise.all([waitForMainReads(), waitForRoomReads()])
     const error = await markUnreadMessage(message.id)
     if (error) {
-      unreadHoldRef.current = null
+      unreadHoldRef.current = previousHold
       console.error('Failed to mark message unread:', error)
       addToast('Could not mark that message as unread.', 'error')
       return
@@ -367,7 +369,7 @@ export function ChannelView() {
     // The Lobby/message INSERT listeners refresh on their own; the launcher
     // badge has no listener on this surface, so refresh it here.
     void refreshAppBadge(user.id, preferences?.badge_enabled !== false)
-  }, [user?.id, markUnreadMessage, addToast, preferences?.badge_enabled, refetchRoomUnread])
+  }, [user?.id, markUnreadMessage, addToast, preferences?.badge_enabled, refetchRoomUnread, waitForMainReads, waitForRoomReads])
 
   // Snapshot parity (#672): the favorites snapshot holds rows the timeline
   // may not, so a local edit/delete patches it too — otherwise an old

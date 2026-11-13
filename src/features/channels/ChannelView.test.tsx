@@ -104,7 +104,7 @@ beforeEach(() => {
     patchRoomStatus: vi.fn(),
     refetch: vi.fn(),
   } as any)
-  vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), markMainRead: vi.fn(), refetch: vi.fn() } as any)
+  vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), markMainRead: vi.fn(), refetch: vi.fn(), waitForReads: vi.fn().mockResolvedValue(undefined) } as any)
   // No pending applications unless a test says otherwise (#674).
   vi.mocked(usePendingJoinRequests).mockReturnValue({
     requests: [],
@@ -135,7 +135,9 @@ describe('ChannelView search functionality', () => {
       isGM: false,
       myMemberInfo: { user_id: 'user1' },
       gmOnlyResourcesUrl: null,
-      refetch: vi.fn()
+      refetch: vi.fn(),
+      // #806: the mark-unread handler waits for in-flight reads before writing.
+      waitForReads: vi.fn().mockResolvedValue(undefined)
     } as any)
 
     vi.mocked(useMessages).mockReturnValue({
@@ -194,7 +196,7 @@ describe('ChannelView search functionality', () => {
     const markUnreadMessage = vi.fn().mockResolvedValue(null)
     vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
     const refetchRoomUnread = vi.fn()
-    vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), markMainRead: vi.fn(), refetch: refetchRoomUnread } as any)
+    vi.mocked(useSubChannelUnread).mockReturnValue({ counts: {}, markRoomRead: vi.fn(), markMainRead: vi.fn(), refetch: refetchRoomUnread, waitForReads: vi.fn().mockResolvedValue(undefined) } as any)
     // History has loaded, so the read gate is open before the click.
     vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
       useEffect(() => { onLoaded?.() }, [onLoaded])
@@ -239,8 +241,100 @@ describe('ChannelView search functionality', () => {
     expect(refetchRoomUnread).toHaveBeenCalled()
   })
 
-  it('releases the unread hold when the viewer moves to another surface (#806)', async () => {
+  it('waits for in-flight reads before rewinding the mark (#806)', async () => {
     const markUnreadMessage = vi.fn().mockResolvedValue(null)
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
+    let releaseReads!: () => void
+    const inFlightRead = new Promise<void>(resolve => { releaseReads = resolve })
+    const waitForReads = vi.fn(() => inFlightRead)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Test Channel' },
+      members: [{ user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false,
+      error: null,
+      isGM: false,
+      myMemberInfo: { user_id: 'user1' },
+      gmOnlyResourcesUrl: null,
+      refetch: vi.fn(),
+      waitForReads,
+    } as any)
+    vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
+      useEffect(() => { onLoaded?.() }, [onLoaded])
+      return {
+        messages: [{
+          id: 'msg1', channel_id: 'c1', sub_channel_id: null, content: 'from a teammate',
+          type: 'regular', sender_id: 'user2', created_at: new Date().toISOString(),
+        }],
+        reactions: {}, loading: false,
+        sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+        toggleReaction: vi.fn(), jumpToMessage: vi.fn(),
+      }
+    }) as never)
+    const gate = () => vi.mocked(useSubChannelUnread).mock.calls.at(-1)![2]!()
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+    await waitFor(() => expect(gate()).toBe(true))
+
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+    // The read mark may still change on the server: the rewind must wait.
+    expect(waitForReads).toHaveBeenCalled()
+    expect(markUnreadMessage).not.toHaveBeenCalled()
+
+    await act(async () => { releaseReads() })
+    await waitFor(() => expect(markUnreadMessage).toHaveBeenCalledWith('msg1'))
+  })
+
+  it('keeps an earlier unread hold when a later mark fails (#806)', async () => {
+    const markUnreadMessage = vi.fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ message: 'Message not found.' })
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
+    vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
+      useEffect(() => { onLoaded?.() }, [onLoaded])
+      return {
+        messages: [{
+          id: 'msg1', channel_id: 'c1', sub_channel_id: null, content: 'from a teammate',
+          type: 'regular', sender_id: 'user2', created_at: new Date().toISOString(),
+        }],
+        reactions: {}, loading: false,
+        sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+        toggleReaction: vi.fn(), jumpToMessage: vi.fn(),
+      }
+    }) as never)
+    const gate = () => vi.mocked(useSubChannelUnread).mock.calls.at(-1)![2]!()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+    await waitFor(() => expect(gate()).toBe(true))
+
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+    await waitFor(() => expect(gate()).toBe(false))
+
+    // Second attempt fails: releasing the hold here would let the next read
+    // erase the mark that already succeeded.
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+    await waitFor(() => expect(markUnreadMessage).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByText('Could not mark that message as unread.')).toBeInTheDocument())
+    expect(gate()).toBe(false)
+  })
+
+  it('releases the unread hold when the viewer moves to another surface (#806)', async () => {    const markUnreadMessage = vi.fn().mockResolvedValue(null)
     vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
     vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
       // No dep array: the gate re-closes on every channel/room switch, so the
@@ -3344,7 +3438,9 @@ describe('ChannelView viewport scroll lock (#620)', () => {
       isGM: false,
       myMemberInfo: { user_id: 'user1' },
       gmOnlyResourcesUrl: null,
-      refetch: vi.fn()
+      refetch: vi.fn(),
+      // #806: the mark-unread handler waits for in-flight reads before writing.
+      waitForReads: vi.fn().mockResolvedValue(undefined)
     } as any)
 
     vi.mocked(useMessages).mockReturnValue({

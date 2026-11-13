@@ -159,6 +159,48 @@ describe('useSubChannelUnread', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('mark_sub_channel_read', { p_sub_channel_id: 'r1' })
   })
 
+  it('serializes room reads and drops ones the gate closed (#806)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    let resolveFirst!: (v: unknown) => void
+    const firstWrite = new Promise(resolve => { resolveFirst = resolve })
+    let roomWrites = 0
+    vi.mocked(supabase.rpc).mockImplementation(((name: string) => {
+      if (name === 'get_channel_room_unread') {
+        return Promise.resolve({ data: [{ sub_channel_id: 'r1', unread_count: 3 }], error: null })
+      }
+      roomWrites += 1
+      return roomWrites === 1 ? firstWrite : Promise.resolve({ data: null, error: null })
+    }) as never)
+
+    let gateOpen = true
+    const canMarkRead = vi.fn(() => gateOpen)
+    const { result } = renderHook(() => useSubChannelUnread('c1', 'r1', canMarkRead))
+    await waitFor(() => expect(result.current.counts.r1).toBe(3))
+
+    // First write hangs; the second queues behind it, then the gate closes
+    // (mark-as-unread) before either can run again.
+    await act(async () => { void result.current.markRoomRead('r1') })
+    expect(roomWrites).toBe(1)
+    await act(async () => { void result.current.markRoomRead('r1') })
+    gateOpen = false
+    await act(async () => { void result.current.markRoomRead('r1') })
+
+    let settled = false
+    const waited = result.current.waitForReads().then(() => { settled = true })
+    await act(async () => { await Promise.resolve() })
+    expect(settled).toBe(false)
+
+    await act(async () => {
+      resolveFirst({ data: null, error: null })
+      await waited
+    })
+    expect(settled).toBe(true)
+    // The queued read never reached the server; the write that was already in
+    // flight legitimately cleared the dot, which is why only that one ran.
+    expect(roomWrites).toBe(1)
+    expect(result.current.counts.r1).toBe(0)
+  })
+
   it('holds the room read mark when the owner marked the room unread (#806)', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     mockRpc([{ sub_channel_id: 'r1', unread_count: 5 }])

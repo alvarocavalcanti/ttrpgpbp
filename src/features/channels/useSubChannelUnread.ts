@@ -26,15 +26,28 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
 
   const refetch = useCallback(() => setRefetchTrigger(prev => prev + 1), [])
 
-  const markRoomRead = useCallback(async (roomId: string) => {
-    // #806: after "mark as unread" this surface holds its read mark until the
-    // viewer leaves it. Advancing now would erase the rewind, and clearing the
-    // local count would claim the server had cleared it too.
-    if (canMarkRead && !canMarkRead()) return
-    setCounts(prev => (prev[roomId] ? { ...prev, [roomId]: 0 } : prev))
-    const { error } = await supabase.rpc('mark_sub_channel_read', { p_sub_channel_id: roomId })
-    if (error) console.error('Failed to mark room read', error)
+  // Room marks are serialized, mirroring useChannel's write chain (#806): a room
+  // read must never commit after a later write for the same surface, or "mark as
+  // unread" could be erased by a read that was already in flight. The gate is
+  // re-checked inside the chain so a read queued before the gate closed is
+  // dropped instead of firing afterwards.
+  const readWriteChainRef = useRef<Promise<unknown>>(Promise.resolve())
+  const markRoomRead = useCallback((roomId: string) => {
+    if (canMarkRead && !canMarkRead()) return readWriteChainRef.current.then(() => {})
+    readWriteChainRef.current = readWriteChainRef.current
+      .then(async () => {
+        if (canMarkRead && !canMarkRead()) return
+        setCounts(prev => (prev[roomId] ? { ...prev, [roomId]: 0 } : prev))
+        const { error } = await supabase.rpc('mark_sub_channel_read', { p_sub_channel_id: roomId })
+        if (error) console.error('Failed to mark room read', error)
+      })
+      .catch(() => {})
+    return readWriteChainRef.current
   }, [canMarkRead])
+
+  // See useChannel.waitForReads: lets the unread write wait out an in-flight
+  // room read instead of racing it.
+  const waitForReads = useCallback(() => readWriteChainRef.current.then(() => {}), [])
 
   // Main has no room row to mark; useChannel writes its read mark, so the dot
   // only needs the local count cleared (the next fetch reads the server truth).
@@ -112,5 +125,5 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
     }
   }, [channelId, user?.id, markRoomRead, markMainRead, refetchTrigger])
 
-  return { counts, markRoomRead, markMainRead, refetch }
+  return { counts, markRoomRead, markMainRead, refetch, waitForReads }
 }
