@@ -487,6 +487,47 @@ describe('useChannel', () => {
     }
   })
 
+  it('waitForReads resolves only once an in-flight read mark settles (#806)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    let resolveWrite!: (v: { error: null }) => void
+    const inFlight = new Promise<{ error: null }>(resolve => { resolveWrite = resolve })
+    vi.mocked(supabase.rpc).mockImplementationOnce(() => inFlight as any)
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    vi.mocked(supabase.channel).mockReturnValue({ on: vi.fn().mockReturnValue({ on: vi.fn().mockReturnThis(), subscribe: mockSubscribe }) } as any)
+
+    const { result } = renderHook(() => useChannel('c1'))
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledTimes(1))
+
+    let settled = false
+    const waited = result.current.waitForReads().then(() => { settled = true })
+    await act(async () => { await Promise.resolve() })
+    expect(settled).toBe(false)
+
+    await act(async () => {
+      resolveWrite({ error: null })
+      await waited
+    })
+    expect(settled).toBe(true)
+  })
+
   it('does not advance last_read_at from message events while the tab is hidden', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
     // Mount visible so the initial mark-read runs, then go hidden: arriving

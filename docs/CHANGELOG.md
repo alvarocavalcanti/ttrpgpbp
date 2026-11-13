@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Scenes can end plainly** — writing a scene now offers **Emphasize ending**, on by default, so the closing paragraph keeps its shaded, bold-and-italic finish. Turn it off for a scene that simply needs to stop: its last paragraph then reads like the rest of the text. The choice is saved with the message, so the scene looks the same after a reload.
+- **Mark a message as unread** — hover a teammate's message (or tap **⋯** on a phone) and choose **Mark as unread**. Once you leave the chat, that message and everything after it show as unread in the Lobby and on the room's tab, so you can come back to it. Your own messages can't be marked, and reading the chat again clears the count as usual.
 
 ## 2026-11-12
 

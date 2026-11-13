@@ -1920,6 +1920,42 @@ describe('MessageItem report action (#467)', () => {
     expect(screen.queryByLabelText('Report')).not.toBeInTheDocument()
   })
 
+  it('offers Mark as unread on another player’s message (#806)', () => {
+    const onMarkUnread = vi.fn()
+    renderMsg({ ...baseMsg }, { onMarkUnread })
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+    expect(onMarkUnread).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }))
+  })
+
+  it('hides Mark as unread on the viewer’s own message (#806)', () => {
+    renderMsg({ ...baseMsg, sender_id: 'u1' }, { onMarkUnread: vi.fn() })
+    expect(screen.queryByLabelText('Mark as unread')).not.toBeInTheDocument()
+  })
+
+  it('hides Mark as unread on deleted, pending, system and NPC messages (#806)', () => {
+    const onMarkUnread = vi.fn()
+    const { unmount } = renderMsg({ ...baseMsg, is_deleted: true }, { onMarkUnread })
+    expect(screen.queryByLabelText('Mark as unread')).not.toBeInTheDocument()
+    unmount()
+
+    const pending = renderMsg({ ...baseMsg, pending: true }, { onMarkUnread })
+    expect(screen.queryByLabelText('Mark as unread')).not.toBeInTheDocument()
+    pending.unmount()
+
+    const system = renderMsg({ ...baseMsg, type: 'system' }, { onMarkUnread })
+    expect(screen.queryByLabelText('Mark as unread')).not.toBeInTheDocument()
+    system.unmount()
+
+    // NPC posts carry no sender, so there is nobody to hold unread.
+    renderMsg({ ...baseMsg, type: 'npc', sender_id: null, npc_name: 'Goblin King' }, { onMarkUnread })
+    expect(screen.queryByLabelText('Mark as unread')).not.toBeInTheDocument()
+  })
+
+  it('hides Mark as unread when no handler is given (#806)', () => {
+    renderMsg({ ...baseMsg })
+    expect(screen.queryByLabelText('Mark as unread')).not.toBeInTheDocument()
+  })
+
   it('opens the report sheet with title, label and 1000-char cap', () => {
     renderMsg({ ...baseMsg })
     fireEvent.click(screen.getByLabelText('Report'))

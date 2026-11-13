@@ -46,6 +46,8 @@ interface MessageListProps {
   onReport?: (message: Message, reason: string) => Promise<void>
   favoriteIds?: Set<string>
   onToggleFavorite?: (messageId: string) => void
+  // #806: mark another player's message unread (rewinds the read mark).
+  onMarkUnread?: (message: Message) => void
   emptyMessage?: string
   error?: Error | null
   hasMore?: boolean
@@ -58,7 +60,7 @@ interface MessageListProps {
  * MessageItem per message. Pins to the bottom on new arrivals and preserves
  * scroll position when older history prepends.
  */
-export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, favoriteIds, onToggleFavorite, emptyMessage, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
+export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, highlightMessageId, members = [], gameSystem = 'none', reactionsByMessage, onToggleReaction, onReply, onJumpToMessage, lastReadAt, boundaryRevision, onRetry, onRemovePending, onRetryLoad, onEditCharacter, onReport, favoriteIds, onToggleFavorite, onMarkUnread, emptyMessage, error, hasMore, loadingOlder, onLoadOlder }: MessageListProps) {
   const { user } = useAuth()
   const listRef = useRef<HTMLDivElement>(null)
   // The list (and its refs) only exist once there is at least one message, so
@@ -517,6 +519,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
               onReport={onReport}
               isFavorite={favoriteIds?.has(message.id) ?? false}
               onToggleFavorite={onToggleFavorite}
+              onMarkUnread={onMarkUnread}
               />
             </Fragment>
         )

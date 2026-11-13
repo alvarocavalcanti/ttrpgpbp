@@ -33,6 +33,12 @@ Wrap text in `||double bars||` to **hide it as a spoiler**. Readers see a blurre
 - Messages can be **deleted**, and are replaced with a "deleted" marker. Deleting asks you to confirm first.
 - On desktop, hover a message to see its actions (reply, edit, delete, Reactions). On mobile, tap the **"⋯"** button next to a message to open the same actions in a bottom sheet.
 
+## Marking a message as unread
+
+Hover a message from someone else (or tap the **"⋯"** button on mobile) and choose **Mark as unread**. When you leave the chat, that message and everything posted after it count as unread again: the Lobby shows the count on the game, and the room's tab shows its own, so you can pick the thread back up later.
+
+While you stay in the chat the count is held — new messages won't quietly mark it read for you. Opening the chat again reads it like any other unread game. Your own messages, system notices and GM-run NPC speech can't be marked unread.
+
 ## Reporting a message
 
 If another player posts something inappropriate, hover their message (or tap the **"⋯"** button on mobile) and choose **Report**. Describe the problem in your own words, tick the box that says you understand where the report goes, and submit. You can report any message posted by someone else, including deleted ones; messages that are still sending or that failed to send can't be reported. Reasons are required and can be up to 1,000 characters. Your own messages, system notices and GM-run NPC speech can't be reported.

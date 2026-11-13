@@ -109,6 +109,13 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
+  // Resolves once every queued read write has settled (#806). "Mark as unread"
+  // closes the read gate and then waits for this before rewinding the mark, so a
+  // read that was already in flight can never commit after the rewind and erase
+  // it. Reads queued but not yet sent are dropped by the gate re-check inside
+  // markRead, so only genuinely in-flight writes are awaited.
+  const waitForReads = useCallback(() => readWriteChainRef.current.then(() => {}), [])
+
   /**
    * Members + GM secrets. Extracted so a realtime INSERT can refetch with the
    * profile join intact, and so a portrait write can refresh the roster alone
@@ -311,5 +318,5 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
   // markRead is exposed so the owner (ChannelView) can fire the deferred
   // history-first read-mark once the messages-loaded gate opens (#412).
-  return { channel, members, gmOnlyResourcesUrl, hasPassword, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, refetch, refreshMembers }
+  return { channel, members, gmOnlyResourcesUrl, hasPassword, loading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, waitForReads, refetch, refreshMembers }
 }

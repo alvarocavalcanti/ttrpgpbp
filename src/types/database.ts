@@ -1849,6 +1849,10 @@ export type Database = {
         Args: { p_channel_id: string; p_mark_main?: boolean }
         Returns: undefined
       }
+      mark_message_unread: {
+        Args: { p_message_id: string }
+        Returns: undefined
+      }
       mark_sub_channel_read: {
         Args: { p_sub_channel_id: string }
         Returns: undefined
