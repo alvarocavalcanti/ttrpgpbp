@@ -1,10 +1,11 @@
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChannelView } from './ChannelView'
 import { useChannel } from './useChannel'
 import { useMessages } from '../chat/useMessages'
 import { useMessageFavorites } from '../chat/useMessageFavorites'
+import { useMarkMessageUnread } from '../chat/useMarkMessageUnread'
 import { useSubChannels } from './useSubChannels'
 import { useSubChannelUnread } from './useSubChannelUnread'
 import { usePendingJoinRequests } from './usePendingJoinRequests'
@@ -26,6 +27,10 @@ vi.mock('../chat/useMessages', () => ({
 
 vi.mock('../chat/useMessageFavorites', () => ({
   useMessageFavorites: vi.fn()
+}))
+
+vi.mock('../chat/useMarkMessageUnread', () => ({
+  useMarkMessageUnread: vi.fn()
 }))
 
 vi.mock('./useSubChannels', () => ({
@@ -157,6 +162,9 @@ describe('ChannelView search functionality', () => {
       error: null,
       refetch: vi.fn()
     } as any)
+
+    // #806: the mark-unread write succeeds unless a test says otherwise.
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage: vi.fn().mockResolvedValue(null) } as any)
   })
 
   it('toggles search modal', () => {
@@ -180,6 +188,91 @@ describe('ChannelView search functionality', () => {
     // Click close in the mock modal
     fireEvent.click(screen.getByText('Close Search'))
     expect(screen.queryByTestId('search-modal')).not.toBeInTheDocument()
+  })
+
+  it('marks another player’s message unread and holds the read mark until the surface changes (#806)', async () => {
+    const markUnreadMessage = vi.fn().mockResolvedValue(null)
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
+    // History has loaded, so the read gate is open before the click.
+    vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
+      useEffect(() => { onLoaded?.() }, [onLoaded])
+      return {
+        messages: [{
+          id: 'msg1', channel_id: 'c1', sub_channel_id: null, content: 'from a teammate',
+          type: 'regular', sender_id: 'user2', created_at: new Date().toISOString(),
+        }],
+        reactions: {},
+        loading: false,
+        sendMessage: vi.fn(),
+        editMessage: vi.fn(),
+        deleteMessage: vi.fn(),
+        sendDiceRoll: vi.fn(),
+        toggleReaction: vi.fn().mockResolvedValue(undefined),
+        jumpToMessage: vi.fn().mockResolvedValue('found'),
+      }
+    }) as never)
+    const gate = () => vi.mocked(useSubChannelUnread).mock.calls.at(-1)![2]!()
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    await waitFor(() => expect(gate()).toBe(true))
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+
+    await waitFor(() => expect(markUnreadMessage).toHaveBeenCalledWith('msg1'))
+    await waitFor(() => expect(screen.getByText("Marked as unread. You'll see it in the Lobby.")).toBeInTheDocument())
+    // The hold closes the gate for this surface only, so the live read marks
+    // cannot erase the rewind the RPC just wrote.
+    expect(gate()).toBe(false)
+    expect(refreshAppBadge).toHaveBeenCalledWith('user1', true)
+  })
+
+  it('keeps reading normally when the mark-unread write fails (#806)', async () => {
+    const markUnreadMessage = vi.fn().mockResolvedValue({ message: 'Message not found.' })
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage } as any)
+    vi.mocked(useMessages).mockImplementation(((_id: string, _subId: unknown, onLoaded?: () => void) => {
+      useEffect(() => { onLoaded?.() }, [onLoaded])
+      return {
+        messages: [{
+          id: 'msg1', channel_id: 'c1', sub_channel_id: null, content: 'from a teammate',
+          type: 'regular', sender_id: 'user2', created_at: new Date().toISOString(),
+        }],
+        reactions: {},
+        loading: false,
+        sendMessage: vi.fn(),
+        editMessage: vi.fn(),
+        deleteMessage: vi.fn(),
+        sendDiceRoll: vi.fn(),
+        toggleReaction: vi.fn().mockResolvedValue(undefined),
+        jumpToMessage: vi.fn().mockResolvedValue('found'),
+      }
+    }) as never)
+    const gate = () => vi.mocked(useSubChannelUnread).mock.calls.at(-1)![2]!()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    )
+
+    await waitFor(() => expect(gate()).toBe(true))
+    fireEvent.click(screen.getByLabelText('Mark as unread'))
+
+    await waitFor(() => expect(screen.getByText('Could not mark that message as unread.')).toBeInTheDocument())
+    // A failed write must not freeze the read mark.
+    expect(gate()).toBe(true)
   })
 
   it('filters to favorite messages when the header toggle is pressed (#634)', () => {

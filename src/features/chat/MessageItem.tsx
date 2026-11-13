@@ -78,6 +78,9 @@ interface MessageItemProps {
   onReport?: (message: Message, reason: string) => Promise<void>
   isFavorite?: boolean
   onToggleFavorite?: (messageId: string) => void
+  // #806: rewind this surface's read mark to just before this message, so it
+  // shows up unread in the Lobby and on the room tab once the viewer leaves.
+  onMarkUnread?: (message: Message) => void
 }
 
 // Plain-text reply-quote snippet. Spoiler content (`||…||`, issue #709)
@@ -255,7 +258,7 @@ function FavoriteStar() {
   )
 }
 
-export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport, isFavorite, onToggleFavorite }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, currentUserId, isGM, onEdit, onDelete, onRollDice, isHighlighted, members, gameSystem = 'none', reactions, onToggleReaction, onReply, onJumpToMessage, onRetry, onRemovePending, onEditCharacter, onReport, isFavorite, onToggleFavorite, onMarkUnread }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -553,6 +556,15 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
         icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>,
       })
     }
+    // #806: only someone else's real message can be unread — the counters
+    // exclude own messages, and system notices never carry an unread state.
+    // NPC posts have no sender, so they are excluded by `message.sender_id`.
+    if (onMarkUnread && !isMe && message.sender_id && !message.pending && !message.is_deleted && !isSystem) {
+      list.push({
+        id: 'unread', label: 'Mark as unread', onClick: () => onMarkUnread(message),
+        icon: <svg className={MESSAGE_ACTION_SIZING.icon} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+      })
+    }
     if (favoriteAction) {
       list.push(favoriteAction)
     }
@@ -582,7 +594,7 @@ img: ({ node: _node, src, alt, ...props }: React.ComponentProps<'img'> & { node?
       })
     }
     return list
-  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message, isMe, onReport, onToggleFavorite, isFavorite])
+  }, [onReply, canEdit, isGM, isScene, isSystem, onToggleReaction, message, isMe, onReport, onToggleFavorite, isFavorite, onMarkUnread])
 
   const actionIconClass = (danger?: boolean) =>
     `${MESSAGE_ACTION_SIZING.padding} rounded transition-colors text-surface-400 dark:text-surface-400 ${danger ? 'hover:text-red-600 dark:hover:text-red-400' : 'hover:text-primary-600 dark:hover:text-primary-400'}`

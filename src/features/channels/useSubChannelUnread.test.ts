@@ -159,6 +159,26 @@ describe('useSubChannelUnread', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('mark_sub_channel_read', { p_sub_channel_id: 'r1' })
   })
 
+  it('holds the room read mark when the owner marked the room unread (#806)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+    mockRpc([{ sub_channel_id: 'r1', unread_count: 5 }])
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    const getHandler = installMessagesHandler()
+    const canMarkRead = vi.fn().mockReturnValue(false)
+
+    const { result } = renderHook(() => useSubChannelUnread('c1', 'r1', canMarkRead))
+    await waitFor(() => expect(result.current.counts.r1).toBe(5))
+
+    await act(async () => { await result.current.markRoomRead('r1') })
+    // Neither the server mark nor the local dot moves: clearing one without the
+    // other would claim the room was read when the server says it is not.
+    expect(supabase.rpc).not.toHaveBeenCalledWith('mark_sub_channel_read', expect.anything())
+    expect(result.current.counts.r1).toBe(5)
+
+    await act(async () => { getHandler()?.({ eventType: 'INSERT', new: { sub_channel_id: 'r1', sender_id: 'u2' } }) })
+    expect(supabase.rpc).not.toHaveBeenCalledWith('mark_sub_channel_read', expect.anything())
+  })
+
   it('markMainRead clears the local Main dot', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
     mockRpc([{ sub_channel_id: null, unread_count: 3 }, { sub_channel_id: 'r1', unread_count: 1 }])

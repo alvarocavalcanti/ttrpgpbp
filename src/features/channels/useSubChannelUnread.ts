@@ -16,7 +16,7 @@ import { RoomUnreadRowSchema, parseRow } from '../validation/rowSchemas'
 // A message arriving in the room the user is currently viewing instead advances
 // that room's read mark (mirroring the channel's live advance in useChannel),
 // so a later reopen does not re-flag messages the user already read live.
-export function useSubChannelUnread(channelId: string | undefined, activeSubChannelId: string | null) {
+export function useSubChannelUnread(channelId: string | undefined, activeSubChannelId: string | null, canMarkRead?: () => boolean) {
   const { user } = useAuth()
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [refetchTrigger, setRefetchTrigger] = useState(0)
@@ -27,10 +27,14 @@ export function useSubChannelUnread(channelId: string | undefined, activeSubChan
   const refetch = useCallback(() => setRefetchTrigger(prev => prev + 1), [])
 
   const markRoomRead = useCallback(async (roomId: string) => {
+    // #806: after "mark as unread" this surface holds its read mark until the
+    // viewer leaves it. Advancing now would erase the rewind, and clearing the
+    // local count would claim the server had cleared it too.
+    if (canMarkRead && !canMarkRead()) return
     setCounts(prev => (prev[roomId] ? { ...prev, [roomId]: 0 } : prev))
     const { error } = await supabase.rpc('mark_sub_channel_read', { p_sub_channel_id: roomId })
     if (error) console.error('Failed to mark room read', error)
-  }, [])
+  }, [canMarkRead])
 
   // Main has no room row to mark; useChannel writes its read mark, so the dot
   // only needs the local count cleared (the next fetch reads the server truth).
