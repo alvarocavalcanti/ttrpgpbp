@@ -215,6 +215,34 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('error')).toHaveTextContent('no-error')
   })
 
+  it('paints the saved profile while the network request hangs (#825)', async () => {
+    await writeSnapshot('user-123', 'profile', { id: 'user-123', display_name: 'Saved Player' })
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    // A request that never settles: bad reception, not a hard failure.
+    const mockSingle = vi.fn().mockReturnValue(new Promise(() => {}))
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(await screen.findByTestId('profile')).toHaveTextContent('Saved Player')
+    expect(screen.getByTestId('error')).toHaveTextContent('no-error')
+  })
+
   it('writes the profile to the offline cache after a successful fetch', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-123' } } },
@@ -271,6 +299,7 @@ describe('AuthContext', () => {
     )
 
     expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(await screen.findByTestId('profile')).toHaveTextContent('Test User')
     await waitFor(async () => {
       expect((await readSnapshot('user-123', 'profile'))?.value).toBeTruthy()
     })
@@ -309,6 +338,7 @@ describe('AuthContext', () => {
     )
 
     expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(await screen.findByTestId('profile')).toHaveTextContent('Test User')
     await waitFor(async () => {
       expect((await readSnapshot('user-123', 'profile'))?.value).toBeTruthy()
     })

@@ -2202,17 +2202,51 @@ describe('useMessages rooms (#621)', () => {
       expect(result.current.messages).toHaveLength(0)
     })
 
-    it('skips the doomed fetch when the browser is offline', async () => {
+    it('paints the cached window when the browser is offline', async () => {
       await writeSnapshot('u1', 'messages:c1:main', cachedWindow())
       window.dispatchEvent(new Event('offline'))
       try {
         const { result } = renderHook(() => useMessages('c1', null))
         await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['cached-1']))
         expect(result.current.stale).toBe(true)
-        expect(supabase.from).not.toHaveBeenCalled()
+        expect(result.current.cachedAt).toBeTruthy()
       } finally {
         window.dispatchEvent(new Event('online'))
       }
+    })
+
+    it('replaces a saved window with the contiguous newest page when they do not overlap', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({ id: 'old-1', created_at: '2023-01-01T00:00:00.000Z' })],
+        reactions: {},
+      })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({
+        data: [baseMessage({ id: 'new-1', created_at: '2023-03-01T00:00:00.000Z' })],
+        error: null,
+      })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['new-1']))
+    })
+
+    it('prunes cached reactions the server no longer returns', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({ id: 'm1' })],
+        reactions: { m1: [{ emoji: '👍', count: 1, hasReacted: true, userIds: ['u2'] }] },
+      })
+      // The server returns the message but no reactions (deleted while away).
+      mockFrom({
+        fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1' })], error: null })) }) }),
+        reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+      })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['m1']))
+      await waitFor(() => expect(result.current.reactions.m1).toBeUndefined())
     })
 
     it('survives a corrupt cached payload instead of crashing the timeline', async () => {

@@ -129,6 +129,16 @@ describe('offlineCache', () => {
     await expect(readSnapshot('user-1', 'lobby')).resolves.not.toBeNull()
   })
 
+  it('ignores a snapshot write that races a sign-out purge', async () => {
+    await writeSnapshot('user-race', 'profile', { display_name: 'Old' })
+    await clearUserSnapshots('user-race')
+    // A debounced timeline flush can land after the purge; it must not
+    // resurrect the record.
+    await writeSnapshot('user-race', 'profile', { display_name: 'Late flush' })
+
+    await expect(readSnapshot('user-race', 'profile')).resolves.toBeNull()
+  })
+
   it('clears only the given user on sign-out', async () => {
     await writeSnapshot('user-1', 'profile', { display_name: 'Ada' })
     await writeSnapshot('user-1', 'lobby', { channels: [] })

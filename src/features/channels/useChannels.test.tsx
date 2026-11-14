@@ -792,6 +792,48 @@ describe('useChannels', () => {
       })
     })
 
+    it('ignores a superseded redirect of the lobby', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+      let resolveFirst!: (value: unknown) => void
+      let resolveSecond!: (value: unknown) => void
+      const first = new Promise(resolve => { resolveFirst = resolve })
+      const second = new Promise(resolve => { resolveSecond = resolve })
+      const deferredChain = (promise: Promise<unknown>) => {
+        const chain: any = {
+          select: () => chain,
+          eq: () => chain,
+          then: (cb: any) => promise.then(cb),
+        }
+        return chain
+      }
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(deferredChain(first) as any)
+        .mockReturnValueOnce(deferredChain(second) as any)
+      mockLobbyRpcs()
+
+      const { result } = renderHook(() => useChannels())
+      // A second overlapping fetch (push + visibility in the same effect run).
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+
+      await act(async () => {
+        resolveSecond({ data: fillRows([
+          { id: 'm1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'One' } },
+          { id: 'm2', channel_id: 'c2', user_id: 'user-1', channel: { id: 'c2', name: 'Two' } },
+        ]), error: null })
+        await Promise.resolve()
+      })
+      await waitFor(() => expect(result.current.myChannels).toHaveLength(2))
+
+      await act(async () => {
+        resolveFirst({ data: fillRows([
+          { id: 'm1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'One' } },
+        ]), error: null })
+        await Promise.resolve()
+      })
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(result.current.myChannels).toHaveLength(2)
+    })
+
     it('skips the doomed first fetch when the browser is offline', async () => {
       await writeSnapshot('user-1', 'lobby', cachedLobby())
       vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)

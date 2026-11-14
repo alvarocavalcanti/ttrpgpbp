@@ -38,6 +38,13 @@ describe('useChannel', () => {
     // clearAllMocks keeps implementations; restore the default success result
     // so tests that don't care about the read-mark see a clean slate.
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    // Inert realtime channel, since a test may have replaced it with a
+    // SUBSCRIBED-emitting stub.
+    vi.mocked(supabase.channel).mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+      unsubscribe: vi.fn(),
+    } as any)
   })
 
   // Tests that override visibilityState define it as an own property on the
@@ -1368,6 +1375,36 @@ describe('useChannel', () => {
       })
     })
 
+    it('loads the channel on the first subscription after an offline start', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'c1', gm_id: 'u1', name: 'Live Channel' }, error: null })
+      const mockEqMembers = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single: mockSingle }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: mockEqMembers }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+      // The connection returns and realtime subscribes.
+      vi.mocked(supabase.channel).mockReturnValue({
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockImplementation((cb: (status: string) => void) => {
+          cb('SUBSCRIBED')
+          return { unsubscribe: vi.fn() }
+        }),
+        unsubscribe: vi.fn(),
+      } as any)
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useChannel('c1'))
+        await waitFor(() => expect(result.current.channel?.name).toBe('Live Channel'))
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
+
     it('drops the cached channel when access is gone while online', async () => {
       await writeSnapshot('u1', 'channel:c1', cachedChannel())
       vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
@@ -1386,15 +1423,23 @@ describe('useChannel', () => {
       })
     })
 
-    it('skips the doomed fetch when the browser is offline', async () => {
+    it('paints the cached channel when the browser is offline', async () => {
       await writeSnapshot('u1', 'channel:c1', cachedChannel())
       vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      // The first subscription after an offline start revalidates; this attempt
+      // fails without invalidating the cached channel.
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') {
+          return { select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') }) }) }) } as any
+        }
+        return {} as any
+      })
       window.dispatchEvent(new Event('offline'))
 
       try {
         const { result } = renderHook(() => useChannel('c1'))
         await waitFor(() => expect(result.current.channel?.name).toBe('Cached Channel'))
-        expect(supabase.from).not.toHaveBeenCalled()
+        expect(result.current.loading).toBe(false)
       } finally {
         window.dispatchEvent(new Event('online'))
       }

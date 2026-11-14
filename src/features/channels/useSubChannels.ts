@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
@@ -40,6 +40,10 @@ export function useSubChannels(channelId: string | undefined) {
   // (issue #825).
   const [confirmed, setConfirmed] = useState(false)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
+  // The debounced writer may only persist a list this scope has actually
+  // loaded. Without it, a slow cache read plus a failed fetch would overwrite a
+  // good snapshot with the initial empty state (issue #825 review).
+  const canPersistRef = useRef(false)
 
   // Invited user ids per private room (#621 Phase 3).
   const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
@@ -50,6 +54,7 @@ export function useSubChannels(channelId: string | undefined) {
     let mounted = true
     // Drop a previous channel's rooms on route change (this hook stays mounted).
     setRooms([])
+    canPersistRef.current = false
     setError(null)
     setConfirmed(false)
     setLoading(true)
@@ -82,6 +87,7 @@ export function useSubChannels(channelId: string | undefined) {
         return room ? [room as SubChannel] : []
       })
       cacheHydrated = true
+      canPersistRef.current = true
       setRooms(rooms)
       const cachedMembers = cached.value.roomMembers
       setRoomMembers(cachedMembers && typeof cachedMembers === 'object' ? cachedMembers : {})
@@ -130,6 +136,7 @@ export function useSubChannels(channelId: string | undefined) {
         }
         if (mounted) {
           setRoomMembers(byRoom)
+          canPersistRef.current = true
           // Persist only after the invite map is known, or private rooms would
           // reopen with nobody checked.
           void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms: parsed, roomMembers: byRoom } satisfies RoomsSnapshot)
@@ -143,8 +150,10 @@ export function useSubChannels(channelId: string | undefined) {
       }
     }
 
+    // Offline start: the first subscription is the first chance to load.
+    const skippedInitialFetch = isOfflineNow()
     void hydrateRooms()
-    if (!isOfflineNow()) fetchRooms()
+    if (!skippedInitialFetch) fetchRooms()
 
     let firstSubscribe = true
     const realtimeChannel = supabase
@@ -201,8 +210,12 @@ export function useSubChannels(channelId: string | undefined) {
       )
     const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}:rooms`, (status) => {
       if (mounted && status === 'SUBSCRIBED') {
-        if (firstSubscribe) firstSubscribe = false
-        else void fetchRooms()
+        if (firstSubscribe) {
+          firstSubscribe = false
+          if (skippedInitialFetch) void fetchRooms()
+        } else {
+          void fetchRooms()
+        }
       }
     })
 
@@ -314,10 +327,17 @@ export function useSubChannels(channelId: string | undefined) {
   // just after a fetch, so the next offline open reflects the last seen state.
   useEffect(() => {
     if (!channelId || !user?.id) return
+    const activeChannelId = channelId
+    const activeUserId = user.id
+    let active = true
     const timer = setTimeout(() => {
-      void writeSnapshot(user.id, `rooms:${channelId}`, { rooms, roomMembers } satisfies RoomsSnapshot)
+      if (!active || !canPersistRef.current) return
+      void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms, roomMembers } satisfies RoomsSnapshot)
     }, 500)
-    return () => clearTimeout(timer)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [channelId, user?.id, rooms, roomMembers])
 
   const subChannels = rooms.filter(r => !r.is_archived)

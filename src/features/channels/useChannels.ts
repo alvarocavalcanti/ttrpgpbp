@@ -49,6 +49,9 @@ export function useChannels() {
   const myChannelIdsRef = useRef<Set<string>>(new Set())
   // Bumped by refetch() to re-run the fetch effect (lobby error-state Retry).
   const [refetchKey, setRefetchKey] = useState(0)
+  // Overlapping fetches (push, visibility, realtime, Retry) must not let an
+  // older response replace a newer one or prune channels it did not see.
+  const fetchSeqRef = useRef(0)
   const refetch = useCallback(() => {
     setError(null)
     setLoading(true)
@@ -83,8 +86,9 @@ export function useChannels() {
       // throw out of a hydration path.
       const cachedRows = Array.isArray(cached.value.channels) ? cached.value.channels : []
       const rows = cachedRows.flatMap(row => {
+        if (!row || typeof row !== 'object') return []
         const channel = parseRow(ChannelRowSchema, row)
-        const member = parseRow(ChannelMemberRowSchema, row.member)
+        const member = parseRow(ChannelMemberRowSchema, (row as { member?: unknown }).member)
         if (!channel || !member) return []
         return [{
           ...channel,
@@ -104,6 +108,7 @@ export function useChannels() {
     }
     async function fetchChannels() {
       if (!user?.id || authLoading) return
+      const seq = ++fetchSeqRef.current
 
       try {
         // Fetch my channels (via channel_members)
@@ -114,6 +119,7 @@ export function useChannels() {
           .eq('channel.is_archived', false)
 
         if (memberError) throw memberError
+        if (!mounted || seq !== fetchSeqRef.current) return
 
         // Register my channel ids BEFORE the unread RPC so a message INSERT
         // racing the delayed RPC is already recognized as unread-eligible.
@@ -123,7 +129,7 @@ export function useChannels() {
           return channelId ? [channelId] : []
         }))
 
-        if (mounted) {
+        {
           // One RPC for every channel's unread count instead of a count query
           // per channel (C4). Previews come from their own per-viewer RPC: the
           // Lobby shows the last message THIS viewer can see (whisper and
@@ -140,6 +146,8 @@ export function useChannels() {
             supabase.rpc('get_user_channels_unread', { p_user_id: user.id }),
             fetchPreviews(),
           ])
+          // A superseded request must not apply, persist, or prune.
+          if (!mounted || seq !== fetchSeqRef.current) return
           if (unreadError) throw unreadError
           // A failed preview read must not blank the Lobby: rows render with no
           // preview rather than the channel-wide string, which belongs to a
@@ -188,6 +196,7 @@ export function useChannels() {
         }
       } catch (error) {
         console.error('Error fetching channels:', error)
+        if (seq !== fetchSeqRef.current) return
         if (mounted) {
           // With rows already on screen (cached or previously loaded) the
           // offline card explains the state; an error screen would throw away

@@ -164,6 +164,10 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
   const reactionsRef = useRef(reactions)
   reactionsRef.current = reactions
 
+  // Bumped by every live reaction event so a fetch started earlier can tell
+  // whether its snapshot is still authoritative (issue #825 review).
+  const reactionLiveRef = useRef(0)
+
   // In-flight reaction writes keyed `${messageId}:${emoji}`: a second tap
   // while the write is pending is ignored instead of re-INSERTing into the
   // UNIQUE constraint and surfacing a false error toast (#560).
@@ -246,6 +250,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     // A failed network read that landed before hydration finished must still
     // mark the cached window stale once it paints.
     let networkFailed = false
+    let cacheHydrated = false
     let cacheWriteTimer: ReturnType<typeof setTimeout> | undefined
 
     function snapshotNow() {
@@ -293,6 +298,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         const parsed = formatMessage(row)
         return parsed ? [parsed] : []
       })
+      cacheHydrated = true
       if (messagesRef.current.length === 0 && rows.length > 0) setMessages(rows)
       // Live reactions (a realtime event may have landed) win over cached ones.
       setReactions(prev => ({ ...(cached.value.reactions ?? {}), ...prev }))
@@ -322,14 +328,25 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           // Newest-first fetch; reverse for ascending display. Keep live rows
           // received while this request was in flight and dedupe by id.
           const fetched = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
-          setMessages(prev => {
-            const fetchedIds = new Set(fetched.map(message => message.id))
-            const merged = [...prev.filter(message => !fetchedIds.has(message.id)), ...fetched]
-            if (merged.every(message => message.created_at)) {
-              merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
-            }
-            return merged
-          })
+          // A saved window that ends before this page begins leaves a gap no
+          // later read fills (catch-up starts after the newest held row,
+          // load-older before the oldest). Replace it with the contiguous page.
+          const held = messagesRef.current
+          const newestHeldAt = held.reduce((max, m) => (!max || m.created_at > max) ? m.created_at : max, '')
+          const oldestFetchedAt = fetched[0]?.created_at ?? ''
+          const replacesGap = cacheHydrated && held.length > 0 && fetched.length > 0 && newestHeldAt < oldestFetchedAt
+          if (replacesGap) {
+            setMessages(fetched)
+          } else {
+            setMessages(prev => {
+              const fetchedIds = new Set(fetched.map(message => message.id))
+              const merged = [...prev.filter(message => !fetchedIds.has(message.id)), ...fetched]
+              if (merged.every(message => message.created_at)) {
+                merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+              }
+              return merged
+            })
+          }
           const maxUpdated = (data || []).reduce<string | null>((max, row) => {
             const u = (row as { updated_at?: string | null }).updated_at ?? null
             return u && (!max || u > max) ? u : max
@@ -359,6 +376,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     }
 
     async function fetchReactions() {
+      const liveBefore = reactionLiveRef.current
       try {
         const { data, error } = await supabase
           .from('message_reactions')
@@ -370,13 +388,15 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
             const parsed = ReactionRowSchema.safeParse(row)
             return parsed.success ? [parsed.data] : []
           })
-          // Merge, don't replace: rows that arrived live while this fetch was
-          // in flight are already in prev and must survive (#560).
-          // ponytail: merge never prunes rows deleted while the socket was
-          // down; realtime DELETE covers the connected case, remount covers
-          // the rest. Pruning against the fetched row set is the upgrade path.
           const uid = user?.id
-          setReactions(prev => rows.reduce((acc, row) => upsertReaction(acc, row, uid), prev))
+          setReactions(prev => {
+            // The fetch is a complete channel snapshot, so it prunes reactions
+            // deleted while this device was offline. Live events that arrived
+            // during the request (counted in reactionLiveRef) make the snapshot
+            // non-authoritative, so those merge into the held map instead.
+            const base = reactionLiveRef.current === liveBefore ? {} : prev
+            return rows.reduce((acc, row) => upsertReaction(acc, row, uid), base)
+          })
         }
       } catch (err) {
         // Reactions are non-critical; log without failing the channel view.
@@ -423,6 +443,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         if (mounted) {
           setError(null)
           markNetworkFresh()
+          // Cached history never opened the read-mark gate; a confirmed
+          // catch-up is the first real history for this visit.
+          onLoadedRef.current?.()
         }
         const batch = (data || []).map(formatMessage).filter((m): m is Message => m !== null)
         if (batch.length === 0) return
@@ -510,10 +533,19 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     // network response replaces it when it lands. When the device reports no
     // connection the initial requests are pointless; the reconnect path below
     // still catches up.
+    const skippedInitialFetch = isOfflineNow()
     void hydrateMessages()
-    if (!isOfflineNow()) {
+    if (!skippedInitialFetch) {
       fetchMessages()
       fetchReactions()
+    }
+
+    // One catch-up implementation shared by reconnect, visibility return and
+    // the Retry button: cursor catch-up + edit reconcile + reactions refetch
+    // (#412). Assigned before subscribing so a synchronous SUBSCRIBED can use it.
+    catchUpRef.current = async () => {
+      const preCatchUpCursor = updatedCursorRef.current
+      await Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
     }
 
     let firstSubscribe = true
@@ -584,6 +616,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         filter: `channel_id=eq.${channelId}`
       }, (payload) => {
         if (!mounted) return
+        reactionLiveRef.current += 1
         if (payload.eventType === 'INSERT') {
           const row = ReactionRowSchema.safeParse(payload.new)
           if (!row.success) return
@@ -603,6 +636,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         if (mounted && status === 'SUBSCRIBED') {
           if (firstSubscribe) {
             firstSubscribe = false
+            // Offline start: the initial requests were skipped, so this is the
+            // first chance to load history.
+            if (skippedInitialFetch) void catchUpRef.current()
           } else {
             // Snapshot the cursor before catchUp runs: its INSERT batches
             // advance the high-water mark, and reconcileUpdates must start
@@ -611,14 +647,6 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           }
         }
       })
-
-    // One catch-up implementation shared by reconnect, visibility return and
-    // the Retry button: cursor catch-up + edit reconcile + reactions refetch
-    // (#412).
-    catchUpRef.current = async () => {
-      const preCatchUpCursor = updatedCursorRef.current
-      await Promise.all([catchUp().then(() => reconcileUpdates(preCatchUpCursor)), fetchReactions()])
-    }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') void catchUpRef.current()

@@ -5,7 +5,7 @@ import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
 import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, signInWithOtp as apiSignInWithOtp, subscribeToAuthEvents } from './authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import type { Database } from '../../types/database'
-import { clearUserSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+import { clearUserSnapshots, readSnapshot, resumeCacheWrites, writeSnapshot } from '../../lib/offlineCache'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
 // status comes from the is_server_admin() RPC via useIsServerAdmin.
@@ -58,6 +58,15 @@ export function buildMagicLinkRedirect(redirectPath?: string) {
   return url.toString()
 }
 
+// Best-effort purge with a bound: optional local storage must never keep the
+// player signed in (issue #825 review).
+async function purgeCachedUser(userId: string) {
+  await Promise.race([
+    clearUserSnapshots(userId),
+    new Promise<void>(resolve => setTimeout(resolve, 800)),
+  ])
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
@@ -76,6 +85,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true
 
     async function fetchProfile(userId: string) {
+      // Start the cache read alongside the network request: on poor reception a
+      // hanging profile request must not keep the saved profile from painting.
+      const cachedPromise = readSnapshot<Profile>(userId, 'profile')
+      let networkApplied = false
+      const stillCurrent = () => mounted && lastFetchedUserId.current === userId
+
+      void cachedPromise.then((cached) => {
+        if (cached && !networkApplied && stillCurrent()) setProfile(cached.value)
+      })
+
       try {
         const { data, error: fetchError } = await fetchProfileRow(userId)
         if (fetchError) throw fetchError
@@ -83,15 +102,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // A signed-in account always has a profile row (created by trigger); a
         // missing/malformed one is a fetch failure, not a reason to spin.
         if (!parsed) throw new Error('Profile row was missing or malformed.')
-        if (mounted) setProfile(parsed)
+        networkApplied = true
+        // Never write a completion that outlived its identity (account switch or
+        // sign-out): it would recreate a snapshot the purge just removed.
+        if (!stillCurrent()) return
+        setProfile(parsed)
         void writeSnapshot(userId, 'profile', parsed)
       } catch (err) {
-        // Offline (issue #825): serve the last profile saved on this device so
-        // a cold start can render the app instead of a spinner. The fatal error
-        // only stands when this device has never cached a profile.
+        // Offline (issue #825): the last profile saved on this device keeps the
+        // app usable. The fatal error only stands when nothing was saved.
         console.error('Error fetching profile:', err)
-        const cached = await readSnapshot<Profile>(userId, 'profile')
-        if (cached && mounted && lastFetchedUserId.current === userId) {
+        const cached = await cachedPromise
+        if (cached && stillCurrent()) {
           setProfile(cached.value)
           return
         }
@@ -110,7 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentSession?.user && lastFetchedUserId.current !== currentSession.user.id) {
           lastFetchedUserId.current = currentSession.user.id
-          await fetchProfile(currentSession.user.id)
+          resumeCacheWrites(currentSession.user.id)
+          // Do not gate the session load on the profile request: the saved
+          // profile paints from cache and ProtectedRoute takes over from there.
+          void fetchProfile(currentSession.user.id)
         }
       } catch (err) {
         console.error('Error getting initial session:', err)
@@ -139,12 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem(TERMS_AGREED_KEY)
             // The offline cache is user-scoped; the previous account's snapshots
             // must not linger on a shared device.
-            void clearUserSnapshots(lastFetchedUserId.current)
+            void purgeCachedUser(lastFetchedUserId.current)
           }
           // Skip refetch unless the user actually changed (e.g. TOKEN_REFRESHED
           // fires hourly and on tab refocus with the same identity).
           if (lastFetchedUserId.current !== userId) {
             lastFetchedUserId.current = userId
+            resumeCacheWrites(userId)
             // Supabase-js holds an internal auth lock while this callback runs;
             // awaiting a query here deadlocks, so defer the fetch out of it.
             setTimeout(() => {
@@ -284,11 +310,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // timeline that unmounts during the auth change flushes one last debounced
     // write, and the second purge catches it.
     const signedOutUserId = lastFetchedUserId.current
-    if (signedOutUserId) await clearUserSnapshots(signedOutUserId)
+    if (signedOutUserId) await purgeCachedUser(signedOutUserId)
     try {
       await authSignOut()
     } finally {
-      if (signedOutUserId) await clearUserSnapshots(signedOutUserId)
+      if (signedOutUserId) await purgeCachedUser(signedOutUserId)
     }
   }, [])
 

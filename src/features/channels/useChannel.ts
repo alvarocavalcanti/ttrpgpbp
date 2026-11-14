@@ -209,6 +209,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
     // A late cache read must not overwrite rows the network already rendered.
     let networkApplied = false
+    // The header arrived before the roster did; a cache read landing in that
+    // window must not replace the fresher header.
+    let headerApplied = false
     let cacheHydrated = false
     // Set when the server says this channel is gone/forbidden: cached rows must
     // be dropped and the error must surface even if a cache read won the race.
@@ -220,16 +223,18 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
     async function hydrateChannel() {
       const cached = await readSnapshot<ChannelSnapshot>(activeUserId, `channel:${activeChannelId}`)
-      if (!cached || !mountedRef.current || networkApplied || accessRevoked) {
+      // A cache read that lands after the user switched channels must not touch
+      // the new channel's state, cache miss included.
+      if (!mountedRef.current || channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+      if (!cached || networkApplied || accessRevoked) {
         // No saved channel and no connection: stop the skeleton so the view can
         // explain that it was never opened on this device (issue #825).
-        if (!cached && mountedRef.current && !networkApplied && !accessRevoked && isOfflineNow()) {
+        if (!cached && !networkApplied && !accessRevoked && isOfflineNow()) {
           setError(new Error('Not available offline.'))
           setLoading(false)
         }
         return
       }
-      if (channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
       const cachedChannel = parseRow(ChannelRowSchema, cached.value.channel)
       if (!cachedChannel) {
         // A cached header this version cannot validate is unusable; drop the
@@ -252,7 +257,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         } as ChannelMember]
       })
       cacheHydrated = true
-      setChannel(cachedChannel as Channel)
+      if (!headerApplied) setChannel(cachedChannel as Channel)
       setMembers(hydratedMembers)
       setGmOnlyResourcesUrl(cached.value.gmOnlyResourcesUrl ?? null)
       setHasPassword(Boolean(cached.value.hasPassword))
@@ -286,11 +291,17 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
           void deleteChannelSnapshots(activeUserId, activeChannelId)
           throw new Error('Channel data failed validation.')
         }
-        networkApplied = true
-        if (mountedRef.current) setChannel(parsedChannel as Channel)
+        // A response for a channel the user already switched away from must not
+        // paint (or be cached) under the new channel.
+        if (!mountedRef.current || channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+        headerApplied = true
+        setChannel(parsedChannel as Channel)
 
         const formattedMembers = await loadMembers()
-        if (!mountedRef.current) return
+        if (!mountedRef.current || channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+        // The whole snapshot (header + roster) is now confirmed; only from here
+        // may a late cache read be rejected as stale.
+        networkApplied = true
 
         // Mark read in background if we are a member. Only while the tab is
         // visible: a reconnect completing in a hidden tab must not mark
@@ -314,9 +325,11 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     }
 
     // Hydrate and revalidate together; skip the doomed request when the device
-    // already reports no connection (realtime reconnect still refetches).
+    // already reports no connection. The first subscription after an offline
+    // start runs it instead.
+    const skippedInitialFetch = isOfflineNow()
     void hydrateChannel()
-    if (!isOfflineNow()) fetchChannelData()
+    if (!skippedInitialFetch) fetchChannelData()
 
     let firstSubscribe = true
     const realtimeChannel = supabase
@@ -377,6 +390,8 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       if (mountedRef.current && status === 'SUBSCRIBED') {
         if (firstSubscribe) {
           firstSubscribe = false
+          // Offline start: this is the first chance to load the channel.
+          if (skippedInitialFetch) void fetchChannelData()
         } else {
           void fetchChannelData()
         }
@@ -416,6 +431,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
   // events costs one write; the members ref carries the freshest roster.
   useEffect(() => {
     if (!channelId || !user?.id || !channel) return
+    // A previous channel's row can still be in state on the first render after a
+    // route change; never store it under the new channel's key.
+    if (channel.id !== channelId) return
     const activeChannelId = channelId
     const activeUserId = user.id
     const timer = setTimeout(() => {

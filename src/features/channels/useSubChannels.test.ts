@@ -45,6 +45,13 @@ describe('useSubChannels', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never)
+    // clearAllMocks keeps implementations, so restore the inert realtime
+    // channel a test may have replaced with a SUBSCRIBED-emitting stub.
+    vi.mocked(supabase.channel).mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+      unsubscribe: vi.fn(),
+    } as never)
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
@@ -387,6 +394,35 @@ describe('useSubChannels', () => {
         const { result } = renderHook(() => useSubChannels('c1'))
         await waitFor(() => expect(result.current.subChannels).toHaveLength(2))
         expect(supabase.from).not.toHaveBeenCalled()
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
+
+    it('loads the room list on the first subscription after an offline start', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const list = mockList([room({ id: 'r1', name: 'Recovered' })])
+      vi.mocked(supabase.from).mockImplementation(((table: string) => {
+        if (table === 'sub_channel_members') {
+          return { select: () => ({ in: () => Promise.resolve({ data: [], error: null }) }) }
+        }
+        return { select: list.select }
+      }) as never)
+      // The connection returns and realtime subscribes.
+      vi.mocked(supabase.channel).mockReturnValue({
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockImplementation((cb: (status: string) => void) => {
+          cb('SUBSCRIBED')
+          return { unsubscribe: vi.fn() }
+        }),
+        unsubscribe: vi.fn(),
+      } as never)
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useSubChannels('c1'))
+        await waitFor(() => expect(result.current.subChannels.map(r => r.name)).toEqual(['Recovered']))
+        expect(result.current.confirmed).toBe(true)
       } finally {
         window.dispatchEvent(new Event('online'))
       }

@@ -27,6 +27,13 @@ export const CACHE_LIMITS = { messagesPerRoom: 100 }
 // timeout as a miss.
 const READ_TIMEOUT_MS = 500
 
+// A snapshot write that was already queued when the user signed out (the room
+// timeline flushes one last debounced write on unmount) must not resurrect the
+// record the purge just removed. Writes for a user are ignored for a short
+// window after their purge; a normal sign-in refetches well outside it.
+const PURGE_GRACE_MS = 5_000
+const purgedAtByUser = new Map<string, number>()
+
 export interface CachedSnapshot<T> {
   value: T
   savedAt: string
@@ -105,6 +112,8 @@ export async function readSnapshot<T>(userId: string, name: string): Promise<Cac
 }
 
 export async function writeSnapshot<T>(userId: string, name: string, value: T): Promise<void> {
+  const purgedAt = purgedAtByUser.get(userId)
+  if (purgedAt && Date.now() - purgedAt < PURGE_GRACE_MS) return
   const db = getDb()
   if (!db) return
   try {
@@ -184,7 +193,14 @@ export async function pruneChannelSnapshots(userId: string, liveChannelIds: stri
   }
 }
 
+// A fresh signed-in session for this user may cache again. Sign-out leaves the
+// guard in place so a queued write cannot outrun the purge.
+export function resumeCacheWrites(userId: string): void {
+  purgedAtByUser.delete(userId)
+}
+
 export async function clearUserSnapshots(userId: string): Promise<void> {
+  purgedAtByUser.set(userId, Date.now())
   const db = getDb()
   if (!db) return
   try {
