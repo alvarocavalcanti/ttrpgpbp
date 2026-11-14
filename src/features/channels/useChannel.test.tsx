@@ -4,6 +4,20 @@ import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
 import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+
+// Lets one test hold a cache read open to simulate a slow IndexedDB under a
+// channel switch; every other read passes straight through.
+const cacheGate = vi.hoisted(() => ({ deferred: null as Promise<void> | null }))
+vi.mock('../../lib/offlineCache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/offlineCache')>()
+  return {
+    ...actual,
+    readSnapshot: async (...args: Parameters<typeof actual.readSnapshot>) => {
+      if (cacheGate.deferred) await cacheGate.deferred
+      return actual.readSnapshot(...args)
+    },
+  }
+})
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 vi.mock('../auth/useAuth', () => ({
@@ -1404,6 +1418,37 @@ describe('useChannel', () => {
 
       expect(result.current.channel?.name).toBe('Channel B')
       expect(result.current.error).toBeNull()
+    })
+
+    it('ignores a slow cache read that lands after a channel switch', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      let release!: () => void
+      cacheGate.deferred = new Promise<void>(resolve => { release = resolve })
+      const single = vi.fn().mockResolvedValue({ data: { id: 'c2', gm_id: 'u1', name: 'Channel B' }, error: null })
+      const memberEq = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: memberEq }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+
+      try {
+        const { result, rerender } = renderHook(({ id }: { id: string }) => useChannel(id), { initialProps: { id: 'c1' } })
+        rerender({ id: 'c2' })
+        await waitFor(() => expect(result.current.channel?.name).toBe('Channel B'))
+
+        // The first channel's cache read finally answers.
+        await act(async () => {
+          release()
+          await Promise.resolve()
+        })
+
+        expect(result.current.channel?.name).toBe('Channel B')
+      } finally {
+        cacheGate.deferred = null
+      }
     })
 
     it('loads the channel on the first subscription after an offline start', async () => {

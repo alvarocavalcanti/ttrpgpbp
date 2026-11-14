@@ -214,7 +214,8 @@ export function useChannels() {
           }
         }
       } finally {
-        if (mounted) setLoading(false)
+        // A superseded request must not clear the current one's loading state.
+        if (mounted && seq === fetchSeqRef.current) setLoading(false)
       }
     }
 

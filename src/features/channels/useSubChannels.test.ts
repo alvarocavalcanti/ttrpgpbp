@@ -432,6 +432,27 @@ describe('useSubChannels', () => {
       })
     })
 
+    it('keeps persistence blocked when the invite map fails', async () => {
+      await writeSnapshot('u1', 'rooms:c1', cachedRooms())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const list = mockList([room({ id: 'r9', name: 'New Room' })])
+      vi.mocked(supabase.from).mockImplementation(((table: string) => {
+        if (table === 'sub_channel_members') {
+          return { select: () => ({ in: () => Promise.resolve({ data: null, error: new Error('invites down') }) }) }
+        }
+        return { select: list.select }
+      }) as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+      await waitFor(() => expect(result.current.subChannels.map(r => r.name)).toEqual(['New Room']))
+
+      // The invite read failed, so the saved snapshot must keep its old list
+      // rather than pair the new rooms with the previous invite map.
+      await new Promise(resolve => setTimeout(resolve, 700))
+      const cached = await readSnapshot<{ rooms: { name: string }[] }>('u1', 'rooms:c1')
+      expect(cached?.value.rooms.map(r => r.name)).toEqual(['Cached OOC', 'Private'])
+    })
+
     it('loads the room list on the first subscription after an offline start', async () => {
       vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
       const list = mockList([room({ id: 'r1', name: 'Recovered' })])

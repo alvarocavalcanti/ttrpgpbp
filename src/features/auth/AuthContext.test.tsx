@@ -5,6 +5,17 @@ import { useContext } from 'react'
 import { supabase } from '../../lib/supabase'
 import { clearAllSnapshots, readSnapshot, resumeCacheWrites, writeSnapshot } from '../../lib/offlineCache'
 
+// A single test can hold the purge open; every other test uses the real one.
+const cacheMock = vi.hoisted(() => ({ clearImpl: null as null | (() => Promise<void>) }))
+vi.mock('../../lib/offlineCache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/offlineCache')>()
+  return {
+    ...actual,
+    clearUserSnapshots: vi.fn((userId: string) =>
+      cacheMock.clearImpl ? cacheMock.clearImpl() : actual.clearUserSnapshots(userId)),
+  }
+})
+
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
@@ -805,6 +816,44 @@ describe('AuthContext', () => {
     fireEvent.click(screen.getByText('Sign Out'))
     
     expect(supabase.auth.signOut).toHaveBeenCalled()
+  })
+
+  it('does not let a hanging purge block sign-out (#825)', async () => {
+    cacheMock.clearImpl = () => new Promise(() => {})
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    try {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      )
+
+      expect(await screen.findByText('ready')).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByTestId('profile')).toHaveTextContent('Test User'))
+
+      fireEvent.click(screen.getByText('Sign Out'))
+
+      // The bounded purge gives up after ~800 ms; the sign-out itself runs.
+      await waitFor(() => expect(supabase.auth.signOut).toHaveBeenCalledTimes(1), { timeout: 3000 })
+    } finally {
+      cacheMock.clearImpl = null
+    }
   })
 
   it('clears the per-browser age confirmation on sign-out', async () => {

@@ -137,7 +137,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
    * which would unmount the open Edit Character dialog and drop the player's
    * unsaved edits).
    */
-  const loadMembers = useCallback(async (): Promise<ChannelMember[]> => {
+  const loadMembers = useCallback(async (isCurrent?: () => boolean): Promise<ChannelMember[]> => {
     if (!channelId || !user?.id) return []
     const [membersResponse, secretsResponse, passwordResponse] = await Promise.all([
       supabase.from('channel_members').select('*, profile:profiles(display_name, avatar_url)').eq('channel_id', channelId),
@@ -165,7 +165,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
 
     // mountedRef drops a stale run; channelIdRef and userIdRef drop a channel
     // switch and a user switch.
-    if (mountedRef.current && channelIdRef.current === channelId && userIdRef.current === user?.id) {
+    if (mountedRef.current && channelIdRef.current === channelId && userIdRef.current === user?.id && (!isCurrent || isCurrent())) {
       // channel_secrets is GM-only (RLS); non-GMs get no row.
       setGmOnlyResourcesUrl(secretsResponse.data?.gm_only_resources_url ?? null)
       setHasPassword((passwordResponse.count ?? 0) > 0)
@@ -309,11 +309,13 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         headerApplied = true
         setChannel(parsedChannel as Channel)
 
-        const formattedMembers = await loadMembers()
+        const formattedMembers = await loadMembers(scopeAlive)
         if (!scopeAlive()) return
         // The whole snapshot (header + roster) is now confirmed; only from here
         // may a late cache read be rejected as stale.
         networkApplied = true
+        // A complete successful read clears an error a previous attempt left.
+        setError(null)
 
         // Mark read in background if we are a member. Only while the tab is
         // visible: a reconnect completing in a hidden tab must not mark

@@ -101,6 +101,7 @@ export function useSubChannels(channelId: string | undefined) {
     }
 
     async function fetchRooms() {
+      let roomListPublished = false
       try {
         const { data, error } = await supabase
           .from('sub_channels')
@@ -113,22 +114,21 @@ export function useSubChannels(channelId: string | undefined) {
           const room = parseRow(SubChannelRowSchema, row)
           return room ? [room as SubChannel] : []
         })
+        if (!mounted) return
         networkApplied = true
+        roomListPublished = true
         invitesPendingRef.current = parsed.length > 0
-        if (mounted) {
-          setRooms(parsed)
-          setConfirmed(true)
-        }
+        setRooms(parsed)
+        setConfirmed(true)
 
         // Invited members per room (only meaningful for 'private').
         const ids = parsed.map(r => r.id)
         if (ids.length === 0) {
+          if (!mounted) return
           invitesPendingRef.current = false
-          if (mounted) {
-            setRoomMembers({})
-            canPersistRef.current = true
-            void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms: parsed, roomMembers: {} } satisfies RoomsSnapshot)
-          }
+          setRoomMembers({})
+          canPersistRef.current = true
+          void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms: parsed, roomMembers: {} } satisfies RoomsSnapshot)
           return
         }
         const { data: memberRows, error: memberError } = await supabase
@@ -136,6 +136,7 @@ export function useSubChannels(channelId: string | undefined) {
           .select('sub_channel_id, user_id')
           .in('sub_channel_id', ids)
         if (memberError) throw memberError
+        if (!mounted) return
         invitesPendingRef.current = false
         const byRoom: Record<string, string[]> = {}
         for (const m of memberRows ?? []) {
@@ -150,7 +151,10 @@ export function useSubChannels(channelId: string | undefined) {
         }
       } catch (err) {
         console.error('Error fetching rooms:', err)
-        invitesPendingRef.current = false
+        // If the room list published but its invite map failed, stay blocked:
+        // saving the new list with the previous map would restore the wrong
+        // private-room audience.
+        if (!roomListPublished) invitesPendingRef.current = false
         // Cached tabs keep working offline; the card explains the state.
         if (mounted && !cacheHydrated) setError(toError(err))
       } finally {

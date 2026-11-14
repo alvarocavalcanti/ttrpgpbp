@@ -9,6 +9,15 @@ vi.mock('idb', () => ({
     delete: vi.fn(() => Promise.reject(new Error('blocked'))),
     getAllKeysFromIndex: vi.fn(() => Promise.reject(new Error('blocked'))),
     clear: vi.fn(() => Promise.reject(new Error('blocked'))),
+    // A purge hangs in the key scan; the deadline must still settle it.
+    transaction: vi.fn(() => ({
+      objectStore: () => ({
+        index: () => ({ getAllKeys: () => new Promise(() => {}) }),
+        delete: vi.fn(),
+        put: vi.fn(),
+      }),
+      done: new Promise(() => {}),
+    })),
   })),
 }))
 
@@ -23,7 +32,7 @@ describe('offlineCache failure handling', () => {
     await expect(readSnapshot('user-1', 'profile')).resolves.toBeNull()
   }, 2000)
 
-  it('gives up on a wedged sign-out purge instead of hanging', async () => {
+  it('gives up on a sign-out purge whose key scan never answers', async () => {
     vi.resetModules()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const cache = await import('./offlineCache')

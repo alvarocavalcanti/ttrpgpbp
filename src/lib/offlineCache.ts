@@ -83,7 +83,9 @@ function snapshotKey(userId: string, name: string): string {
 function withDeadline<T>(promise: Promise<T>): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | undefined
   return Promise.race([
-    promise,
+    // A rejection that lands after the deadline has already settled must not
+    // surface as an unhandled rejection.
+    promise.catch(() => null),
     new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), READ_TIMEOUT_MS)
     }),
@@ -206,9 +208,12 @@ export async function resumeCacheWrites(userId: string): Promise<void> {
   const db = getDb()
   if (!db) return
   try {
-    const d = await db
-    // Bounded like reads: optional storage must not stall a sign-in.
-    await withDeadline(d.delete(STORE, snapshotKey(userId, PURGE_NAME)))
+    // Bound the open as well as the delete: optional storage must never stall a
+    // sign-in.
+    await withDeadline((async () => {
+      const d = await db
+      await d.delete(STORE, snapshotKey(userId, PURGE_NAME))
+    })())
   } catch (err) {
     console.error('Failed to resume offline cache', err)
   }
@@ -217,25 +222,27 @@ export async function resumeCacheWrites(userId: string): Promise<void> {
 export async function clearUserSnapshots(userId: string): Promise<void> {
   const db = getDb()
   if (!db) return
+  const tombstone: SnapshotRecord = {
+    key: snapshotKey(userId, PURGE_NAME),
+    userId,
+    schemaVersion: CACHE_SCHEMA_VERSION,
+    savedAt: new Date().toISOString(),
+    value: { at: Date.now() },
+  }
   try {
-    const d = await db
-    const keys = await withDeadline(d.getAllKeysFromIndex(STORE, 'byUser', userId) as Promise<string[]>)
-    if (!keys) {
-      // A wedged read must not turn sign-out into a hang; the next purge after
-      // a reload retries.
-      console.error('Failed to clear offline cache: store did not answer')
-      return
-    }
-    await Promise.all(keys.map((key) => d.delete(STORE, key)))
-    // Written last: any write that lands after this purge sees it and stops.
-    const tombstone: SnapshotRecord = {
-      key: snapshotKey(userId, PURGE_NAME),
-      userId,
-      schemaVersion: CACHE_SCHEMA_VERSION,
-      savedAt: new Date().toISOString(),
-      value: { at: Date.now() },
-    }
-    await d.put(STORE, tombstone)
+    // One readwrite transaction: enumerate and delete the user's records and
+    // write the tombstone atomically, so a write cannot slip between the delete
+    // pass and the tombstone. Bounded at the same time: a wedged store must not
+    // turn sign-out into a hang (the transaction completes in the background).
+    await withDeadline((async () => {
+      const d = await db
+      const tx = d.transaction(STORE, 'readwrite')
+      const store = tx.objectStore(STORE)
+      const keys = (await store.index('byUser').getAllKeys(userId)) as string[]
+      await Promise.all(keys.map((key) => store.delete(key)))
+      await store.put(tombstone)
+      await tx.done
+    })())
   } catch (err) {
     console.error('Failed to clear offline cache', err)
   }

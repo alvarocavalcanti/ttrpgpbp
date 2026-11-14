@@ -312,7 +312,17 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         return updated && (!max || updated > max) ? updated : max
       }, updatedCursorRef.current)
       if (cachedNewestUpdate) updatedCursorRef.current = cachedNewestUpdate
-      if (messagesRef.current.length === 0 && rows.length > 0) setMessages(rows)
+      if (rows.length > 0) {
+        // Merge by id: a live row that landed first wins over the saved copy,
+        // and saved rows the live window lacks fill in beneath it.
+        setMessages(prev => {
+          if (prev.length === 0) return rows
+          const liveIds = new Set(prev.map(m => m.id))
+          const merged = [...rows.filter(m => !liveIds.has(m.id)), ...prev]
+          merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+          return merged
+        })
+      }
       // Live reactions (a realtime event may have landed) win over cached ones.
       setReactions(prev => ({ ...(cached.value.reactions ?? {}), ...prev }))
       // Never advertise a "load older" affordance the cache cannot satisfy.
@@ -654,9 +664,13 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         if (mounted && status === 'SUBSCRIBED') {
           if (firstSubscribe) {
             firstSubscribe = false
-            // Offline start: the initial requests were skipped, so this is the
-            // first chance to load history.
-            if (skippedInitialFetch) void catchUpRef.current()
+            // Offline start: the initial requests were skipped. Load the newest
+            // page (not a forward catch-up) so `hasMore` reflects whether older
+            // history exists and load-older works again.
+            if (skippedInitialFetch) {
+              void fetchMessages()
+              void fetchReactions()
+            }
           } else {
             // Snapshot the cursor before catchUp runs: its INSERT batches
             // advance the high-water mark, and reconcileUpdates must start
