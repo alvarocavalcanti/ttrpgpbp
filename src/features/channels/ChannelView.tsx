@@ -114,7 +114,7 @@ export function ChannelView() {
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
-  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
+  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, confirmed: roomsConfirmed, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
   // Pending applications (#674): the GM Tools badge below, and the queue inside
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
@@ -257,13 +257,15 @@ export function ChannelView() {
   // stay readable, so they are not treated as unknown.
   const unknownRoomHandledRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!subId || roomsLoading || roomsError) return
+    // A cached room list (confirmed === false) cannot prove a room is gone —
+    // it may simply predate the room (issue #825).
+    if (!subId || roomsLoading || roomsError || roomsConfirmed === false) return
     if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) return
     if (unknownRoomHandledRef.current === subId) return
     unknownRoomHandledRef.current = subId
     addToast("That room no longer exists. You're back in Main.", 'error')
     navigate(`/channel/${id}`, { replace: true })
-  }, [subId, roomsLoading, roomsError, subChannels, archivedRooms, addToast, navigate, id])
+  }, [subId, roomsLoading, roomsError, roomsConfirmed, subChannels, archivedRooms, addToast, navigate, id])
 
   // Jump targets (search results, quoted replies) may sit outside the loaded
   // latest-50 window: load history pages until the target is rendered, then

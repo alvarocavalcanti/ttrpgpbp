@@ -3757,6 +3757,18 @@ describe('ChannelView rooms (#621)', () => {
     expect(await screen.findByText("That room no longer exists. You're back in Main.")).toBeInTheDocument()
   })
 
+  it('does not treat an unconfirmed (cached) room list as proof the room is gone (#825)', async () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [], archivedRooms: [], loading: false, error: null, confirmed: false,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/bogus', { path: '/channel/c1', element: <div>MAIN TIMELINE</div> })
+
+    expect(screen.queryByText('MAIN TIMELINE')).not.toBeInTheDocument()
+    expect(screen.queryByText("That room no longer exists. You're back in Main.")).not.toBeInTheDocument()
+  })
+
   it('hides the dice FAB when the active room turns dice off', () => {
     vi.mocked(useSubChannels).mockReturnValue({
       subChannels: [room({ id: 'r1', allow_dice: false })], archivedRooms: [], loading: false, error: null,

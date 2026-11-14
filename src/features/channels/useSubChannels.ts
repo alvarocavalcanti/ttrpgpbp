@@ -34,6 +34,11 @@ export function useSubChannels(channelId: string | undefined) {
   const [rooms, setRooms] = useState<SubChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  // True once a network fetch has confirmed the room list for this channel.
+  // Cached (or never-fetched) lists cannot prove a room was deleted, so the
+  // caller must not treat a missing id as "no longer exists" until then
+  // (issue #825).
+  const [confirmed, setConfirmed] = useState(false)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
 
   // Invited user ids per private room (#621 Phase 3).
@@ -46,6 +51,7 @@ export function useSubChannels(channelId: string | undefined) {
     // Drop a previous channel's rooms on route change (this hook stays mounted).
     setRooms([])
     setError(null)
+    setConfirmed(false)
     setLoading(true)
 
     if (!channelId || !user?.id) {
@@ -93,7 +99,10 @@ export function useSubChannels(channelId: string | undefined) {
           return room ? [room as SubChannel] : []
         })
         networkApplied = true
-        if (mounted) setRooms(parsed)
+        if (mounted) {
+          setRooms(parsed)
+          setConfirmed(true)
+        }
 
         // Invited members per room (only meaningful for 'private').
         const ids = parsed.map(r => r.id)
@@ -308,5 +317,5 @@ export function useSubChannels(channelId: string | undefined) {
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, confirmed, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
 }

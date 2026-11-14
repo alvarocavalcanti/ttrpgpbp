@@ -338,6 +338,24 @@ describe('useSubChannels', () => {
       expect(result.current.roomMembers.r2).toEqual(['u2'])
       expect(result.current.error).toBeNull()
       expect(result.current.loading).toBe(false)
+      // A cached list cannot prove a room was deleted (issue #825).
+      expect(result.current.confirmed).toBe(false)
+    })
+
+    it('confirms the list only after a network fetch succeeds', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const list = mockList([room({ id: 'r1', name: 'Live OOC' })])
+      vi.mocked(supabase.from).mockImplementation(((table: string) => {
+        if (table === 'sub_channel_members') {
+          return { select: () => ({ in: () => Promise.resolve({ data: [], error: null }) }) }
+        }
+        return { select: list.select }
+      }) as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      expect(result.current.confirmed).toBe(true)
     })
 
     it('persists rooms and invites after a successful fetch', async () => {
