@@ -385,6 +385,9 @@ describe('App', () => {
     window.history.pushState({}, '', '/?foo=bar')
     render(<App />)
 
+    // Type only once the lobby (and its URL-sync effect) has mounted; the
+    // header search exists during the auth/profile load too.
+    await screen.findByRole('button', { name: 'My Games' })
     const input = await screen.findByLabelText('Search channels')
     fireEvent.change(input, { target: { value: 'dragon' } })
 
@@ -605,6 +608,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByRole('link', { name: 'Server Admin' })).toBeInTheDocument()
   })
@@ -644,6 +650,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.queryByText('Server Admin')).not.toBeInTheDocument()
   })
@@ -683,6 +692,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     expect(await screen.findByText('Help Topics')).toBeInTheDocument()
@@ -724,6 +736,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByRole('link', { name: 'Report a Bug' })).toHaveAttribute(
       'href',
@@ -767,6 +782,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByRole('link', { name: 'About' }))
     expect(await screen.findByRole('heading', { name: 'About Role by Post' })).toBeInTheDocument()
@@ -812,6 +830,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByRole('link', { name: 'Server Admin' }))
     expect(await screen.findByText('Users')).toBeInTheDocument()
@@ -853,6 +874,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Change Log'))
     expect(await screen.findByRole('dialog', { name: "What's new" })).toBeInTheDocument()
@@ -894,6 +918,9 @@ describe('App', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     fireEvent.click(screen.getByText('Help'))
     await screen.findByText('Help Topics')
@@ -952,6 +979,16 @@ describe('App main menu drawer', () => {
 
     render(<App />)
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
+    // The brand link is in the always-rendered header, so it also exists while
+    // the auth/profile load still paints the marketing landing at `/`. Wait for
+    // the lobby itself on the home route, or a drawer assertion races that
+    // transient landing (issue #825 exposes the load state a beat longer).
+    if (window.location.pathname === '/') {
+      await screen.findByRole('button', { name: 'My Games' })
+    }
   }
 
   beforeEach(() => {
@@ -1190,6 +1227,9 @@ describe('App messages menu item', () => {
     render(<App />)
 
     await screen.findByRole('link', { name: 'Role by Post' })
+    // Wait for the app shell itself: the brand link also exists while the
+    // auth/profile load is still painting the marketing landing at `/`.
+    await waitFor(() => expect(screen.queryByText('Company')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
     expect(screen.getByRole('link', { name: 'Messages' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Server Admin' })).not.toBeInTheDocument()

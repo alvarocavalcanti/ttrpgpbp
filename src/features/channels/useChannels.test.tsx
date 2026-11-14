@@ -4,7 +4,7 @@ import { useChannels } from './useChannels'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
 import { reportRealtimeStatus, clearRealtimeStatus } from '../../lib/realtime'
-import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -79,8 +79,10 @@ const mockLobbyRpcQueue = (unreadPayloads: any[][]) => {
 }
 
 describe('useChannels', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true })
   })
 

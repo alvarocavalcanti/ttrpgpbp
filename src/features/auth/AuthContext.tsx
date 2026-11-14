@@ -74,6 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const lastFetchedUserId = useRef<string | null>(null)
+  // Each profile request gets a token: a failure or success from an older
+  // request (e.g. the previous login attempt) must never write into the
+  // current session's state.
+  const profileRequestRef = useRef(0)
   const confirmedAgeFor = useRef<string | null>(null)
   const confirmedTermsFor = useRef<string | null>(null)
   // Recording state for the checkbox-evidence terms stamp below. ProtectedRoute
@@ -89,10 +93,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // hanging profile request must not keep the saved profile from painting.
       const cachedPromise = readSnapshot<Profile>(userId, 'profile')
       let networkApplied = false
-      const stillCurrent = () => mounted && lastFetchedUserId.current === userId
+      const token = ++profileRequestRef.current
+      const stillCurrent = () => mounted &&
+        lastFetchedUserId.current === userId &&
+        profileRequestRef.current === token
 
       void cachedPromise.then((cached) => {
-        if (cached && !networkApplied && stillCurrent()) setProfile(cached.value)
+        if (!cached || networkApplied || !stillCurrent()) return
+        setProfile(cached.value)
+        setError(null)
+        // A saved profile is enough to render the app; do not hold the initial
+        // loading state for a network request that may never answer.
+        setLoading(false)
       })
 
       try {
@@ -107,6 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // sign-out): it would recreate a snapshot the purge just removed.
         if (!stillCurrent()) return
         setProfile(parsed)
+        // A later attempt succeeding clears an error a stale attempt left behind.
+        setError(null)
+        setLoading(false)
         void writeSnapshot(userId, 'profile', parsed)
       } catch (err) {
         // Offline (issue #825): the last profile saved on this device keeps the
@@ -115,14 +130,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cached = await cachedPromise
         if (cached && stillCurrent()) {
           setProfile(cached.value)
+          setLoading(false)
           return
         }
-        if (mounted) setError(err as Error)
+        if (stillCurrent()) {
+          setError(err as Error)
+          setLoading(false)
+        }
       }
     }
 
     async function getInitialSession() {
       setError(null)
+      // Loading stays on until the profile resolves (from the saved copy or the
+      // network); a profile fetch that never answers is the only way to spin.
+      let awaitingProfile = false
       try {
         const currentSession = await getCurrentSession()
         if (!mounted) return
@@ -132,16 +154,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentSession?.user && lastFetchedUserId.current !== currentSession.user.id) {
           lastFetchedUserId.current = currentSession.user.id
-          resumeCacheWrites(currentSession.user.id)
-          // Do not gate the session load on the profile request: the saved
-          // profile paints from cache and ProtectedRoute takes over from there.
-          void fetchProfile(currentSession.user.id)
+          awaitingProfile = true
+          // Resume caching first so a fresh session can write its snapshot; the
+          // saved profile paints from cache while the network request runs.
+          void resumeCacheWrites(currentSession.user.id).then(() => fetchProfile(currentSession.user.id))
         }
       } catch (err) {
         console.error('Error getting initial session:', err)
         setError(err as Error)
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted && !awaitingProfile) setLoading(false)
       }
     }
 
@@ -170,11 +192,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // fires hourly and on tab refocus with the same identity).
           if (lastFetchedUserId.current !== userId) {
             lastFetchedUserId.current = userId
-            resumeCacheWrites(userId)
+            // Invalidate any in-flight request from the previous login now,
+            // before the deferred fetch below starts.
+            profileRequestRef.current += 1
             // Supabase-js holds an internal auth lock while this callback runs;
             // awaiting a query here deadlocks, so defer the fetch out of it.
             setTimeout(() => {
-              if (lastFetchedUserId.current === userId) void fetchProfile(userId)
+              if (lastFetchedUserId.current !== userId) return
+              void resumeCacheWrites(userId)
+              void fetchProfile(userId)
             }, 0)
           }
         } else {

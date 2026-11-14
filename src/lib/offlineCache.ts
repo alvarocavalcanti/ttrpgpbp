@@ -28,11 +28,11 @@ export const CACHE_LIMITS = { messagesPerRoom: 100 }
 const READ_TIMEOUT_MS = 500
 
 // A snapshot write that was already queued when the user signed out (the room
-// timeline flushes one last debounced write on unmount) must not resurrect the
-// record the purge just removed. Writes for a user are ignored for a short
-// window after their purge; a normal sign-in refetches well outside it.
-const PURGE_GRACE_MS = 5_000
-const purgedAtByUser = new Map<string, number>()
+// timeline flushes one last debounced write on unmount, possibly in another tab)
+// must not resurrect the record the purge just removed. The purge leaves a
+// durable tombstone in the store; writes check it and are ignored until a new
+// signed-in session clears it. This survives tabs, reloads, and delays.
+const PURGE_NAME = '__purged'
 
 export interface CachedSnapshot<T> {
   value: T
@@ -48,6 +48,9 @@ interface SnapshotRecord {
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null
+// Bumped by a full store wipe (tests, and any future "clear local data"): a
+// write that was already in flight must not repopulate the store afterwards.
+let cacheEpoch = 0
 
 function getDb(): Promise<IDBPDatabase> | null {
   if (typeof indexedDB === 'undefined') return null
@@ -112,12 +115,15 @@ export async function readSnapshot<T>(userId: string, name: string): Promise<Cac
 }
 
 export async function writeSnapshot<T>(userId: string, name: string, value: T): Promise<void> {
-  const purgedAt = purgedAtByUser.get(userId)
-  if (purgedAt && Date.now() - purgedAt < PURGE_GRACE_MS) return
   const db = getDb()
   if (!db) return
+  const epoch = cacheEpoch
   try {
     const d = await db
+    // A store that does not answer is treated like a tombstone: better to skip
+    // a cache write than to block the caller (reads have the same deadline).
+    const purged = await withDeadline(d.get(STORE, snapshotKey(userId, PURGE_NAME)))
+    if (purged !== undefined || epoch !== cacheEpoch) return
     const record: SnapshotRecord = {
       key: snapshotKey(userId, name),
       userId,
@@ -194,25 +200,49 @@ export async function pruneChannelSnapshots(userId: string, liveChannelIds: stri
 }
 
 // A fresh signed-in session for this user may cache again. Sign-out leaves the
-// guard in place so a queued write cannot outrun the purge.
-export function resumeCacheWrites(userId: string): void {
-  purgedAtByUser.delete(userId)
-}
-
-export async function clearUserSnapshots(userId: string): Promise<void> {
-  purgedAtByUser.set(userId, Date.now())
+// tombstone in place so a queued write (from this tab or another) cannot
+// outrun the purge.
+export async function resumeCacheWrites(userId: string): Promise<void> {
   const db = getDb()
   if (!db) return
   try {
     const d = await db
-    const keys = (await d.getAllKeysFromIndex(STORE, 'byUser', userId)) as string[]
+    // Bounded like reads: optional storage must not stall a sign-in.
+    await withDeadline(d.delete(STORE, snapshotKey(userId, PURGE_NAME)))
+  } catch (err) {
+    console.error('Failed to resume offline cache', err)
+  }
+}
+
+export async function clearUserSnapshots(userId: string): Promise<void> {
+  const db = getDb()
+  if (!db) return
+  try {
+    const d = await db
+    const keys = await withDeadline(d.getAllKeysFromIndex(STORE, 'byUser', userId) as Promise<string[]>)
+    if (!keys) {
+      // A wedged read must not turn sign-out into a hang; the next purge after
+      // a reload retries.
+      console.error('Failed to clear offline cache: store did not answer')
+      return
+    }
     await Promise.all(keys.map((key) => d.delete(STORE, key)))
+    // Written last: any write that lands after this purge sees it and stops.
+    const tombstone: SnapshotRecord = {
+      key: snapshotKey(userId, PURGE_NAME),
+      userId,
+      schemaVersion: CACHE_SCHEMA_VERSION,
+      savedAt: new Date().toISOString(),
+      value: { at: Date.now() },
+    }
+    await d.put(STORE, tombstone)
   } catch (err) {
     console.error('Failed to clear offline cache', err)
   }
 }
 
 export async function clearAllSnapshots(): Promise<void> {
+  cacheEpoch += 1
   const db = getDb()
   if (!db) return
   try {

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
-import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 vi.mock('../auth/useAuth', () => ({
@@ -33,8 +33,10 @@ describe('useChannel', () => {
     return { select: mockSelectSecrets }
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     // clearAllMocks keeps implementations; restore the default success result
     // so tests that don't care about the read-mark see a clean slate.
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
@@ -1373,6 +1375,35 @@ describe('useChannel', () => {
         const cached = await readSnapshot<{ channel: { name: string } }>('u1', 'channel:c1')
         expect(cached?.value.channel.name).toBe('Live Channel')
       })
+    })
+
+    it('ignores a late revoked response from the previous channel', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      let resolveA!: (value: unknown) => void
+      const channelA = new Promise(resolve => { resolveA = resolve })
+      const single = vi.fn()
+        .mockReturnValueOnce(channelA)
+        .mockResolvedValue({ data: { id: 'c2', gm_id: 'u1', name: 'Channel B' }, error: null })
+      const memberEq = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: memberEq }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+
+      const { result, rerender } = renderHook(({ id }: { id: string }) => useChannel(id), { initialProps: { id: 'c1' } })
+      rerender({ id: 'c2' })
+      await waitFor(() => expect(result.current.channel?.name).toBe('Channel B'))
+
+      // The first channel's request finally answers "no row" while B is open.
+      await act(async () => {
+        resolveA({ data: null, error: { code: 'PGRST116', message: 'no rows' } })
+        await Promise.resolve()
+      })
+
+      expect(result.current.channel?.name).toBe('Channel B')
+      expect(result.current.error).toBeNull()
     })
 
     it('loads the channel on the first subscription after an offline start', async () => {

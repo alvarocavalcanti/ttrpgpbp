@@ -4,7 +4,6 @@ import '@testing-library/jest-dom'
 import 'fake-indexeddb/auto'
 import { beforeAll, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { server } from './mocks/server'
-import { clearAllSnapshots } from '../lib/offlineCache'
 
 // Git exports GIT_DIR (and friends) to hooks. Without this, a test that
 // spawns git in a temp repo operates on the REAL repository whenever the
@@ -77,10 +76,7 @@ if (!(globalThis as any).ResizeObserver) {
 
 // jsdom has no matchMedia; the theme toggle reads it on mount. Default stub
 // (light) so every test that renders the app header or login page is stable.
-// The offline cache is cleared per test so a snapshot written by one case can
-// never hydrate the next.
-beforeEach(async () => {
-  await clearAllSnapshots()
+beforeEach(() => {
   window.scrollTo = () => {}
   if (!window.matchMedia) {
     window.matchMedia = (query: string) => ({

@@ -9,6 +9,7 @@ import {
   pruneChannelSnapshots,
   readSnapshot,
   resetOfflineCacheForTests,
+  resumeCacheWrites,
   writeSnapshot,
 } from './offlineCache'
 
@@ -137,6 +138,13 @@ describe('offlineCache', () => {
     await writeSnapshot('user-race', 'profile', { display_name: 'Late flush' })
 
     await expect(readSnapshot('user-race', 'profile')).resolves.toBeNull()
+
+    // A new signed-in session lifts the tombstone.
+    await resumeCacheWrites('user-race')
+    await writeSnapshot('user-race', 'profile', { display_name: 'New session' })
+    await expect(readSnapshot('user-race', 'profile')).resolves.toMatchObject({
+      value: { display_name: 'New session' },
+    })
   })
 
   it('clears only the given user on sign-out', async () => {

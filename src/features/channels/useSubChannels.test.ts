@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useSubChannels } from './useSubChannels'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
-import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn(),
@@ -42,8 +42,10 @@ const mockList = (data: unknown[] | null, error: unknown = null) => {
 }
 
 describe('useSubChannels', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never)
     // clearAllMocks keeps implementations, so restore the inert realtime
     // channel a test may have replaced with a SUBSCRIBED-emitting stub.
@@ -397,6 +399,37 @@ describe('useSubChannels', () => {
       } finally {
         window.dispatchEvent(new Event('online'))
       }
+    })
+
+    it('does not persist fetched rooms before the invite map lands', async () => {
+      await writeSnapshot('u1', 'rooms:c1', cachedRooms())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const list = mockList([room({ id: 'r9', name: 'New Room' })])
+      let resolveInvites!: (value: unknown) => void
+      const invites = new Promise(resolve => { resolveInvites = resolve })
+      vi.mocked(supabase.from).mockImplementation(((table: string) => {
+        if (table === 'sub_channel_members') {
+          return { select: () => ({ in: () => invites }) }
+        }
+        return { select: list.select }
+      }) as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+      await waitFor(() => expect(result.current.subChannels.map(r => r.name)).toEqual(['New Room']))
+
+      // The debounced writer fires while the invite request is still pending.
+      await new Promise(resolve => setTimeout(resolve, 700))
+      const beforeInvites = await readSnapshot<{ rooms: { name: string }[] }>('u1', 'rooms:c1')
+      expect(beforeInvites?.value.rooms.map(r => r.name)).toEqual(['Cached OOC', 'Private'])
+
+      await act(async () => {
+        resolveInvites({ data: [], error: null })
+        await Promise.resolve()
+      })
+      await waitFor(async () => {
+        const afterInvites = await readSnapshot<{ rooms: { name: string }[] }>('u1', 'rooms:c1')
+        expect(afterInvites?.value.rooms.map(r => r.name)).toEqual(['New Room'])
+      })
     })
 
     it('loads the room list on the first subscription after an offline start', async () => {

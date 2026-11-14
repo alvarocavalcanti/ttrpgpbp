@@ -44,6 +44,9 @@ export function useSubChannels(channelId: string | undefined) {
   // loaded. Without it, a slow cache read plus a failed fetch would overwrite a
   // good snapshot with the initial empty state (issue #825 review).
   const canPersistRef = useRef(false)
+  // True while the private-room invite map for the room list on screen is still
+  // loading; the debounced writer must not save a mismatched audience.
+  const invitesPendingRef = useRef(false)
 
   // Invited user ids per private room (#621 Phase 3).
   const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
@@ -111,6 +114,7 @@ export function useSubChannels(channelId: string | undefined) {
           return room ? [room as SubChannel] : []
         })
         networkApplied = true
+        invitesPendingRef.current = parsed.length > 0
         if (mounted) {
           setRooms(parsed)
           setConfirmed(true)
@@ -119,8 +123,10 @@ export function useSubChannels(channelId: string | undefined) {
         // Invited members per room (only meaningful for 'private').
         const ids = parsed.map(r => r.id)
         if (ids.length === 0) {
+          invitesPendingRef.current = false
           if (mounted) {
             setRoomMembers({})
+            canPersistRef.current = true
             void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms: parsed, roomMembers: {} } satisfies RoomsSnapshot)
           }
           return
@@ -130,6 +136,7 @@ export function useSubChannels(channelId: string | undefined) {
           .select('sub_channel_id, user_id')
           .in('sub_channel_id', ids)
         if (memberError) throw memberError
+        invitesPendingRef.current = false
         const byRoom: Record<string, string[]> = {}
         for (const m of memberRows ?? []) {
           ;(byRoom[m.sub_channel_id] ??= []).push(m.user_id)
@@ -143,6 +150,7 @@ export function useSubChannels(channelId: string | undefined) {
         }
       } catch (err) {
         console.error('Error fetching rooms:', err)
+        invitesPendingRef.current = false
         // Cached tabs keep working offline; the card explains the state.
         if (mounted && !cacheHydrated) setError(toError(err))
       } finally {
@@ -331,7 +339,7 @@ export function useSubChannels(channelId: string | undefined) {
     const activeUserId = user.id
     let active = true
     const timer = setTimeout(() => {
-      if (!active || !canPersistRef.current) return
+      if (!active || !canPersistRef.current || invitesPendingRef.current) return
       void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms, roomMembers } satisfies RoomsSnapshot)
     }, 500)
     return () => {

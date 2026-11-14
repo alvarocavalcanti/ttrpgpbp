@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useMessages } from './useMessages'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
-import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -83,8 +83,10 @@ const validReaction = (overrides: Record<string, unknown> = {}) => ({
 })
 
 describe('useMessages', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
   })
 
@@ -2026,8 +2028,10 @@ describe('useMessages', () => {
 })
 
 describe('useMessages rooms (#621)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
   })
 
@@ -2229,6 +2233,67 @@ describe('useMessages rooms (#621)', () => {
       const { result } = renderHook(() => useMessages('c1', null))
 
       await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['new-1']))
+    })
+
+    it('does not leave a hole when a live message lands during the initial fetch', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({ id: 'old-1', created_at: '2023-01-01T00:00:00.000Z' })],
+        reactions: {},
+      })
+      let resolveFetch!: (value: unknown) => void
+      const page = new Promise(resolve => { resolveFetch = resolve })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockReturnValue(page)) }) }) })
+      const { callbacks } = mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['old-1']))
+
+      // A realtime row newer than the page arrives while the page is in flight.
+      await act(async () => {
+        callbacks.messages({
+          eventType: 'INSERT',
+          new: baseMessage({ id: 'live-1', sender_id: null, created_at: '2023-04-01T00:00:00.000Z' }),
+          old: null,
+        })
+      })
+      await act(async () => {
+        resolveFetch({ data: [baseMessage({ id: 'new-1', created_at: '2023-03-01T00:00:00.000Z' })], error: null })
+        await Promise.resolve()
+      })
+
+      // The disconnected older window is dropped; the live row survives.
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['new-1', 'live-1']))
+    })
+
+    it('reconciles edits from the newest saved updated_at after reconnect', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({
+          id: 'm1',
+          created_at: '2023-01-01T00:00:00.000Z',
+          updated_at: '2023-02-02T00:00:00.000Z',
+        })],
+        reactions: {},
+      })
+      const initialLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') })
+      const empty = vi.fn().mockResolvedValue({ data: [], error: null })
+      const mockOr = vi.fn().mockReturnValue({ order: () => ({ order: () => ({ limit: empty }) }) })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({
+        order: makeOrder(initialLimit),
+        gt: () => ({ order: () => ({ limit: empty }) }),
+        or: mockOr,
+      }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['m1']))
+
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      // The edit reconcile starts from the saved window's updated_at, so edits
+      // made while offline are picked up.
+      expect(mockOr).toHaveBeenCalledWith('updated_at.gt.2023-02-02T00:00:00.000Z')
     })
 
     it('prunes cached reactions the server no longer returns', async () => {

@@ -23,6 +23,14 @@ describe('offlineCache failure handling', () => {
     await expect(readSnapshot('user-1', 'profile')).resolves.toBeNull()
   }, 2000)
 
+  it('gives up on a wedged sign-out purge instead of hanging', async () => {
+    vi.resetModules()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const cache = await import('./offlineCache')
+
+    await expect(cache.clearUserSnapshots('user-1')).resolves.toBeUndefined()
+  }, 2000)
+
   it('swallows write, delete, prune, and clear failures', async () => {
     vi.resetModules()
     vi.spyOn(console, 'error').mockImplementation(() => {})

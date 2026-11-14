@@ -73,6 +73,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
   // The signed-in user the current run belongs to. A fetch that started
   // under a different user must not write state (its RLS view differs).
   const userIdRef = useRef<string | null>(null)
+  // Bumped by every effect run: an async completion from an older run for the
+  // same channel (A→B→A, or a refetch) must not touch the current one.
+  const effectGenRef = useRef(0)
 
   useEffect(() => {
     membersRef.current = members
@@ -220,12 +223,19 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     // cannot carry the early-return narrowing.
     const activeChannelId = channelId
     const activeUserId = user.id
+    const gen = ++effectGenRef.current
+    // Mounted, same effect run, same channel, same user: every async write must
+    // pass this, or a stale completion can paint/error/cache the wrong scope.
+    const scopeAlive = () => mountedRef.current &&
+      effectGenRef.current === gen &&
+      channelIdRef.current === activeChannelId &&
+      userIdRef.current === activeUserId
 
     async function hydrateChannel() {
       const cached = await readSnapshot<ChannelSnapshot>(activeUserId, `channel:${activeChannelId}`)
       // A cache read that lands after the user switched channels must not touch
       // the new channel's state, cache miss included.
-      if (!mountedRef.current || channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+      if (!scopeAlive()) return
       if (!cached || networkApplied || accessRevoked) {
         // No saved channel and no connection: stop the skeleton so the view can
         // explain that it was never opened on this device (issue #825).
@@ -276,6 +286,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
           // PGRST116 = no row: the viewer lost access (kicked, channel
           // deleted). Never keep that channel readable offline afterwards.
           if (channelResponse.error.code === 'PGRST116') {
+            if (!scopeAlive()) return
             accessRevoked = true
             void deleteChannelSnapshots(activeUserId, activeChannelId)
             if (mountedRef.current) {
@@ -287,18 +298,19 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         }
         const parsedChannel = parseRow(ChannelRowSchema, channelResponse.data)
         if (!parsedChannel) {
+          if (!scopeAlive()) return
           accessRevoked = true
           void deleteChannelSnapshots(activeUserId, activeChannelId)
           throw new Error('Channel data failed validation.')
         }
         // A response for a channel the user already switched away from must not
         // paint (or be cached) under the new channel.
-        if (!mountedRef.current || channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+        if (!scopeAlive()) return
         headerApplied = true
         setChannel(parsedChannel as Channel)
 
         const formattedMembers = await loadMembers()
-        if (!mountedRef.current || channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+        if (!scopeAlive()) return
         // The whole snapshot (header + roster) is now confirmed; only from here
         // may a late cache read be rejected as stale.
         networkApplied = true
@@ -315,12 +327,19 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
-        // With cached content on screen the offline card explains the state;
-        // an error state would replace readable content (issue #825). A revoked
-        // channel is the exception: it must never render from cache.
-        if (mountedRef.current && (accessRevoked || !cacheHydrated)) setError(toError(err))
+        if (!scopeAlive()) return
+        if (accessRevoked) {
+          // A revoked channel must never render from cache.
+          setError(toError(err))
+          return
+        }
+        // Give the (possibly slower) cache read a chance before failing the
+        // view: a fast header/roster failure must not send the player back to
+        // the Lobby while a readable snapshot exists.
+        await hydratePromise
+        if (scopeAlive() && !cacheHydrated) setError(toError(err))
       } finally {
-        if (mountedRef.current) setLoading(false)
+        if (scopeAlive()) setLoading(false)
       }
     }
 
@@ -328,7 +347,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     // already reports no connection. The first subscription after an offline
     // start runs it instead.
     const skippedInitialFetch = isOfflineNow()
-    void hydrateChannel()
+    const hydratePromise = hydrateChannel()
     if (!skippedInitialFetch) fetchChannelData()
 
     let firstSubscribe = true

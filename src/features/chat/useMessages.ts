@@ -251,6 +251,10 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     // mark the cached window stale once it paints.
     let networkFailed = false
     let cacheHydrated = false
+    // Newest saved message at hydration: the gap check compares against this,
+    // not the live list, so a realtime INSERT during the initial fetch cannot
+    // hide the gap.
+    let cachedNewestAt = ''
     let cacheWriteTimer: ReturnType<typeof setTimeout> | undefined
 
     function snapshotNow() {
@@ -299,6 +303,15 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         return parsed ? [parsed] : []
       })
       cacheHydrated = true
+      cachedNewestAt = rows.reduce((max, m) => (!max || m.created_at > max) ? m.created_at : max, '')
+      // A saved window was confirmed when it was written, but rows may have
+      // been edited or soft-deleted since. Start the edit reconcile from the
+      // newest saved updated_at so reconnect repairs them (#336).
+      const cachedNewestUpdate = rows.reduce<string | null>((max, m) => {
+        const updated = (m as { updated_at?: string | null }).updated_at ?? null
+        return updated && (!max || updated > max) ? updated : max
+      }, updatedCursorRef.current)
+      if (cachedNewestUpdate) updatedCursorRef.current = cachedNewestUpdate
       if (messagesRef.current.length === 0 && rows.length > 0) setMessages(rows)
       // Live reactions (a realtime event may have landed) win over cached ones.
       setReactions(prev => ({ ...(cached.value.reactions ?? {}), ...prev }))
@@ -331,12 +344,17 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           // A saved window that ends before this page begins leaves a gap no
           // later read fills (catch-up starts after the newest held row,
           // load-older before the oldest). Replace it with the contiguous page.
-          const held = messagesRef.current
-          const newestHeldAt = held.reduce((max, m) => (!max || m.created_at > max) ? m.created_at : max, '')
           const oldestFetchedAt = fetched[0]?.created_at ?? ''
-          const replacesGap = cacheHydrated && held.length > 0 && fetched.length > 0 && newestHeldAt < oldestFetchedAt
+          const replacesGap = cacheHydrated && Boolean(cachedNewestAt) && fetched.length > 0 && cachedNewestAt < oldestFetchedAt
           if (replacesGap) {
-            setMessages(fetched)
+            // Keep live rows that are already inside/after the fetched page;
+            // only the disconnected older window is dropped.
+            setMessages(prev => {
+              const kept = prev.filter(m => m.created_at >= oldestFetchedAt)
+              const fetchedIds = new Set(fetched.map(m => m.id))
+              return [...kept.filter(m => !fetchedIds.has(m.id)), ...fetched]
+                .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+            })
           } else {
             setMessages(prev => {
               const fetchedIds = new Set(fetched.map(message => message.id))

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthProvider, AuthContext, buildMagicLinkRedirect, isSafeRedirectPath } from './AuthContext'
 import { useContext } from 'react'
 import { supabase } from '../../lib/supabase'
-import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+import { clearAllSnapshots, readSnapshot, resumeCacheWrites, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -40,8 +40,10 @@ function TestComponent() {
 }
 
 describe('AuthContext', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     localStorage.clear()
     // Suppress console.error for expected errors
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -189,6 +191,9 @@ describe('AuthContext', () => {
   })
 
   it('renders the cached profile when the network fetch fails', async () => {
+    // A previous test may have purged this user; a new session lifts the
+    // tombstone (the provider mount does the same in production).
+    await resumeCacheWrites('user-456')
     await writeSnapshot('user-456', 'profile', { id: 'user-456', display_name: 'Cached Player' })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-456' } } },
@@ -216,6 +221,7 @@ describe('AuthContext', () => {
   })
 
   it('paints the saved profile while the network request hangs (#825)', async () => {
+    await resumeCacheWrites('user-123')
     await writeSnapshot('user-123', 'profile', { id: 'user-123', display_name: 'Saved Player' })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-123' } } },
@@ -613,7 +619,8 @@ describe('AuthContext', () => {
 
     const mockSingle = vi.fn()
       .mockRejectedValueOnce(new Error('DB error'))
-      .mockResolvedValueOnce({
+      // Every later attempt (including a duplicate auth event) succeeds.
+      .mockResolvedValue({
         data: { id: 'user-456', display_name: 'Recovered' },
         error: null,
       })
