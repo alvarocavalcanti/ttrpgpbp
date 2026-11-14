@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useMessages } from './useMessages'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
+import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -82,8 +83,10 @@ const validReaction = (overrides: Record<string, unknown> = {}) => ({
 })
 
 describe('useMessages', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
   })
 
@@ -169,7 +172,7 @@ describe('useMessages', () => {
     expect(onLoaded).toHaveBeenCalledTimes(1)
   })
 
-  it('refresh clears the error when messages are already held (catch-up pass)', async () => {
+  it('refresh clears the staleness marker when messages are already held (catch-up pass)', async () => {
     // #404: with held messages the refresh path runs the cursor catch-up and
     // never reaches fetchMessages — a successful pass must still clear the
     // error banner set by a failed mid-session load.
@@ -193,18 +196,21 @@ describe('useMessages', () => {
       expect(result.current.messages).toHaveLength(1)
     })
 
-    // Reconnect catch-up fails: the banner error sets while messages stay up.
+    // Reconnect catch-up fails: with messages held the view is marked stale
+    // instead of blanked by an error banner (issue #825).
     await act(async () => {
       emitStatus('SUBSCRIBED')
     })
     await waitFor(() => {
-      expect(result.current.error).toBeTruthy()
+      expect(result.current.stale).toBe(true)
     })
+    expect(result.current.error).toBeNull()
 
-    // Retry now runs a successful catch-up pass (nothing new): error clears.
+    // Retry now runs a successful catch-up pass (nothing new): the marker clears.
     await act(async () => {
       await result.current.refresh()
     })
+    expect(result.current.stale).toBe(false)
     expect(result.current.error).toBeNull()
     expect(result.current.messages).toHaveLength(1)
   })
@@ -2022,8 +2028,10 @@ describe('useMessages', () => {
 })
 
 describe('useMessages rooms (#621)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
   })
 
@@ -2128,5 +2136,236 @@ describe('useMessages rooms (#621)', () => {
 
     rerender({ sub: 'room-1' })
     await waitFor(() => expect(result.current.messages).toHaveLength(0))
+  })
+
+  it('shows offline-aware copy when a send fails with no connection (#825)', async () => {
+    mockFrom({
+      fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) })
+    })
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('Failed to fetch') } as any)
+    mockChannels()
+    window.dispatchEvent(new Event('offline'))
+
+    try {
+      const { result } = renderHook(() => useMessages('c1', null))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => {
+        await expect(result.current.sendMessage({ content: 'hi', type: 'regular' })).rejects.toThrow()
+      })
+
+      const failed = result.current.messages.find(m => m.pending)!
+      expect(failed.error).toBe("You're offline — not sent. Retry when you reconnect.")
+    } finally {
+      window.dispatchEvent(new Event('online'))
+    }
+  })
+
+  describe('offline cache (#825)', () => {
+    const cachedWindow = () => ({
+      messages: [baseMessage({ id: 'cached-1', content: 'Saved message' })],
+      reactions: {},
+    })
+
+    it('renders the cached window and marks it stale when the fetch fails', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', cachedWindow())
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['cached-1']))
+      expect(result.current.loading).toBe(false)
+      expect(result.current.error).toBeNull()
+      expect(result.current.stale).toBe(true)
+      expect(result.current.cachedAt).toBeTruthy()
+      expect(result.current.hasMore).toBe(false)
+    })
+
+    it('does not open the read-mark gate from cached history', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', cachedWindow())
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') })) }) }) })
+      mockChannels()
+
+      const onLoaded = vi.fn()
+      renderHook(() => useMessages('c1', null, onLoaded))
+      await waitFor(() => expect(onLoaded).not.toHaveBeenCalled())
+    })
+
+    it("keeps each room's window separate", async () => {
+      await writeSnapshot('u1', 'messages:c1:room-1', {
+        messages: [baseMessage({ id: 'room-msg', sub_channel_id: 'room-1' })],
+        reactions: {},
+      })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.error).toBeTruthy())
+      expect(result.current.messages).toHaveLength(0)
+    })
+
+    it('paints the cached window when the browser is offline', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', cachedWindow())
+      window.dispatchEvent(new Event('offline'))
+      try {
+        const { result } = renderHook(() => useMessages('c1', null))
+        await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['cached-1']))
+        expect(result.current.stale).toBe(true)
+        expect(result.current.cachedAt).toBeTruthy()
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
+
+    it('replaces a saved window with the contiguous newest page when they do not overlap', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({ id: 'old-1', created_at: '2023-01-01T00:00:00.000Z' })],
+        reactions: {},
+      })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({
+        data: [baseMessage({ id: 'new-1', created_at: '2023-03-01T00:00:00.000Z' })],
+        error: null,
+      })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['new-1']))
+    })
+
+    it('does not leave a hole when a live message lands during the initial fetch', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({ id: 'old-1', created_at: '2023-01-01T00:00:00.000Z' })],
+        reactions: {},
+      })
+      let resolveFetch!: (value: unknown) => void
+      const page = new Promise(resolve => { resolveFetch = resolve })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockReturnValue(page)) }) }) })
+      const { callbacks } = mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['old-1']))
+
+      // A realtime row newer than the page arrives while the page is in flight.
+      await act(async () => {
+        callbacks.messages({
+          eventType: 'INSERT',
+          new: baseMessage({ id: 'live-1', sender_id: null, created_at: '2023-04-01T00:00:00.000Z' }),
+          old: null,
+        })
+      })
+      await act(async () => {
+        resolveFetch({ data: [baseMessage({ id: 'new-1', created_at: '2023-03-01T00:00:00.000Z' })], error: null })
+        await Promise.resolve()
+      })
+
+      // The disconnected older window is dropped; the live row survives.
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['new-1', 'live-1']))
+    })
+
+    it('reconciles edits from the newest saved updated_at after reconnect', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({
+          id: 'm1',
+          created_at: '2023-01-01T00:00:00.000Z',
+          updated_at: '2023-02-02T00:00:00.000Z',
+        })],
+        reactions: {},
+      })
+      const initialLimit = vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') })
+      const empty = vi.fn().mockResolvedValue({ data: [], error: null })
+      const mockOr = vi.fn().mockReturnValue({ order: () => ({ order: () => ({ limit: empty }) }) })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({
+        order: makeOrder(initialLimit),
+        gt: () => ({ order: () => ({ limit: empty }) }),
+        or: mockOr,
+      }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['m1']))
+
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      // The edit reconcile starts from the saved window's updated_at, so edits
+      // made while offline are picked up.
+      expect(mockOr).toHaveBeenCalledWith('updated_at.gt.2023-02-02T00:00:00.000Z')
+    })
+
+    it('prunes cached reactions the server no longer returns', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [baseMessage({ id: 'm1' })],
+        reactions: { m1: [{ emoji: '👍', count: 1, hasReacted: true, userIds: ['u2'] }] },
+      })
+      // The server returns the message but no reactions (deleted while away).
+      mockFrom({
+        fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1' })], error: null })) }) }),
+        reactionsBuilder: () => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+      })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['m1']))
+      await waitFor(() => expect(result.current.reactions.m1).toBeUndefined())
+    })
+
+    it('survives a corrupt cached payload instead of crashing the timeline', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', { messages: 'not-an-array', reactions: null })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('Failed') })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.messages).toHaveLength(0)
+      expect(result.current.error).toBeTruthy()
+    })
+
+    it('drops malformed cached messages and keeps the rest', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', {
+        messages: [{ broken: true }, baseMessage({ id: 'cached-2', content: 'Kept' })],
+        reactions: {},
+      })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('Failed') })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['cached-2']))
+    })
+
+    it('persists confirmed rows but never an optimistic failed send', async () => {
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'm1', content: 'Server row' })], error: null })) }) }) })
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: new Error('Failed to fetch') } as any)
+      const { callbacks } = mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+      await waitFor(() => expect(result.current.messages.map(m => m.id)).toEqual(['m1']))
+
+      // A failed send leaves an optimistic, errored row in the list.
+      await act(async () => {
+        await expect(result.current.sendMessage({ content: 'optimistic', type: 'regular' })).rejects.toThrow()
+      })
+      expect(result.current.messages.some(m => m.content === 'optimistic' && m.error)).toBe(true)
+
+      // A live server row triggers the next snapshot write (debounced).
+      await act(async () => {
+        callbacks.messages({ eventType: 'INSERT', new: baseMessage({ id: 'm2', content: 'Live row', sender_id: null }), old: null })
+      })
+
+      await waitFor(async () => {
+        const cached = await readSnapshot<{ messages: { id: string }[] }>('u1', 'messages:c1:main')
+        expect(cached?.value.messages.map(m => m.id)).toContain('m2')
+      }, { timeout: 3000 })
+
+      const cached = await readSnapshot<{ messages: { content: string; pending?: boolean; error?: string | null }[] }>('u1', 'messages:c1:main')
+      expect(cached?.value.messages.every(m => !m.pending && !m.error)).toBe(true)
+      expect(cached?.value.messages.some(m => m.content === 'optimistic')).toBe(false)
+    })
   })
 })

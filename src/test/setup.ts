@@ -1,4 +1,7 @@
 import '@testing-library/jest-dom'
+// jsdom has no IndexedDB; the offline cache (issue #825) is exercised through
+// the standard in-memory implementation.
+import 'fake-indexeddb/auto'
 import { beforeAll, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { server } from './mocks/server'
 

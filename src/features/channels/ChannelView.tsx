@@ -23,6 +23,8 @@ import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { trackEvent } from '../../lib/analytics'
 import { channelRoomPath } from '../../lib/publicRoutes'
+import { channelTimestamp } from './lobbyFormat'
+import { isOfflineNow } from '../../lib/realtime'
 
 import { RollHistoryModal } from '../dice/RollHistoryModal'
 import { DiceRollerFab } from '../dice/DiceRollerFab'
@@ -108,11 +110,11 @@ export function ChannelView() {
   }, [id, subId])
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, waitForReads: waitForMainReads, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead, !subId)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage } = useMessages(id, subId ?? null, handleMessagesLoaded)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage, stale: messagesStale, cachedAt: messagesCachedAt } = useMessages(id, subId ?? null, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
-  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
+  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, confirmed: roomsConfirmed, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
   // Pending applications (#674): the GM Tools badge below, and the queue inside
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
@@ -255,13 +257,15 @@ export function ChannelView() {
   // stay readable, so they are not treated as unknown.
   const unknownRoomHandledRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!subId || roomsLoading || roomsError) return
+    // A cached room list (confirmed === false) cannot prove a room is gone —
+    // it may simply predate the room (issue #825).
+    if (!subId || roomsLoading || roomsError || roomsConfirmed === false) return
     if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) return
     if (unknownRoomHandledRef.current === subId) return
     unknownRoomHandledRef.current = subId
     addToast("That room no longer exists. You're back in Main.", 'error')
     navigate(`/channel/${id}`, { replace: true })
-  }, [subId, roomsLoading, roomsError, subChannels, archivedRooms, addToast, navigate, id])
+  }, [subId, roomsLoading, roomsError, roomsConfirmed, subChannels, archivedRooms, addToast, navigate, id])
 
   // Jump targets (search results, quoted replies) may sit outside the loaded
   // latest-50 window: load history pages until the target is rendered, then
@@ -503,10 +507,17 @@ export function ChannelView() {
   }
 
   if (error && !channel) {
+    const offline = isOfflineNow()
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-surface-50 dark:bg-surface-900 px-4">
-        <h2 className="text-xl font-medium text-surface-900 dark:text-surface-100 mb-2">Could not load this channel</h2>
-        <p className="text-surface-500 dark:text-surface-400 mb-6">There was a problem fetching this channel.</p>
+        <h2 className="text-xl font-medium text-surface-900 dark:text-surface-100 mb-2">
+          {offline ? 'Not available offline' : 'Could not load this channel'}
+        </h2>
+        <p className="text-surface-500 dark:text-surface-400 mb-6">
+          {offline
+            ? 'Open this channel once while connected and it will be readable offline.'
+            : 'There was a problem fetching this channel.'}
+        </p>
         <div className="flex gap-3">
           <button
             type="button"
@@ -695,9 +706,28 @@ export function ChannelView() {
           onUpdate={text => (subId ? patchRoomStatus(subId, text) : refetch())}
         />
 
-        {messagesError && (
+        {/* Issue #825: one quiet line when the timeline on screen came from
+            this device instead of the network. The long explanation lives in
+            the global connection card, not here. */}
+        {messagesStale && messagesCachedAt && messages.length > 0 && (
+          <div
+            role="status"
+            data-testid="saved-copy-notice"
+            className="px-4 py-1.5 sm:px-6 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-xs text-surface-600 dark:text-surface-300 truncate"
+          >
+            Showing saved messages · Last updated {channelTimestamp(messagesCachedAt)}
+          </div>
+        )}
+
+        {messagesError && messages.length === 0 && (
           <div className="px-4 py-2 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm flex items-center justify-between gap-3" role="alert">
-            <span>{messagesRetrying ? 'Retrying…' : 'Failed to load messages. Try again.'}</span>
+            <span>
+              {messagesRetrying
+                ? 'Retrying…'
+                : isOfflineNow()
+                  ? 'Not available offline. Open this channel once while connected.'
+                  : 'Failed to load messages. Try again.'}
+            </span>
             <button
               type="button"
               onClick={refreshMessages}

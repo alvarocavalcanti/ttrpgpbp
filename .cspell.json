@@ -164,6 +164,9 @@
     "subforum",
     "subreddits",
     "undercount",
-    "undercounting"
+    "undercounting",
+    "IDBPDatabase",
+    "indexeddb",
+    "fake-indexeddb"
   ]
 }

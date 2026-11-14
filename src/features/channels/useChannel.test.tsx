@@ -3,6 +3,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
+import { clearAllSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
+
+// Lets one test hold a cache read open to simulate a slow IndexedDB under a
+// channel switch; every other read passes straight through.
+const cacheGate = vi.hoisted(() => ({ deferred: null as Promise<void> | null }))
+vi.mock('../../lib/offlineCache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/offlineCache')>()
+  return {
+    ...actual,
+    readSnapshot: async (...args: Parameters<typeof actual.readSnapshot>) => {
+      if (cacheGate.deferred) await cacheGate.deferred
+      return actual.readSnapshot(...args)
+    },
+  }
+})
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 vi.mock('../auth/useAuth', () => ({
@@ -32,11 +47,20 @@ describe('useChannel', () => {
     return { select: mockSelectSecrets }
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // One case's snapshot must never hydrate the next.
+    await clearAllSnapshots()
     // clearAllMocks keeps implementations; restore the default success result
     // so tests that don't care about the read-mark see a clean slate.
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as any)
+    // Inert realtime channel, since a test may have replaced it with a
+    // SUBSCRIBED-emitting stub.
+    vi.mocked(supabase.channel).mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+      unsubscribe: vi.fn(),
+    } as any)
   })
 
   // Tests that override visibilityState define it as an own property on the
@@ -1316,5 +1340,185 @@ describe('useChannel', () => {
     // The return also bumps the revision so the divider re-anchors even if the
     // boundary value had not changed.
     expect(result.current.boundaryRevision).toBe(1)
+  })
+
+  describe('offline cache (#825)', () => {
+    const cachedChannel = () => ({
+      channel: { id: 'c1', gm_id: 'u1', name: 'Cached Channel' },
+      members: [{ id: 'm1', user_id: 'u1', channel_id: 'c1', profile: { display_name: 'Hero' } }],
+      gmOnlyResourcesUrl: null,
+      hasPassword: false,
+      lastReadAt: '2023-01-01T12:00:00Z',
+    })
+
+    it('renders the cached channel and roster when the fetch fails', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') {
+          return { select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') }) }) }) } as any
+        }
+        return {} as any
+      })
+
+      const { result } = renderHook(() => useChannel('c1'))
+
+      await waitFor(() => expect(result.current.channel?.name).toBe('Cached Channel'))
+      expect(result.current.members).toHaveLength(1)
+      expect(result.current.members[0].profile?.display_name).toBe('Hero')
+      expect(result.current.loading).toBe(false)
+      expect(result.current.error).toBeNull()
+      expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+    })
+
+    it('persists the fetched channel for the next offline open', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'c1', gm_id: 'u1', name: 'Live Channel' }, error: null })
+      const mockEqMembers = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single: mockSingle }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: mockEqMembers }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+
+      const { result } = renderHook(() => useChannel('c1'))
+      await waitFor(() => expect(result.current.channel?.name).toBe('Live Channel'))
+
+      await waitFor(async () => {
+        const cached = await readSnapshot<{ channel: { name: string } }>('u1', 'channel:c1')
+        expect(cached?.value.channel.name).toBe('Live Channel')
+      })
+    })
+
+    it('ignores a late revoked response from the previous channel', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      let resolveA!: (value: unknown) => void
+      const channelA = new Promise(resolve => { resolveA = resolve })
+      const single = vi.fn()
+        .mockReturnValueOnce(channelA)
+        .mockResolvedValue({ data: { id: 'c2', gm_id: 'u1', name: 'Channel B' }, error: null })
+      const memberEq = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: memberEq }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+
+      const { result, rerender } = renderHook(({ id }: { id: string }) => useChannel(id), { initialProps: { id: 'c1' } })
+      rerender({ id: 'c2' })
+      await waitFor(() => expect(result.current.channel?.name).toBe('Channel B'))
+
+      // The first channel's request finally answers "no row" while B is open.
+      await act(async () => {
+        resolveA({ data: null, error: { code: 'PGRST116', message: 'no rows' } })
+        await Promise.resolve()
+      })
+
+      expect(result.current.channel?.name).toBe('Channel B')
+      expect(result.current.error).toBeNull()
+    })
+
+    it('ignores a slow cache read that lands after a channel switch', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      let release!: () => void
+      cacheGate.deferred = new Promise<void>(resolve => { release = resolve })
+      const single = vi.fn().mockResolvedValue({ data: { id: 'c2', gm_id: 'u1', name: 'Channel B' }, error: null })
+      const memberEq = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: memberEq }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+
+      try {
+        const { result, rerender } = renderHook(({ id }: { id: string }) => useChannel(id), { initialProps: { id: 'c1' } })
+        rerender({ id: 'c2' })
+        await waitFor(() => expect(result.current.channel?.name).toBe('Channel B'))
+
+        // The first channel's cache read finally answers.
+        await act(async () => {
+          release()
+          await Promise.resolve()
+        })
+
+        expect(result.current.channel?.name).toBe('Channel B')
+      } finally {
+        cacheGate.deferred = null
+      }
+    })
+
+    it('loads the channel on the first subscription after an offline start', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'c1', gm_id: 'u1', name: 'Live Channel' }, error: null })
+      const mockEqMembers = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single: mockSingle }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: mockEqMembers }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+      // The connection returns and realtime subscribes.
+      vi.mocked(supabase.channel).mockReturnValue({
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockImplementation((cb: (status: string) => void) => {
+          cb('SUBSCRIBED')
+          return { unsubscribe: vi.fn() }
+        }),
+        unsubscribe: vi.fn(),
+      } as any)
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useChannel('c1'))
+        await waitFor(() => expect(result.current.channel?.name).toBe('Live Channel'))
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
+
+    it('drops the cached channel when access is gone while online', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') {
+          return { select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116', message: 'no rows' } }) }) }) } as any
+        }
+        return {} as any
+      })
+
+      const { result } = renderHook(() => useChannel('c1'))
+
+      await waitFor(() => expect(result.current.error).not.toBeNull())
+      await waitFor(async () => {
+        await expect(readSnapshot('u1', 'channel:c1')).resolves.toBeNull()
+      })
+    })
+
+    it('paints the cached channel when the browser is offline', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      // The first subscription after an offline start revalidates; this attempt
+      // fails without invalidating the cached channel.
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') {
+          return { select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') }) }) }) } as any
+        }
+        return {} as any
+      })
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useChannel('c1'))
+        await waitFor(() => expect(result.current.channel?.name).toBe('Cached Channel'))
+        expect(result.current.loading).toBe(false)
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
   })
 })

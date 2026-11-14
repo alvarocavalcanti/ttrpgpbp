@@ -7,6 +7,7 @@ import { ReConsentGate } from '../features/auth/ReConsentGate'
 import { Seo } from './Seo'
 import { LandingPage } from '../features/marketing/LandingPage'
 import { hasPersistedSession } from '../lib/authSessionHint'
+import { isOfflineNow } from '../lib/realtime'
 import { titleForPath } from '../lib/routeTitles'
 
 export function ProtectedRoute() {
@@ -18,10 +19,15 @@ export function ProtectedRoute() {
   // error only appears after the async load resolves, i.e. after hydration, so
   // this does not break the prerendered landing match.
   if (error) {
+    // Offline with no usable cached profile: name the cause instead of blaming
+    // the session (issue #825).
+    const offline = isOfflineNow()
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900" role="alert">
         <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 max-w-md text-center">
-          Failed to load your session. Please refresh the page or try signing in again.
+          {offline
+            ? "You're offline and your session needs to reconnect. Reconnect and reload to continue."
+            : 'Failed to load your session. Please refresh the page or try signing in again.'}
         </div>
       </div>
     )

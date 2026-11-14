@@ -17,6 +17,7 @@ import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { SignedImg } from '../../components/SignedImg'
 import { LinkifiedText } from '../../components/LinkifiedText'
 import { refreshAppBadge } from '../../lib/channelRead'
+import { isOfflineNow } from '../../lib/realtime'
 import { scrubSpoilers } from '../../lib/spoilerScrub'
 import { trackEvent } from '../../lib/analytics'
 import { MAX_CHANNELS_PER_USER, MAX_URL_LENGTH } from '../../constants'
@@ -342,10 +343,14 @@ export function Lobby() {
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-500"></div>
               </div>
-            ) : error ? (
-              <div className="flex justify-center items-center h-64" role="alert">
+            ) : error && myChannels.length === 0 ? (
+              <div className="flex justify-center items-center h-64 px-4" role="alert">
                 <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md px-6 py-4 text-sm text-red-700 dark:text-red-400 flex items-center gap-3">
-                  <span>Couldn't load channels.</span>
+                  <span>
+                    {isOfflineNow()
+                      ? "You're offline, and this device hasn't saved your channels yet. Connect once to load them."
+                      : "Couldn't load channels."}
+                  </span>
                   <button type="button" onClick={refetch} className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold hover:underline">Retry</button>
                 </div>
               </div>

@@ -1,14 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import { subscribeWithRetry } from '../../lib/realtime'
+import { isOfflineNow, subscribeWithRetry } from '../../lib/realtime'
+import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import { toError } from '../../lib/errors'
 import { SubChannelRowSchema, parseRow } from '../validation/rowSchemas'
 
 export type SubChannel = Database['public']['Tables']['sub_channels']['Row']
 
 export type RoomVisibility = 'all' | 'gm' | 'private'
+
+// Room tabs + private-room invites, as last rendered (issue #825).
+interface RoomsSnapshot {
+  rooms: SubChannel[]
+  roomMembers: Record<string, string[]>
+}
 
 // Per-room capability flags (#621 Phase 2). All default true.
 export interface RoomCapabilities {
@@ -27,7 +34,19 @@ export function useSubChannels(channelId: string | undefined) {
   const [rooms, setRooms] = useState<SubChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  // True once a network fetch has confirmed the room list for this channel.
+  // Cached (or never-fetched) lists cannot prove a room was deleted, so the
+  // caller must not treat a missing id as "no longer exists" until then
+  // (issue #825).
+  const [confirmed, setConfirmed] = useState(false)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
+  // The debounced writer may only persist a list this scope has actually
+  // loaded. Without it, a slow cache read plus a failed fetch would overwrite a
+  // good snapshot with the initial empty state (issue #825 review).
+  const canPersistRef = useRef(false)
+  // True while the private-room invite map for the room list on screen is still
+  // loading; the debounced writer must not save a mismatched audience.
+  const invitesPendingRef = useRef(false)
 
   // Invited user ids per private room (#621 Phase 3).
   const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
@@ -38,7 +57,9 @@ export function useSubChannels(channelId: string | undefined) {
     let mounted = true
     // Drop a previous channel's rooms on route change (this hook stays mounted).
     setRooms([])
+    canPersistRef.current = false
     setError(null)
+    setConfirmed(false)
     setLoading(true)
 
     if (!channelId || !user?.id) {
@@ -46,7 +67,41 @@ export function useSubChannels(channelId: string | undefined) {
       return
     }
 
+    // A late cache read must not overwrite rows the network already rendered.
+    let networkApplied = false
+    let cacheHydrated = false
+    // Narrowed once for the nested async callbacks below, where TypeScript
+    // cannot carry the early-return narrowing.
+    const activeChannelId = channelId
+    const activeUserId = user.id
+
+    async function hydrateRooms() {
+      const cached = await readSnapshot<RoomsSnapshot>(activeUserId, `rooms:${activeChannelId}`)
+      if (!cached || !mounted || networkApplied) {
+        // Nothing saved and no connection: settle the strip's loading state.
+        if (!cached && mounted && !networkApplied && isOfflineNow()) setLoading(false)
+        return
+      }
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedRows = Array.isArray(cached.value.rooms) ? cached.value.rooms : []
+      const rooms = cachedRows.flatMap(row => {
+        const room = parseRow(SubChannelRowSchema, row)
+        return room ? [room as SubChannel] : []
+      })
+      cacheHydrated = true
+      canPersistRef.current = true
+      setRooms(rooms)
+      const cachedMembers = cached.value.roomMembers
+      setRoomMembers(cachedMembers && typeof cachedMembers === 'object' ? cachedMembers : {})
+      // An empty cached strip cannot stand in for a failed fetch; keep the tab
+      // bar's retry state in that case.
+      if (rooms.length > 0) setError(null)
+      setLoading(false)
+    }
+
     async function fetchRooms() {
+      let roomListPublished = false
       try {
         const { data, error } = await supabase
           .from('sub_channels')
@@ -59,12 +114,21 @@ export function useSubChannels(channelId: string | undefined) {
           const room = parseRow(SubChannelRowSchema, row)
           return room ? [room as SubChannel] : []
         })
-        if (mounted) setRooms(parsed)
+        if (!mounted) return
+        networkApplied = true
+        roomListPublished = true
+        invitesPendingRef.current = parsed.length > 0
+        setRooms(parsed)
+        setConfirmed(true)
 
         // Invited members per room (only meaningful for 'private').
         const ids = parsed.map(r => r.id)
         if (ids.length === 0) {
-          if (mounted) setRoomMembers({})
+          if (!mounted) return
+          invitesPendingRef.current = false
+          setRoomMembers({})
+          canPersistRef.current = true
+          void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms: parsed, roomMembers: {} } satisfies RoomsSnapshot)
           return
         }
         const { data: memberRows, error: memberError } = await supabase
@@ -72,20 +136,36 @@ export function useSubChannels(channelId: string | undefined) {
           .select('sub_channel_id, user_id')
           .in('sub_channel_id', ids)
         if (memberError) throw memberError
+        if (!mounted) return
+        invitesPendingRef.current = false
         const byRoom: Record<string, string[]> = {}
         for (const m of memberRows ?? []) {
           ;(byRoom[m.sub_channel_id] ??= []).push(m.user_id)
         }
-        if (mounted) setRoomMembers(byRoom)
+        if (mounted) {
+          setRoomMembers(byRoom)
+          canPersistRef.current = true
+          // Persist only after the invite map is known, or private rooms would
+          // reopen with nobody checked.
+          void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms: parsed, roomMembers: byRoom } satisfies RoomsSnapshot)
+        }
       } catch (err) {
         console.error('Error fetching rooms:', err)
-        if (mounted) setError(toError(err))
+        // If the room list published but its invite map failed, stay blocked:
+        // saving the new list with the previous map would restore the wrong
+        // private-room audience.
+        if (!roomListPublished) invitesPendingRef.current = false
+        // Cached tabs keep working offline; the card explains the state.
+        if (mounted && !cacheHydrated) setError(toError(err))
       } finally {
         if (mounted) setLoading(false)
       }
     }
 
-    fetchRooms()
+    // Offline start: the first subscription is the first chance to load.
+    const skippedInitialFetch = isOfflineNow()
+    void hydrateRooms()
+    if (!skippedInitialFetch) fetchRooms()
 
     let firstSubscribe = true
     const realtimeChannel = supabase
@@ -142,8 +222,12 @@ export function useSubChannels(channelId: string | undefined) {
       )
     const stopRealtime = subscribeWithRetry(realtimeChannel, `channel:${channelId}:rooms`, (status) => {
       if (mounted && status === 'SUBSCRIBED') {
-        if (firstSubscribe) firstSubscribe = false
-        else void fetchRooms()
+        if (firstSubscribe) {
+          firstSubscribe = false
+          if (skippedInitialFetch) void fetchRooms()
+        } else {
+          void fetchRooms()
+        }
       }
     })
 
@@ -251,8 +335,25 @@ export function useSubChannels(channelId: string | undefined) {
     setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, status_text: next } : r)))
   }, [])
 
+  // Keep the cached room strip fresh after realtime changes and GM edits, not
+  // just after a fetch, so the next offline open reflects the last seen state.
+  useEffect(() => {
+    if (!channelId || !user?.id) return
+    const activeChannelId = channelId
+    const activeUserId = user.id
+    let active = true
+    const timer = setTimeout(() => {
+      if (!active || !canPersistRef.current || invitesPendingRef.current) return
+      void writeSnapshot(activeUserId, `rooms:${activeChannelId}`, { rooms, roomMembers } satisfies RoomsSnapshot)
+    }, 500)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [channelId, user?.id, rooms, roomMembers])
+
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, roomMembers, loading, error, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, confirmed, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
 }
