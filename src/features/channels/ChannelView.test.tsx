@@ -3870,3 +3870,113 @@ describe('ChannelView rooms (#621)', () => {
     expect(screen.getByText('Room two')).toBeInTheDocument()
   })
 })
+
+describe('ChannelView offline reading (#825)', () => {
+  const renderChannel = () => render(
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/channel/c1']}>
+        <Routes>
+          <Route path="/channel/:id" element={<ChannelView />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
+  )
+
+  const baseChannel = {
+    id: 'c1', name: 'Saved Channel', gm_id: 'gm1', avatar_url: null,
+    is_archived: false, game_system: 'generic', status_text: null,
+  }
+
+  beforeEach(() => {
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false, alertCount: 0, catchUpError: false,
+      retryCatchUp: vi.fn(), dismissAlert: vi.fn(), triggerXCard: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: baseChannel,
+      members: [{ id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' },
+      gmOnlyResourcesUrl: null, lastReadAt: null, refetch: vi.fn(),
+      waitForReads: vi.fn().mockResolvedValue(undefined),
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(), favoriteMessages: [], isFavorite: () => false,
+      toggleFavorite: vi.fn(), patchFavoriteMessage: vi.fn(), loading: false, error: null, refetch: vi.fn(),
+    } as any)
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage: vi.fn().mockResolvedValue(null) } as any)
+  })
+
+  it('shows one quiet line with the saved-copy time while stale', () => {
+    const savedAt = new Date()
+    savedAt.setHours(12, 4, 0, 0)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'saved', type: 'regular', sender_id: 'user1' }],
+      reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false,
+      stale: true, cachedAt: savedAt.toISOString(),
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(), addReaction: vi.fn(), removeReaction: vi.fn(),
+      toggleReaction: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    } as any)
+
+    renderChannel()
+
+    const notice = screen.getByTestId('saved-copy-notice')
+    expect(notice).toHaveTextContent('Showing saved messages · Last updated 12:04')
+    // Details live in the global connection card, not here.
+    expect(within(notice).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('hides the saved-copy line once the network confirms the window', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'fresh', type: 'regular', sender_id: 'user1' }],
+      reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false,
+      stale: false, cachedAt: null,
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(), addReaction: vi.fn(), removeReaction: vi.fn(),
+      toggleReaction: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    } as any)
+
+    renderChannel()
+
+    expect(screen.queryByTestId('saved-copy-notice')).not.toBeInTheDocument()
+  })
+
+  it('explains that a never-opened channel is unavailable offline', () => {
+    window.dispatchEvent(new Event('offline'))
+    try {
+      vi.mocked(useMessages).mockReturnValue({
+        messages: [], reactions: {}, loading: false,
+        error: new Error('Not available offline.'), hasMore: false, loadingOlder: false,
+        stale: false, cachedAt: null,
+        sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(),
+        sendDiceRoll: vi.fn(), addReaction: vi.fn(), removeReaction: vi.fn(),
+        toggleReaction: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+      } as any)
+
+      renderChannel()
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Not available offline. Open this channel once while connected.')
+      expect(screen.getByRole('button', { name: 'Retry loading messages' })).toBeInTheDocument()
+    } finally {
+      window.dispatchEvent(new Event('online'))
+    }
+  })
+
+  it('renders a cached channel without the loading skeleton', () => {
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'cached', type: 'regular', sender_id: 'user1' }],
+      reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false,
+      stale: true, cachedAt: new Date().toISOString(),
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(),
+      sendDiceRoll: vi.fn(), addReaction: vi.fn(), removeReaction: vi.fn(),
+      toggleReaction: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    } as any)
+
+    renderChannel()
+
+    expect(screen.queryByTestId('message-skeletons')).not.toBeInTheDocument()
+    expect(screen.getByText('Saved Channel')).toBeInTheDocument()
+  })
+})

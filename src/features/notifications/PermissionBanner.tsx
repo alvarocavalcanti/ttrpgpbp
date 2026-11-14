@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { usePushNotifications } from '../notifications/usePushNotifications'
+import { isOfflineNow } from '../../lib/realtime'
 
 const DISMISS_KEY = 'notifications:banner-dismissed'
 
@@ -30,7 +31,8 @@ export function PermissionBanner() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (!user || dismissed || !isConfigured || !isSupported || needsInstall || permission !== 'default' || isSubscribed) {
+  // Subscribing needs the network; prompting while offline cannot succeed.
+  if (!user || dismissed || !isConfigured || !isSupported || needsInstall || permission !== 'default' || isSubscribed || isOfflineNow()) {
     return null
   }
 

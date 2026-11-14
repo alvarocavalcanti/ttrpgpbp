@@ -95,6 +95,22 @@ describe('PermissionBanner', () => {
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })
 
+  it('renders nothing while offline because subscribing needs the network (#825)', () => {
+    vi.mocked(usePushNotifications).mockReturnValue({
+      isConfigured: true, isSupported: true,
+      permission: 'default',
+      isSubscribed: false,
+      subscribeToPush: vi.fn()
+    } as any)
+    window.dispatchEvent(new Event('offline'))
+    try {
+      render(<PermissionBanner />)
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    } finally {
+      window.dispatchEvent(new Event('online'))
+    }
+  })
+
   it('renders banner when eligible', () => {
     vi.mocked(usePushNotifications).mockReturnValue({
       isConfigured: true, isSupported: true,

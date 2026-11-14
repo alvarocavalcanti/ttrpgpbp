@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useChannel } from './useChannel'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
+import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 vi.mock('../auth/useAuth', () => ({
@@ -1316,5 +1317,87 @@ describe('useChannel', () => {
     // The return also bumps the revision so the divider re-anchors even if the
     // boundary value had not changed.
     expect(result.current.boundaryRevision).toBe(1)
+  })
+
+  describe('offline cache (#825)', () => {
+    const cachedChannel = () => ({
+      channel: { id: 'c1', gm_id: 'u1', name: 'Cached Channel' },
+      members: [{ id: 'm1', user_id: 'u1', channel_id: 'c1', profile: { display_name: 'Hero' } }],
+      gmOnlyResourcesUrl: null,
+      hasPassword: false,
+      lastReadAt: '2023-01-01T12:00:00Z',
+    })
+
+    it('renders the cached channel and roster when the fetch fails', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') {
+          return { select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') }) }) }) } as any
+        }
+        return {} as any
+      })
+
+      const { result } = renderHook(() => useChannel('c1'))
+
+      await waitFor(() => expect(result.current.channel?.name).toBe('Cached Channel'))
+      expect(result.current.members).toHaveLength(1)
+      expect(result.current.members[0].profile?.display_name).toBe('Hero')
+      expect(result.current.loading).toBe(false)
+      expect(result.current.error).toBeNull()
+      expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
+    })
+
+    it('persists the fetched channel for the next offline open', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'c1', gm_id: 'u1', name: 'Live Channel' }, error: null })
+      const mockEqMembers = vi.fn().mockResolvedValue({ data: [{ id: 'm1', user_id: 'u1' }], error: null })
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') return { select: () => ({ eq: () => ({ single: mockSingle }) }) } as any
+        if (table === 'channel_members') return { select: () => ({ eq: mockEqMembers }) } as any
+        if (table === 'channel_secrets') return mockSecret() as any
+        return {} as any
+      })
+
+      const { result } = renderHook(() => useChannel('c1'))
+      await waitFor(() => expect(result.current.channel?.name).toBe('Live Channel'))
+
+      await waitFor(async () => {
+        const cached = await readSnapshot<{ channel: { name: string } }>('u1', 'channel:c1')
+        expect(cached?.value.channel.name).toBe('Live Channel')
+      })
+    })
+
+    it('drops the cached channel when access is gone while online', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'channels') {
+          return { select: () => ({ eq: () => ({ single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116', message: 'no rows' } }) }) }) } as any
+        }
+        return {} as any
+      })
+
+      const { result } = renderHook(() => useChannel('c1'))
+
+      await waitFor(() => expect(result.current.error).not.toBeNull())
+      await waitFor(async () => {
+        await expect(readSnapshot('u1', 'channel:c1')).resolves.toBeNull()
+      })
+    })
+
+    it('skips the doomed fetch when the browser is offline', async () => {
+      await writeSnapshot('u1', 'channel:c1', cachedChannel())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useChannel('c1'))
+        await waitFor(() => expect(result.current.channel?.name).toBe('Cached Channel'))
+        expect(supabase.from).not.toHaveBeenCalled()
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
   })
 })

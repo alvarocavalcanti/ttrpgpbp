@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useSubChannels } from './useSubChannels'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
+import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn(),
@@ -316,5 +317,75 @@ describe('useSubChannels', () => {
     expect(args.p_allow_scenes).toBeUndefined()
     expect(args.p_allow_npc).toBeUndefined()
     expect(args.p_allow_whispers).toBeUndefined()
+  })
+
+  describe('offline cache (#825)', () => {
+    const cachedRooms = () => ({
+      rooms: [room({ id: 'r1', name: 'Cached OOC' }), room({ id: 'r2', name: 'Private', visibility: 'private' })],
+      roomMembers: { r2: ['u2'] },
+    })
+
+    it('renders cached rooms without waiting for the network', async () => {
+      await writeSnapshot('u1', 'rooms:c1', cachedRooms())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const list = mockList(null, new Error('Failed to fetch'))
+      vi.mocked(supabase.from).mockReturnValue({ select: list.select } as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+
+      await waitFor(() => expect(result.current.subChannels).toHaveLength(2))
+      expect(result.current.subChannels[0].name).toBe('Cached OOC')
+      expect(result.current.roomMembers.r2).toEqual(['u2'])
+      expect(result.current.error).toBeNull()
+      expect(result.current.loading).toBe(false)
+    })
+
+    it('persists rooms and invites after a successful fetch', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const list = mockList([room({ id: 'r1', name: 'Live OOC' })])
+      vi.mocked(supabase.from).mockImplementation(((table: string) => {
+        if (table === 'sub_channel_members') {
+          return { select: () => ({ in: () => Promise.resolve({ data: [{ sub_channel_id: 'r1', user_id: 'u2' }], error: null }) }) }
+        }
+        return { select: list.select }
+      }) as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+      await waitFor(() => expect(result.current.subChannels).toHaveLength(1))
+
+      await waitFor(async () => {
+        const cached = await readSnapshot<{ rooms: { name: string }[]; roomMembers: Record<string, string[]> }>('u1', 'rooms:c1')
+        expect(cached?.value.rooms[0].name).toBe('Live OOC')
+        expect(cached?.value.roomMembers.r1).toEqual(['u2'])
+      })
+    })
+
+    it('skips the doomed fetch when the browser is offline', async () => {
+      await writeSnapshot('u1', 'rooms:c1', cachedRooms())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useSubChannels('c1'))
+        await waitFor(() => expect(result.current.subChannels).toHaveLength(2))
+        expect(supabase.from).not.toHaveBeenCalled()
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
+
+    it('drops malformed cached rows and keeps the rest of the strip', async () => {
+      await writeSnapshot('u1', 'rooms:c1', {
+        rooms: [{ name: 'broken' }, room({ id: 'r1', name: 'Valid Room' })],
+        roomMembers: {},
+      })
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      vi.mocked(supabase.from).mockReturnValue({ select: mockList(null, new Error('Failed')).select } as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+
+      await waitFor(() => expect(result.current.subChannels).toHaveLength(1))
+      expect(result.current.subChannels[0].name).toBe('Valid Room')
+    })
   })
 })

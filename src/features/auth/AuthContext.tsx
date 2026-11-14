@@ -5,6 +5,7 @@ import { ProfileRowSchema, parseRow } from '../validation/rowSchemas'
 import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSession, signInWithGoogle as apiSignInWithGoogle, signInWithOtp as apiSignInWithOtp, subscribeToAuthEvents } from './authApi'
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import type { Database } from '../../types/database'
+import { clearUserSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
 // status comes from the is_server_admin() RPC via useIsServerAdmin.
@@ -76,13 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function fetchProfile(userId: string) {
       try {
-        const { data } = await fetchProfileRow(userId)
-
-        if (mounted) setProfile(parseRow(ProfileRowSchema, data) as Profile | null)
+        const { data, error: fetchError } = await fetchProfileRow(userId)
+        if (fetchError) throw fetchError
+        const parsed = parseRow(ProfileRowSchema, data) as Profile | null
+        // A signed-in account always has a profile row (created by trigger); a
+        // missing/malformed one is a fetch failure, not a reason to spin.
+        if (!parsed) throw new Error('Profile row was missing or malformed.')
+        if (mounted) setProfile(parsed)
+        void writeSnapshot(userId, 'profile', parsed)
       } catch (err) {
-        // Preserve any previously-loaded profile so a transient fetch failure
-        // doesn't wipe the UI (UX#16); a later auth event retries it.
+        // Offline (issue #825): serve the last profile saved on this device so
+        // a cold start can render the app instead of a spinner. The fatal error
+        // only stands when this device has never cached a profile.
         console.error('Error fetching profile:', err)
+        const cached = await readSnapshot<Profile>(userId, 'profile')
+        if (cached && mounted && lastFetchedUserId.current === userId) {
+          setProfile(cached.value)
+          return
+        }
         if (mounted) setError(err as Error)
       }
     }
@@ -125,6 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // for the new identity from consent it never gave.
             localStorage.removeItem('age-confirmed')
             localStorage.removeItem(TERMS_AGREED_KEY)
+            // The offline cache is user-scoped; the previous account's snapshots
+            // must not linger on a shared device.
+            void clearUserSnapshots(lastFetchedUserId.current)
           }
           // Skip refetch unless the user actually changed (e.g. TOKEN_REFRESHED
           // fires hourly and on tab refocus with the same identity).
@@ -165,7 +180,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // the ref, an account switch points it at the new id — either way the
       // stale response would otherwise overwrite the newer profile state.
       if (lastFetchedUserId.current !== userId) return
-      setProfile(parseRow(ProfileRowSchema, data) as Profile | null)
+      const parsed = parseRow(ProfileRowSchema, data) as Profile | null
+      setProfile(parsed)
+      if (parsed) void writeSnapshot(userId, 'profile', parsed)
     } catch (err) {
       // Keep the previously-loaded profile so a transient failure doesn't
       // wipe the UI (mirrors fetchProfile's resilience, UX#16).
@@ -262,7 +279,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // agreed to.
     localStorage.removeItem('age-confirmed')
     localStorage.removeItem(TERMS_AGREED_KEY)
-    await authSignOut()
+    // Signing out while offline still clears the local session, so the cached
+    // snapshots must go too. Purge before and after the sign-out: a room
+    // timeline that unmounts during the auth change flushes one last debounced
+    // write, and the second purge catches it.
+    const signedOutUserId = lastFetchedUserId.current
+    if (signedOutUserId) await clearUserSnapshots(signedOutUserId)
+    try {
+      await authSignOut()
+    } finally {
+      if (signedOutUserId) await clearUserSnapshots(signedOutUserId)
+    }
   }, [])
 
   const value = useMemo(

@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-14
+
+### Added
+
+- **Read your games offline** — once you have opened a channel, its rooms and recent messages stay readable when the connection drops, in the installed app and in a browser tab. A small card tells you when you are offline or reconnecting; tap **Details** to see what is available, and the timeline notes when your saved copy was last updated. New messages, edits, and reactions sync when you reconnect. If the app was closed when a notification arrived, reconnect briefly and the channel catches up on its own. Sending still needs a connection: a message sent while offline shows **Retry** and your text stays in the composer.
+
 ## 2026-11-13
 
 ### Added

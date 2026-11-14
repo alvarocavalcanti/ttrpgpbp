@@ -4,6 +4,7 @@ import { useChannels } from './useChannels'
 import { useAuth } from '../auth/useAuth'
 import { supabase } from '../../lib/supabase'
 import { reportRealtimeStatus, clearRealtimeStatus } from '../../lib/realtime'
+import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: vi.fn()
@@ -723,5 +724,87 @@ describe('useChannels', () => {
     expect(result.current.myChannels[0].unread_count).toBe(2)
     expect(result.current.myChannels[0].last_message_preview).toBeNull()
     expect(errorSpy).toHaveBeenCalled()
+  })
+
+  describe('offline cache (#825)', () => {
+    const cachedLobby = () => ({
+      channels: [{
+        ...validChannel({ id: 'c1', name: 'Cached Channel' }),
+        last_message_at: '2023-01-02T00:00:00Z',
+        last_message_preview: 'Saved preview',
+        member: validMember({ id: 'member-1', user_id: 'user-1', channel_id: 'c1' }),
+        unread_count: 3,
+      }],
+    })
+
+    it('renders the cached lobby without waiting for the network', async () => {
+      await writeSnapshot('user-1', 'lobby', cachedLobby())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+      // A request that never settles: only the cache can produce rows.
+      vi.mocked(supabase.from).mockReturnValue(createChain(new Promise(() => {})) as any)
+      mockLobbyRpcs()
+
+      const { result } = renderHook(() => useChannels())
+
+      await waitFor(() => expect(result.current.myChannels).toHaveLength(1))
+      expect(result.current.myChannels[0].name).toBe('Cached Channel')
+      expect(result.current.myChannels[0].unread_count).toBe(3)
+      expect(result.current.loading).toBe(false)
+      expect(result.current.error).toBeNull()
+    })
+
+    it('keeps cached rows and stays error-free when the fetch fails', async () => {
+      await writeSnapshot('user-1', 'lobby', cachedLobby())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+      vi.mocked(supabase.from).mockReturnValue(createChain({ data: null, error: new Error('Failed to fetch') }) as any)
+
+      const { result } = renderHook(() => useChannels())
+
+      await waitFor(() => expect(result.current.myChannels).toHaveLength(1))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.error).toBeNull()
+      expect(result.current.myChannels[0].name).toBe('Cached Channel')
+    })
+
+    it('writes the rendered lobby to the cache and prunes revoked channels', async () => {
+      await writeSnapshot('user-1', 'channel:gone', { name: 'Gone' })
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+      vi.mocked(supabase.from).mockImplementation((table) => {
+        if (table === 'channel_members') {
+          return createChain({ data: fillRows([{
+            id: 'member-1', channel_id: 'c1', user_id: 'user-1',
+            channel: { id: 'c1', name: 'My Channel' },
+          }]), error: null }) as any
+        }
+        return {} as any
+      })
+      mockLobbyRpcs({ unread: [{ channel_id: 'c1', unread_count: 0 }] })
+
+      const { result } = renderHook(() => useChannels())
+      await waitFor(() => expect(result.current.myChannels).toHaveLength(1))
+
+      await waitFor(async () => {
+        const cached = await readSnapshot<{ channels: { name: string }[] }>('user-1', 'lobby')
+        expect(cached?.value.channels[0].name).toBe('My Channel')
+      })
+      await waitFor(async () => {
+        await expect(readSnapshot('user-1', 'channel:gone')).resolves.toBeNull()
+      })
+    })
+
+    it('skips the doomed first fetch when the browser is offline', async () => {
+      await writeSnapshot('user-1', 'lobby', cachedLobby())
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+      vi.mocked(supabase.from).mockReturnValue(createChain({ data: [], error: null }) as any)
+      window.dispatchEvent(new Event('offline'))
+
+      try {
+        const { result } = renderHook(() => useChannels())
+        await waitFor(() => expect(result.current.myChannels).toHaveLength(1))
+        expect(supabase.from).not.toHaveBeenCalled()
+      } finally {
+        window.dispatchEvent(new Event('online'))
+      }
+    })
   })
 })
