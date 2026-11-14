@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthProvider, AuthContext, buildMagicLinkRedirect, isSafeRedirectPath } from './AuthContext'
 import { useContext } from 'react'
 import { supabase } from '../../lib/supabase'
+import { readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -184,6 +185,138 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user')).toHaveTextContent('user-456')
       expect(screen.getByTestId('profile')).toHaveTextContent('no-profile')
       expect(screen.getByTestId('error')).toHaveTextContent('error')
+    })
+  })
+
+  it('renders the cached profile when the network fetch fails', async () => {
+    await writeSnapshot('user-456', 'profile', { id: 'user-456', display_name: 'Cached Player' })
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-456' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    const mockSingle = vi.fn().mockRejectedValue(new Error('Failed to fetch'))
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    expect(screen.getByTestId('profile')).toHaveTextContent('Cached Player')
+    expect(screen.getByTestId('error')).toHaveTextContent('no-error')
+  })
+
+  it('writes the profile to the offline cache after a successful fetch', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    await waitFor(async () => {
+      const cached = await readSnapshot<{ display_name: string }>('user-123', 'profile')
+      expect(cached?.value.display_name).toBe('Test User')
+    })
+  })
+
+  it('clears the signed-in user snapshot on sign-out', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    await waitFor(async () => {
+      expect((await readSnapshot('user-123', 'profile'))?.value).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByText('Sign Out'))
+
+    await waitFor(async () => {
+      await expect(readSnapshot('user-123', 'profile')).resolves.toBeNull()
+    })
+  })
+
+  it('clears the previous account snapshot on an account switch', async () => {
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-123' } } },
+      error: null,
+    } as any)
+
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+    await waitFor(async () => {
+      expect((await readSnapshot('user-123', 'profile'))?.value).toBeTruthy()
+    })
+
+    authCallback('SIGNED_IN', { user: { id: 'user-456' } })
+
+    await waitFor(async () => {
+      await expect(readSnapshot('user-123', 'profile')).resolves.toBeNull()
     })
   })
 

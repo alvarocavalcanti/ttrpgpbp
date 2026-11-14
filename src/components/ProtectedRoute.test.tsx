@@ -143,6 +143,36 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
   })
 
+  it('names the connection when a session error happens offline (#825)', () => {
+    window.dispatchEvent(new Event('offline'))
+    vi.mocked(useAuth).mockReturnValue({
+      loading: false,
+      user: null,
+      profile: null,
+      session: null,
+      error: new Error('Failed to fetch'),
+      signInWithGoogle: vi.fn(),
+      signInWithEmail: vi.fn(),
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+      termsConfirmState: 'idle',
+      retryTermsConfirm: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<ProtectedRoute />}>
+            <Route index element={<div data-testid="protected-content" />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/You're offline and your session needs to reconnect/)
+    window.dispatchEvent(new Event('online'))
+  })
+
   it('shows the session error at / rather than the landing page', () => {
     vi.mocked(useAuth).mockReturnValue({
       loading: false,

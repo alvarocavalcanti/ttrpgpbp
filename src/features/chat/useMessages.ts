@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
 import type { ChatMessage, MessageSendPayload } from './types'
-import { subscribeWithRetry } from '../../lib/realtime'
+import { isOfflineNow, subscribeWithRetry } from '../../lib/realtime'
+import { CACHE_LIMITS, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import { MAX_MESSAGE_LENGTH, MAX_ROLL_WARNING_LENGTH } from '../../constants'
 import { parseServerMessage, ReactionRowSchema } from './validation'
 import { toError } from '../../lib/errors'
@@ -28,6 +29,47 @@ type Message = ChatMessage
 // Latest-N pagination: only a bounded window of history is held in memory;
 // older pages load on demand (C5).
 const PAGE_SIZE = 50
+
+// Coalesce snapshot writes: a burst of realtime inserts should cost one write,
+// not one per message. The timer is flushed on unmount so switching rooms right
+// after a message does not lose it.
+const CACHE_WRITE_DELAY_MS = 1000
+
+// The failed-send copy players see while offline. The browser already reports
+// the condition, so the raw transport error ("Failed to fetch") never surfaces.
+export const OFFLINE_SEND_ERROR = "You're offline — not sent. Retry when you reconnect."
+
+// What a room's timeline keeps on this device (issue #825). Server rows only:
+// optimistic rows carry pending payloads that must never outlive a session.
+interface MessagesSnapshot {
+  messages: Message[]
+  reactions: Record<string, ReactionSummary[]>
+}
+
+function cacheableMessages(messages: Message[]): Message[] {
+  return messages
+    .filter(m => !m.pending && !m.error)
+    .slice(-CACHE_LIMITS.messagesPerRoom)
+    .map(m => {
+      const copy = { ...m }
+      delete copy.pending
+      delete copy.pending_payload
+      delete copy.error
+      // The row column is required (string | null), so null it instead of
+      // deleting; a retry must never reuse a stale request id from the cache.
+      copy.client_request_id = null
+      return copy
+    })
+}
+
+function cacheableReactions(reactions: Record<string, ReactionSummary[]>, messages: Message[]) {
+  const ids = new Set(messages.map(m => m.id))
+  const kept: Record<string, ReactionSummary[]> = {}
+  for (const [messageId, list] of Object.entries(reactions)) {
+    if (ids.has(messageId)) kept[messageId] = list
+  }
+  return kept
+}
 
 // PostgREST can't embed self-referencing FKs via hint or bare embed, so we use
 // the `reply_message` computed relationship function (see migration
@@ -106,6 +148,10 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
   const [loadingOlder, setLoadingOlder] = useState(false)
   // True while a manual refresh (Retry button) is in flight (#412).
   const [retrying, setRetrying] = useState(false)
+  // The window on screen came from the offline cache and no network read has
+  // confirmed it yet (#825); `cachedAt` is when that copy was saved.
+  const [stale, setStale] = useState(false)
+  const [cachedAt, setCachedAt] = useState<string | null>(null)
 
   // Live view of messages so async catch-up can compute the newest held row
   // without stale-closure reads inside the subscribe effect (same pattern as
@@ -167,6 +213,10 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
   // (#412).
   const catchUpRef = useRef<() => Promise<void>>(async () => {})
 
+  // Assigned inside the channel effect so send/load-older (declared outside it)
+  // can coalesce a snapshot write after their state change (#825).
+  const scheduleCacheWriteRef = useRef<() => void>(() => {})
+
   useEffect(() => {
     let mounted = true
     // Drop any state from a previous channel (route change keeps this hook
@@ -175,12 +225,85 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     setReactions({})
     setHasMore(false)
     setError(null)
+    setStale(false)
+    setCachedAt(null)
     setLoading(true)
     updatedCursorRef.current = null
 
     if (!channelId) {
       setLoading(false)
       return
+    }
+
+    // Narrowed once for the nested async callbacks below, where TypeScript
+    // cannot carry the early-return narrowing.
+    const activeChannelId = channelId
+    const activeUserId = user?.id ?? null
+    // Main and every room keep their own window on this device.
+    const cacheName = `messages:${activeChannelId}:${subChannelId ?? 'main'}`
+    // A late cache read must not overwrite rows the network already rendered.
+    let networkApplied = false
+    // A failed network read that landed before hydration finished must still
+    // mark the cached window stale once it paints.
+    let networkFailed = false
+    let cacheWriteTimer: ReturnType<typeof setTimeout> | undefined
+
+    function snapshotNow() {
+      if (!activeUserId) return
+      const rows = cacheableMessages(messagesRef.current)
+      void writeSnapshot(activeUserId, cacheName, {
+        messages: rows,
+        reactions: cacheableReactions(reactionsRef.current, rows),
+      } satisfies MessagesSnapshot)
+    }
+
+    function scheduleCacheWrite() {
+      if (!activeUserId || cacheWriteTimer) return
+      cacheWriteTimer = setTimeout(() => {
+        cacheWriteTimer = undefined
+        snapshotNow()
+      }, CACHE_WRITE_DELAY_MS)
+    }
+    scheduleCacheWriteRef.current = scheduleCacheWrite
+
+    // Any confirmed network read clears the "saved copy" marker.
+    function markNetworkFresh() {
+      setStale(false)
+      setCachedAt(null)
+    }
+
+    async function hydrateMessages() {
+      if (!activeUserId) return
+      const cached = await readSnapshot<MessagesSnapshot>(activeUserId, cacheName)
+      if (!cached || !mounted || networkApplied) {
+        // Nothing saved and no connection: stop the skeleton and let the view
+        // show its "not available offline" state instead of spinning forever.
+        if (!cached && mounted && isOfflineNow() && !networkApplied) {
+          setError(new Error('Not available offline.'))
+          setLoading(false)
+        }
+        return
+      }
+      // Re-validate exactly like network rows: a payload written by an older
+      // app version can never reach the list.
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedRows = Array.isArray(cached.value.messages) ? cached.value.messages : []
+      const rows = cachedRows.flatMap(row => {
+        const parsed = formatMessage(row)
+        return parsed ? [parsed] : []
+      })
+      if (messagesRef.current.length === 0 && rows.length > 0) setMessages(rows)
+      // Live reactions (a realtime event may have landed) win over cached ones.
+      setReactions(prev => ({ ...(cached.value.reactions ?? {}), ...prev }))
+      // Never advertise a "load older" affordance the cache cannot satisfy.
+      setHasMore(false)
+      setCachedAt(cached.savedAt)
+      // Only a window that actually painted supersedes a failed fetch; an
+      // empty cache leaves the retry banner in place.
+      if (rows.length > 0) setError(null)
+      setLoading(false)
+      if (networkFailed || isOfflineNow()) setStale(true)
     }
 
     async function fetchMessages() {
@@ -216,11 +339,20 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           // Success clears a stale error banner and opens the read-mark gate
           // (via onLoaded, #412) — history is now on screen.
           setError(null)
+          networkApplied = true
+          markNetworkFresh()
+          scheduleCacheWrite()
           onLoadedRef.current?.()
         }
       } catch (err) {
         console.error('Error fetching messages:', err)
-        if (mounted) setError(toError(err))
+        // With cached rows on screen the offline card explains the state; an
+        // error banner only appears when there is nothing to read (#825).
+        networkFailed = true
+        if (mounted) {
+          if (messagesRef.current.length === 0) setError(toError(err))
+          else setStale(true)
+        }
       } finally {
         if (mounted) setLoading(false)
       }
@@ -278,13 +410,20 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           .limit(PAGE_SIZE)
         if (error) {
           console.error('Error catching up messages:', error)
-          if (mounted) setError(error)
+          networkFailed = true
+          if (mounted) {
+            if (messagesRef.current.length === 0) setError(error)
+            else setStale(true)
+          }
           return
         }
         // A successful pass (even with nothing new) clears a stale error:
         // with held messages refresh() never reaches fetchMessages, whose
         // success is the only other place the banner clears (#404).
-        if (mounted) setError(null)
+        if (mounted) {
+          setError(null)
+          markNetworkFresh()
+        }
         const batch = (data || []).map(formatMessage).filter((m): m is Message => m !== null)
         if (batch.length === 0) return
         setMessages(prev => {
@@ -293,6 +432,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
           return merged
         })
+        scheduleCacheWrite()
         cursor = batch[batch.length - 1].created_at
         const maxUpdated = batch.reduce<string | null>((max, m) => (!max || m.updated_at > max ? m.updated_at : max), updatedCursorRef.current)
         if (maxUpdated) updatedCursorRef.current = maxUpdated
@@ -354,6 +494,8 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
             merged.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
             return merged
           })
+          markNetworkFresh()
+          scheduleCacheWrite()
         }
         cursorAt = last.updated_at
         cursorId = last.id
@@ -364,8 +506,15 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       }
     }
 
-    fetchMessages()
-    fetchReactions()
+    // Hydrate and revalidate together: a cached window paints immediately, the
+    // network response replaces it when it lands. When the device reports no
+    // connection the initial requests are pointless; the reconnect path below
+    // still catches up.
+    void hydrateMessages()
+    if (!isOfflineNow()) {
+      fetchMessages()
+      fetchReactions()
+    }
 
     let firstSubscribe = true
     const realtimeChannel = supabase
@@ -424,6 +573,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
             setMessages(prev => prev.filter(m => m.id !== deletedId))
           }
         }
+        // Keep the saved window in step with live events, so the next offline
+        // open shows what the player last saw.
+        if (mounted) scheduleCacheWrite()
       })
       .on('postgres_changes', {
         event: '*',
@@ -441,6 +593,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           if (!row.success) return
           setReactions(prev => dropReaction(prev, row.data, user?.id))
         }
+        scheduleCacheWrite()
       })
     const stopRealtime = subscribeWithRetry(realtimeChannel, `chat:${channelId}`, (status) => {
         // The first SUBSCRIBED follows the initial fetch already running;
@@ -477,6 +630,13 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       stopRealtime()
       void supabase.removeChannel(realtimeChannel)
+      // Flush a pending write so switching rooms right after a message does not
+      // lose it from the saved window.
+      if (cacheWriteTimer) {
+        clearTimeout(cacheWriteTimer)
+        cacheWriteTimer = undefined
+        snapshotNow()
+      }
     }
   }, [channelId, subChannelId, user?.id])
 
@@ -508,9 +668,13 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         return [...older.filter(m => !existing.has(m.id)), ...prev]
       })
       setHasMore((data || []).length === PAGE_SIZE)
+      scheduleCacheWriteRef.current()
     } catch (err) {
       console.error('Error loading older messages:', err)
-      setError(toError(err))
+      // The already-rendered window stays usable; only an empty list gets the
+      // retry banner.
+      if (messagesRef.current.length === 0) setError(toError(err))
+      else setStale(true)
     } finally {
       setLoadingOlder(false)
     }
@@ -683,14 +847,15 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     })
 
     if (error) {
-      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: error.message } : m))
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: isOfflineNow() ? OFFLINE_SEND_ERROR : error.message } : m))
       throw error
     } else if (data && data.length > 0) {
       applyRpcResult(clientRequestId, data)
+      scheduleCacheWriteRef.current()
     } else {
       // No error but no returned id: the insert isn't confirmed. Flag it so the
       // user can retry; client_request_id keeps the retry idempotent.
-      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Message was not confirmed. Tap retry to resend.' } : m))
+      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: isOfflineNow() ? OFFLINE_SEND_ERROR : 'Message was not confirmed. Tap retry to resend.' } : m))
     }
   }, [channelId, subChannelId, user])
 
@@ -912,7 +1077,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         p_emphasize_last_paragraph: emphasize_last_paragraph,
       })
       if (error) {
-        setMessages(prev => prev.map(m => m.id === id ? { ...m, error: error.message } : m))
+        setMessages(prev => prev.map(m => m.id === id ? { ...m, error: isOfflineNow() ? OFFLINE_SEND_ERROR : error.message } : m))
       } else {
         applyRpcResult(msg.client_request_id ?? id, data)
       }
@@ -933,5 +1098,5 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     }
   }, [])
 
-  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, toggleReaction, removePendingMessage, retryMessage }
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, toggleReaction, removePendingMessage, retryMessage, stale, cachedAt }
 }

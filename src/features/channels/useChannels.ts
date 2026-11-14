@@ -2,11 +2,20 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import { subscribeRealtimeStatus, subscribeWithRetry } from '../../lib/realtime'
+import { isOfflineNow, subscribeRealtimeStatus, subscribeWithRetry } from '../../lib/realtime'
+import { pruneChannelSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import { ChannelMemberRowSchema, ChannelRowSchema, parseRow } from '../validation/rowSchemas'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row']
+type MyChannel = Channel & { member: ChannelMember, unread_count?: number, last_message_preview?: string | null }
+
+// What the Lobby keeps on this device: the exact rows it rendered, so an
+// offline cold start can rebuild the list without touching the network
+// (issue #825).
+interface LobbySnapshot {
+  channels: MyChannel[]
+}
 
 // Sorts by most recent message, falling back to creation time. Channels with
 // no messages always sort last. Deterministic so lobby order is stable across refreshes.
@@ -28,9 +37,13 @@ export function useChannels() {
   // restore can hit the API with auth.uid() not yet established and turn a
   // recoverable timing artifact into the lobby's "Failed to load channels".
   const { user, loading: authLoading } = useAuth()
-  const [myChannels, setMyChannels] = useState<(Channel & { member: ChannelMember, unread_count?: number })[]>([])
+  const [myChannels, setMyChannels] = useState<MyChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  // Live view of the rendered list for async callbacks that outlive their
+  // render (the offline fallback decides whether an error may replace it).
+  const myChannelsRef = useRef<MyChannel[]>(myChannels)
+  myChannelsRef.current = myChannels
   // Tracks my channel ids so the lobby messages subscription below can ignore
   // INSERTs for channels I am not a member of.
   const myChannelIdsRef = useRef<Set<string>>(new Set())
@@ -48,7 +61,47 @@ export function useChannels() {
     // so recovery never needs the user to tap Retry.
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let retryAttempt = 0
+    // A late cache read must never overwrite rows a network response already
+    // rendered (the two run concurrently).
+    let networkApplied = false
 
+    async function hydrateFromCache() {
+      if (!user?.id) return
+      const cached = await readSnapshot<LobbySnapshot>(user.id, 'lobby')
+      if (!cached || !mounted || networkApplied) {
+        // No saved list and no connection: stop the spinner so the Lobby can
+        // show its "connect once" state (issue #825).
+        if (!cached && mounted && !networkApplied && isOfflineNow()) {
+          setError(new Error('Not available offline.'))
+          setLoading(false)
+        }
+        return
+      }
+      // Cached rows are re-validated like network rows: a record from an older
+      // app version can never render half-populated channels.
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedRows = Array.isArray(cached.value.channels) ? cached.value.channels : []
+      const rows = cachedRows.flatMap(row => {
+        const channel = parseRow(ChannelRowSchema, row)
+        const member = parseRow(ChannelMemberRowSchema, row.member)
+        if (!channel || !member) return []
+        return [{
+          ...channel,
+          last_message_at: row.last_message_at ?? null,
+          last_message_preview: row.last_message_preview ?? null,
+          member: member as ChannelMember,
+          unread_count: row.unread_count ?? 0,
+        } as MyChannel]
+      })
+      rows.sort(byRecentActivity)
+      setMyChannels(rows)
+      myChannelIdsRef.current = new Set(rows.map(c => c.id))
+      // Only rows that actually painted supersede an error the racing failed
+      // fetch may have set.
+      if (rows.length > 0) setError(null)
+      setLoading(false)
+    }
     async function fetchChannels() {
       if (!user?.id || authLoading) return
 
@@ -116,6 +169,7 @@ export function useChannels() {
 
           formattedMyChannels.sort(byRecentActivity)
 
+          networkApplied = true
           if (mounted) setMyChannels(formattedMyChannels)
           myChannelIdsRef.current = new Set(formattedMyChannels.map(c => c.id))
           // Any successful fetch clears a stale error and cancels the retry
@@ -127,11 +181,18 @@ export function useChannels() {
             retryTimer = undefined
           }
           if (mounted) setError(null)
+          // Persist what was rendered for the next offline cold start, and drop
+          // snapshots for channels this account no longer belongs to.
+          void writeSnapshot(user.id, 'lobby', { channels: formattedMyChannels } satisfies LobbySnapshot)
+          void pruneChannelSnapshots(user.id, formattedMyChannels.map(c => c.id))
         }
       } catch (error) {
         console.error('Error fetching channels:', error)
         if (mounted) {
-          setError(error as Error)
+          // With rows already on screen (cached or previously loaded) the
+          // offline card explains the state; an error screen would throw away
+          // readable content (issue #825).
+          if (myChannelsRef.current.length === 0) setError(error as Error)
           // Retry with exponential backoff (capped at 30s), mirroring
           // subscribeWithRetry — the error screen recovers on its own.
           if (!retryTimer) {
@@ -148,7 +209,12 @@ export function useChannels() {
       }
     }
 
-    fetchChannels()
+    // Hydrate and revalidate concurrently: cached rows paint immediately, the
+    // network response replaces them when it lands. When the browser already
+    // reports no connection, skip the doomed first request (the reconnect
+    // listener below still refetches).
+    void hydrateFromCache()
+    if (!isOfflineNow()) fetchChannels()
 
     function handleServiceWorkerMessage(event: MessageEvent) {
       if (event.data?.type === 'PUSH_RECEIVED') fetchChannels()

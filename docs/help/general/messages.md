@@ -85,6 +85,15 @@ The **Whispers** toggle in the channel header (next to Favorites) shows only the
 
 If your connection drops, a banner lets you know while keeping loaded chat available. RoleByPost catches up on new messages and channel changes when your connection returns or when you bring the app back to the foreground.
 
+### Reading offline
+
+After you open a channel once, this device keeps a copy of its rooms and recent messages, so you can keep reading your games without a connection. The banner's **Details** button explains what works offline, and a line above the timeline says **Showing saved messages** with the time of your saved copy.
+
+- New messages, edits, reactions, and unread counts catch up when your connection returns.
+- Sending needs a connection. A message sent while offline shows **Retry** on the message, and the text stays in the message box so nothing is lost.
+- Channels you have never opened, public game discovery, and images still need a connection.
+- Signing out removes the saved copy from this device.
+
 If your message history fails to load when you open a channel, you'll see a clear error with a **Retry** button instead of being told to refresh the page. Your unread marker ("New messages" divider) is also safe: it only moves after your history has actually loaded, so a failed load never makes messages look read that you never saw.
 
 Opening a channel with unread messages takes you straight to that divider, so you pick up where you left off — or to the newest message when you're all caught up. The view stays put while pictures finish loading in, and once you scroll yourself it never pulls you back.

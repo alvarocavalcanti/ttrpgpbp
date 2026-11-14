@@ -2,13 +2,24 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import { subscribeWithRetry } from '../../lib/realtime'
+import { isOfflineNow, subscribeWithRetry } from '../../lib/realtime'
+import { deleteChannelSnapshots, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import { toError } from '../../lib/errors'
 import { ChannelMemberRowSchema, ChannelRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
 
 type Channel = Database['public']['Tables']['channels']['Row']
 type ChannelMember = Database['public']['Tables']['channel_members']['Row'] & {
   profile?: { display_name: string | null; avatar_url: string | null }
+}
+
+// Everything the channel shell needs to paint without the network (issue
+// #825): header row, roster, GM secrets visibility, and the unread boundary.
+interface ChannelSnapshot {
+  channel: Channel
+  members: ChannelMember[]
+  gmOnlyResourcesUrl: string | null
+  hasPassword: boolean
+  lastReadAt: string | null
 }
 
 // canMarkRead (optional, #412): call-time gate that must return true only
@@ -196,12 +207,86 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       return () => { mountedRef.current = false }
     }
 
+    // A late cache read must not overwrite rows the network already rendered.
+    let networkApplied = false
+    let cacheHydrated = false
+    // Set when the server says this channel is gone/forbidden: cached rows must
+    // be dropped and the error must surface even if a cache read won the race.
+    let accessRevoked = false
+    // Narrowed once for the nested async callbacks below, where TypeScript
+    // cannot carry the early-return narrowing.
+    const activeChannelId = channelId
+    const activeUserId = user.id
+
+    async function hydrateChannel() {
+      const cached = await readSnapshot<ChannelSnapshot>(activeUserId, `channel:${activeChannelId}`)
+      if (!cached || !mountedRef.current || networkApplied || accessRevoked) {
+        // No saved channel and no connection: stop the skeleton so the view can
+        // explain that it was never opened on this device (issue #825).
+        if (!cached && mountedRef.current && !networkApplied && !accessRevoked && isOfflineNow()) {
+          setError(new Error('Not available offline.'))
+          setLoading(false)
+        }
+        return
+      }
+      if (channelIdRef.current !== activeChannelId || userIdRef.current !== activeUserId) return
+      const cachedChannel = parseRow(ChannelRowSchema, cached.value.channel)
+      if (!cachedChannel) {
+        // A cached header this version cannot validate is unusable; drop the
+        // whole tree rather than render a half-populated shell.
+        void deleteChannelSnapshots(activeUserId, activeChannelId)
+        return
+      }
+      // Rows are re-validated like network rows, and the joined profile keeps
+      // its normalized object shape (never an array).
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedMembers = Array.isArray(cached.value.members) ? cached.value.members : []
+      const hydratedMembers = cachedMembers.flatMap(member => {
+        const parsed = parseRow(ChannelMemberRowSchema, member)
+        if (!parsed) return []
+        return [{
+          ...member,
+          ...parsed,
+          profile: normalizeProfileRef((member as { profile?: unknown }).profile),
+        } as ChannelMember]
+      })
+      cacheHydrated = true
+      setChannel(cachedChannel as Channel)
+      setMembers(hydratedMembers)
+      setGmOnlyResourcesUrl(cached.value.gmOnlyResourcesUrl ?? null)
+      setHasPassword(Boolean(cached.value.hasPassword))
+      // Show the saved boundary immediately, but leave the capture flag unset
+      // so the first network load still re-anchors it to the server's value.
+      if (cached.value.lastReadAt) setLastReadAt(cached.value.lastReadAt)
+      // Cached rows supersede an error the racing failed fetch may have set.
+      setError(null)
+      setLoading(false)
+    }
+
     async function fetchChannelData() {
       try {
-        const channelResponse = await supabase.from('channels').select('*').eq('id', channelId as string).single()
-        if (channelResponse.error) throw channelResponse.error
+        const channelResponse = await supabase.from('channels').select('*').eq('id', activeChannelId).single()
+        if (channelResponse.error) {
+          // PGRST116 = no row: the viewer lost access (kicked, channel
+          // deleted). Never keep that channel readable offline afterwards.
+          if (channelResponse.error.code === 'PGRST116') {
+            accessRevoked = true
+            void deleteChannelSnapshots(activeUserId, activeChannelId)
+            if (mountedRef.current) {
+              setChannel(null)
+              setMembers([])
+            }
+          }
+          throw channelResponse.error
+        }
         const parsedChannel = parseRow(ChannelRowSchema, channelResponse.data)
-        if (!parsedChannel) throw new Error('Channel data failed validation.')
+        if (!parsedChannel) {
+          accessRevoked = true
+          void deleteChannelSnapshots(activeUserId, activeChannelId)
+          throw new Error('Channel data failed validation.')
+        }
+        networkApplied = true
         if (mountedRef.current) setChannel(parsedChannel as Channel)
 
         const formattedMembers = await loadMembers()
@@ -210,20 +295,28 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         // Mark read in background if we are a member. Only while the tab is
         // visible: a reconnect completing in a hidden tab must not mark
         // messages the user isn't looking at as read.
-        const myMember = formattedMembers.find(m => m.user_id === user?.id)
+        const myMember = formattedMembers.find(m => m.user_id === activeUserId)
         if (myMember) {
           myMemberIdRef.current = myMember.id
+          // Blocked members keep the header readable nowhere, including offline.
+          if (myMember.is_blocked) void deleteChannelSnapshots(activeUserId, activeChannelId)
           if (document.visibilityState === 'visible') markRead(false)
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
-        if (mountedRef.current) setError(toError(err))
+        // With cached content on screen the offline card explains the state;
+        // an error state would replace readable content (issue #825). A revoked
+        // channel is the exception: it must never render from cache.
+        if (mountedRef.current && (accessRevoked || !cacheHydrated)) setError(toError(err))
       } finally {
         if (mountedRef.current) setLoading(false)
       }
     }
 
-    fetchChannelData()
+    // Hydrate and revalidate together; skip the doomed request when the device
+    // already reports no connection (realtime reconnect still refetches).
+    void hydrateChannel()
+    if (!isOfflineNow()) fetchChannelData()
 
     let firstSubscribe = true
     const realtimeChannel = supabase
@@ -269,7 +362,12 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
           void loadMembers().catch(err => console.error('Error refreshing members:', err))
         } else if (payload.eventType === 'DELETE') {
           const oldId = (payload.old as { id?: string } | null)?.id
-          if (oldId) setMembers(prev => prev.filter(m => m.id !== oldId))
+          if (oldId) {
+            setMembers(prev => prev.filter(m => m.id !== oldId))
+            // My own row removed = kicked. Drop the cached tree so this
+            // channel cannot reappear on the next offline open.
+            if (user?.id && oldId === myMemberIdRef.current) void deleteChannelSnapshots(user.id, channelId)
+          }
         } else {
           const next = parseRow(ChannelMemberRowSchema, payload.new)
           if (next) setMembers(prev => prev.map(m => m.id === next.id ? { ...m, ...next } as ChannelMember : m))
@@ -312,6 +410,25 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       void supabase.removeChannel(realtimeChannel)
     }
   }, [channelId, user?.id, refetchTrigger, readBaseline])
+
+  // Persist the header snapshot whenever what we would render changes (initial
+  // fetch, realtime rename, roster refresh). Debounced so a burst of member
+  // events costs one write; the members ref carries the freshest roster.
+  useEffect(() => {
+    if (!channelId || !user?.id || !channel) return
+    const activeChannelId = channelId
+    const activeUserId = user.id
+    const timer = setTimeout(() => {
+      void writeSnapshot(activeUserId, `channel:${activeChannelId}`, {
+        channel,
+        members: membersRef.current,
+        gmOnlyResourcesUrl,
+        hasPassword,
+        lastReadAt,
+      } satisfies ChannelSnapshot)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [channel, channelId, user?.id, gmOnlyResourcesUrl, hasPassword, lastReadAt, members])
 
   const isGM = channel?.gm_id === user?.id
   const myMemberInfo = members.find(m => m.user_id === user?.id)

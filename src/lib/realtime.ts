@@ -44,6 +44,13 @@ export function subscribeRealtimeStatus(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
+// Read-only view of the browser connection flag for non-React callers (the
+// offline cache layer, issue #825): the hooks skip a doomed network fetch when
+// the device already reports no connection.
+export function isOfflineNow(): boolean {
+  return offline
+}
+
 export function reportRealtimeStatus(channelId: string, status: string) {
   channelStates.set(channelId, status === 'SUBSCRIBED' ? 'connected' : 'reconnecting')
   updateSnapshot()

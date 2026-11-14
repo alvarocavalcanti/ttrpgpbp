@@ -288,6 +288,36 @@ describe('Lobby', () => {
     expect(refetch).toHaveBeenCalledTimes(1)
   })
 
+  it('explains an empty lobby opened offline, and still offers Retry (#825)', () => {
+    window.dispatchEvent(new Event('offline'))
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [],
+      loading: false,
+      error: new Error('Failed to fetch'),
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    expect(screen.getByRole('alert')).toHaveTextContent(/You're offline, and this device hasn't saved your channels yet/)
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    window.dispatchEvent(new Event('online'))
+  })
+
+  it('keeps rendering cached channels when a fetch error is raised', () => {
+    vi.mocked(useChannels).mockReturnValue({
+      myChannels: [
+        { id: '1', name: 'Saved Channel', member: { character_name: 'Hero' }, unread_count: 0 } as any,
+      ],
+      loading: false,
+      error: new Error('Failed to fetch'),
+      refetch: vi.fn(),
+    })
+
+    render(<Lobby />, { wrapper: MemoryRouter })
+    expect(screen.getByText('Saved Channel')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('renders channels correctly with unread counts', () => {
     vi.mocked(useChannels).mockReturnValue({
       myChannels: [
