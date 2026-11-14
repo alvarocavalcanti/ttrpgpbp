@@ -286,7 +286,10 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       }
       // Re-validate exactly like network rows: a payload written by an older
       // app version can never reach the list.
-      const rows = cached.value.messages.flatMap(row => {
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedRows = Array.isArray(cached.value.messages) ? cached.value.messages : []
+      const rows = cachedRows.flatMap(row => {
         const parsed = formatMessage(row)
         return parsed ? [parsed] : []
       })
@@ -296,7 +299,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       // Never advertise a "load older" affordance the cache cannot satisfy.
       setHasMore(false)
       setCachedAt(cached.savedAt)
-      setError(null)
+      // Only a window that actually painted supersedes a failed fetch; an
+      // empty cache leaves the retry banner in place.
+      if (rows.length > 0) setError(null)
       setLoading(false)
       if (networkFailed || isOfflineNow()) setStale(true)
     }

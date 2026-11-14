@@ -2215,6 +2215,18 @@ describe('useMessages rooms (#621)', () => {
       }
     })
 
+    it('survives a corrupt cached payload instead of crashing the timeline', async () => {
+      await writeSnapshot('u1', 'messages:c1:main', { messages: 'not-an-array', reactions: null })
+      mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: null, error: new Error('Failed') })) }) }) })
+      mockChannels()
+
+      const { result } = renderHook(() => useMessages('c1', null))
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.messages).toHaveLength(0)
+      expect(result.current.error).toBeTruthy()
+    })
+
     it('drops malformed cached messages and keeps the rest', async () => {
       await writeSnapshot('u1', 'messages:c1:main', {
         messages: [{ broken: true }, baseMessage({ id: 'cached-2', content: 'Kept' })],

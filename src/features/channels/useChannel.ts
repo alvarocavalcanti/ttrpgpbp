@@ -239,7 +239,10 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       }
       // Rows are re-validated like network rows, and the joined profile keeps
       // its normalized object shape (never an array).
-      const hydratedMembers = cached.value.members.flatMap(member => {
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedMembers = Array.isArray(cached.value.members) ? cached.value.members : []
+      const hydratedMembers = cachedMembers.flatMap(member => {
         const parsed = parseRow(ChannelMemberRowSchema, member)
         if (!parsed) return []
         return [{
@@ -253,10 +256,9 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       setMembers(hydratedMembers)
       setGmOnlyResourcesUrl(cached.value.gmOnlyResourcesUrl ?? null)
       setHasPassword(Boolean(cached.value.hasPassword))
-      if (cached.value.lastReadAt) {
-        boundaryCapturedRef.current = true
-        setLastReadAt(cached.value.lastReadAt)
-      }
+      // Show the saved boundary immediately, but leave the capture flag unset
+      // so the first network load still re-anchors it to the server's value.
+      if (cached.value.lastReadAt) setLastReadAt(cached.value.lastReadAt)
       // Cached rows supersede an error the racing failed fetch may have set.
       setError(null)
       setLoading(false)

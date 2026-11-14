@@ -79,7 +79,10 @@ export function useChannels() {
       }
       // Cached rows are re-validated like network rows: a record from an older
       // app version can never render half-populated channels.
-      const rows = cached.value.channels.flatMap(row => {
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedRows = Array.isArray(cached.value.channels) ? cached.value.channels : []
+      const rows = cachedRows.flatMap(row => {
         const channel = parseRow(ChannelRowSchema, row)
         const member = parseRow(ChannelMemberRowSchema, row.member)
         if (!channel || !member) return []
@@ -94,8 +97,9 @@ export function useChannels() {
       rows.sort(byRecentActivity)
       setMyChannels(rows)
       myChannelIdsRef.current = new Set(rows.map(c => c.id))
-      // Cached rows supersede an error the racing failed fetch may have set.
-      setError(null)
+      // Only rows that actually painted supersede an error the racing failed
+      // fetch may have set.
+      if (rows.length > 0) setError(null)
       setLoading(false)
     }
     async function fetchChannels() {

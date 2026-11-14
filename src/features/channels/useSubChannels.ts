@@ -74,14 +74,20 @@ export function useSubChannels(channelId: string | undefined) {
         if (!cached && mounted && !networkApplied && isOfflineNow()) setLoading(false)
         return
       }
-      const rooms = cached.value.rooms.flatMap(row => {
+      // Local storage can be corrupted or written by another app version: never
+      // throw out of a hydration path.
+      const cachedRows = Array.isArray(cached.value.rooms) ? cached.value.rooms : []
+      const rooms = cachedRows.flatMap(row => {
         const room = parseRow(SubChannelRowSchema, row)
         return room ? [room as SubChannel] : []
       })
       cacheHydrated = true
       setRooms(rooms)
-      setRoomMembers(cached.value.roomMembers ?? {})
-      setError(null)
+      const cachedMembers = cached.value.roomMembers
+      setRoomMembers(cachedMembers && typeof cachedMembers === 'object' ? cachedMembers : {})
+      // An empty cached strip cannot stand in for a failed fetch; keep the tab
+      // bar's retry state in that case.
+      if (rooms.length > 0) setError(null)
       setLoading(false)
     }
 
