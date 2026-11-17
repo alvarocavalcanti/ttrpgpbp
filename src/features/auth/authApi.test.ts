@@ -46,7 +46,7 @@ describe('authApi', () => {
     })
 
     const { data: { subscription } } = subscribeToAuthEvents(innerCallback)
-    expect(innerCallback).toHaveBeenCalledWith({ user: { id: 'u1' } })
+    expect(innerCallback).toHaveBeenCalledWith('SIGNED_IN', { user: { id: 'u1' } })
     subscription.unsubscribe()
     expect(unsubscribe).toHaveBeenCalled()
   })

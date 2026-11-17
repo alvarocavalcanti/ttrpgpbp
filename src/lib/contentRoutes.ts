@@ -10,15 +10,25 @@ export interface Breadcrumb {
   to?: string
 }
 
+export interface ContentShot {
+  /** Full-size capture under /help-images/; the thumbnail is derived at render. */
+  src: string
+  alt: string
+  caption: string
+}
+
 export interface ContentRoute {
   path: string
   docSlug: string
   breadcrumbs: Breadcrumb[]
+  /** Optional in-flow screenshots, rendered where the doc's `<!-- shots -->` marker sits. */
+  shots?: ContentShot[]
+  /** Optional 1200x630 social card; defaults to the site-wide og-image.png. */
+  ogImage?: string
 }
 
 const HOW_TO: Breadcrumb = { label: 'How-to Guides' }
 const COMPARISONS: Breadcrumb = { label: 'Comparisons' }
-const ALTERNATIVES: Breadcrumb = { label: 'Alternatives' }
 
 export const CONTENT_ROUTES: ContentRoute[] = [
   {
@@ -42,16 +52,43 @@ export const CONTENT_ROUTES: ContentRoute[] = [
     breadcrumbs: [{ label: 'Home', to: '/' }, COMPARISONS, { label: 'Role by Post vs Discord' }],
   },
   {
+    path: ROUTES.alternatives,
+    docSlug: 'alternatives',
+    breadcrumbs: [{ label: 'Home', to: '/' }, { label: 'Alternatives' }],
+  },
+  {
     path: ROUTES.altRpol,
     docSlug: 'alternatives-rpol',
-    breadcrumbs: [{ label: 'Home', to: '/' }, ALTERNATIVES, { label: 'Role by Post vs RPOL' }],
+    breadcrumbs: [
+      { label: 'Home', to: '/' },
+      { label: 'Alternatives', to: ROUTES.alternatives },
+      { label: 'Role by Post vs RPOL' },
+    ],
+    ogImage: '/og-image-rpol.png',
+    shots: [
+      {
+        src: '/help-images/status-bar.png',
+        alt: 'Role by Post campaign timeline on a phone with dice results, scene text, and the status bar',
+        caption: 'A campaign reads back like a story — rolls, scene breaks, and notes in one place.',
+      },
+      {
+        src: '/help-images/rooms.png',
+        alt: 'Room settings inside a Role by Post campaign, including a private room for the Game Master',
+        caption: 'Rooms keep dice and out-of-character talk out of the story.',
+      },
+      {
+        src: '/help-images/dice-panel.png',
+        alt: 'Role by Post dice roller on a phone with quick-roll chips and the successes pool mode',
+        caption: 'Tap dice in a post to roll, or open an ability check with the modifier already set.',
+      },
+    ],
   },
   {
     path: ROUTES.altMythWeavers,
     docSlug: 'alternatives-myth-weavers',
     breadcrumbs: [
       { label: 'Home', to: '/' },
-      ALTERNATIVES,
+      { label: 'Alternatives', to: ROUTES.alternatives },
       { label: 'Role by Post vs Myth-Weavers' },
     ],
   },

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-17
+
+### Added
+
+- **See the RPOL comparison at a glance** — the page comparing Role by Post with RPOL now shows real screenshots of a campaign on a phone: the story timeline, the rooms inside a game, and the dice roller. Tap one to enlarge it.
+- **A way to start from every guide** — the long-form pages now end with a **Start now** button, and on a phone a slim bar stays at the bottom of the screen so you can begin whenever you are convinced. The RPOL comparison also offers the button right after its opening section.
+- **One page for all the alternatives** — a new page at **Alternatives** lists every comparison in one place, so you can pick the platform you are coming from. It is linked from the footer.
+
 ## 2026-11-14
 
 ### Added

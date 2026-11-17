@@ -574,6 +574,7 @@ export default function App() {
                 <Route path={ROUTES.howToDnd} element={<ContentPage />} />
                 <Route path={ROUTES.howToRun} element={<ContentPage />} />
                 <Route path={ROUTES.vsDiscord} element={<ContentPage />} />
+                <Route path={ROUTES.alternatives} element={<ContentPage />} />
                 <Route path={ROUTES.altRpol} element={<ContentPage />} />
                 <Route path={ROUTES.altMythWeavers} element={<ContentPage />} />
                 <Route path={ROUTES.aiDisclaimer} element={<ContentPage />} />

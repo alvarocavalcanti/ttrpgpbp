@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 
 // Data layer for the auth feature (ARCH-1): every Supabase call AuthContext
@@ -10,8 +10,10 @@ export async function getCurrentSession() {
   return session
 }
 
-export function subscribeToAuthEvents(callback: (session: Session | null) => void) {
-  return supabase.auth.onAuthStateChange((_event, session) => callback(session))
+export function subscribeToAuthEvents(
+  callback: (event: AuthChangeEvent, session: Session | null) => void,
+) {
+  return supabase.auth.onAuthStateChange((event, session) => callback(event, session))
 }
 
 export async function signInWithGoogle() {

@@ -1,8 +1,8 @@
-// Builds the 1200x630 Open Graph/Twitter card for the public pages (#643).
+// Builds the 1200x630 Open Graph/Twitter cards for the public pages (#643).
 //
-// Composes the committed brand logo and the campaign-lobby screenshot over a
-// branded background. The output (public/og-image.png) is committed; re-run
-// this only when the brand art or tagline changes.
+// Composes the committed brand logo and a help screenshot over a branded
+// background. The outputs are committed; re-run this only when the brand art,
+// tagline, or a page's card changes.
 //
 // Run: node scripts/seo/og-image.mjs
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -12,13 +12,30 @@ import { chromium } from '@playwright/test'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const publicDir = join(root, 'public')
-const output = join(publicDir, 'og-image.png')
+
+// `output` is relative to public/. The first card is the site default every
+// route without its own card inherits, so keep its title and subtitle stable.
+const CARDS = [
+  {
+    output: 'og-image.png',
+    title: 'Play your tabletop RPG, one post at a time',
+    subtitle: 'A chat-first app for asynchronous tabletop RPGs',
+    shot: 'help-images/lobby-with-channels.png',
+  },
+  {
+    output: 'og-image-rpol.png',
+    title: 'RPOL alternative?',
+    subtitle: 'Chat-first, installable, free — Role by Post',
+    shot: 'help-images/status-bar.png',
+  },
+]
 
 function dataUri(file) {
   return `data:image/png;base64,${readFileSync(join(publicDir, file)).toString('base64')}`
 }
 
-const html = `<!doctype html>
+function cardHtml({ title, subtitle, shot }) {
+  return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -56,20 +73,24 @@ const html = `<!doctype html>
         <img src="${dataUri('RoleByPost.png')}" alt="" />
         <span>Role by Post</span>
       </div>
-      <h1>Play your tabletop RPG, one post at a time</h1>
-      <p>A chat-first app for asynchronous tabletop RPGs</p>
+      <h1>${title}</h1>
+      <p>${subtitle}</p>
     </div>
-    <img class="shot" src="${dataUri('help/lobby-with-channels.png')}" alt="" />
+    <img class="shot" src="${dataUri(shot)}" alt="" />
   </body>
 </html>`
+}
 
 const browser = await chromium.launch()
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 })
-  await page.setContent(html, { waitUntil: 'load' })
-  await page.waitForTimeout(200)
-  writeFileSync(output, await page.screenshot({ type: 'png' }))
-  console.log(`Wrote ${output} (1200x630)`)
+  for (const card of CARDS) {
+    await page.setContent(cardHtml(card), { waitUntil: 'load' })
+    await page.waitForTimeout(200)
+    const output = join(publicDir, card.output)
+    writeFileSync(output, await page.screenshot({ type: 'png' }))
+    console.log(`Wrote ${output} (1200x630)`)
+  }
 } finally {
   await browser.close()
 }

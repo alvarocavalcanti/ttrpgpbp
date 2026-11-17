@@ -36,6 +36,8 @@ describe('isMarketingPath', () => {
     expect(isMarketingPath('/how-to/play-by-post-dnd')).toBe(true)
     expect(isMarketingPath('/how-to/run-play-by-post')).toBe(true)
     expect(isMarketingPath('/vs/discord')).toBe(true)
+    expect(isMarketingPath('/alternatives')).toBe(true)
+    expect(isMarketingPath('/alternatives/')).toBe(true)
     expect(isMarketingPath('/alternatives/rpol')).toBe(true)
     expect(isMarketingPath('/alternatives/myth-weavers')).toBe(true)
     expect(isMarketingPath('/help')).toBe(true)
@@ -69,6 +71,7 @@ describe('PUBLIC_ROUTES', () => {
       '/how-to/play-by-post-dnd',
       '/how-to/run-play-by-post',
       '/vs/discord',
+      '/alternatives',
       '/alternatives/rpol',
       '/alternatives/myth-weavers',
       '/help',
