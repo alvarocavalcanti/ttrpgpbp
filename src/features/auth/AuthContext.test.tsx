@@ -543,6 +543,44 @@ describe('AuthContext', () => {
     })
   })
 
+  it('still signs in when sessionStorage throws', async () => {
+    // Storage can be disabled or full; a missing method hint must never block
+    // the sign-in itself (CodeRabbit review on #828).
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn(), id: 'test' } },
+    } as any)
+    vi.mocked(supabase.auth.signInWithOAuth).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.signInWithOtp).mockResolvedValue({ data: {}, error: null } as any)
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => { throw new Error('storage disabled') })
+
+    try {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      )
+      expect(await screen.findByText('ready')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('Sign In'))
+      expect(supabase.auth.signInWithOAuth).toHaveBeenCalled()
+
+      fireEvent.click(screen.getByText('Email In'))
+      await waitFor(() => expect(supabase.auth.signInWithOtp).toHaveBeenCalled())
+      expect(screen.getByTestId('error')).toHaveTextContent('no-error')
+    } finally {
+      setItem.mockRestore()
+    }
+  })
+
   it('surfaces a sign-in error instead of swallowing it', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: null },
