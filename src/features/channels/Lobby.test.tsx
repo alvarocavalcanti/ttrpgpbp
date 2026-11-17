@@ -11,10 +11,15 @@ import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { usePlatformStats } from '../../hooks/usePlatformStats'
 import { trackEvent } from '../../lib/analytics'
 
 vi.mock('../../hooks/useIsServerAdmin', () => ({
   useIsServerAdmin: vi.fn()
+}))
+
+vi.mock('../../hooks/usePlatformStats', () => ({
+  usePlatformStats: vi.fn()
 }))
 
 vi.mock('./useChannels', () => ({
@@ -111,6 +116,18 @@ describe('Lobby', () => {
       refetch: vi.fn(),
       dismiss: vi.fn().mockResolvedValue(undefined),
     })
+    // #808: the Discover band defaults to loaded figures.
+    vi.mocked(usePlatformStats).mockReturnValue({
+      stats: {
+        games: 42,
+        messages: 1_240,
+        members: 17,
+        activeGames: 5,
+        recruitingGames: 3,
+        newGamesWeek: 2,
+      },
+      loading: false,
+    } as never)
   })
 
   it('renders loading state', () => {
@@ -888,6 +905,22 @@ describe('Lobby', () => {
       return { loadMore, refetch }
     }
 
+    // #808: the platform band below the list.
+    function mockPlatformStats(overrides: Record<string, unknown> = {}) {
+      vi.mocked(usePlatformStats).mockReturnValue({
+        stats: {
+          games: 42,
+          messages: 1_240,
+          members: 17,
+          activeGames: 5,
+          recruitingGames: 3,
+          newGamesWeek: 2,
+        },
+        loading: false,
+        ...overrides,
+      } as never)
+    }
+
     function withMyChannels(myChannels: unknown[]) {
       vi.mocked(useChannels).mockReturnValue({ myChannels, loading: false, error: null, refetch: vi.fn() } as any)
     }
@@ -1047,6 +1080,36 @@ describe('Lobby', () => {
       expect(screen.getByText('GM Aria')).toBeInTheDocument()
       expect(screen.getByText('A weekly game about dragons.')).toBeInTheDocument()
       expect(screen.getByText(/4 members/)).toBeInTheDocument()
+    })
+
+    it('shows the platform figures below the Discover list', () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      mockPlatformStats()
+      const { container } = render(<Lobby />, { wrapper: MemoryRouter })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+      const band = container.querySelector('dl[aria-label="Platform activity"]')
+      const list = screen.getByRole('list')
+      expect(band).not.toBeNull()
+      // Below the list, not above it.
+      expect(list.compareDocumentPosition(band!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.getByText('42')).toBeInTheDocument()
+      expect(screen.getByText('1,200+')).toBeInTheDocument()
+      expect(screen.getByText('17')).toBeInTheDocument()
+      // The Lobby band carries no proof line: it is not the conversion surface.
+      expect(screen.queryByText(/recruiting now/)).not.toBeInTheDocument()
+    })
+
+    it('hides the platform band on My Games', () => {
+      withMyChannels(oneChannel)
+      mockDiscover()
+      mockPlatformStats()
+      const { container } = render(<Lobby />, { wrapper: MemoryRouter })
+
+      expect(container.querySelector('dl[aria-label="Platform activity"]')).toBeNull()
+      expect(vi.mocked(usePlatformStats)).toHaveBeenCalledWith({ enabled: false })
     })
 
     it('opens the detail sheet when a card is tapped', () => {

@@ -1,11 +1,13 @@
 -- Issue #402 / SEC-1: grant-sweep verification.
 --   * anon has EXECUTE on no user-defined function in public (blanket sweep;
---     extension-owned functions such as pgtap itself are excluded) — with two
+--     extension-owned functions such as pgtap itself are excluded) — with three
 --     reviewed exceptions: list_public_channels_anon (#674 Phase 1.5), the
---     anonymous /directory projection (name + description), and
+--     anonymous /directory projection (name + description),
 --     get_public_channel_anon (#755), the anonymous /game/:id page (listing
---     copy only). Both are allowlisted by name in the sweep below and asserted
---     separately, so a third anon grant still fails this file.
+--     copy only), and get_platform_stats (#808), the platform totals (six
+--     scalars: games, messages, members, active/recruiting/new-this-week). All
+--     are allowlisted by name in the sweep below and asserted separately, so a
+--     fourth anon grant still fails this file.
 --   * server-only helpers are EXECUTE-blocked for authenticated/service_role
 --   * no RETURNS trigger function in public is callable by an API role
 --     (class-level guard — 2026-09-20 #558 P2-1; catches future trigger
@@ -16,7 +18,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(73);
+SELECT plan(74);
 
 SELECT is(
   (SELECT count(*)
@@ -25,15 +27,16 @@ SELECT is(
    WHERE n.nspname = 'public'
      AND p.oid NOT IN (SELECT objid FROM pg_depend WHERE deptype = 'e')
      -- The reviewed exceptions: the anonymous /directory projection
-     -- (#674 Phase 1.5, name + description) and the anonymous game page
-     -- (#755, listing copy only). Both are SECURITY DEFINER and their own
-     -- pgTAP files pin the return types. Never add a third name here without
-     -- that review.
+     -- (#674 Phase 1.5, name + description), the anonymous game page
+     -- (#755, listing copy only), and the platform totals (#808, six
+     -- scalars). Each is SECURITY DEFINER and its own pgTAP file pins the
+     -- return type. Never add a fourth name here without that review.
      AND p.proname <> 'list_public_channels_anon'
      AND p.proname <> 'get_public_channel_anon'
+     AND p.proname <> 'get_platform_stats'
      AND has_function_privilege('anon', p.oid, 'EXECUTE')),
   0::bigint,
-  'anon has EXECUTE on no user-defined function in public except the directory and game projections'
+  'anon has EXECUTE on no user-defined function in public except the reviewed projections'
 );
 
 SELECT is(
@@ -46,6 +49,12 @@ SELECT is(
   has_function_privilege('anon', 'public.get_public_channel_anon(uuid)', 'EXECUTE'),
   true,
   'the game-page projection is allowlisted for anon'
+);
+
+SELECT is(
+  has_function_privilege('anon', 'public.get_platform_stats()', 'EXECUTE'),
+  true,
+  'the platform stats projection is allowlisted for anon'
 );
 
 SELECT is(

@@ -33,6 +33,12 @@ Definitions used by the query:
 - **Active table** — a non-archived channel with ≥ 2 distinct human senders and
   ≥ `ACTIVE_MIN_MSGS` human messages (lifetime, plus a last-`RECENT_WINDOW`
   variant).
+- **Active table — the admin console's rule changed on 2026-11-17 (#808)** —
+  the `/admin` **Active Channels** card now counts the `RECENT_WINDOW`
+  (14-day) variant, not lifetime activity. `active_lifetime` here still means
+  lifetime, so reports stay comparable: when quoting "how many tables are
+  active", say which variant you mean, and expect the console to match
+  `active_recent` from that date onward.
 
 ## Run
 

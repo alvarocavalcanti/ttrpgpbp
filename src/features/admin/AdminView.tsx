@@ -21,8 +21,11 @@ type ChannelListingFilter = 'all' | 'listed' | 'private'
 
 const INACTIVE_DAYS = 30
 
-// "Active channel" mirrors the usage-report skill: >=2 distinct human senders
-// and >=15 non-system human messages (see the skill's usage.sql). Keep in sync.
+// "Active channel" mirrors the usage-report skill's RECENT_WINDOW variant: >=2
+// distinct human senders and >=15 non-system human messages, both within the
+// last 14 days. The window is applied server-side in admin_list_channels
+// (#808); the counts below are already windowed. Keep in sync with the skill's
+// usage.sql.
 const ACTIVE_CHANNEL_MIN_SENDERS = 2
 const ACTIVE_CHANNEL_MIN_MESSAGES = 15
 
@@ -467,7 +470,7 @@ export function AdminView() {
             type="button"
             onClick={() => { setTab('channels'); setActiveOnly(prev => !prev) }}
             aria-pressed={activeOnly}
-            aria-label={`Active Channels: ${activeCount}. Show channels with real activity`}
+            aria-label={`Active Channels: ${activeCount}. Show channels active in the last 14 days`}
             className="overflow-hidden rounded-lg bg-white dark:bg-surface-800 shadow px-4 py-5 sm:p-6 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <dt className="truncate text-sm font-medium text-surface-500 dark:text-surface-400">Active Channels</dt>
@@ -476,7 +479,7 @@ export function AdminView() {
                 {activeCount}
               </div>
               <div className="inline-flex items-baseline rounded-full px-2.5 py-0.5 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 md:mt-2 lg:mt-0">
-                2+ posters · 15+ posts
+                2+ posters · 15+ posts in 14 days
               </div>
             </dd>
           </button>

@@ -218,12 +218,31 @@ Linked to a `dice_roll`-type message. Stores structured data for roll history qu
 
 ---
 
+### `platform_stats` (cached platform totals, #808)
+
+One row (`id` fixed at 1), refreshed hourly by `pg_cron` (`refresh-platform-stats`, minute 7). It exists so anonymous `/directory` traffic never runs `COUNT(DISTINCT …)` over `messages`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | small integer, PK | `1`; CHECK keeps the table to a single row |
+| `games` | bigint | Non-archived `channels` rows, private or listed |
+| `messages` | bigint | Non-system messages with a sender, all time; soft-deleted included |
+| `members` | bigint | Distinct accounts with at least one `channel_members` row |
+| `active_games` | bigint | Non-archived games with ≥2 distinct human senders **and** ≥15 non-system human messages, both within 14 days |
+| `recruiting_games` | bigint | Non-archived channels with `join_mode = 'approval'` |
+| `new_games_week` | bigint | Non-archived channels created in the last 7 days |
+| `computed_at` | timestamptz | Last refresh |
+
+Writers: `refresh_platform_stats()` (SECURITY DEFINER, owner-only — revoked from every API role). Readers: `get_platform_stats()` only (SECURITY DEFINER, STABLE, `EXECUTE` for `anon`, `authenticated`, `service_role`; returns the six figures, coalesced to `0` when the cache row is missing). RLS is enabled with **no policies**, and `anon` holds no grant, so the table itself is unreachable through the Data API.
+
+---
+
 ## Row-Level Security (RLS) Policies
 
 Automatic RLS is enabled for all tables, defaulting to deny-all. The following policies control access:
 
 - **profiles**: Any authenticated user can read. Users can only update their own row.
-- **channels**: Readable only by their members (`channel_members`) since #81. Non-members read only through safe projections, never the table: `get_join_channel_preview` (name, game system, whether a password is set) for the join form; `list_public_channels` / `get_public_channel` for **listed** channels (id, name, GM display name, game system, description, constraints, member count, last activity, plus the caller's own pending-request state); and `list_public_channels_anon` for signed-out visitors (name and description only). `invite_code`, `channel_secrets`, message content, member identities, and `last_message_preview` are never exposed to non-members.
+- **channels**: Readable only by their members (`channel_members`) since #81. Non-members read only through safe projections, never the table: `get_join_channel_preview` (name, game system, whether a password is set) for the join form; `list_public_channels` / `get_public_channel` for **listed** channels (id, name, GM display name, game system, description, constraints, member count, last activity, plus the caller's own pending-request state); and `list_public_channels_anon` for signed-out visitors (name and description only). The anonymous surface also exposes **platform-wide totals** through `get_platform_stats()` — games, messages, members, and the active / recruiting / new-this-week figures (see `platform_stats` above). That is the deliberate widening from #808: totals only, never a per-game or per-person figure. `invite_code`, `channel_secrets`, message content, member identities, and `last_message_preview` are never exposed to non-members.
 - **channel_members**: Readable by members of the same channel. GM can insert, update, and delete. Users can update their own row (character name, avatar, sheet URL).
 - **messages**: Readable by channel members, **with a filter**: if `whisper_to` is set, the row is only visible to `sender_id`, `whisper_to`, and the channel's `gm_id`. A message in a restricted room is visible only to those who can view that room (`can_view_sub_channel`). Senders can update their own messages (enforcing the 15-min window). Senders can soft-delete their own messages. **Direct inserts are restricted**: the client no longer writes `messages` directly — every message goes through a SECURITY DEFINER command (`send_message` / `roll_dice` / `moderate_member` / `join_channel`). The INSERT policy is a defense-in-depth backstop: it rejects archived channels, non-member senders, non-GM scene/NPC types, NPC snapshot fields (`npc_name` / `npc_avatar_url`) from non-GMs, cross-channel reply targets, and non-member whisper targets.
 - **dice_rolls**: Readable by channel members. **Insert is revoked from clients** — rolls are only created by the `roll_dice` command, so a fabricated result can never be persisted. Realtime INSERT events are published (`ALTER PUBLICATION`), and the roll history RPC excludes rolls from soft-deleted messages.

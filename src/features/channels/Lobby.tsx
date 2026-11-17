@@ -14,8 +14,10 @@ import { useAuth } from '../auth/useAuth'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useDebounce } from '../../hooks/useDebounce'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
+import { usePlatformStats } from '../../hooks/usePlatformStats'
 import { SignedImg } from '../../components/SignedImg'
 import { LinkifiedText } from '../../components/LinkifiedText'
+import { PlatformStats } from '../../components/PlatformStats'
 import { refreshAppBadge } from '../../lib/channelRead'
 import { isOfflineNow } from '../../lib/realtime'
 import { scrubSpoilers } from '../../lib/spoilerScrub'
@@ -211,6 +213,9 @@ export function Lobby() {
     tabParam === null && !loading && !error && myChannels.length === 0 ? 'discover' : requestedTab
 
   const discover = usePublicChannels({ search: dqRaw, enabled: activeTab === 'discover' })
+  // #808: the platform figures, fetched only while Discover is on screen. Same
+  // RPC as /directory, so both surfaces show identical numbers.
+  const platformStats = usePlatformStats({ enabled: activeTab === 'discover' })
 
   // Pending applications on the channels this user GMs (#674), so a new
   // application is visible without opening the channel.
@@ -528,6 +533,16 @@ export function Lobby() {
                   )}
                 </>
               )}
+            </div>
+            {/* #808: the same figures as /directory, below the list. Outside the
+                loading/error/empty branches on purpose — a stats failure leaves
+                the listings, search, and Load more exactly as they are. */}
+            <div className="w-full">
+              <PlatformStats
+                stats={platformStats.stats}
+                loading={platformStats.loading}
+                variant="compact"
+              />
             </div>
           </div>
         )}

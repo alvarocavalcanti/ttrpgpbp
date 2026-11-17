@@ -202,6 +202,21 @@ export const AnonPublicChannelRowSchema = z.looseObject({
 
 export type AnonPublicChannel = z.infer<typeof AnonPublicChannelRowSchema>
 
+// The platform totals projection (#808): get_platform_stats() returns six
+// scalars, deliberately no per-game or per-person data. The server-side
+// projection is pinned by its own pgTAP assertion; both the public directory
+// band and the Discover band render only these figures.
+export const PlatformStatsRowSchema = z.looseObject({
+  games: z.number(),
+  messages: z.number(),
+  members: z.number(),
+  active_games: z.number(),
+  recruiting_games: z.number(),
+  new_games_week: z.number(),
+})
+
+export type PlatformStatsRow = z.infer<typeof PlatformStatsRowSchema>
+
 // The anonymous /game/:id page projection (#755): the GM-authored listing copy
 // a signed-out visitor can read before signing in. Smaller than the signed-in
 // get_public_channel detail by design — no member count, activity, or
