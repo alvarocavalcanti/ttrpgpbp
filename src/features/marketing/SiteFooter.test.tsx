@@ -28,6 +28,13 @@ describe('SiteFooter', () => {
     expect(screen.getByRole('navigation', { name: 'Footer' })).toBeInTheDocument()
   })
 
+  it('links the alternatives hub from the Compare group', () => {
+    renderFooter()
+    const hubLinks = screen.getAllByRole('link', { name: 'Alternatives' })
+    expect(hubLinks.length).toBeGreaterThan(0)
+    expect(hubLinks[0]).toHaveAttribute('href', '/alternatives')
+  })
+
   it('never renders an h1 (prerender allows exactly one per page)', () => {
     const { container } = renderFooter()
     expect(container.querySelector('h1')).toBeNull()

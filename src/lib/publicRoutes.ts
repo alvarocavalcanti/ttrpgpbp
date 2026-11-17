@@ -14,6 +14,7 @@ export const ROUTES = {
   howToDnd: '/how-to/play-by-post-dnd',
   howToRun: '/how-to/run-play-by-post',
   vsDiscord: '/vs/discord',
+  alternatives: '/alternatives',
   altRpol: '/alternatives/rpol',
   altMythWeavers: '/alternatives/myth-weavers',
   privacy: '/privacy',
@@ -263,10 +264,19 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.7,
   },
   {
-    path: ROUTES.altRpol,
-    title: 'Role by Post vs RPOL — Role by Post',
+    path: ROUTES.alternatives,
+    title: 'Play-by-Post Alternatives — Role by Post',
     description:
-      'Comparing Role by Post with RPOL for play-by-post RPGs: rooms, per-campaign characters, mobile-first chat, dice, and safety tools.',
+      'Honest comparisons of the play-by-post platforms: RPOL, Myth-Weavers, and Discord, and how each one differs from a chat-first, mobile-first campaign app.',
+    waitSelector: 'h1',
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  },
+  {
+    path: ROUTES.altRpol,
+    title: 'RPOL Alternative — Role by Post vs RolePlay onLine',
+    description:
+      'A modern RPOL alternative: chat-first timelines, rooms, a character per campaign, per-channel push alerts, and a free mobile-first app that installs like a native one.',
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.7,
@@ -340,6 +350,7 @@ const MARKETING_KEYS: RouteKey[] = [
   'howToDnd',
   'howToRun',
   'vsDiscord',
+  'alternatives',
   'altRpol',
   'altMythWeavers',
   'help',

@@ -4,6 +4,7 @@ import { AuthProvider, AuthContext, buildMagicLinkRedirect, isSafeRedirectPath }
 import { useContext } from 'react'
 import { supabase } from '../../lib/supabase'
 import { clearAllSnapshots, readSnapshot, resumeCacheWrites, writeSnapshot } from '../../lib/offlineCache'
+import { trackEvent } from '../../lib/analytics'
 
 // A single test can hold the purge open; every other test uses the real one.
 const cacheMock = vi.hoisted(() => ({ clearImpl: null as null | (() => Promise<void>) }))
@@ -29,6 +30,8 @@ vi.mock('../../lib/supabase', () => ({
     rpc: vi.fn(),
   },
 }))
+
+vi.mock('../../lib/analytics', () => ({ trackEvent: vi.fn() }))
 
 function TestComponent() {
   const context = useContext(AuthContext)
@@ -56,6 +59,7 @@ describe('AuthContext', () => {
     // One case's snapshot must never hydrate the next.
     await clearAllSnapshots()
     localStorage.clear()
+    sessionStorage.clear()
     // Suppress console.error for expected errors
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -165,6 +169,109 @@ describe('AuthContext', () => {
     })
   })
   
+  it('reports a successful sign-in with the method the visitor started', async () => {
+    sessionStorage.setItem('sign-in-method', 'google')
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-456', display_name: 'Logged In User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+
+    act(() => {
+      authCallback('SIGNED_IN', { user: { id: 'user-456' } })
+    })
+
+    expect(trackEvent).toHaveBeenCalledWith('sign_in', { method: 'google' })
+    // The hint is spent on read, so a later event cannot misattribute a method.
+    expect(sessionStorage.getItem('sign-in-method')).toBeNull()
+  })
+
+  it('does not report a token refresh or a restored session as a sign-in', async () => {
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-123', display_name: 'Test User' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+
+    act(() => {
+      authCallback('INITIAL_SESSION', { user: { id: 'user-123' } })
+      authCallback('TOKEN_REFRESHED', { user: { id: 'user-123' } })
+      authCallback('SIGNED_OUT', null)
+    })
+
+    expect(trackEvent).not.toHaveBeenCalledWith('sign_in', expect.anything())
+  })
+
+  it('does not report a restored session as a sign-in', async () => {
+    // supabase-js emits SIGNED_IN when it restores a saved session on load;
+    // with no flow started in this tab the event must stay silent.
+    let authCallback: any = null
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as any)
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      authCallback = callback
+      return { data: { subscription: { unsubscribe: vi.fn(), id: 'test' } } } as any
+    })
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'user-789', display_name: 'Back Again' },
+      error: null,
+    })
+    const mockEq = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    )
+    expect(await screen.findByText('ready')).toBeInTheDocument()
+
+    act(() => {
+      authCallback('SIGNED_IN', { user: { id: 'user-789' } })
+    })
+
+    expect(trackEvent).not.toHaveBeenCalledWith('sign_in', expect.anything())
+  })
+
   it('handles auth state change with user login but profile fetch fails', async () => {
     let authCallback: any = null
     vi.mocked(supabase.auth.getSession).mockResolvedValue({

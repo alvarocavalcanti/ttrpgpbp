@@ -6,6 +6,13 @@ import { authSignOut, confirmAge, confirmTerms, fetchProfileRow, getCurrentSessi
 import { CURRENT_TERMS_VERSION, TERMS_AGREED_KEY } from './terms'
 import type { Database } from '../../types/database'
 import { clearUserSnapshots, readSnapshot, resumeCacheWrites, writeSnapshot } from '../../lib/offlineCache'
+import { trackEvent } from '../../lib/analytics'
+
+// Which flow the visitor started, so the `sign_in` event can name the method
+// even though both flows come back as a plain SIGNED_IN (OAuth redirect and
+// magic link give the client nothing else to distinguish them). Per-tab and
+// cleared on read; a link opened in another tab simply reports no method.
+const SIGN_IN_METHOD_KEY = 'sign-in-method'
 
 // server_admin is not readable from the profiles API anymore (H1/P0-3); admin
 // status comes from the is_server_admin() RPC via useIsServerAdmin.
@@ -170,11 +177,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getInitialSession()
 
     const { data: { subscription } } = subscribeToAuthEvents(
-      (currentSession) => {
+      (event, currentSession) => {
         if (!mounted) return
         setError(null)
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
+
+        // The referral→signup funnel. Gated on the flow this tab started, not
+        // just on the event name: supabase-js also emits SIGNED_IN when it
+        // restores a saved session on load, which would count every reload as
+        // a new sign-in.
+        if (event === 'SIGNED_IN' && currentSession?.user) {
+          const method = sessionStorage.getItem(SIGN_IN_METHOD_KEY)
+          if (method) {
+            sessionStorage.removeItem(SIGN_IN_METHOD_KEY)
+            trackEvent('sign_in', { method })
+          }
+        }
 
         if (currentSession?.user) {
           const userId = currentSession.user.id
@@ -294,11 +313,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     setError(null)
+    // Written before the redirect so the SIGNED_IN handler can name the method.
+    sessionStorage.setItem(SIGN_IN_METHOD_KEY, 'google')
     try {
       const { error: signInError } = await apiSignInWithGoogle()
       if (signInError) throw signInError
     } catch (err) {
       console.error('Error signing in with Google:', err)
+      sessionStorage.removeItem(SIGN_IN_METHOD_KEY)
       setError(err as Error)
     }
   }, [])
@@ -309,6 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // the app instead of showing an inline retry. The result is returned to the
   // caller (LoginPage) which owns the UI.
   const signInWithEmail = useCallback(async (email: string, redirectPath?: string) => {
+    sessionStorage.setItem(SIGN_IN_METHOD_KEY, 'email')
     try {
       const { error: otpError } = await apiSignInWithOtp(
         email,
@@ -318,6 +341,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (otpError) throw otpError
       return { error: null as Error | null }
     } catch (err) {
+      // A failed attempt must not leave a method hint behind for a later
+      // sign-in (e.g. one completed on another tab) to claim.
+      sessionStorage.removeItem(SIGN_IN_METHOD_KEY)
       console.error('Error sending magic link:', err)
       return { error: err as Error }
     }

@@ -111,10 +111,27 @@ describe('jsonLdForRoute', () => {
   })
 
   it('emits Article + BreadcrumbList for the pillar and comparison pages', () => {
-    for (const path of ['/play-by-post', '/vs/discord', '/alternatives/rpol', '/alternatives/myth-weavers']) {
+    for (const path of [
+      '/play-by-post',
+      '/vs/discord',
+      '/alternatives',
+      '/alternatives/rpol',
+      '/alternatives/myth-weavers',
+    ]) {
       const types = jsonLdForRoute(path, SITE).map((n) => n['@type'])
       expect(types).toEqual(['Article', 'BreadcrumbList'])
     }
+  })
+
+  it('gives the alternatives hub a real breadcrumb target on the comparison pages', () => {
+    const nodes = jsonLdForRoute('/alternatives/rpol', SITE)
+    const crumbs = nodes[1].itemListElement as Array<Record<string, unknown>>
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'Home',
+      'Alternatives',
+      'Role by Post vs RPOL',
+    ])
+    expect(crumbs[1].item).toBe('https://rolebypost.com/alternatives')
   })
 
   it('emits only a BreadcrumbList for the help index', () => {

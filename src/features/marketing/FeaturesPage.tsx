@@ -6,6 +6,7 @@ import { ImageViewerModal } from '../../components/ImageViewerModal'
 import { useAuth } from '../auth/useAuth'
 import { trackEvent } from '../../lib/analytics'
 import { FAQ_ITEMS } from '../../lib/faq'
+import { thumbSrc } from '../../lib/helpImages'
 import { SiteFooter } from './SiteFooter'
 
 type Track = 'gm' | 'player'
@@ -44,10 +45,7 @@ function buildGallery(cards: FeatureCard[]): { items: GalleryImage[]; heroIndex:
 
 // Screenshots are the committed help captures in public/help-images/ (360x780 CSS,
 // captured at 3x). The cards render at 80-96px CSS, so they serve 320px WebP
-// thumbnails from public/help-images/thumbs/ (the full PNGs stay for the help docs).
-// Derivation (not a hand-typed thumb field) keeps a card from ever pointing
-// at the wrong file; the test pins the resulting paths.
-const thumbSrc = (shot: string) => shot.replace('/help-images/', '/help-images/thumbs/').replace(/\.png$/, '.webp')
+// thumbnails via `thumbSrc` (the full PNGs stay for the help docs).
 const GM_CARDS: FeatureCard[] = [
   {
     title: 'Run the table your way',

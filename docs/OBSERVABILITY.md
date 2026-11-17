@@ -87,7 +87,9 @@ Data streams → [stream] → Enhanced measurement**). Use this table to read th
 | `menu_open` | App | A nav drawer opened. Param `menu` = `main` (top hamburger) or `sidebar` (in-channel); `method` = `toggle`, `swipe`, or `action` | `App.tsx:131`, `ChannelView.tsx:110` |
 | `menu_close` | App | Same drawer closed. `method` = `button`, `backdrop`, `swipe`, `escape`, `modal`, `toggle`, or `action` (sidebar auto-closed when an overlay opens) | `App.tsx:136`, `ChannelView.tsx:115,157` |
 | `marketing_track_toggle` | App | On `/features`: visitor switched the GM vs Player feature track. Param `track` | `FeaturesPage.tsx:149` |
-| `marketing_cta_click` | App | On `/features`: the "Start now!" CTA was clicked. Param `location` = `hero` or `bottom`. Falls below the Dashboard's top-10 cut-off at low volume | `FeaturesPage.tsx:134` |
+| `marketing_cta_click` | App | A "Start now" call to action was clicked. Param `location` = `hero` or `bottom` on `/features`, and `after_intro`, `bottom` or `sticky` on the long-form content pages; param `path` names the page (e.g. `/alternatives/rpol`). Falls below the Dashboard's top-10 cut-off at low volume | `FeaturesPage.tsx`, `ContentPage.tsx` |
+| `content_image_open` | App | On a content page, a screenshot was opened in the enlarged viewer. Params `src` (the committed `/help-images/…` path) and `path`. Tells whether the comparison screenshots are actually engaged with | `ContentPage.tsx` |
+| `sign_in` | App | A visitor completed a sign-in (the referral → signup funnel's last step). Fires only when this tab started the flow — never on a restored session, a reload, `TOKEN_REFRESHED`, `USER_UPDATED`, or `SIGNED_OUT`. Param `method` = `google` or `email`; omitted when the sign-in was completed in another tab | `AuthContext.tsx` |
 | `scroll` | GA4 automatic (Enhanced Measurement) | Visitor scrolled 90% of a page. Not tied to a specific screen | — |
 | `session_start` | GA4 automatic | A new session began | — |
 | `first_visit` | GA4 automatic | First-ever visit from that browser/device | — |
@@ -146,12 +148,12 @@ Two quirks worth knowing:
 
 ### Breaking custom events down by parameter
 
-The custom event parameters (`menu`, `method`, `track`, `location`) are hidden
+The custom event parameters (`menu`, `method`, `track`, `location`, `path`) are hidden
 until registered as dimensions:
 
 1. **Admin → Data display → Custom definitions → Create custom dimension.**
 2. Scope: **Event**. Event parameter name: `menu` (repeat for `method`,
-   `track`, `location`). Give each a readable name, e.g. "Menu".
+   `track`, `location`, `path`). Give each a readable name, e.g. "Menu".
 3. Allow up to 24–48 hours for the registered dimension to appear in reports
    (registering does not make events collected before registration
    reportable), then open **Explore**, filter to the event (e.g. `menu_open`),

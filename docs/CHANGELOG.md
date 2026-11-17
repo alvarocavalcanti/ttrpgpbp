@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-17
+
+### Added
+
+- **See what the comparisons look like** — the pages that compare Role by Post with other play-by-post sites now show real screenshots of a campaign on a phone: the lobby, a message, and the rooms inside a game. Tap one to enlarge it.
+- **A way to start from every guide** — the long-form pages (the play-by-post guides and the comparisons) now offer a **Start now** button after the opening section and again at the end. On a phone, a slim bar stays at the bottom of the screen so you can begin whenever you are convinced.
+- **One page for all the alternatives** — a new page at **Alternatives** lists every comparison in one place, so you can pick the platform you are coming from. It is linked from the footer.
+
 ## 2026-11-14
 
 ### Added

@@ -44,6 +44,7 @@ const FOOTER_GROUPS: FooterGroup[] = [
     label: 'Compare',
     links: [
       { label: 'vs Discord', to: '/vs/discord' },
+      { label: 'Alternatives', to: '/alternatives' },
       { label: 'RPOL Alternative', to: '/alternatives/rpol' },
       { label: 'Myth-Weavers Alternative', to: '/alternatives/myth-weavers' },
     ],

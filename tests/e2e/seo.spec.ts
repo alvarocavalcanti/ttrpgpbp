@@ -14,7 +14,8 @@ const PUBLIC_PAGES = [
   { path: '/how-to/play-by-post-dnd', title: 'How to Play D&D by Post — Role by Post' },
   { path: '/how-to/run-play-by-post', title: 'How to Run a Play-by-Post Game — Role by Post' },
   { path: '/vs/discord', title: 'Role by Post vs Discord — Role by Post' },
-  { path: '/alternatives/rpol', title: 'Role by Post vs RPOL — Role by Post' },
+  { path: '/alternatives', title: 'Play-by-Post Alternatives — Role by Post' },
+  { path: '/alternatives/rpol', title: 'RPOL Alternative — Role by Post vs RolePlay onLine' },
   { path: '/alternatives/myth-weavers', title: 'Role by Post vs Myth-Weavers — Role by Post' },
   { path: '/help', title: 'Help and Guides — Role by Post' },
   { path: '/help/dice-rolling', title: 'Dice Rolling — Role by Post Help' },
@@ -58,6 +59,16 @@ test.describe('public route metadata', () => {
   test('help content is reachable while signed out', async ({ page }) => {
     await page.goto('/help/dice-rolling')
     await expect(page.getByRole('heading', { name: 'Dice Rolling', exact: true })).toBeVisible()
+  })
+
+  test('the RPOL comparison offers a sign-up path and its own screenshots', async ({ page }) => {
+    await page.goto('/alternatives/rpol')
+    await expect(page.getByRole('link', { name: 'Start now' }).first()).toBeVisible()
+    await expect(page.locator('figure img')).toHaveCount(3)
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://rolebypost.com/alternatives/rpol',
+    )
   })
 
   test('app routes are noindex', async ({ page }) => {
