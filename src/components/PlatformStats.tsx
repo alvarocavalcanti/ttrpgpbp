@@ -44,11 +44,14 @@ export function PlatformStats({ stats, loading, variant }: PlatformStatsProps) {
 
   return (
     <div className="rounded-lg bg-white dark:bg-surface-800 shadow px-4 py-5 sm:p-6">
-      <dl aria-label="Platform activity" aria-busy={loading} className="grid grid-cols-3 gap-3">
+      {/* One column on phones, three from sm: a 7-digit figure ("9,000,000+")
+          cannot fit a third of a 320px screen, and letting it wrap would grow
+          the band after the numbers arrive. */}
+      <dl aria-label="Platform activity" aria-busy={loading} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {figures.map((figure) => (
           <div key={figure.label} className="min-w-0">
             <dt className="text-sm font-medium text-surface-500 dark:text-surface-400">{figure.label}</dt>
-            <dd className="mt-1 text-lg sm:text-2xl font-semibold text-surface-900 dark:text-surface-100 break-words">
+            <dd className="mt-1 text-lg sm:text-2xl font-semibold text-surface-900 dark:text-surface-100 whitespace-nowrap">
               {formatFigure(figure.value)}
             </dd>
           </div>
@@ -59,9 +62,11 @@ export function PlatformStats({ stats, loading, variant }: PlatformStatsProps) {
         <>
           <p className="mt-3 text-sm text-surface-600 dark:text-surface-400">{proof}</p>
           {/* Player language on purpose: no table names, no "non-system", no
-              "distinct senders", and no hover-only tooltip (no touch path). */}
+              "distinct senders", and no hover-only tooltip (no touch path).
+              Both gates are stated, or "2 posters" alone would over-promise. */}
           <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-            A game counts as active when at least two people posted in it during the past two weeks.
+            A game counts as active when at least two people posted at least fifteen messages in it
+            during the past two weeks.
           </p>
         </>
       )}

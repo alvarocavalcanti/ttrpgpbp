@@ -33,18 +33,23 @@ VALUES
 
 -- b01 listed + active · b02 private + active · b03 archived + active ·
 -- b04 exactly on the 14-day boundary · b05 one message short ·
--- b06 one sender short · b07 system + null senders only · b08 mostly deleted.
+-- b06 one sender short · b07 system + null senders only · b08 mostly deleted ·
+-- b09 busy but just outside the 14-day window · b10 created exactly 7 days ago ·
+-- b11 created just over 7 days ago.
 -- Listed channels need copy: channels_listing_fields.
-INSERT INTO channels (id, name, gm_id, invite_code, join_mode, is_archived, description, constraints)
+INSERT INTO channels (id, name, gm_id, invite_code, join_mode, is_archived, description, constraints, created_at)
 VALUES
-  ('00000000-0000-0000-0000-000000081b01', 'Listed Active', '00000000-0000-0000-0000-000000081a01', 'a0810001', 'approval', false, 'A weekly campaign.', 'Be kind.'),
-  ('00000000-0000-0000-0000-000000081b02', 'Private Active', '00000000-0000-0000-0000-000000081a01', 'a0810002', 'invite', false, NULL, NULL),
-  ('00000000-0000-0000-0000-000000081b03', 'Archived Active', '00000000-0000-0000-0000-000000081a01', 'a0810003', 'approval', true, 'Gone soon.', 'Rules.'),
-  ('00000000-0000-0000-0000-000000081b04', 'Boundary', '00000000-0000-0000-0000-000000081a01', 'a0810004', 'invite', false, NULL, NULL),
-  ('00000000-0000-0000-0000-000000081b05', 'One Short', '00000000-0000-0000-0000-000000081a01', 'a0810005', 'invite', false, NULL, NULL),
-  ('00000000-0000-0000-0000-000000081b06', 'One Sender', '00000000-0000-0000-0000-000000081a01', 'a0810006', 'invite', false, NULL, NULL),
-  ('00000000-0000-0000-0000-000000081b07', 'Not Human', '00000000-0000-0000-0000-000000081a01', 'a0810007', 'invite', false, NULL, NULL),
-  ('00000000-0000-0000-0000-000000081b08', 'Mostly Deleted', '00000000-0000-0000-0000-000000081a01', 'a0810008', 'invite', false, NULL, NULL);
+  ('00000000-0000-0000-0000-000000081b01', 'Listed Active', '00000000-0000-0000-0000-000000081a01', 'a0810001', 'approval', false, 'A weekly campaign.', 'Be kind.', now()),
+  ('00000000-0000-0000-0000-000000081b02', 'Private Active', '00000000-0000-0000-0000-000000081a01', 'a0810002', 'invite', false, NULL, NULL, now()),
+  ('00000000-0000-0000-0000-000000081b03', 'Archived Active', '00000000-0000-0000-0000-000000081a01', 'a0810003', 'approval', true, 'Gone soon.', 'Rules.', now()),
+  ('00000000-0000-0000-0000-000000081b04', 'Boundary', '00000000-0000-0000-0000-000000081a01', 'a0810004', 'invite', false, NULL, NULL, now()),
+  ('00000000-0000-0000-0000-000000081b05', 'One Short', '00000000-0000-0000-0000-000000081a01', 'a0810005', 'invite', false, NULL, NULL, now()),
+  ('00000000-0000-0000-0000-000000081b06', 'One Sender', '00000000-0000-0000-0000-000000081a01', 'a0810006', 'invite', false, NULL, NULL, now()),
+  ('00000000-0000-0000-0000-000000081b07', 'Not Human', '00000000-0000-0000-0000-000000081a01', 'a0810007', 'invite', false, NULL, NULL, now()),
+  ('00000000-0000-0000-0000-000000081b08', 'Mostly Deleted', '00000000-0000-0000-0000-000000081a01', 'a0810008', 'invite', false, NULL, NULL, now()),
+  ('00000000-0000-0000-0000-000000081b09', 'Stale But Busy', '00000000-0000-0000-0000-000000081a01', 'a0810009', 'invite', false, NULL, NULL, now() - interval '30 days'),
+  ('00000000-0000-0000-0000-000000081b10', 'Exactly Seven', '00000000-0000-0000-0000-000000081a01', 'a0810010', 'invite', false, NULL, NULL, now() - interval '7 days'),
+  ('00000000-0000-0000-0000-000000081b11', 'Just Over Seven', '00000000-0000-0000-0000-000000081a01', 'a0810011', 'invite', false, NULL, NULL, now() - interval '7 days 1 hour');
 
 -- Three distinct new members; p1 is in two channels so a non-distinct count
 -- would read four.
@@ -91,6 +96,16 @@ SELECT '00000000-0000-0000-0000-000000081b06',
        'regular', 'post ' || g, now() - interval '1 day'
 FROM generate_series(1, 15) AS g;
 
+-- Qualifying on both gates, but one hour past the 14-day window: without the
+-- window this channel would count as active, so this fixture is what fails if
+-- the time filter is ever dropped.
+INSERT INTO messages (channel_id, sender_id, type, content, created_at)
+SELECT '00000000-0000-0000-0000-000000081b09',
+       (ARRAY['00000000-0000-0000-0000-000000081a02',
+              '00000000-0000-0000-0000-000000081a03'])[1 + (g % 2)]::uuid,
+       'regular', 'post ' || g, now() - interval '14 days 1 hour'
+FROM generate_series(1, 15) AS g;
+
 -- System rows and null senders are never human activity.
 INSERT INTO messages (channel_id, sender_id, type, content, created_at)
 SELECT '00000000-0000-0000-0000-000000081b07',
@@ -111,13 +126,13 @@ SELECT public.refresh_platform_stats();
 
 SELECT is(
   (SELECT games FROM public.platform_stats) - (SELECT games FROM stats_baseline),
-  7::bigint,
+  10::bigint,
   'Games counts every non-archived channel: listed, private, and the boundary fixtures'
 );
 
 SELECT is(
   (SELECT messages FROM public.platform_stats) - (SELECT messages FROM stats_baseline),
-  104::bigint,
+  119::bigint,
   'Messages sent counts human messages everywhere, soft-deleted and archived included, and drops system/null senders'
 );
 
@@ -141,7 +156,7 @@ SELECT is(
 
 SELECT is(
   (SELECT new_games_week FROM public.platform_stats) - (SELECT new_games_week FROM stats_baseline),
-  7::bigint,
+  8::bigint,
   'New games this week counts non-archived channels created in the last 7 days'
 );
 

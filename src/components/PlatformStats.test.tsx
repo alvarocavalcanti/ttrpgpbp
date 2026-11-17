@@ -45,7 +45,9 @@ describe('PlatformStats', () => {
 
     expect(screen.getByText('5 active games · 3 recruiting now · 2 new this week')).toBeInTheDocument()
     expect(
-      screen.getByText('A game counts as active when at least two people posted in it during the past two weeks.'),
+      screen.getByText(
+        'A game counts as active when at least two people posted at least fifteen messages in it during the past two weeks.',
+      ),
     ).toBeInTheDocument()
   })
 
