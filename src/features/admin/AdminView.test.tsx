@@ -178,7 +178,10 @@ describe('AdminView', () => {
     // 1 sender / 4 messages (inactive), so the card shows 1.
     expect(await screen.findByText('Active Channels')).toBeInTheDocument()
     expect(screen.getByText('1', { selector: 'div.text-2xl' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Active Channels: 1. Show channels with real activity' }))
+    // #808: the rule is windowed server-side, so the caption must state the
+    // window rather than implying lifetime activity.
+    expect(screen.getByText('2+ posters · 15+ posts in 14 days')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Active Channels: 1. Show channels active in the last 14 days' }))
       .toHaveAttribute('aria-pressed', 'false')
   })
 
@@ -190,12 +193,12 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Active Channels')
-    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 1. Show channels with real activity' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 1. Show channels active in the last 14 days' }))
 
     expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
     expect(screen.queryByText('Empty')).not.toBeInTheDocument()
     expect(screen.getByText('Showing active channels only')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Active Channels: 1. Show channels with real activity' }))
+    expect(screen.getByRole('button', { name: 'Active Channels: 1. Show channels active in the last 14 days' }))
       .toHaveAttribute('aria-pressed', 'true')
     // Table shape is unchanged: name links still open the read-only view.
     expect(screen.getByRole('link', { name: 'Open Curse of Strahd read-only' }))
@@ -210,13 +213,13 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Active Channels')
-    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 1. Show channels with real activity' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 1. Show channels active in the last 14 days' }))
     expect(await screen.findByText('Showing active channels only')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Show all' }))
     expect(await screen.findByText('Empty')).toBeInTheDocument()
     expect(screen.queryByText('Showing active channels only')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Active Channels: 1. Show channels with real activity' }))
+    expect(screen.getByRole('button', { name: 'Active Channels: 1. Show channels active in the last 14 days' }))
       .toHaveAttribute('aria-pressed', 'false')
   })
 
@@ -228,7 +231,7 @@ describe('AdminView', () => {
     )
 
     await screen.findByText('Active Channels')
-    const card = screen.getByRole('button', { name: 'Active Channels: 1. Show channels with real activity' })
+    const card = screen.getByRole('button', { name: 'Active Channels: 1. Show channels active in the last 14 days' })
     fireEvent.click(card)
     expect(await screen.findByText('Showing active channels only')).toBeInTheDocument()
 
@@ -259,7 +262,7 @@ describe('AdminView', () => {
     // DAMP literal: the lone channel has 1 sender / 4 messages, below the
     // 2-sender / 15-message rule, so filtering empties the table.
     await screen.findByText('Active Channels')
-    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 0. Show channels with real activity' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Active Channels: 0. Show channels active in the last 14 days' }))
     expect(await screen.findByText('No channels match the current filter.')).toBeInTheDocument()
     expect(screen.queryByText('Quiet')).not.toBeInTheDocument()
   })

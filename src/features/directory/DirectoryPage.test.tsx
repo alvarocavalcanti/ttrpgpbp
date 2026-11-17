@@ -4,11 +4,26 @@ import { MemoryRouter } from 'react-router-dom'
 import { DirectoryPage } from './DirectoryPage'
 import { useAuth } from '../auth/useAuth'
 import { usePublicChannelsAnon } from './usePublicChannelsAnon'
+import { usePlatformStats } from '../../hooks/usePlatformStats'
 import { trackEvent } from '../../lib/analytics'
 
 vi.mock('../auth/useAuth', () => ({ useAuth: vi.fn() }))
 vi.mock('./usePublicChannelsAnon', () => ({ usePublicChannelsAnon: vi.fn() }))
+vi.mock('../../hooks/usePlatformStats', () => ({ usePlatformStats: vi.fn() }))
 vi.mock('../../lib/analytics', () => ({ trackEvent: vi.fn() }))
+
+const platformStats = {
+  games: 42,
+  messages: 1_240,
+  members: 17,
+  activeGames: 5,
+  recruitingGames: 3,
+  newGamesWeek: 2,
+}
+
+function mockStats(overrides: Record<string, unknown> = {}) {
+  vi.mocked(usePlatformStats).mockReturnValue({ stats: platformStats, loading: false, ...overrides } as never)
+}
 
 function mockChannels(overrides: Record<string, unknown> = {}) {
   const loadMore = vi.fn()
@@ -43,6 +58,7 @@ describe('DirectoryPage', () => {
     vi.clearAllMocks()
     vi.mocked(useAuth).mockReturnValue({ user: null } as never)
     mockChannels()
+    mockStats()
   })
 
   it('renders one h1, the intro, and the listed games', () => {
@@ -157,6 +173,35 @@ describe('DirectoryPage', () => {
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
   })
 
+  it('renders the platform band between the intro and the listings', () => {
+    const { container } = renderPage()
+
+    const band = container.querySelector('dl[aria-label="Platform activity"]')
+    const listings = screen.getByRole('region', { name: 'Listed games' })
+    expect(band).not.toBeNull()
+    // The band must precede the listings: it is the first evidence that people
+    // are here, not a footnote after the list.
+    expect(band!.compareDocumentPosition(listings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    expect(screen.getByText('42')).toBeInTheDocument()
+    expect(screen.getByText('1,200+')).toBeInTheDocument()
+    expect(screen.getByText('17')).toBeInTheDocument()
+    expect(screen.getByText('5 active games · 3 recruiting now · 2 new this week')).toBeInTheDocument()
+  })
+
+  it('drops the band silently when the stats fetch fails, leaving the list intact', () => {
+    mockStats({ stats: null, loading: false })
+    const { refetch } = mockChannels({ error: new Error('down'), channels: [] })
+
+    const { container } = renderPage()
+
+    expect(container.querySelector('dl[aria-label="Platform activity"]')).toBeNull()
+    // The list's own error and Retry still work exactly as before.
+    expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't load the games/)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
   it('bakes only the intro and the loading shell, never a stale list', () => {
     ;(window as unknown as { __PRERENDER__?: boolean }).__PRERENDER__ = true
     mockChannels({ loading: true, channels: [] })
@@ -172,6 +217,10 @@ describe('DirectoryPage', () => {
       expect(screen.queryByText('No games listed yet.')).not.toBeInTheDocument()
       expect(screen.queryByText('Weekly Delves')).not.toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      // The band renders its placeholders in the shell, so the height is
+      // reserved — but no count is baked into the static HTML.
+      expect(screen.getByText('Games')).toBeInTheDocument()
+      expect(screen.queryByText('42')).not.toBeInTheDocument()
     } finally {
       delete (window as unknown as { __PRERENDER__?: boolean }).__PRERENDER__
     }

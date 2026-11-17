@@ -1071,6 +1071,39 @@ export type Database = {
           },
         ]
       }
+      platform_stats: {
+        Row: {
+          active_games: number
+          computed_at: string
+          games: number
+          id: number
+          members: number
+          messages: number
+          new_games_week: number
+          recruiting_games: number
+        }
+        Insert: {
+          active_games?: number
+          computed_at?: string
+          games?: number
+          id?: number
+          members?: number
+          messages?: number
+          new_games_week?: number
+          recruiting_games?: number
+        }
+        Update: {
+          active_games?: number
+          computed_at?: string
+          games?: number
+          id?: number
+          members?: number
+          messages?: number
+          new_games_week?: number
+          recruiting_games?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age_verified_at: string | null
@@ -1745,6 +1778,17 @@ export type Database = {
         }[]
       }
       get_or_create_system_thread: { Args: never; Returns: string }
+      get_platform_stats: {
+        Args: never
+        Returns: {
+          active_games: number
+          games: number
+          members: number
+          messages: number
+          new_games_week: number
+          recruiting_games: number
+        }[]
+      }
       get_public_channel: {
         Args: { p_channel_id: string }
         Returns: {
@@ -1867,6 +1911,7 @@ export type Database = {
         Args: { p_key: string }
         Returns: string
       }
+      refresh_platform_stats: { Args: never; Returns: undefined }
       remove_sub_channel_member: {
         Args: { p_sub_channel_id: string; p_user_id: string }
         Returns: undefined

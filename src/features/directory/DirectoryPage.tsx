@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { LinkifiedText } from '../../components/LinkifiedText'
+import { PlatformStats } from '../../components/PlatformStats'
 import { Seo } from '../../components/Seo'
 import { isPrerender } from '../../lib/automation'
 import { ROUTES } from '../../lib/publicRoutes'
 import { trackEvent } from '../../lib/analytics'
 import { useAuth } from '../auth/useAuth'
+import { usePlatformStats } from '../../hooks/usePlatformStats'
 import { MarketingHeader } from '../marketing/MarketingHeader'
 import { SiteFooter } from '../marketing/SiteFooter'
 import { usePublicChannelsAnon } from './usePublicChannelsAnon'
@@ -22,6 +24,9 @@ export function DirectoryPage() {
   const prerender = isPrerender()
   const { channels, loading, loadingMore, error, loadMoreError, hasMore, refetch, loadMore } =
     usePublicChannelsAnon({ enabled: !prerender })
+  // #808: platform totals sit between the intro and the listings. Its own hook
+  // and its own state — a failed stats fetch must never touch the list.
+  const { stats: platformStats, loading: statsLoading } = usePlatformStats({ enabled: !prerender })
 
   const handleSignInClick = () => {
     trackEvent('directory_signin_click')
@@ -55,6 +60,17 @@ export function DirectoryPage() {
             </Link>
           </p>
         )}
+
+        <div className="mt-6">
+          {/* Rendered in the prerender pass too, with placeholders: the shell
+              reserves the band's height so the listings do not move when the
+              numbers arrive, and no count is ever baked into the static HTML. */}
+          <PlatformStats
+            stats={platformStats}
+            loading={prerender || statsLoading}
+            variant="public"
+          />
+        </div>
 
         <section aria-label="Listed games" className="mt-6">
           {/* The prerender pass contributes the intro above plus this loading

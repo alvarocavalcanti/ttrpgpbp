@@ -20,6 +20,8 @@ The **Discover** tab lists games that are open to applications. Each card shows 
 
 Use the **Search games** box to look by name, description, or game system. Tap **Load more** at the bottom to see more.
 
+Below the list you'll see how many games, messages and members the whole platform has — the same figures the public directory shows. They refresh about once an hour.
+
 Tap a card to read the full listing — the GM's description, what they expect from players (posting pace, tone, safety expectations), and how to apply.
 
 ## Applying to join
