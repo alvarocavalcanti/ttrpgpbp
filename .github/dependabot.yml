@@ -30,10 +30,11 @@ updates:
       # hand when ready, not a version bump dependabot can land green.
       - dependency-name: "tailwindcss"
         update-types: ["version-update:semver-major"]
-      # The Supabase CLI version is pinned in four places (this package, plus
-      # supabase/setup-cli in .github/workflows/ci.yml and migrate.yml) and is
-      # coupled to the generated src/types/database.ts: a newer CLI reformats
-      # that file wholesale, so an automated bump lands green in CI (which pins
-      # its own version) while every local `gen types` run produces a diff.
-      # Bump it by hand, all four pins together, with the regenerated types.
+      # The Supabase CLI version is pinned in five places (this package, plus the
+      # four supabase/setup-cli steps in .github/workflows/ci.yml and
+      # migrate.yml) and is coupled to the generated src/types/database.ts: a
+      # newer CLI reformats that file wholesale, so an automated bump lands
+      # green in CI (which pins its own version) while every local `gen types`
+      # run produces a diff.
+      # Bump it by hand, all five pins together, with the regenerated types.
       - dependency-name: "supabase"
