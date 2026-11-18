@@ -118,25 +118,24 @@ The request is the permission. Do not stop to ask before each step.
    A bare `--force-with-lease` trusts the local tracking ref, which a background fetch may already have moved. If the lease fails, fetch, re-read the new head, and incorporate it before retrying.
 2. **Monitor** — watch checks and review bots until they settle. A failing check gets its real cause fixed; never `--no-verify`.
 3. **AAR** — "assess, address and reply" (trigger: "AAR <PR comment link>"): read every review comment (CodeRabbit, Copilot, human), fix what is valid, and reply in each thread with the fix commit or the reason for the no-op. Fixing a finding you believe is wrong just to clear it is worse than replying why it is wrong.
-4. **Re-request review after every fix commit.** A fix counts as reviewed only when a review of that exact SHA completed: CodeRabbit's check run for the SHA says "Review completed", or a Copilot review whose commit matches it. "Rate limited" and "Review in progress" do not.
-5. **Merge** — `gh pr merge <n> --squash --match-head-commit <sha>`, where `<sha>` is the head that passed the gates. A push that lands between validation and merge then fails instead of merging work no one reviewed. Merge only once `mergeStateStatus` is `CLEAN`, no check is failing, and no comment is unanswered.
+4. **Every new head needs its own review.** A fix commit, a rebase, or a force-push all change the head SHA, and a review of the previous SHA does not cover the new one. After any of them, get a review of the new head: CodeRabbit's check run for that SHA says "Review completed", or a Copilot review whose commit matches it. "Rate limited" and "Review in progress" do not count.
+5. **Merge** — `gh pr merge <n> --squash --match-head-commit <sha>`, where `<sha>` is the head that passed the gates. A push that lands between validation and merge then fails instead of merging work no one reviewed. Merge only once `mergeStateStatus` is `CLEAN`, no check is failing, no comment is unanswered, **and the head SHA has a completed review**.
 6. **Verify the merge** — report the `push` runs for this PR's squash-merge commit (`gh pr view <n> --json mergeCommit`), not simply the latest run per workflow: another PR may have landed first. Expect `CI`, `Apply Migrations`, and the deploy.
 7. **Clean up** — from the primary worktree (see the default mode above): sync `main`, `npm run supabase:down`, remove the feature worktree, delete the branch.
 
 **Rate limits are expected, not a reason to merge without a review.** CodeRabbit's free OSS tier allows roughly one review per hour; when it answers "Review rate limited", wait and retry `@coderabbitai review`. Its "next included review available in N minutes" line has been optimistic — trust the check run, not the comment.
 
-**Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review of the **current head SHA** exists yet, request one manually:
+**Copilot fallback (paid — only with the user's approval)** — if paid Copilot access is already approved and CodeRabbit is rate-limited, request a review of the **current head SHA**:
 
 ```bash
-gh api --method POST "repos/{owner}/{repo}/pulls/{pr}/requested_reviewers" \
+PR=123   # the pull request number; gh api fills {owner} and {repo} but NOT {pr}
+gh api --method POST "repos/{owner}/{repo}/pulls/$PR/requested_reviewers" \
   -f "reviewers[]=copilot-pull-request-reviewer[bot]"
 ```
 
-(`gh pr edit --add-reviewer @copilot` also works, but only on gh ≥2.88 — the raw API form above works on any gh version. Copilot is an app reviewer, so it appears in the PR timeline and reviews, not in the `requested_reviewers` user list.)
+(`gh pr edit --add-reviewer @copilot` also works, but only on gh ≥2.88 — the raw API form above works on any gh version. Copilot is an app reviewer, so it appears in the PR timeline and reviews, not in the `requested_reviewers` user list. `gh api` substitutes `{owner}` and `{repo}` only, which is why the number goes in as `$PR`.)
 
-Manual `@copilot` review is free (a single request). The automated Copilot review workflow is **not** enabled here — it requires a paid Copilot subscription (Pro/Business/Enterprise), so it is intentionally skipped.
-
-A Copilot review of the fix SHA satisfies step 4 on its own, so while CodeRabbit is rate-limited it is the fallback that unblocks the merge. If neither bot can review the SHA, the merge waits.
+Copilot code review is **not free**: it needs paid Copilot access (Pro/Business/Enterprise) or premium-request credits, and Copilot Free does not include it. The automated Copilot review workflow is not enabled here for the same reason. Without approved paid access, do not request it — wait for CodeRabbit's free slot, and merge only after a review of the head SHA.
 
 ### Queue and exit
 
