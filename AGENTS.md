@@ -72,60 +72,85 @@ Boundaries: code/commits/PRs written normal.
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
-  4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI (token expensive), unless the user tells otherwise.
+  4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI unless the request asks for it (token expensive): the monitor-only and take-it-to-merge modes below are the exceptions.
 
-  5. **Two paths from here — user decides:**
+  5. **Stop, or take it to merge — the request decides.** Pick the mode from what the user asked for. It is per request, not per session, and it never carries over: the next request starts in the default unless it says otherwise. If the ask is ambiguous ("ship it", "get this in"), ask which mode before acting — merging is irreversible and the default is to wait.
 
-     **Standard (default):**
-     - Wait. User merges the PR manually, then notifies the agent (e.g. "PR #117 merged").
-     - Agent syncs main, then cleans up:
+     | Mode | How to ask | Agent does |
+     | --- | --- | --- |
+     | **Default — open and wait** | Just ask for the work ("implement #808", "fix this"), or say "open a PR and stop" | Open the PR, report the link, stop. No CI polling, no review chasing, no merge. |
+     | **Monitor only** | "monitor this PR", "watch CI and tell me when it is green" | Watch checks and reviews, run the AAR, report — **no merge**, no cleanup. |
+     | **Take it to merge** | "open and merge it", "take it to merge", "monitor this PR and merge when green", "run the full PR workflow" | Everything in [PR workflow modes](#pr-workflow-modes) below, ending in a merged PR and a clean worktree. |
+     | **Queue and exit** | "queue auto-merge", "auto-merge and exit" | Queue the merge, clean up, exit. No polling, no AAR. |
 
-       ```bash
-       git fetch origin
-       git checkout main && git pull origin main --ff-only
-       npm run supabase:down   # always stop it; other sessions restart with supabase:up
-       git worktree remove <worktree-path> --force
-       git branch -D <branch>
-       ```
+     **Default — open and wait.** The user merges, then tells you (e.g. "PR #117 merged") and you clean up. `main` is checked out in the primary worktree, so run this **there**, not in the feature worktree — a `git checkout main` inside the feature worktree fails, and the `&&` would then skip the pull:
 
-     **Auto-merge (user must explicitly request):**
-     - Agent queues auto-merge + deletes branch on merge:
+     ```bash
+     # from the primary repo directory
+     git fetch origin
+     git checkout main && git pull origin main --ff-only
+     npm run supabase:down   # always stop it; other sessions restart with supabase:up
+     git worktree remove <worktree-path> --force
+     git branch -D <branch>
+     ```
 
-       ```bash
-       gh pr merge --auto --squash --delete-branch
-       ```
-
-     - Clean up the worktree immediately (branch deleted server-side on merge):
-
-       ```bash
-       npm run supabase:down   # always stop it; other sessions restart with supabase:up
-       git worktree remove <worktree-path> --force
-       ```
-
-     - No polling, no waiting. Agent exits. GitHub merges when CI passes.
 - **Testing**: Every code change MUST have tests. While 80% coverage is acceptable, the goal is 100%. If new code drops coverage, try to close the gap. This includes adding tests for validations and edge cases. More over, PRs **must** have tests, if we a changing or adding features they must have coverage
 - **Test placement**: Verification tests live in the real test suite (`src/**/*.test.ts`), never as throwaway /tmp files. Write them once, keep them, commit them.
 - **Testing strategy**: TDD is preferred, and also keep DAMP vs DRY in mind. For instance, if the SRC uses constants, the TST should use string literals so the tests can break on an accidental change to the constants.
 - **Fake timers**: never mix `vi.useFakeTimers()` with `waitFor` — the polling never fires, the test times out, and the leaked fake timers hang every later test in the file. For time-window assertions use real timers with runtime-computed dates (e.g. `new Date(Date.now() - days * 86400000).toISOString()`) and keep margins wide vs test duration; only fake timers when driving them explicitly with `advanceTimersByTimeAsync`.
 - **Documentation**: Whenever new features are added or existing features are modified, check if any documentation needs updating
 
-## Optional PR Workflow: Monitor & Review (opt-in)
+## PR workflow modes
 
-Default remains the **Standard** path above — no auto-merge, no CI monitoring. Opt in only when the user explicitly asks (e.g. "monitor this PR").
+The default is **open and wait** — step 5 of the **Branching & PRs** bullet above. The modes below are opt-in: they start only when the request asks for them, using the phrases in that table. **Monitor only** is the same loop as *Take it to merge* stopped before step 5 — it reports and leaves the merge to the user.
 
-1. **Create PR** — push the branch, open the PR, report the link.
-2. **Monitor CI and review** — watch CI status and reviewer feedback until checks settle and reviewers weigh in.
-3. **AAR (`AAR <PR comment link>`)** — "Assess, address and reply": read every review comment (CodeRabbit, Copilot, human). Fix what's valid, push follow-up commits, and reply to each thread (fix applied, or reason for the no-op).
-4. **Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review exists yet, request one manually:
+### Take it to merge (fully automated)
+
+The request is the permission. Do not stop to ask before each step.
+
+1. **Conflicts** — if the PR is `CONFLICTING`, rebase on `origin/main`, re-run the local checks, then push. Resolve a conflict by keeping both sides' intent (e.g. two changelog entries under the same date heading), never by dropping the other branch's work. Record the remote head the rebase includes and pass it as the lease, so a push that lands mid-rebase fails instead of being overwritten:
 
    ```bash
-   gh api --method POST "repos/{owner}/{repo}/pulls/{pr}/requested_reviewers" \
-     -f "reviewers[]=copilot-pull-request-reviewer[bot]"
+   git rev-parse origin/<branch>          # the head the rebase is based on
+   git push --force-with-lease=refs/heads/<branch>:<that-sha>
    ```
 
-   (`gh pr edit --add-reviewer @copilot` also works, but only on gh ≥2.88 — the raw API form above works on any gh version. Copilot is an app reviewer, so it appears in the PR timeline and reviews, not in the `requested_reviewers` user list.)
+   A bare `--force-with-lease` trusts the local tracking ref, which a background fetch may already have moved. If the lease fails, fetch, re-read the new head, and incorporate it before retrying.
+2. **Monitor** — watch checks and review bots until they settle. A failing check gets its real cause fixed; never `--no-verify`.
+3. **AAR** — "assess, address and reply" (trigger: "AAR <PR comment link>"): read every review comment (CodeRabbit, Copilot, human), fix what is valid, and reply in each thread with the fix commit or the reason for the no-op. Fixing a finding you believe is wrong just to clear it is worse than replying why it is wrong.
+4. **Every new head needs its own review.** A fix commit, a rebase, or a force-push all change the head SHA, and a review of the previous SHA does not cover the new one. After any of them, get a review of the new head: CodeRabbit's check run for that SHA says "Review completed", or a Copilot review whose commit matches it. "Rate limited" and "Review in progress" do not count.
+5. **Merge** — `gh pr merge <n> --squash --match-head-commit <sha>`, where `<sha>` is the head that passed the gates. A push that lands between validation and merge then fails instead of merging work no one reviewed. Merge only once `mergeStateStatus` is `CLEAN`, no check is failing, no comment is unanswered, **and the head SHA has a completed review**.
+6. **Verify the merge** — report the `push` runs for this PR's squash-merge commit (`gh pr view <n> --json mergeCommit`), not simply the latest run per workflow: another PR may have landed first. Expect `CI`, `Apply Migrations`, and the deploy.
+7. **Clean up** — from the primary worktree (see the default mode above): sync `main`, `npm run supabase:down`, remove the feature worktree, delete the branch.
 
-   Manual `@copilot` review is free (a single request). The automated Copilot review workflow is **not** enabled here — it requires a paid Copilot subscription (Pro/Business/Enterprise), so it is intentionally skipped.
+**Rate limits are expected, not a reason to merge without a review.** CodeRabbit's free OSS tier allows roughly one review per hour; when it answers "Review rate limited", wait and retry `@coderabbitai review`. Its "next included review available in N minutes" line has been optimistic — trust the check run, not the comment.
+
+**Copilot fallback (paid — only with the user's approval)** — if paid Copilot access is already approved and CodeRabbit is rate-limited, request a review of the **current head SHA**:
+
+```bash
+PR=123   # the pull request number; gh api fills {owner} and {repo} but NOT {pr}
+gh api --method POST "repos/{owner}/{repo}/pulls/$PR/requested_reviewers" \
+  -f "reviewers[]=copilot-pull-request-reviewer[bot]"
+```
+
+(`gh pr edit --add-reviewer @copilot` also works, but only on gh ≥2.88 — the raw API form above works on any gh version. Copilot is an app reviewer, so it appears in the PR timeline and reviews, not in the `requested_reviewers` user list. `gh api` substitutes `{owner}` and `{repo}` only, which is why the number goes in as `$PR`.)
+
+Copilot code review is **not free**: it needs paid Copilot access (Pro/Business/Enterprise) or premium-request credits, and Copilot Free does not include it. The automated Copilot review workflow is not enabled here for the same reason. Without approved paid access, do not request it — wait for CodeRabbit's free slot, and merge only after a review of the head SHA.
+
+### Queue and exit
+
+```bash
+gh pr merge --auto --squash --delete-branch
+```
+
+Run the cleanup **only if that command succeeded**:
+
+```bash
+npm run supabase:down   # always stop it; other sessions restart with supabase:up
+git worktree remove <worktree-path> --force
+```
+
+If the merge command fails, report the error and keep the worktree — do not tear down the stack for a merge that was never queued. No polling, no waiting, no AAR. GitHub merges when CI passes.
 
 ## UI Best Practices
 
@@ -190,7 +215,7 @@ The app is **mobile-first and desktop is a first-class target**: every user-faci
 - **CI enforcement**:
   - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `scripts/git/check-migration-order.sh` first, then `supabase db start` + `supabase db reset`. A PR that breaks migrations or adds a migration that sorts at or before main's latest fails CI.
   - On merge to main, [.github/workflows/migrate.yml](.github/workflows/migrate.yml) runs `supabase db push` against the remote project. If it fails, fix via a new migration.
-  - The Supabase CLI version is pinned twice — `devDependencies.supabase` in [package.json](package.json) (currently `2.117.0`, which is what `npx supabase` resolves, so an `npx` cache miss can no longer silently upgrade it) and `supabase/setup-cli` in both workflows. Both pins must match: a newer CLI reformats the generated types wholesale, so CI's drift check fails on a version bump even when the schema is unchanged. To bump: change both, `npm install`, regenerate `src/types/database.ts`.
+  - The Supabase CLI version is pinned in five places — `devDependencies.supabase` in [package.json](package.json) (currently `2.117.0`, which is what `npx supabase` resolves, so an `npx` cache miss can no longer silently upgrade it) and the four `supabase/setup-cli` steps in [ci.yml](.github/workflows/ci.yml) (three) and [migrate.yml](.github/workflows/migrate.yml) (one). All five must match: a newer CLI reformats the generated types wholesale, so CI's drift check fails on a version bump even when the schema is unchanged, while a package-only bump makes every local `gen types` run produce that reformat. [.github/dependabot.yml](.github/dependabot.yml) ignores the package for the same reason — this is a hand-made bump. To bump: change all five, `npm install`, regenerate `src/types/database.ts`. Keep the Dependabot ignore in place — it is what stops a bot from moving the package on its own; a coordinated bump is a hand-made decision, not the end of the ignore.
   - **`CREATE INDEX CONCURRENTLY` must be its own single-statement migration** — the CLI runs `db reset` as a pipeline, and concurrent index creation cannot run inside one. Give it a dedicated file (see `20260908170031_admin_user_details_sender_index.sql`, matching `20260905175441`).
 - **Troubleshooting**:
   - `supabase db reset` failing locally = migration depends on existing state. Fix before pushing.
