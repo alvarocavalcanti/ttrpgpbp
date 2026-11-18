@@ -72,19 +72,21 @@ Boundaries: code/commits/PRs written normal.
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
-  4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI in the default mode (token expensive); the "take it to merge" mode below is the exception.
+  4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI unless the request asks for it (token expensive): the monitor-only and take-it-to-merge modes below are the exceptions.
 
   5. **Stop, or take it to merge — the request decides.** Pick the mode from what the user asked for. It is per request, not per session, and it never carries over: the next request starts in the default unless it says otherwise. If the ask is ambiguous ("ship it", "get this in"), ask which mode before acting — merging is irreversible and the default is to wait.
 
      | Mode | How to ask | Agent does |
      | --- | --- | --- |
      | **Default — open and wait** | Just ask for the work ("implement #808", "fix this"), or say "open a PR and stop" | Open the PR, report the link, stop. No CI polling, no review chasing, no merge. |
+     | **Monitor only** | "monitor this PR", "watch CI and tell me when it is green" | Watch checks and reviews, run the AAR, report — **no merge**, no cleanup. |
      | **Take it to merge** | "open and merge it", "take it to merge", "monitor this PR and merge when green", "run the full PR workflow" | Everything in [PR workflow modes](#pr-workflow-modes) below, ending in a merged PR and a clean worktree. |
      | **Queue and exit** | "queue auto-merge", "auto-merge and exit" | Queue the merge, clean up, exit. No polling, no AAR. |
 
-     **Default — open and wait.** The user merges, then tells you (e.g. "PR #117 merged") and you clean up:
+     **Default — open and wait.** The user merges, then tells you (e.g. "PR #117 merged") and you clean up. `main` is checked out in the primary worktree, so run this **there**, not in the feature worktree — a `git checkout main` inside the feature worktree fails, and the `&&` would then skip the pull:
 
      ```bash
+     # from the primary repo directory
      git fetch origin
      git checkout main && git pull origin main --ff-only
      npm run supabase:down   # always stop it; other sessions restart with supabase:up
@@ -100,19 +102,26 @@ Boundaries: code/commits/PRs written normal.
 
 ## PR workflow modes
 
-The default is **open and wait** — step 5 of the **Branching & PRs** bullet above. The two modes below are opt-in: they start only when the request asks for them, using the phrases in that table.
+The default is **open and wait** — step 5 of the **Branching & PRs** bullet above. The modes below are opt-in: they start only when the request asks for them, using the phrases in that table. **Monitor only** is the same loop as *Take it to merge* stopped before step 5 — it reports and leaves the merge to the user.
 
 ### Take it to merge (fully automated)
 
 The request is the permission. Do not stop to ask before each step.
 
-1. **Conflicts** — if the PR is `CONFLICTING`, rebase on `origin/main`, re-run the local checks, then `git push --force-with-lease`. Resolve a conflict by keeping both sides' intent (e.g. two changelog entries under the same date heading), never by dropping the other branch's work.
+1. **Conflicts** — if the PR is `CONFLICTING`, rebase on `origin/main`, re-run the local checks, then push. Resolve a conflict by keeping both sides' intent (e.g. two changelog entries under the same date heading), never by dropping the other branch's work. Record the remote head the rebase includes and pass it as the lease, so a push that lands mid-rebase fails instead of being overwritten:
+
+   ```bash
+   git rev-parse origin/<branch>          # the head the rebase is based on
+   git push --force-with-lease=refs/heads/<branch>:<that-sha>
+   ```
+
+   A bare `--force-with-lease` trusts the local tracking ref, which a background fetch may already have moved. If the lease fails, fetch, re-read the new head, and incorporate it before retrying.
 2. **Monitor** — watch checks and review bots until they settle. A failing check gets its real cause fixed; never `--no-verify`.
 3. **AAR** — "assess, address and reply" (trigger: "AAR <PR comment link>"): read every review comment (CodeRabbit, Copilot, human), fix what is valid, and reply in each thread with the fix commit or the reason for the no-op. Fixing a finding you believe is wrong just to clear it is worse than replying why it is wrong.
-4. **Re-request review after every fix commit.** A fix counts as reviewed only when the bot's check run for that exact SHA reports "Review completed" — "Rate limited" and "Review in progress" do not.
-5. **Merge** — `gh pr merge <n> --squash` once `mergeStateStatus` is `CLEAN`, no check is failing, and no comment is unanswered.
-6. **Verify the merge** — report the post-merge runs on `main` (`CI`, `Apply Migrations`, the deploy).
-7. **Clean up** — sync `main`, `npm run supabase:down`, remove the worktree, delete the branch.
+4. **Re-request review after every fix commit.** A fix counts as reviewed only when a review of that exact SHA completed: CodeRabbit's check run for the SHA says "Review completed", or a Copilot review whose commit matches it. "Rate limited" and "Review in progress" do not.
+5. **Merge** — `gh pr merge <n> --squash --match-head-commit <sha>`, where `<sha>` is the head that passed the gates. A push that lands between validation and merge then fails instead of merging work no one reviewed. Merge only once `mergeStateStatus` is `CLEAN`, no check is failing, and no comment is unanswered.
+6. **Verify the merge** — report the `push` runs for this PR's squash-merge commit (`gh pr view <n> --json mergeCommit`), not simply the latest run per workflow: another PR may have landed first. Expect `CI`, `Apply Migrations`, and the deploy.
+7. **Clean up** — from the primary worktree (see the default mode above): sync `main`, `npm run supabase:down`, remove the feature worktree, delete the branch.
 
 **Rate limits are expected, not a reason to merge without a review.** CodeRabbit's free OSS tier allows roughly one review per hour; when it answers "Review rate limited", wait and retry `@coderabbitai review`. Its "next included review available in N minutes" line has been optimistic — trust the check run, not the comment.
 
@@ -127,15 +136,22 @@ gh api --method POST "repos/{owner}/{repo}/pulls/{pr}/requested_reviewers" \
 
 Manual `@copilot` review is free (a single request). The automated Copilot review workflow is **not** enabled here — it requires a paid Copilot subscription (Pro/Business/Enterprise), so it is intentionally skipped.
 
+A Copilot review of the fix SHA satisfies step 4 on its own, so while CodeRabbit is rate-limited it is the fallback that unblocks the merge. If neither bot can review the SHA, the merge waits.
+
 ### Queue and exit
 
 ```bash
 gh pr merge --auto --squash --delete-branch
+```
+
+Run the cleanup **only if that command succeeded**:
+
+```bash
 npm run supabase:down   # always stop it; other sessions restart with supabase:up
 git worktree remove <worktree-path> --force
 ```
 
-No polling, no waiting, no AAR. GitHub merges when CI passes.
+If the merge command fails, report the error and keep the worktree — do not tear down the stack for a merge that was never queued. No polling, no waiting, no AAR. GitHub merges when CI passes.
 
 ## UI Best Practices
 
