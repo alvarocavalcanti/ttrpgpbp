@@ -125,7 +125,7 @@ The request is the permission. Do not stop to ask before each step.
 
 **Rate limits are expected, not a reason to merge without a review.** CodeRabbit's free OSS tier allows roughly one review per hour; when it answers "Review rate limited", wait and retry `@coderabbitai review`. Its "next included review available in N minutes" line has been optimistic — trust the check run, not the comment.
 
-**Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review exists yet, request one manually:
+**Copilot fallback** — if CodeRabbit is rate-limited and no Copilot review of the **current head SHA** exists yet, request one manually:
 
 ```bash
 gh api --method POST "repos/{owner}/{repo}/pulls/{pr}/requested_reviewers" \
@@ -216,7 +216,7 @@ The app is **mobile-first and desktop is a first-class target**: every user-faci
 - **CI enforcement**:
   - Every PR runs the `migrate-check` job in [.github/workflows/ci.yml](.github/workflows/ci.yml): `scripts/git/check-migration-order.sh` first, then `supabase db start` + `supabase db reset`. A PR that breaks migrations or adds a migration that sorts at or before main's latest fails CI.
   - On merge to main, [.github/workflows/migrate.yml](.github/workflows/migrate.yml) runs `supabase db push` against the remote project. If it fails, fix via a new migration.
-  - The Supabase CLI version is pinned in five places — `devDependencies.supabase` in [package.json](package.json) (currently `2.117.0`, which is what `npx supabase` resolves, so an `npx` cache miss can no longer silently upgrade it) and the four `supabase/setup-cli` steps in [ci.yml](.github/workflows/ci.yml) (three) and [migrate.yml](.github/workflows/migrate.yml) (one). All five must match: a newer CLI reformats the generated types wholesale, so CI's drift check fails on a version bump even when the schema is unchanged, while a package-only bump makes every local `gen types` run produce that reformat. [.github/dependabot.yml](.github/dependabot.yml) ignores the package for the same reason — this is a hand-made bump. To bump: change all five, `npm install`, regenerate `src/types/database.ts`, and remove the Dependabot ignore in the same PR.
+  - The Supabase CLI version is pinned in five places — `devDependencies.supabase` in [package.json](package.json) (currently `2.117.0`, which is what `npx supabase` resolves, so an `npx` cache miss can no longer silently upgrade it) and the four `supabase/setup-cli` steps in [ci.yml](.github/workflows/ci.yml) (three) and [migrate.yml](.github/workflows/migrate.yml) (one). All five must match: a newer CLI reformats the generated types wholesale, so CI's drift check fails on a version bump even when the schema is unchanged, while a package-only bump makes every local `gen types` run produce that reformat. [.github/dependabot.yml](.github/dependabot.yml) ignores the package for the same reason — this is a hand-made bump. To bump: change all five, `npm install`, regenerate `src/types/database.ts`. Keep the Dependabot ignore in place — it is what stops a bot from moving the package on its own; a coordinated bump is a hand-made decision, not the end of the ignore.
   - **`CREATE INDEX CONCURRENTLY` must be its own single-statement migration** — the CLI runs `db reset` as a pipeline, and concurrent index creation cannot run inside one. Give it a dedicated file (see `20260908170031_admin_user_details_sender_index.sql`, matching `20260905175441`).
 - **Troubleshooting**:
   - `supabase db reset` failing locally = migration depends on existing state. Fix before pushing.
