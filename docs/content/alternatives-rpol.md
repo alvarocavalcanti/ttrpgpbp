@@ -30,7 +30,7 @@ If a large public directory and forum-style boards are what you want, RPOL is bu
 
 ### The story reads like a novel, not a thread
 
-A campaign is one flowing timeline rather than a set of boards. Posts keep their replies, reactions, and scene breaks attached to the moment they belong to, the timeline marks where you last read, and full-text search jumps you straight to any line. When the campaign ends you can **export the whole thing to Markdown** and keep it.
+A campaign is one flowing timeline rather than a set of boards. Posts keep their replies, reactions, and scene breaks attached to the moment they belong to, the timeline marks where you last read, and full-text search jumps you straight to any line. When the campaign ends you can **export the whole chat history to Markdown** and keep it.
 
 ### Rooms keep side talk out of the story
 

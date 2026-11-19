@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-11-19
 
+### Changed
+
+- **The Myth-Weavers comparison is honest now** — the page comparing Role by Post with Myth-Weavers has been checked against Myth-Weavers' own documentation. It credits what they do best (the free character sheets, the 1,350+ games, the map canvas), and it now shows real screenshots of a Role by Post campaign. The page also has its own preview card when someone shares the link.
+
 ### Fixed
 
 - **The dice roller starts fresh every time** — opening the panel now gives you an empty form: no dice picked, the modifier back to 0, Sum mode, and advantage off. A bonus or die left over from an earlier roll can no longer sneak into the next one. To repeat a roll you made before, tap its notation chip above the form: most chips load their values for you to confirm, while a few unusual ones (like drop-lowest) roll the moment you tap them.

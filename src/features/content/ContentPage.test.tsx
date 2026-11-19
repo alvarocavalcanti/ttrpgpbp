@@ -209,6 +209,13 @@ describe('ContentPage', () => {
     )
     unmount()
 
+    const mythWeavers = renderAt('/alternatives/myth-weavers')
+    expect(document.querySelector('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      expect.stringContaining('/og-image-myth-weavers.png'),
+    )
+    mythWeavers.unmount()
+
     renderAt('/play-by-post')
     expect(document.querySelector('meta[property="og:image"]')).toHaveAttribute(
       'content',
@@ -216,22 +223,53 @@ describe('ContentPage', () => {
     )
   })
 
-  it('highlights rooms and notes on the Myth-Weavers comparison', () => {
+  it('credits Myth-Weavers and links out to it', () => {
     mockAuth(null)
     renderAt('/alternatives/myth-weavers')
 
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Role by Post vs Myth-Weavers — A Modern Play-by-Post Alternative',
+        name: 'Myth-Weavers Alternative: Play-by-Post With Character Sheets',
       }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Rooms and side conversations' }),
+      screen.getByRole('heading', { level: 2, name: 'Where Myth-Weavers is still the right home' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'look at Myth-Weavers yourself' })).toHaveAttribute(
+      'href',
+      'https://www.myth-weavers.com',
+    )
+    expect(screen.getByRole('link', { name: 'Their sheet guide' })).toHaveAttribute(
+      'href',
+      'https://static.myth-weavers.com/help/character-sheets.html',
+    )
+    expect(document.title).toBe('Myth-Weavers Alternative — Role by Post')
+  })
+
+  it('highlights rooms and notes on the Myth-Weavers comparison', () => {
+    mockAuth(null)
+    renderAt('/alternatives/myth-weavers')
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Rooms keep side talk out of the story' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Notes that live with the campaign' }),
+      screen.getByRole('heading', { level: 3, name: 'Notes that live with the campaign' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows its own screenshots on the Myth-Weavers comparison', () => {
+    mockAuth(null)
+    const { container } = renderAt('/alternatives/myth-weavers')
+
+    expect(container.querySelectorAll('figure')).toHaveLength(3)
+    expect(container.querySelector('figure img')).toHaveAttribute(
+      'src',
+      '/help-images/thumbs/message-actions.webp',
+    )
+    // Marker present: bottom + sticky + after_intro.
+    expect(screen.getAllByRole('link', { name: 'Start now' })).toHaveLength(3)
   })
 
   it('highlights rooms on the Discord comparison with the registry title', () => {

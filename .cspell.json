@@ -83,6 +83,7 @@
     "oxlint",
     "passwordless",
     "pipefail",
+    "playbypost",
     "plpgsql",
     "precaches",
     "precaching",
