@@ -7,7 +7,7 @@ If you are looking for a home for asynchronous tabletop roleplaying, there are a
 ## Choose your comparison
 
 - **[RPOL alternative](/alternatives/rpol)** — the long-running forum-style community, compared with a chat-first timeline. The right starting point if you want a big public catalogue of games to join.
-- **[Myth-Weavers alternative](/alternatives/myth-weavers)** — forums and a large character-sheet culture, compared with rooms, campaign notes, and a mobile-first app.
+- **[Myth-Weavers alternative](/alternatives/myth-weavers)** — the sheet builder and 1,350+ games credited where they earn it, compared with rooms, campaign notes, and a chat-first timeline.
 - **[Discord for play-by-post](/vs/discord)** — the general-purpose option most groups already have, and the specific problems it leaves unsolved for a written campaign.
 
 ## Not ready to compare yet?

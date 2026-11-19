@@ -28,6 +28,12 @@ const CARDS = [
     subtitle: 'Chat-first, installable, free — Role by Post',
     shot: 'help-images/status-bar.png',
   },
+  {
+    output: 'og-image-myth-weavers.png',
+    title: 'Myth-Weavers alternative?',
+    subtitle: 'Chat-first, with rooms and campaign notes — Role by Post',
+    shot: 'help-images/notes.png',
+  },
 ]
 
 function dataUri(file) {

@@ -222,7 +222,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     path: ROUTES.playByPost,
     title: 'Play-by-Post Tabletop RPGs — Role by Post',
     description:
-      'What play-by-post is, why asynchronous tabletop RPGs fit busy groups, and how Role by Post keeps the story moving from any phone or browser.',
+      'What play-by-post (play by post) is, why asynchronous tabletop RPGs fit busy groups, and how Role by Post keeps the story moving from any phone or browser.',
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.9,
@@ -283,9 +283,9 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: ROUTES.altMythWeavers,
-    title: 'Role by Post vs Myth-Weavers — Role by Post',
+    title: 'Myth-Weavers Alternative — Role by Post',
     description:
-      'Comparing Role by Post with Myth-Weavers for play-by-post RPGs: rooms, per-campaign characters, campaign notes, and a chat-first timeline.',
+      'A Myth-Weavers alternative compared honestly: its free character sheets and 1,350+ games credited against a chat-first timeline, rooms, and campaign notes.',
     waitSelector: 'h1',
     changeFrequency: 'monthly',
     priority: 0.7,

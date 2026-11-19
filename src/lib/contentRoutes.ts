@@ -91,6 +91,24 @@ export const CONTENT_ROUTES: ContentRoute[] = [
       { label: 'Alternatives', to: ROUTES.alternatives },
       { label: 'Role by Post vs Myth-Weavers' },
     ],
+    ogImage: '/og-image-myth-weavers.png',
+    shots: [
+      {
+        src: '/help-images/message-actions.png',
+        alt: 'A Role by Post message on a phone with reply, edit, reaction, and report actions',
+        caption: 'Replies and reactions stay attached to the post they belong to, so the story reads in order.',
+      },
+      {
+        src: '/help-images/rooms.png',
+        alt: 'Room settings inside a Role by Post campaign, including a private room for the Game Master',
+        caption: 'Rooms keep dice and out-of-character talk out of the story.',
+      },
+      {
+        src: '/help-images/notes.png',
+        alt: 'Campaign notes in Role by Post with Character, Party, and GM notebooks',
+        caption: 'Character, party, and GM notes live with the campaign instead of in a separate document.',
+      },
+    ],
   },
   {
     path: ROUTES.aiDisclaimer,

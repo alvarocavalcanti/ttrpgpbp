@@ -16,7 +16,7 @@ const PUBLIC_PAGES = [
   { path: '/vs/discord', title: 'Role by Post vs Discord — Role by Post' },
   { path: '/alternatives', title: 'Play-by-Post Alternatives — Role by Post' },
   { path: '/alternatives/rpol', title: 'RPOL Alternative — Role by Post vs RolePlay onLine' },
-  { path: '/alternatives/myth-weavers', title: 'Role by Post vs Myth-Weavers — Role by Post' },
+  { path: '/alternatives/myth-weavers', title: 'Myth-Weavers Alternative — Role by Post' },
   { path: '/help', title: 'Help and Guides — Role by Post' },
   { path: '/help/dice-rolling', title: 'Dice Rolling — Role by Post Help' },
   { path: '/privacy', title: 'Privacy Policy — Role by Post' },
@@ -68,6 +68,18 @@ test.describe('public route metadata', () => {
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
       'https://rolebypost.com/alternatives/rpol',
+    )
+  })
+
+  test('the Myth-Weavers comparison offers a sign-up path and its own screenshots', async ({
+    page,
+  }) => {
+    await page.goto('/alternatives/myth-weavers')
+    await expect(page.getByRole('link', { name: 'Start now' }).first()).toBeVisible()
+    await expect(page.locator('figure img')).toHaveCount(3)
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://rolebypost.com/alternatives/myth-weavers',
     )
   })
 

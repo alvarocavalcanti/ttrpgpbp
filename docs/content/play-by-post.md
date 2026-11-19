@@ -2,7 +2,7 @@
 title: Play-by-Post Tabletop RPGs
 ---
 
-Play-by-post is tabletop roleplaying played in writing, one post at a time. Instead of gathering around a table for a four-hour session, the group keeps a shared story going in a channel: you post when you can, the game waits, and the narrative grows between sessions. It is the oldest way to play roleplaying games at a distance, and it still fits busy adults better than almost anything else.
+Play-by-post is tabletop roleplaying played in writing, one post at a time. It is also written play by post, playbypost, PBP, or play by chat — the same idea under different names. Instead of gathering around a table for a four-hour session, the group keeps a shared story going in a channel: you post when you can, the game waits, and the narrative grows between sessions. It is the oldest way to play roleplaying games at a distance, and it still fits busy adults better than almost anything else.
 
 Role by Post is a chat-first app built for exactly that rhythm.
 
