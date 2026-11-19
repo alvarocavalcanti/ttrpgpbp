@@ -165,13 +165,33 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
   const dieSides = selection[0]?.sides ?? 20
   const canRoll = selection.length > 0
 
+  // Every visit to the roller starts from a clean form: a modifier, die or
+  // advantage picked last time must never ride along into the next roll (#836).
+  const resetForm = () => {
+    setSelection([])
+    setModifier(0)
+    setAdvDis('none')
+    setPoolMode('sum')
+    setTarget(4)
+    setSorted(false)
+  }
+
+  // Reset before opening so the first frame already shows the clean form.
+  const toggleOpen = () => {
+    if (isOpen) {
+      setIsOpen(false)
+      return
+    }
+    resetForm()
+    setIsOpen(true)
+  }
+
   const roll = (notation: string) => {
     recordRoll(notation)
     onRoll(notation)
-    // Start the next roll from a clean bag so the previous dice don't linger.
+    // Start the next roll from a clean form so nothing lingers.
+    resetForm()
     setIsOpen(false)
-    setSelection([])
-    setAdvDis('none')
   }
 
   const handleRoll = () => {
@@ -417,7 +437,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
         <button
           type="button"
           data-dice-fab
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleOpen}
           aria-label="Open dice roller"
           aria-expanded={isOpen}
           className="inline-flex items-center justify-center p-4 border border-transparent rounded-full shadow-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
@@ -427,7 +447,7 @@ export function DiceRoller({ onRoll, popup = false, channelId, fab = false, alig
       ) : (
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleOpen}
           className={`${chipBase} ${chipIdle}`}
         >
           <DieGlyph className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
