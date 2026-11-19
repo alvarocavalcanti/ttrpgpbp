@@ -4,6 +4,7 @@ import { useDebounce } from '../../hooks/useDebounce'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { reportAppError } from '../../lib/appErrorLog'
+import { readCachedIconBodies, writeCachedIconBodies, type IconSource } from './iconSourceCache'
 
 interface IconPickerProps {
   onPick: (iconUrl: string) => void
@@ -14,7 +15,66 @@ interface IconifySearchResult {
   icons: string[]
 }
 
+interface IconifyCollectionResult {
+  width?: unknown
+  height?: unknown
+  icons?: Record<string, { body?: unknown; width?: unknown; height?: unknown }>
+}
+
 const GAME_ICONS_PREFIX = 'game-icons:'
+const GAME_ICONS_COLLECTION_URL = 'https://api.iconify.design/game-icons.json'
+const DEFAULT_ICON_SIZE = 512
+
+// Iconify's per-icon image endpoint rate-limits bursts (#835): a second search
+// requested ~48 new .svg URLs at once, tripped the limiter, and every tile came
+// back 429 (no-store, so nothing recovered for ~2 minutes). Previews now render
+// from the collection payload instead, one request per displayed set.
+function iconSvgDataUrl({ body, size }: IconSource): string {
+  // xmlns is required for an SVG painted through <img>; without it the tile
+  // renders blank, which is indistinguishable from the bug this fixes.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${body}</svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+function buildDataUrls(sources: Record<string, IconSource>, ids: readonly string[]): Record<string, string> {
+  const urls: Record<string, string> = {}
+  for (const id of ids) {
+    const source = sources[id]
+    if (source) urls[id] = iconSvgDataUrl(source)
+  }
+  return urls
+}
+
+function toSize(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 4096 ? value : null
+}
+
+// One request for the whole set. Never throws: a failed batch degrades to the
+// plain image URLs the caller already falls back to.
+// shortcut: single GET query string, revisit only if the search limit grows past ~100 ids.
+export async function fetchIconSources(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<Record<string, IconSource>> {
+  if (ids.length === 0) return {}
+  const sources: Record<string, IconSource> = {}
+  try {
+    const res = await fetch(`${GAME_ICONS_COLLECTION_URL}?icons=${ids.map(encodeURIComponent).join(',')}`, { signal })
+    const data = (await res.json()) as IconifyCollectionResult
+    const collectionSize = toSize(data?.width) ?? toSize(data?.height) ?? DEFAULT_ICON_SIZE
+    for (const id of ids) {
+      const icon = data?.icons?.[id]
+      if (typeof icon?.body !== 'string' || !icon.body) continue
+      sources[id] = {
+        body: icon.body,
+        size: toSize(icon.width) ?? toSize(icon.height) ?? collectionSize,
+      }
+    }
+  } catch {
+    return {}
+  }
+  return sources
+}
 
 // Iconify /search returns collection-namespaced names ("game-icons:dragon-head")
 // even when the request pins prefix=game-icons, while npcIconUrl expects a bare
@@ -68,14 +128,42 @@ function reportMalformedPayload(): void {
   reportAppError(new Error('[npc-icon-search] Iconify search payload missing icons array'))
 }
 
+function filteredCurated(query: string): string[] {
+  const needle = query.toLowerCase().replace(/\s+/g, '-')
+  return CURATED_NPC_ICONS.filter(name => name.includes(needle))
+}
+
 // Search game-icons.net via the Iconify API; fall back to the curated subset
 // on network failure or empty results.
+async function searchIconIds(trimmed: string, signal: AbortSignal): Promise<string[]> {
+  const res = await fetch(
+    `https://api.iconify.design/search?query=${encodeURIComponent(trimmed)}&prefix=game-icons&limit=48`,
+    { signal },
+  )
+  const data = (await res.json()) as IconifySearchResult
+  if (!Array.isArray(data?.icons)) {
+    console.warn('[npc-icon-search] unexpected Iconify payload', data)
+    reportMalformedPayload()
+    return filteredCurated(trimmed)
+  }
+  const { ids, ignored } = toGameIconIds(data.icons)
+  if (ignored.length > 0) reportDroppedResults(ignored, ids.length)
+  return ids
+}
+
 export function IconPicker({ onPick, onClose }: IconPickerProps) {
   const [query, setQuery] = useState('')
   // Debounced so typing doesn't fire an Iconify request per keystroke (ARCH-2).
   const debouncedQuery = useDebounce(query, 300)
+  // Curated bodies are cached for a week (#835), so a warm modal paints its
+  // grid with no request at all and never goes blank during a rate-limit window.
+  const [cachedBodies] = useState(() => readCachedIconBodies())
+  const bodiesRef = useRef<Record<string, IconSource>>(cachedBodies)
+  const [sources, setSources] = useState<Record<string, string>>(
+    () => buildDataUrls(cachedBodies, CURATED_NPC_ICONS),
+  )
   const [icons, setIcons] = useState<string[]>([...CURATED_NPC_ICONS])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(() => !CURATED_NPC_ICONS.every(id => id in cachedBodies))
   const dialogRef = useRef<HTMLDivElement>(null)
 
   useEscapeToClose(onClose)
@@ -83,39 +171,51 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
 
   useEffect(() => {
     const trimmed = debouncedQuery.trim()
-    if (!trimmed) {
-      setIcons([...CURATED_NPC_ICONS])
-      setLoading(false)
-      return
-    }
     const controller = new AbortController()
     // A superseded query (or an unmount) rejects later; the flag keeps that
     // stale rejection from overwriting the results of the live request.
     let active = true
-    setLoading(true)
-    const fallback = () => setIcons(CURATED_NPC_ICONS.filter(n => n.includes(trimmed.toLowerCase().replace(/\s+/g, '-'))))
-    fetch(`https://api.iconify.design/search?query=${encodeURIComponent(trimmed)}&prefix=game-icons&limit=48`, { signal: controller.signal })
-      .then(res => res.json())
-      .then((data: IconifySearchResult) => {
-        if (!active) return
-        if (!Array.isArray(data?.icons)) {
-          console.warn('[npc-icon-search] unexpected Iconify payload', data)
-          reportMalformedPayload()
-          fallback()
-          return
+
+    const commit = (ids: string[]) => {
+      setIcons(ids)
+      setSources(buildDataUrls(bodiesRef.current, ids))
+      setLoading(false)
+    }
+
+    const load = async () => {
+      let ids: string[]
+      if (!trimmed) {
+        ids = [...CURATED_NPC_ICONS]
+      } else {
+        setLoading(true)
+        try {
+          ids = await searchIconIds(trimmed, controller.signal)
+        } catch {
+          // Fall back to curated subset on failure.
+          if (!active) return
+          ids = filteredCurated(trimmed)
         }
-        const { ids, ignored } = toGameIconIds(data.icons)
-        setIcons(ids)
-        if (ignored.length > 0) reportDroppedResults(ignored, ids.length)
-      })
-      .catch(() => {
-        // Fall back to curated subset on failure.
         if (!active) return
-        fallback()
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+      }
+
+      const missing = ids.filter(id => !bodiesRef.current[id])
+      if (missing.length === 0) {
+        commit(ids)
+        return
+      }
+      if (!trimmed) setLoading(true)
+      const fetched = await fetchIconSources(missing, controller.signal)
+      if (!active) return
+      if (Object.keys(fetched).length > 0) {
+        bodiesRef.current = { ...bodiesRef.current, ...fetched }
+        // Only what the batch just returned: cached entries keep their own age
+        // and nothing already stored can be revived by a later write.
+        writeCachedIconBodies(fetched)
+      }
+      commit(ids)
+    }
+
+    void load()
     return () => {
       active = false
       controller.abort()
@@ -160,7 +260,7 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
                     title={name}
                     aria-label={name}
                   >
-                    <img className="h-8 w-8 dark:invert" src={npcIconUrl(name)} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                    <img className="h-8 w-8 dark:invert" src={sources[name] ?? npcIconUrl(name)} alt="" loading="lazy" referrerPolicy="no-referrer" />
                   </button>
                 ))}
               </div>
