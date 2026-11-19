@@ -18,7 +18,7 @@ Play-by-post has specific problems that a general chat platform is not designed 
 
 ### The story stays readable
 
-A generic channel is built for fast, ephemeral conversation. A play-by-post campaign needs a readable, searchable timeline: scene breaks, quoted replies, and reactions that stay attached to the post they belong to. Role by Post is built around that timeline, with full-text search and the ability to **export the whole campaign to Markdown**.
+A generic channel is built for fast, ephemeral conversation. A play-by-post campaign needs a readable, searchable timeline: scene breaks, quoted replies, and reactions that stay attached to the post they belong to. Role by Post is built around that timeline, with full-text search and the ability to **export the whole chat history to Markdown**.
 
 ### Rooms, not channel sprawl
 

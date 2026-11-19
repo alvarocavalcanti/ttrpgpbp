@@ -2,7 +2,7 @@
 title: Play-by-Post Tabletop RPGs
 ---
 
-Play-by-post is tabletop roleplaying played in writing, one post at a time. It is also written play by post, playbypost, PBP, or play by chat — the same idea under different names. Instead of gathering around a table for a four-hour session, the group keeps a shared story going in a channel: you post when you can, the game waits, and the narrative grows between sessions. It is the oldest way to play roleplaying games at a distance, and it still fits busy adults better than almost anything else.
+Play-by-post is tabletop roleplaying played in writing, one post at a time. It is also written play by post, playbypost, or PBP; a related term, play by chat, usually means the same written format, though it can also describe a live session where everyone is online at once. Instead of gathering around a table for a four-hour session, the group keeps a shared story going in a channel: you post when you can, the game waits, and the narrative grows between sessions. It is the oldest way to play roleplaying games at a distance, and it still fits busy adults better than almost anything else.
 
 Role by Post is a chat-first app built for exactly that rhythm.
 
@@ -28,7 +28,7 @@ Each campaign is a private channel. You join by invite link, with an optional pa
 
 Asynchronous play lives or dies on knowing when it is your turn. Role by Post tracks **unread counts**, marks **new messages**, and sends **push notifications** that you can tune per channel — everything, Game Master posts only, or just when it is your turn. If you need to step away, an **AFK status** tells the table and pauses your turn alerts.
 
-Because it runs in the browser and installs like an app, a campaign travels with you across phone, tablet, and desktop. **Full-text search** finds any moment in the story, and you can **export the whole campaign to Markdown** whenever you want to keep it.
+Because it runs in the browser and installs like an app, a campaign travels with you across phone, tablet, and desktop. **Full-text search** finds any moment in the story, and you can **export the whole chat history to Markdown** whenever you want to keep it.
 
 ## What it is not
 

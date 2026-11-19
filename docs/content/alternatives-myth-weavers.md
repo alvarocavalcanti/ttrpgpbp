@@ -30,7 +30,7 @@ If a large public directory, site-hosted sheets, and forum boards are what you w
 
 ### The story reads like a novel, not a thread
 
-A campaign is one flowing timeline rather than a set of boards. Posts keep their replies, reactions, and scene breaks attached to the moment they belong to, the timeline marks where you last read, and full-text search jumps you straight to any line. When the campaign ends you can **export the whole thing to Markdown** and keep it.
+A campaign is one flowing timeline rather than a set of boards. Posts keep their replies, reactions, and scene breaks attached to the moment they belong to, the timeline marks where you last read, and full-text search jumps you straight to any line. When the campaign ends you can **export the whole chat history to Markdown** and keep it.
 
 Myth-Weavers has full-text search too. The difference is the shape of the page: a topic there is a stack of posts to work through, while a Role by Post campaign is one conversation you read from top to bottom.
 
