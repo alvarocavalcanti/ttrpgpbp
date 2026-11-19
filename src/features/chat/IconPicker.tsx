@@ -208,7 +208,9 @@ export function IconPicker({ onPick, onClose }: IconPickerProps) {
       if (!active) return
       if (Object.keys(fetched).length > 0) {
         bodiesRef.current = { ...bodiesRef.current, ...fetched }
-        writeCachedIconBodies(bodiesRef.current)
+        // Only what the batch just returned: cached entries keep their own age
+        // and nothing already stored can be revived by a later write.
+        writeCachedIconBodies(fetched)
       }
       commit(ids)
     }

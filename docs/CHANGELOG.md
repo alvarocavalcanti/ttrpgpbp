@@ -7,7 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - **The dice roller starts fresh every time** — opening the panel now gives you an empty form: no dice picked, the modifier back to 0, Sum mode, and advantage off. A bonus or die left over from an earlier roll can no longer sneak into the next one. To repeat a roll you made before, tap its notation chip above the form: most chips load their values for you to confirm, while a few unusual ones (like drop-lowest) roll the moment you tap them.
-- **NPC portraits keep loading when you search for icons more than once** — a second (or tenth) search now shows its portraits instead of a grid of broken images, and the default grid is ready the moment the picker opens, even on a slow connection.
+- **NPC portraits keep loading when you search for icons more than once** — a second (or tenth) search now shows its portraits instead of a grid of broken images. Once you have opened the picker before, its default portraits are saved on your device, so they appear straight away even on a slow connection.
 
 ## 2026-11-17
 

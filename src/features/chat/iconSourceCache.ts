@@ -11,9 +11,10 @@ export interface IconSource {
   size: number
 }
 
-interface StoredSources {
+// Each entry carries its own age: a single record timestamp would let a newer
+// body renew the week of everything stored alongside it.
+interface StoredSource extends IconSource {
   savedAt: number
-  sources: Record<string, IconSource>
 }
 
 // Bump when the record shape or the data-URL encoding changes.
@@ -21,7 +22,7 @@ export const ICON_BODY_CACHE_KEY = 'npc-icon-bodies-v1'
 export const ICON_BODY_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 const MAX_SIZE = 4096
-// A clock that jumped backwards would otherwise keep a record "fresh" forever.
+// A clock that jumped backwards would otherwise keep an entry "fresh" forever.
 const MAX_CLOCK_LEAD_MS = 60_000
 
 const CURATED_IDS = new Set<string>(CURATED_NPC_ICONS)
@@ -33,45 +34,51 @@ function isIconSource(value: unknown): value is IconSource {
     typeof size === 'number' && Number.isFinite(size) && size > 0 && size <= MAX_SIZE
 }
 
-function readStored(now: number): StoredSources | null {
+// Corrupt, foreign, expired, or orphaned entries are dropped one by one, so a
+// single bad record cannot poison the rest of the cache.
+function readStored(now: number): Record<string, StoredSource> {
   const raw = safeGetItem(ICON_BODY_CACHE_KEY)
-  if (!raw) return null
+  if (!raw) return {}
+  let parsed: { sources?: unknown } | null
   try {
-    const parsed = JSON.parse(raw) as Partial<StoredSources> | null
-    const savedAt = parsed?.savedAt
-    const sources = parsed?.sources
-    if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return null
-    if (savedAt > now + MAX_CLOCK_LEAD_MS || now - savedAt > ICON_BODY_TTL_MS) return null
-    if (!sources || typeof sources !== 'object') return null
-    return { savedAt, sources: sources as Record<string, IconSource> }
+    parsed = JSON.parse(raw) as { sources?: unknown } | null
   } catch {
-    return null
+    return {}
   }
+  const sources = parsed?.sources
+  if (!sources || typeof sources !== 'object') return {}
+
+  const stored: Record<string, StoredSource> = {}
+  for (const [id, value] of Object.entries(sources as Record<string, unknown>)) {
+    if (!CURATED_IDS.has(id) || !isIconSource(value)) continue
+    const { savedAt } = value as Partial<StoredSource>
+    if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) continue
+    if (savedAt > now + MAX_CLOCK_LEAD_MS || now - savedAt > ICON_BODY_TTL_MS) continue
+    stored[id] = { body: value.body, size: value.size, savedAt }
+  }
+  return stored
 }
 
-// Corrupt, foreign, stale, or orphaned entries all degrade to a cache miss.
 export function readCachedIconBodies(now = Date.now()): Record<string, IconSource> {
-  const stored = readStored(now)
-  if (!stored) return {}
   const cached: Record<string, IconSource> = {}
-  for (const [id, source] of Object.entries(stored.sources)) {
-    if (CURATED_IDS.has(id) && isIconSource(source)) cached[id] = source
+  for (const [id, { body, size }] of Object.entries(readStored(now))) {
+    cached[id] = { body, size }
   }
   return cached
 }
 
-// Merges so a partial batch accumulates instead of replacing good entries, and
-// a failed one (nothing to store) leaves the cache untouched.
+// Pass only what was just fetched: an entry that is already stored keeps its
+// original age, so retention cannot be renewed by an unrelated batch.
 export function writeCachedIconBodies(sources: Record<string, IconSource>, now = Date.now()): void {
-  const curated: Record<string, IconSource> = {}
+  const next = readStored(now)
+  let changed = false
   for (const [id, source] of Object.entries(sources)) {
-    if (CURATED_IDS.has(id) && isIconSource(source)) curated[id] = source
+    if (!CURATED_IDS.has(id) || !isIconSource(source)) continue
+    const previous = next[id]
+    if (previous && previous.body === source.body && previous.size === source.size) continue
+    next[id] = { ...source, savedAt: now }
+    changed = true
   }
-  if (Object.keys(curated).length === 0) return
-  const cached = readCachedIconBodies(now)
-  // Every search would otherwise re-serialize the same ~55 KB blob.
-  const unchanged = Object.entries(curated)
-    .every(([id, source]) => cached[id]?.body === source.body && cached[id]?.size === source.size)
-  if (unchanged) return
-  safeSetItem(ICON_BODY_CACHE_KEY, JSON.stringify({ savedAt: now, sources: { ...cached, ...curated } }))
+  if (!changed) return
+  safeSetItem(ICON_BODY_CACHE_KEY, JSON.stringify({ sources: next }))
 }

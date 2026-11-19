@@ -59,9 +59,10 @@ function stubIconifyFetch(options: StubOptions = {}) {
 }
 
 function warmCache() {
-  const sources: Record<string, { body: string; size: number }> = {}
-  for (const id of CURATED_NPC_ICONS) sources[id] = { body: BODY, size: 512 }
-  localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), sources }))
+  const savedAt = Date.now()
+  const sources: Record<string, { body: string; size: number; savedAt: number }> = {}
+  for (const id of CURATED_NPC_ICONS) sources[id] = { body: BODY, size: 512, savedAt }
+  localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({ sources }))
 }
 
 describe('toGameIconIds', () => {

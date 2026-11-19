@@ -10,6 +10,12 @@ import { CURATED_NPC_ICONS } from './npcIcons'
 
 const BODY = '<path fill="currentColor" d="M0 0"/>'
 const source: IconSource = { body: BODY, size: 512 }
+const DAY = 24 * 60 * 60 * 1000
+
+function store(entries: Record<string, unknown>, now: number) {
+  localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({ sources: entries }))
+  return now
+}
 
 describe('iconSourceCache', () => {
   beforeEach(() => {
@@ -35,7 +41,26 @@ describe('iconSourceCache', () => {
     expect(readCachedIconBodies(savedAt + ICON_BODY_TTL_MS + 1)).toEqual({})
   })
 
-  it('treats a record from the future (clock skew) as a miss', () => {
+  // A shared record timestamp let a body added on day 6 renew the week of a
+  // body stored on day 0, so the older one survived well past its expiry.
+  it('keeps each entry aging on its own clock', () => {
+    const t0 = Date.now()
+    writeCachedIconBodies({ 'wizard-face': source }, t0)
+    writeCachedIconBodies({ 'dragon-head': source }, t0 + 6 * DAY)
+
+    expect(readCachedIconBodies(t0 + 7 * DAY + 1)).toEqual({ 'dragon-head': source })
+  })
+
+  it('cannot revive an expired entry through a later batch', () => {
+    const t0 = Date.now()
+    writeCachedIconBodies({ 'wizard-face': source }, t0)
+    writeCachedIconBodies({ 'dragon-head': source }, t0 + 8 * DAY)
+
+    expect(readCachedIconBodies(t0 + 8 * DAY)).toEqual({ 'dragon-head': source })
+    expect(localStorage.getItem(ICON_BODY_CACHE_KEY)).not.toContain('wizard-face')
+  })
+
+  it('treats an entry from the future (clock skew) as a miss', () => {
     const now = Date.now()
     writeCachedIconBodies({ 'wizard-face': source }, now + 5 * 60 * 1000)
 
@@ -46,25 +71,23 @@ describe('iconSourceCache', () => {
     localStorage.setItem(ICON_BODY_CACHE_KEY, '{not json')
     expect(readCachedIconBodies()).toEqual({})
 
-    localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), sources: 'nope' }))
+    localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({ sources: 'nope' }))
     expect(readCachedIconBodies()).toEqual({})
 
-    localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({ savedAt: 'soon', sources: {} }))
+    store({ 'wizard-face': { body: BODY, size: 512, savedAt: 'soon' } }, Date.now())
     expect(readCachedIconBodies()).toEqual({})
   })
 
   it('drops entries with an unusable body or size', () => {
-    localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({
-      savedAt: Date.now(),
-      sources: {
-        'wizard-face': { body: BODY, size: 512 },
-        'dragon-head': { body: '', size: 512 },
-        'ogre': { body: BODY, size: 0 },
-        'skeleton': 'nope',
-      },
-    }))
+    const now = Date.now()
+    store({
+      'wizard-face': { body: BODY, size: 512, savedAt: now },
+      'dragon-head': { body: '', size: 512, savedAt: now },
+      'ogre': { body: BODY, size: 0, savedAt: now },
+      'skeleton': 'nope',
+    }, now)
 
-    expect(readCachedIconBodies()).toEqual({ 'wizard-face': source })
+    expect(readCachedIconBodies(now)).toEqual({ 'wizard-face': source })
   })
 
   // Searched icons must never reach local storage: the cache is the curated
@@ -73,11 +96,12 @@ describe('iconSourceCache', () => {
     writeCachedIconBodies({ 'wizard-face': source, 'some-searched-icon': source })
     expect(readCachedIconBodies()).toEqual({ 'wizard-face': source })
 
-    localStorage.setItem(ICON_BODY_CACHE_KEY, JSON.stringify({
-      savedAt: Date.now(),
-      sources: { 'wizard-face': source, 'some-searched-icon': source },
-    }))
-    expect(readCachedIconBodies()).toEqual({ 'wizard-face': source })
+    const now = Date.now()
+    store({
+      'wizard-face': { body: BODY, size: 512, savedAt: now },
+      'some-searched-icon': { body: BODY, size: 512, savedAt: now },
+    }, now)
+    expect(readCachedIconBodies(now)).toEqual({ 'wizard-face': source })
   })
 
   it('merges a partial batch into the stored set', () => {
@@ -105,7 +129,8 @@ describe('iconSourceCache', () => {
     expect(readCachedIconBodies()).toEqual({ 'wizard-face': source })
   })
 
-  it('never throws when the store rejects the write', () => {    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+  it('never throws when the store rejects the write', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('quota', 'QuotaExceededError')
     })
 
