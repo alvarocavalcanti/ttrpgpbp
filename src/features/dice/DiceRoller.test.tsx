@@ -341,6 +341,71 @@ describe('DiceRoller', () => {
     expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
   })
 
+  it('opens with a clean form instead of the previous modifier (#836)', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20+5')
+
+    // Reopen: the bonus picked for the last roll is gone, not carried over.
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    expect(screen.getByLabelText('Modifier')).toHaveValue(0)
+    expect(screen.getByRole('button', { name: 'Add d20' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+  })
+
+  it('opens with a clean form after closing without rolling (#836)', () => {
+    render(<DiceRoller onRoll={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(6, 2)
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '-3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pool' }))
+    expect(screen.getByLabelText('Sort highest first')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close dice roller' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    expect(screen.getByLabelText('Modifier')).toHaveValue(0)
+    expect(screen.getByRole('button', { name: 'Add d6' })).toHaveAttribute('aria-pressed', 'false')
+    // Mode and sort reset with the rest of the form.
+    expect(screen.queryByLabelText('Sort highest first')).not.toBeInTheDocument()
+  })
+
+  it('drops advantage picked for a previous roll (#836)', () => {
+    const mockOnRoll = vi.fn()
+    render(<DiceRoller onRoll={mockOnRoll} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Adv' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close dice roller' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    pickDie(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Roll' }))
+
+    expect(mockOnRoll).toHaveBeenCalledWith('1d20')
+  })
+
+  it('still loads a chip after opening with a clean form (#836)', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [{ id: '1', notation: '2d6+1', created_at: '2026-01-01T00:00:03Z' }],
+      error: null
+    } as any)
+
+    render(<DiceRoller channelId="c1" onRoll={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Roll Dice/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Use 2d6+1' }))
+
+    // The reset runs on open, before the chip applies its values.
+    expect(screen.getByLabelText('Modifier')).toHaveValue(1)
+    expect(screen.getByTestId('dice-count-d6')).toHaveTextContent('2')
+  })
+
   it('clamps modifier to ±999 at the point of input', () => {    const mockOnRoll = vi.fn()
     render(<DiceRoller onRoll={mockOnRoll} />)
 

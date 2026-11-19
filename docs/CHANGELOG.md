@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-19
+
+### Fixed
+
+- **The dice roller starts fresh every time** — opening the panel now gives you an empty form: no dice picked, the modifier back to 0, Sum mode, and advantage off. A bonus or die left over from an earlier roll can no longer sneak into the next one. To repeat a roll you made before, tap its notation chip above the form and confirm.
+
 ## 2026-11-17
 
 ### Added
