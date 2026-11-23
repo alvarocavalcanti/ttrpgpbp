@@ -227,10 +227,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
   // Where the caret goes after a navigation, like a desktop chat app: opening a
   // channel or switching rooms leaves the box focused with the draft loaded.
-  // Every one of those is a fresh mount (the route error boundary keys the
-  // channel subtree on the pathname), so this runs per mount and per draft key.
-  // Only a non-touch pointer counts: a phone must keep its keyboard closed until
-  // the player taps, and the room tablist's arrow keys must keep their focus.
+  // Opening a channel is a fresh mount; a room switch re-runs this on the new
+  // draft key, since the channel subtree survives the navigation (#765). Only a
+  // non-touch pointer counts: a phone must keep its keyboard closed until the
+  // player taps, and the room tablist's arrow keys must keep their focus.
   useEffect(() => {
     if (!lastInputWasMouse()) return
     const active = document.activeElement as HTMLElement | null

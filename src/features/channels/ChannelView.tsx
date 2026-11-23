@@ -51,6 +51,25 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 const SIDEBAR_MENU_ITEM =
   'block w-full text-left px-4 py-2.5 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors'
 
+// Skeleton bubbles while a timeline is still loading. Shared by the first-paint
+// shell and the in-timeline room switch so a room switch never blanks the
+// channel chrome (#765).
+function MessageSkeletons() {
+  return (
+    <div data-testid="message-skeletons" aria-hidden="true" className="flex-1 overflow-y-auto p-4 space-y-4">
+      {[0, 1, 2].map(i => (
+        <div key={i} className="flex space-x-3">
+          <div className="h-8 w-8 rounded-full bg-surface-200 dark:bg-surface-700 animate-pulse flex-shrink-0" />
+          <div className="flex-1 space-y-2 pt-1">
+            <div className="h-3 w-24 rounded bg-surface-200 dark:bg-surface-700 animate-pulse" />
+            <div className="h-3 w-2/3 rounded bg-surface-200 dark:bg-surface-700 animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function ChannelView() {
   const { id, subId } = useParams<{ id: string; subId?: string }>()
   const navigate = useNavigate()
@@ -204,6 +223,14 @@ export function ChannelView() {
   // single shared panel instance talking to whichever composer is mounted.
   const composerRef = useRef<MessageComposerHandle>(null)
 
+  // A reply target and a search highlight both belong to the room they were
+  // picked in; the channel subtree now survives a room switch (#765), so they
+  // have to be dropped explicitly instead of by unmount.
+  useEffect(() => {
+    setReplyTo(null)
+    setHighlightMessageId(null)
+  }, [id, subId])
+
   // Clear highlight after a few seconds
   useEffect(() => {
     if (highlightMessageId) {
@@ -256,11 +283,19 @@ export function ChannelView() {
   // or failed room fetch must not redirect — the room may exist. Archived rooms
   // stay readable, so they are not treated as unknown.
   const unknownRoomHandledRef = useRef<string | null>(null)
+  // Rooms this client created. The list learns about a new room from the
+  // realtime echo, which can land after the route already points at it; a
+  // missing id there is not proof the room is gone (#765).
+  const createdRoomIdsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     // A cached room list (confirmed === false) cannot prove a room is gone —
     // it may simply predate the room (issue #825).
     if (!subId || roomsLoading || roomsError || roomsConfirmed === false) return
-    if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) return
+    if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) {
+      createdRoomIdsRef.current.delete(subId)
+      return
+    }
+    if (createdRoomIdsRef.current.has(subId)) return
     if (unknownRoomHandledRef.current === subId) return
     unknownRoomHandledRef.current = subId
     addToast("That room no longer exists. You're back in Main.", 'error')
@@ -461,8 +496,10 @@ export function ChannelView() {
 
   // Progressive paint (#346): header first (skeleton name while the channel
   // itself loads) plus skeleton message bubbles, instead of a full-screen
-  // spinner that blanks everything including the header.
-  if (channelLoading || messagesLoading) {
+  // spinner that blanks everything including the header. Only the channel shell
+  // gates this: a room's messages still loading paint inside the timeline, so a
+  // room switch keeps the header, tabs, composer and sidebar mounted (#765).
+  if (channelLoading) {
     return (
       <div className="fixed inset-0 flex overflow-hidden bg-white dark:bg-surface-800">
         <div className="flex-1 flex flex-col min-w-0 bg-surface-50 dark:bg-surface-900 border-r border-surface-200 dark:border-surface-700">
@@ -480,17 +517,7 @@ export function ChannelView() {
               )}
             </div>
           </div>
-          <div data-testid="message-skeletons" aria-hidden="true" className="flex-1 overflow-y-auto p-4 space-y-4">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="flex space-x-3">
-                <div className="h-8 w-8 rounded-full bg-surface-200 dark:bg-surface-700 animate-pulse flex-shrink-0" />
-                <div className="flex-1 space-y-2 pt-1">
-                  <div className="h-3 w-24 rounded bg-surface-200 dark:bg-surface-700 animate-pulse" />
-                  <div className="h-3 w-2/3 rounded bg-surface-200 dark:bg-surface-700 animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <MessageSkeletons />
         </div>
       </div>
     )
@@ -790,6 +817,8 @@ export function ChannelView() {
                 </div>
               ))}
             </div>
+          ) : messagesLoading ? (
+            <MessageSkeletons />
           ) : (
           <MessageList
             key={`${channel.id}:${subId ?? 'main'}${showFavoritesOnly ? ':favorites' : ''}${showWhispersOnly ? ':whispers' : ''}`}
@@ -1116,7 +1145,12 @@ export function ChannelView() {
           onRetryMembers={refreshMembers}
           onCreate={createRoom}
           onCreated={(roomId) => {
+            createdRoomIdsRef.current.add(roomId)
             setShowCreateRoom(false)
+            // The room list does not add the new row locally, and the creating
+            // client must not wait for a realtime echo now that the route
+            // change no longer remounts this hook (#765).
+            refetchRooms()
             navigate(channelRoomPath(channel.id, roomId))
           }}
           onClose={() => setShowCreateRoom(false)}

@@ -3657,6 +3657,30 @@ describe('ChannelView rooms (#621)', () => {
     expect(screen.getByRole('tab', { name: 'Secret' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('stays in a just-created room before the realtime echo lands (#765)', async () => {
+    const create = vi.fn().mockResolvedValue('r2')
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [], archivedRooms: [], loading: false, error: null, confirmed: true,
+      create, rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
+      members: [], loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'gm1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add room' }))
+    fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'OOC' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+
+    await waitFor(() => expect(vi.mocked(useMessages)).toHaveBeenLastCalledWith('c1', 'r2', expect.any(Function)))
+    // The list only learns about the room from the realtime echo; a missing id
+    // must not read as "deleted" and bounce the GM back to Main.
+    expect(screen.queryByText("That room no longer exists. You're back in Main.")).not.toBeInTheDocument()
+  })
+
   it('passes the route room through to useMessages', () => {
     vi.mocked(useSubChannels).mockReturnValue({
       subChannels: [room()], archivedRooms: [], loading: false, error: null,
@@ -3880,6 +3904,57 @@ describe('ChannelView rooms (#621)', () => {
     // other room's status.
     expect(screen.queryByText('Save Status')).not.toBeInTheDocument()
     expect(screen.getByText('Room two')).toBeInTheDocument()
+  })
+
+  it('keeps the channel chrome mounted and the room tab focused while the new room loads (#765)', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room()], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useMessages).mockImplementation(((_id: unknown, subChannelId: string | null) => ({
+      messages: [], reactions: {}, loading: subChannelId !== null, error: null, hasMore: false,
+      loadingOlder: false, retrying: false,
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+      addReaction: vi.fn(), removeReaction: vi.fn(), retryMessage: vi.fn(), removePendingMessage: vi.fn(),
+      refresh: vi.fn().mockResolvedValue(undefined), loadOlder: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    })) as any)
+
+    renderAt('/channel/c1')
+
+    const roomTab = screen.getByRole('tab', { name: 'OOC' })
+    roomTab.focus()
+    fireEvent.click(roomTab)
+
+    // The header and the tablist are the same DOM nodes: only the timeline
+    // swaps to skeletons while the room's history loads.
+    expect(screen.getByRole('tab', { name: 'OOC' })).toHaveFocus()
+    expect(screen.getByText('Goblin Cave')).toBeInTheDocument()
+    expect(screen.queryByTestId('channel-name-skeleton')).not.toBeInTheDocument()
+    expect(screen.getByTestId('message-skeletons')).toBeInTheDocument()
+  })
+
+  it('drops the reply target when the room changes (#765)', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room()], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'msg1', content: 'test', type: 'regular', sender_id: 'user2', created_at: '2026-10-05T10:00:00Z' }],
+      reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false, retrying: false,
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+      addReaction: vi.fn(), removeReaction: vi.fn(), retryMessage: vi.fn(), removePendingMessage: vi.fn(),
+      refresh: vi.fn().mockResolvedValue(undefined), loadOlder: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    fireEvent.click(screen.getByLabelText('Reply'))
+    expect(screen.getByText(/Replying to/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'OOC' }))
+
+    // A reply picked in Main must never be sent into the room.
+    expect(screen.queryByText(/Replying to/)).not.toBeInTheDocument()
   })
 })
 

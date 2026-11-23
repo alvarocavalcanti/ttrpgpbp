@@ -1,7 +1,6 @@
-// Pointer-vs-keyboard tracking lives outside React on purpose: the route error
-// boundary keys the whole channel subtree on the pathname (App.tsx), so the
-// composer is destroyed and recreated on every room switch. A listener inside
-// the composer can never see the click that caused the navigation.
+// Pointer-vs-keyboard tracking lives outside React on purpose: a channel opens
+// after a lazy route swap, so the composer can mount after the click that
+// caused the navigation, and a listener inside it can never see that click.
 let installed = false
 let lastWasPointer = false
 let lastPointerWasTouch = false

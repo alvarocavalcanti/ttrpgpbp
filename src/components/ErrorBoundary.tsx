@@ -5,10 +5,16 @@ import { hardReload } from '../lib/hardReload'
 
 interface ErrorBoundaryProps {
   children: ReactNode
+  // Clears a caught error when this value changes. Lets the route boundary
+  // recover on navigation without remounting (and refetching) the subtree.
+  resetKey?: string
 }
 
 interface ErrorBoundaryState {
   error: Error | null
+  // The resetKey the boundary last rendered with, so a navigation can clear a
+  // caught error without remounting the subtree through a React key.
+  resetKey?: string
 }
 
 // Catches render errors anywhere below it so a single crashing component
@@ -16,8 +22,19 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { error }
+  }
+
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryProps,
+    state: ErrorBoundaryState,
+  ): Partial<ErrorBoundaryState> | null {
+    if (state.resetKey === props.resetKey) return null
+    // A new resetKey means the player navigated: drop any caught error and
+    // adopt the key. Scanning this in the render phase keeps the fix a pure
+    // derivation instead of a state write after the commit.
+    return { error: null, resetKey: props.resetKey }
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {

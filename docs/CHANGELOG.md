@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-23
+
+### Fixed
+
+- **Switching rooms no longer reloads the game** — moving between a game's Main timeline and one of its rooms keeps the whole screen in place: the header, the room tabs and the composer stay put, and only the conversation you switched to loads. With a keyboard, the room tab you pick keeps its focus, so arrow-key navigation carries on from where it was.
+
 ## 2026-11-19
 
 ### Changed

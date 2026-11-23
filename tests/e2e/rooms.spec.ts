@@ -47,11 +47,20 @@ test.describe('Rooms', () => {
     await expect(page.getByText('OOC-only message')).toBeVisible();
 
     // Main must not show the room's message.
+    // #765: the room bar and channel chrome survive a room switch, so neither
+    // the channel nor the room list may be fetched again.
+    const channelReads: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() !== 'GET') return;
+      const path = new URL(request.url()).pathname;
+      if (path === '/rest/v1/channels' || path === '/rest/v1/sub_channels') channelReads.push(request.url());
+    });
+
     await page.getByRole('tab', { name: 'Main' }).click();
     await expect(page).toHaveURL(/\/channel\/[^/]+$/);
     await expect(page.getByText('OOC-only message')).toHaveCount(0);
-    // A room switch remounts the channel subtree, so the caret must come back
-    // without a click (issue: focus lost on every navigation).
+    // A room switch hands the caret to the composer without a click (issue:
+    // focus lost on every navigation).
     await expect(composer).toBeFocused();
     await expect(composer).toHaveAttribute('placeholder', /^Message #/);
 
@@ -60,6 +69,7 @@ test.describe('Rooms', () => {
     await expect(page.getByText('OOC-only message')).toBeVisible();
     await expect(composer).toBeFocused();
     await expect(composer).toHaveAttribute('placeholder', 'Message #OOC');
+    expect(channelReads).toEqual([]);
 
     // Keyboard navigation keeps focus on the room tabs: arrow keys then Enter
     // must not hand the caret to the composer.
@@ -69,5 +79,7 @@ test.describe('Rooms', () => {
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/channel\/[^/]+$/);
     await expect(composer).not.toBeFocused();
+    // The activated tab is the same DOM node, so it keeps focus (#765).
+    await expect(page.getByRole('tab', { name: 'Main' })).toBeFocused();
   });
 });

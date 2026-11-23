@@ -128,12 +128,15 @@ function RouteTracker() {
 }
 
 // Per-navigation error boundary: a crash inside a lazy route (e.g. ChannelView)
-// shows the fallback but leaves the nav bar and rest of the app intact. The
-// pathname key remounts the boundary on every route change so the fallback
-// never sticks across navigation.
+// shows the fallback but leaves the nav bar and rest of the app intact. Main and
+// its rooms share one key per channel, so switching rooms never remounts the
+// channel subtree (#765); resetKey still clears a caught crash on any URL change.
 export function RouteErrorBoundary({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>
+  const path = normalizePath(pathname)
+  const channelMatch = matchPath(ROUTES.channelRoom, path) ?? matchPath(ROUTES.channel, path)
+  const boundaryKey = channelMatch ? `/channel/${channelMatch.params.id}` : pathname
+  return <ErrorBoundary key={boundaryKey} resetKey={pathname}>{children}</ErrorBoundary>
 }
 
 function AppNav() {

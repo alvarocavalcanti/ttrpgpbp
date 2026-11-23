@@ -1795,9 +1795,9 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
   })
 
   describe('focus after a navigation', () => {
-    // The route error boundary keys the channel subtree on the pathname, so a
-    // room switch is unmount + fresh mount, never a prop update: these tests
-    // must reproduce that or they cannot catch the bug they exist for.
+    // Opening a channel mounts the composer after the click that started the
+    // lazy route; a room switch keeps it mounted and only changes the draft key
+    // (#765). Both paths must land the caret in the box.
     const composer = (subChannelId?: string) => (
       <MessageComposer channelId="c1" subChannelId={subChannelId} isGM={false} members={[]} onSendMessage={vi.fn()} />
     )
@@ -1824,6 +1824,22 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
       expect(textarea).toHaveValue('draft for room')
       expect(textarea.selectionStart).toBe('draft for room'.length)
       expect(textarea.selectionEnd).toBe('draft for room'.length)
+    })
+
+    it('focuses the box with the room draft when the room changes in place (#765)', async () => {
+      localStorage.setItem('composer_draft_c1', 'draft for main')
+      localStorage.setItem('composer_draft_c1_room-b', 'draft for room')
+
+      const { rerender } = render(composer())
+      expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('draft for main')
+
+      pointerDown('mouse')
+      rerender(composer('room-b'))
+
+      const textarea = screen.getByRole('combobox', { name: 'Message' }) as HTMLTextAreaElement
+      await waitFor(() => expect(textarea).toHaveFocus())
+      expect(textarea).toHaveValue('draft for room')
+      expect(textarea.selectionStart).toBe('draft for room'.length)
     })
 
     it('focuses the box when a channel opens from the lobby', async () => {
