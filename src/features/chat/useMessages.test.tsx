@@ -2086,6 +2086,60 @@ describe('useMessages rooms (#621)', () => {
     expect(result.current.messages.map(m => m.id)).toEqual(['x-mine'])
   })
 
+  it('rolls in the room on screen after an in-place room switch (#765)', async () => {
+    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
+    mockChannels()
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: [{ message_id: 'r9' }], error: null } as any)
+
+    const { result, rerender } = renderHook(
+      ({ sub }: { sub: string | null }) => useMessages('c1', sub),
+      { initialProps: { sub: null as string | null } },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // The subtree survives the switch, so the callback itself must move to the
+    // new room rather than keeping the Main closure.
+    rerender({ sub: 'room-1' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.sendDiceRoll('1d20')
+    })
+
+    expect(supabase.rpc).toHaveBeenCalledWith('roll_dice', expect.objectContaining({ p_sub_channel_id: 'room-1' }))
+  })
+
+  it('jumps within the room on screen after an in-place room switch (#765)', async () => {
+    const filterCalls: Array<[string, string, unknown]> = []
+    const limit = vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'old', sub_channel_id: 'room-1' })], error: null })
+    const order = makeOrder(limit)
+    const tail: any = { or: () => tail, order }
+    const holder = {
+      eq: (col: string, val: unknown) => { filterCalls.push(['eq', col, val]); return tail },
+      is: (col: string, val: unknown) => { filterCalls.push(['is', col, val]); return tail },
+    }
+    const outerEq = vi.fn().mockReturnValue(holder)
+    mockFrom({ fetchBuilder: () => ({ eq: outerEq }) })
+    mockChannels()
+
+    const { result, rerender } = renderHook(
+      ({ sub }: { sub: string | null }) => useMessages('c1', sub),
+      { initialProps: { sub: null as string | null } },
+    )
+    await waitFor(() => expect(result.current.messages.length).toBe(1))
+
+    rerender({ sub: 'room-1' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    filterCalls.length = 0
+
+    await act(async () => {
+      await result.current.jumpToMessage('target')
+    })
+
+    expect(filterCalls).toContainEqual(['eq', 'sub_channel_id', 'room-1'])
+    expect(filterCalls).not.toContainEqual(['is', 'sub_channel_id', null])
+  })
+
   it('sends p_sub_channel_id for the active room and stamps the pending payload', async () => {
     mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
     mockChannels()

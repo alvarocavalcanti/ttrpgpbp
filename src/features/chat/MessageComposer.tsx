@@ -480,11 +480,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    const origin = draftKeyRef.current
     setImageError(null)
     try {
       const publicUrl = await uploadImage(file, 'npc')
-      if (publicUrl) setNpcAvatarUrl(publicUrl)
+      // Same room-switch rule as the message upload: a portrait picked for one
+      // draft must never land on the room now on screen (#765).
+      if (!publicUrl || draftKeyRef.current !== origin) return
+      setNpcAvatarUrl(publicUrl)
     } catch (err) {
+      if (draftKeyRef.current !== origin) return
       setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
     }
   }
@@ -501,8 +506,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     setError(null)
     // The draft this send belongs to: a slow send can resolve after the player
     // switched rooms, and its cleanup must never blank the new room's draft
-    // (#765).
+    // (#765). The sent text is the revision that may be cleared — coming back
+    // to this room and typing something new must survive it.
     const origin = draftKeyRef.current
+    const sentContent = content
     try {
       const { content: mentionContent } = linkifyMentions(content, members, { allMentionEnabled: isGM })
 
@@ -519,11 +526,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       if (replyTo) payload.reply_to = replyTo.id
 
       await onSendMessage(payload)
-      // The sent draft is gone even if the player moved on; the room now on
-      // screen keeps its own text. Only cleanup for the same room may touch the
-      // editor.
-      if (origin) safeRemoveItem(origin)
-      if (draftKeyRef.current !== origin) return
+      // Remove the stored draft only while it still holds the text that was
+      // sent. The player can return to this room and edit before a slow send
+      // resolves; that newer draft must survive (#765 review).
+      if (origin && safeGetItem(origin) === sentContent) safeRemoveItem(origin)
+      if (draftKeyRef.current !== origin || contentRef.current !== sentContent) return
       setContent('')
       setIsScene(false)
       setEmphasizeLast(true)

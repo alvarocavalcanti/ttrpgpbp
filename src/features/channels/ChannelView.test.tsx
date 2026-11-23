@@ -14,7 +14,7 @@ import { usePushNotifications } from '../notifications/usePushNotifications'
 import { notifyChannelRead, refreshAppBadge } from '../../lib/channelRead'
 import { supabase } from '../../lib/supabase'
 import { trackEvent } from '../../lib/analytics'
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate, useLocation, Link } from 'react-router-dom'
 import { ToastProvider } from '../../contexts/ToastContext'
 
 vi.mock('./useChannel', () => ({
@@ -3931,6 +3931,65 @@ describe('ChannelView rooms (#621)', () => {
     expect(screen.getByText('Goblin Cave')).toBeInTheDocument()
     expect(screen.queryByTestId('channel-name-skeleton')).not.toBeInTheDocument()
     expect(screen.getByTestId('message-skeletons')).toBeInTheDocument()
+  })
+
+  it('does not clear the Main dot until Main history loads after a room switch (#765)', async () => {
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    const markMainRead = vi.fn()
+    vi.mocked(useSubChannelUnread).mockReturnValue({
+      counts: { main: 2 }, markRoomRead: vi.fn().mockResolvedValue(undefined), markMainRead, refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave' }, members: [], loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' }, markRead: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    // The room's history loads.
+    await act(async () => { vi.mocked(useMessages).mock.calls.at(-1)?.[2]?.() })
+    expect(markMainRead).not.toHaveBeenCalled()
+
+    // The tab carries an unread dot, so match by prefix.
+    fireEvent.click(screen.getByRole('tab', { name: /^Main/ }))
+
+    // On the first render after the switch `messagesLoaded` is still the room's
+    // value; clearing Main's dot here would hide posts never fetched.
+    expect(markMainRead).not.toHaveBeenCalled()
+
+    await act(async () => { vi.mocked(useMessages).mock.calls.at(-1)?.[2]?.() })
+    await waitFor(() => expect(markMainRead).toHaveBeenCalled())
+  })
+
+  it('handles the same dead room link again after returning to Main (#765)', async () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null, confirmed: true,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+
+    function MainWithLink() {
+      const location = useLocation()
+      return (
+        <div>
+          <span data-testid="loc">{location.pathname}</span>
+          <Link to="/channel/c1/sub/bogus">dead room</Link>
+        </div>
+      )
+    }
+
+    renderAt('/channel/c1/sub/bogus', { path: '/channel/c1', element: <MainWithLink /> })
+
+    // First visit: the dead link falls back to Main.
+    expect(await screen.findByTestId('loc')).toHaveTextContent('/channel/c1')
+
+    fireEvent.click(screen.getByText('dead room'))
+
+    // The same link must redirect again instead of leaving an empty room.
+    await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/channel/c1'))
   })
 
   it('drops the reply target when the room changes (#765)', () => {

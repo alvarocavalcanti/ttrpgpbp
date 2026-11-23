@@ -273,10 +273,13 @@ export function ChannelView() {
       void markRoomRead(subId).then(() => {
         if (user?.id) void refreshAppBadge(user.id, preferences?.badge_enabled !== false)
       })
-    } else {
+    } else if (canMarkRead()) {
+      // History-first: on the first render after a room switch `messagesLoaded`
+      // is still the room's value, so the dot may only clear once Main's own
+      // history has loaded (#765).
       markMainRead()
     }
-  }, [messagesLoaded, myMemberInfo?.id, markRead, subId, markRoomRead, markMainRead, user?.id, preferences?.badge_enabled])
+  }, [messagesLoaded, myMemberInfo?.id, markRead, subId, markRoomRead, markMainRead, canMarkRead, user?.id, preferences?.badge_enabled])
 
   // Unknown or deleted room deep link (#621): once the room list has resolved,
   // fall back to Main with a toast instead of a blank timeline. A still-loading
@@ -288,9 +291,16 @@ export function ChannelView() {
   // missing id there is not proof the room is gone (#765).
   const createdRoomIdsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
+    // Back in Main: forget which dead room was already handled, so following
+    // the same stale link again is caught instead of showing an empty room
+    // (the subtree no longer remounts, #765).
+    if (!subId) {
+      unknownRoomHandledRef.current = null
+      return
+    }
     // A cached room list (confirmed === false) cannot prove a room is gone —
     // it may simply predate the room (issue #825).
-    if (!subId || roomsLoading || roomsError || roomsConfirmed === false) return
+    if (roomsLoading || roomsError || roomsConfirmed === false) return
     if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) {
       createdRoomIdsRef.current.delete(subId)
       return

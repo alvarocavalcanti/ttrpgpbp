@@ -2244,6 +2244,54 @@ describe('MessageComposer room switch safety (#765)', () => {
     expect(localStorage.getItem('composer_draft_c1_room-b')).toBe('room draft')
   })
 
+  it('leaves an NPC portrait out of the room the player switched to', async () => {
+    let finishUpload: (url: string) => void = () => {}
+    mockUploadImage.mockImplementation(() => new Promise(resolve => { finishUpload = resolve }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByLabelText('Upload NPC portrait'), {
+      target: { files: [new File(['data'], 'king.png', { type: 'image/png' })] },
+    })
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+    await act(async () => { finishUpload('https://supabase/images/c1/npc/u.jpg') })
+
+    // Re-entering NPC mode offers a fresh portrait, not the upload that was
+    // started while the room was still Main.
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    expect(screen.getByAltText('NPC portrait preview')).not.toHaveAttribute(
+      'src',
+      'https://supabase/images/c1/npc/u.jpg',
+    )
+  })
+
+  it('keeps a draft edited after send, even on a room round trip', async () => {
+    let finishSend: () => void = () => {}
+    const onSend = vi.fn(() => new Promise<void>(resolve => { finishSend = resolve }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'main text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    // Leave Main and come back before the slow send resolves.
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={false} members={members} onSendMessage={onSend} />)
+    rerender(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'main text edited' } })
+
+    await act(async () => { finishSend() })
+
+    // The room key matches again, but the editor holds a newer draft.
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    expect(textarea).toHaveValue('main text edited')
+    expect(localStorage.getItem('composer_draft_c1')).toBe('main text edited')
+  })
+
   it('drops scene mode when the room changes', () => {
     const { rerender } = render(
       <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />

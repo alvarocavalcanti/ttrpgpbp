@@ -446,6 +446,97 @@ describe('useChannel', () => {
     expect(room.result.current.lastReadAt).toBe('2023-01-01T12:00:00Z')
   })
 
+  it('re-anchors the divider to the surface on an in-place room switch (#765)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{
+      id: 'm1', user_id: 'u1',
+      last_read_at: '2023-01-01T12:00:00Z',
+      main_last_read_at: '2023-01-01T10:00:00Z',
+      profile: { display_name: 'Hero' },
+    }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const { result, rerender } = renderHook(
+      ({ markMain }: { markMain: boolean }) => useChannel('c1', undefined, undefined, markMain),
+      { initialProps: { markMain: true } },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.lastReadAt).toBe('2023-01-01T10:00:00Z')
+
+    // No remount and no refetch on a room switch: the baseline comes from the
+    // roster already in hand.
+    rerender({ markMain: false })
+    await waitFor(() => expect(result.current.lastReadAt).toBe('2023-01-01T12:00:00Z'))
+    expect(mockSingle).toHaveBeenCalledTimes(1)
+
+    rerender({ markMain: true })
+    await waitFor(() => expect(result.current.lastReadAt).toBe('2023-01-01T10:00:00Z'))
+    expect(mockSingle).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls the current onRead after an in-place room switch (#765)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    const mockChannel = { id: 'c1', gm_id: 'u1' }
+    const mockMembers = [{ id: 'm1', user_id: 'u1', last_read_at: '2023-01-01T12:00:00Z', profile: { display_name: 'Hero' } }]
+
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockChannel, error: null })
+    const mockEqChannel = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockSelectChannel = vi.fn().mockReturnValue({ eq: mockEqChannel })
+    const mockEqMembers = vi.fn().mockResolvedValue({ data: mockMembers, error: null })
+    const mockSelectMembers = vi.fn().mockReturnValue({ eq: mockEqMembers })
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'channels') return { select: mockSelectChannel } as any
+      if (table === 'channel_members') return { select: mockSelectMembers } as any
+      if (table === 'channel_secrets') return mockSecret() as any
+      return {} as any
+    })
+
+    const mockSubscribe = vi.fn().mockImplementation(cb => { cb?.('SUBSCRIBED'); return { unsubscribe: vi.fn() } })
+    let messagesInsert: any
+    const mockOn = vi.fn().mockImplementation((_event, config, callback) => {
+      if (config.table === 'messages' && config.event === 'INSERT') messagesInsert = callback
+      return { on: mockOn, subscribe: mockSubscribe }
+    })
+    vi.mocked(supabase.channel).mockReturnValue({ on: mockOn } as any)
+
+    const mainRoomRead = vi.fn()
+    const { rerender } = renderHook(
+      ({ onRead }: { onRead: (live?: boolean) => void }) => useChannel('c1', onRead, undefined, false),
+      { initialProps: { onRead: mainRoomRead } },
+    )
+    await waitFor(() => expect(mainRoomRead).toHaveBeenCalledTimes(1))
+
+    // A room switch hands the channel a new callback; the long-lived
+    // subscription must not keep calling the one from Main.
+    const roomRead = vi.fn()
+    rerender({ onRead: roomRead })
+
+    await act(async () => {
+      messagesInsert({ eventType: 'INSERT', new: { id: 'x1', channel_id: 'c1' } })
+    })
+
+    expect(roomRead).toHaveBeenCalledTimes(1)
+    expect(mainRoomRead).toHaveBeenCalledTimes(1)
+  })
+
   it('serializes read-mark RPCs when writes are initiated back to back', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as any)
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })

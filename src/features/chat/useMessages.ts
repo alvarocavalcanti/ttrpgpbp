@@ -800,7 +800,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         return 'error'
       }
     }
-  }, [channelId])
+  }, [channelId, subChannelId])
 
   // Reconcile an optimistic message with the server-returned id (clears
   // pending + error). Both send_message and roll_dice are idempotent on
@@ -1004,7 +1004,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     } else {
       setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: 'Roll was not confirmed. Tap retry to reroll.' } : m))
     }
-  }, [channelId, user])
+  }, [channelId, subChannelId, user])
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
