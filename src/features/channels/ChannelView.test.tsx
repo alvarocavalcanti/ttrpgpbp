@@ -3967,37 +3967,76 @@ describe('ChannelView rooms (#621)', () => {
 
   it('handles the same dead room link again after returning to Main (#765)', async () => {
     vi.mocked(useSubChannels).mockReturnValue({
-      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null, confirmed: true,
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null, confirmed: true, confirmations: 1,
       create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
     } as any)
 
-    function MainWithLink() {
+    function PathProbe() {
       const location = useLocation()
-      return (
-        <div>
-          <span data-testid="loc">{location.pathname}</span>
-          <Link to="/channel/c1/sub/bogus">dead room</Link>
-        </div>
-      )
+      return <span data-testid="loc">{location.pathname}</span>
     }
 
-    renderAt('/channel/c1/sub/bogus', { path: '/channel/c1', element: <MainWithLink /> })
+    // ChannelView stays mounted on both routes: that is the case the ref reset
+    // exists for. A fresh instance would pass this test without the fix.
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1/sub/bogus']}>
+          <PathProbe />
+          <Link to="/channel/c1/sub/bogus">dead room</Link>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+            <Route path="/channel/:id/sub/:subId" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    )
 
     // First visit: the dead link falls back to Main.
-    expect(await screen.findByTestId('loc')).toHaveTextContent('/channel/c1')
+    expect(await screen.findByText("That room no longer exists. You're back in Main.")).toBeInTheDocument()
+    expect(screen.getByTestId('loc')).toHaveTextContent('/channel/c1')
 
     fireEvent.click(screen.getByText('dead room'))
 
     // The same link must redirect again instead of leaving an empty room.
     await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/channel/c1'))
+    expect(await screen.findAllByText("That room no longer exists. You're back in Main.")).toHaveLength(2)
   })
 
-  it('drops the creation exemption once the room appears in the list (#765)', async () => {
+  it('never paints the previous room history under the new room (#765)', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1', name: 'OOC' })], archivedRooms: [], loading: false, error: null, confirmed: true, confirmations: 1,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    // The hook still reports Main's window with rows while the route is OOC.
+    vi.mocked(useMessages).mockReturnValue({
+      messages: [{ id: 'main-msg', content: 'main-only text', type: 'regular', sender_id: 'user1' }],
+      reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false, retrying: false,
+      loadedScope: 'c1:main',
+      sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+      addReaction: vi.fn(), removeReaction: vi.fn(), retryMessage: vi.fn(), removePendingMessage: vi.fn(),
+      refresh: vi.fn().mockResolvedValue(undefined), loadOlder: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+    } as any)
+
+    renderAt('/channel/c1/sub/r1')
+
+    expect(screen.queryByText('main-only text')).not.toBeInTheDocument()
+    expect(screen.getByTestId('message-skeletons')).toBeInTheDocument()
+  })
+
+  it('drops the creation exemption once a post-create refresh confirms (#765)', async () => {
     const create = vi.fn().mockResolvedValue('r2')
     let roomList: ReturnType<typeof room>[] = []
+    // The room list is revalidated by the post-create refetch: the first
+    // confirmation (at creation) predates the new room, the next one is
+    // authoritative.
+    let confirmations = 3
+    const refetch = vi.fn(() => {
+      confirmations += 1
+      roomList = [room({ id: 'r2', name: 'OOC' })]
+    })
     vi.mocked(useSubChannels).mockImplementation(() => ({
       subChannels: roomList, archivedRooms: [], loading: false, error: null, confirmed: true,
-      create, rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+      confirmations, create, rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch,
     } as any))
     vi.mocked(useChannel).mockReturnValue({
       channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
@@ -4023,13 +4062,11 @@ describe('ChannelView rooms (#621)', () => {
     fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'OOC' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
     await waitFor(() => expect(vi.mocked(useMessages)).toHaveBeenLastCalledWith('c1', 'r2', expect.any(Function)))
+    expect(refetch).toHaveBeenCalled()
 
-    // The row arrives while Main is on screen; the exemption must not outlive it.
-    roomList = [room({ id: 'r2', name: 'OOC' })]
+    // A refresh that started after creation confirmed the list. The room is
+    // then deleted elsewhere, so its stale link is a dead link again.
     fireEvent.click(screen.getByText('main'))
-    expect(screen.getByText('Goblin Cave')).toBeInTheDocument()
-
-    // The room is deleted later: the stale link is a dead link again.
     roomList = []
     fireEvent.click(screen.getByText('stale room link'))
 

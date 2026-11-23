@@ -49,7 +49,10 @@ interface MessageComposerProps {
   isGM: boolean
   members: ChannelMember[]
   npcs?: Npc[]
-  onSendMessage: (payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string, emphasize_last_paragraph?: boolean }) => Promise<void>
+  onSendMessage: (
+    payload: { content: string, type: 'regular' | 'scene' | 'npc', whisper_to?: string, active_player_ids?: string[], reply_to?: string, npc_name?: string, npc_avatar_url?: string, emphasize_last_paragraph?: boolean },
+    options?: { clientRequestId?: string },
+  ) => Promise<{ status: 'sent' | 'unconfirmed'; clientRequestId: string } | void>
   replyTo?: ReplyTarget | null
   onCancelReply?: () => void
   onXCard?: () => void
@@ -138,10 +141,15 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
   // A send belongs to the draft it started in. The composer survives a room
-  // switch (#765), so a pending Main send must neither keep the new room's Send
-  // button disabled nor clear a send that room started.
-  const [submittingDraft, setSubmittingDraft] = useState<{ key: string | null } | null>(null)
-  const isSubmitting = submittingDraft !== null && submittingDraft.key === (draftKey ?? null)
+  // switch (#765), so each draft tracks its own pending send: a pending Main
+  // send neither disables the new room's Send nor is cleared by another room's
+  // completion. The token makes the release exact.
+  const [pendingSends, setPendingSends] = useState<Record<string, string>>({})
+  const currentDraftKey = draftKey ?? ''
+  const isSubmitting = Boolean(pendingSends[currentDraftKey])
+  // An unconfirmed send (no row id came back) keeps the draft; remembering its
+  // request id lets the resend replay instead of posting twice.
+  const unconfirmedRef = useRef<{ key: string; content: string; clientRequestId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -164,7 +172,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   // Compose modes belong to one draft. The composer now survives a room switch
   // (#765), so clear them on a key change instead of relying on a remount: a
   // whisper target or scene mode picked in Main must never leak into a room.
+  const compositionRef = useRef(0)
   useEffect(() => {
+    // A new composition owns the composer: work started in the previous visit
+    // must not land here, and a picker left open belongs to it too.
+    compositionRef.current += 1
+    setShowIconPicker(false)
     setIsScene(false)
     setEmphasizeLast(true)
     setIsNpc(false)
@@ -402,11 +415,18 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
   useImperativeHandle(ref, () => ({ insertImages: insertImagePaths, startWhisper }), [insertImagePaths, startWhisper])
 
+  // True while the composition that started this async work is still the one
+  // on screen. A→B→A matches the draft key again, so the composition (visit)
+  // token is what distinguishes the two.
+  const compositionCurrent = (origin: string | null, composition: number) =>
+    draftKeyRef.current === origin && compositionRef.current === composition
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
     const origin = draftKeyRef.current
+    const composition = compositionRef.current
     setImageError(null)
     try {
       // ~1200px keeps maps/handouts legible; storage cost stays tiny after the
@@ -414,11 +434,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       const publicUrl = await uploadImage(file, 'message', 1200)
       // The player can switch rooms mid-upload: the image belongs to the draft
       // it was picked in, never to the one now on screen (#765).
-      if (!publicUrl || draftKeyRef.current !== origin) return
+      if (!publicUrl || !compositionCurrent(origin, composition)) return
       insertImagePaths([publicUrl])
       addToast('Image uploaded', 'success')
     } catch (err) {
-      if (draftKeyRef.current !== origin) return
+      if (!compositionCurrent(origin, composition)) return
       setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
     }
   }
@@ -455,6 +475,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     const files = Array.from(e.dataTransfer?.files ?? [])
     if (!files.length) return
     const origin = draftKeyRef.current
+    const composition = compositionRef.current
     setImageError(null)
     const images = files.filter(f => f.type.startsWith('image/'))
     const rejected = files.length - images.length
@@ -470,7 +491,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
     // A room switch mid-upload drops the batch: it belongs to the draft it was
     // dropped on, not to the one now on screen (#765).
-    if (draftKeyRef.current !== origin) return
+    if (!compositionCurrent(origin, composition)) return
     // Successful files still insert; failures/rejections report inline. Both
     // can happen in one batch, so report them together.
     if (paths.length) insertImagePaths(paths)
@@ -485,15 +506,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     e.target.value = ''
     if (!file) return
     const origin = draftKeyRef.current
+    const composition = compositionRef.current
     setImageError(null)
     try {
       const publicUrl = await uploadImage(file, 'npc')
       // Same room-switch rule as the message upload: a portrait picked for one
       // draft must never land on the room now on screen (#765).
-      if (!publicUrl || draftKeyRef.current !== origin) return
+      if (!publicUrl || !compositionCurrent(origin, composition)) return
       setNpcAvatarUrl(publicUrl)
     } catch (err) {
-      if (draftKeyRef.current !== origin) return
+      if (!compositionCurrent(origin, composition)) return
       setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
     }
   }
@@ -511,8 +533,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     // (#765). The sent text is the revision that may be cleared — coming back
     // to this room and typing something new must survive it.
     const origin = draftKeyRef.current
+    const draftSlot = origin ?? ''
+    // One send per draft at a time; other drafts keep their own pending send.
+    if (pendingSends[draftSlot]) return
+    const token = crypto.randomUUID()
+    setPendingSends(prev => ({ ...prev, [draftSlot]: token }))
     const sentContent = content
-    setSubmittingDraft({ key: origin })
     setError(null)
     try {
       const { content: mentionContent } = linkifyMentions(content, members, { allMentionEnabled: isGM })
@@ -529,7 +555,25 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       if (isScene) payload.emphasize_last_paragraph = emphasizeLast
       if (replyTo) payload.reply_to = replyTo.id
 
-      await onSendMessage(payload)
+      // A resend after an unconfirmed send replays the same request id, so a
+      // write that landed without returning a row cannot post twice.
+      const remembered = unconfirmedRef.current
+      const replayId = remembered && remembered.key === draftSlot && remembered.content === sentContent
+        ? remembered.clientRequestId
+        : undefined
+      const result = replayId
+        ? await onSendMessage(payload, { clientRequestId: replayId })
+        : await onSendMessage(payload)
+      if (result?.status === 'unconfirmed') {
+        // Nothing on screen can offer Retry (the row may belong to a room the
+        // player left), so keep the draft and say so instead of clearing it.
+        unconfirmedRef.current = { key: draftSlot, content: sentContent, clientRequestId: result.clientRequestId }
+        if (draftKeyRef.current === origin && contentRef.current === sentContent) {
+          setError('Message was not confirmed. Check the room before resending.')
+        }
+        return
+      }
+      unconfirmedRef.current = null
       // Remove the stored draft only while it still holds the text that was
       // sent. The player can return to this room and edit before a slow send
       // resolves; that newer draft must survive (#765 review).
@@ -548,9 +592,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       console.error('Failed to send message:', err)
       if (draftKeyRef.current === origin) setError('Failed to send message. Please try again.')
     } finally {
-      // Only clear the pending state this send owns; a later send in another
-      // room keeps its own.
-      setSubmittingDraft(prev => (prev && prev.key === origin ? null : prev))
+      // Only release the token this send owns; a newer send in another draft
+      // (or a resend that raced it) keeps its own.
+      setPendingSends(prev => {
+        if (prev[draftSlot] !== token) return prev
+        const next = { ...prev }
+        delete next[draftSlot]
+        return next
+      })
     }
   }
 

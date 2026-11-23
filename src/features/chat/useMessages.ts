@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { useAuth } from '../auth/useAuth'
-import type { ChatMessage, MessageSendPayload } from './types'
+import type { ChatMessage, MessageSendPayload, MessageSendResult } from './types'
 import { isOfflineNow, subscribeWithRetry } from '../../lib/realtime'
 import { CACHE_LIMITS, readSnapshot, writeSnapshot } from '../../lib/offlineCache'
 import { MAX_MESSAGE_LENGTH, MAX_ROLL_WARNING_LENGTH } from '../../constants'
@@ -152,6 +152,14 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
   // confirmed it yet (#825); `cachedAt` is when that copy was saved.
   const [stale, setStale] = useState(false)
   const [cachedAt, setCachedAt] = useState<string | null>(null)
+  // The surface the rows on screen belong to. It trails the route for one
+  // render after a room switch, so callers can show their skeleton instead of
+  // painting the previous room's history under the new room's key (#765).
+  const [loadedScope, setLoadedScope] = useState<string | null>(null)
+  // Bumped by every room effect run. Async work started in one visit compares
+  // it before writing, so A → B → A cannot let A's late page land in the
+  // revisit (#765 review).
+  const visitRef = useRef(0)
 
   // Live view of messages so async catch-up can compute the newest held row
   // without stale-closure reads inside the subscribe effect (same pattern as
@@ -223,6 +231,8 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
 
   useEffect(() => {
     let mounted = true
+    visitRef.current += 1
+    setLoadedScope(`${channelId ?? ''}:${subChannelId ?? 'main'}`)
     // Drop any state from a previous channel (route change keeps this hook
     // mounted), so we never render another channel's messages.
     setMessages([])
@@ -232,6 +242,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     setStale(false)
     setCachedAt(null)
     setLoading(true)
+    // Pagination belongs to the visit that started it; a page still in flight
+    // from the previous room must not leave the new one loading forever.
+    setLoadingOlder(false)
     updatedCursorRef.current = null
 
     if (!channelId) {
@@ -456,6 +469,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
           .gt('created_at', cursor)
           .order('created_at', { ascending: true })
           .limit(PAGE_SIZE)
+        // The room effect cancelled this visit while the page was in flight:
+        // its rows belong to the room the player left, not the one on screen.
+        if (!mounted) return
         if (error) {
           console.error('Error catching up messages:', error)
           networkFailed = true
@@ -703,6 +719,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
   // Loads the page older than the oldest loaded message and prepends it.
   const loadOlder = useCallback(async () => {
     if (!channelId || loadingOlder || !hasMore || messages.length === 0) return
+    // Pagination belongs to this visit: a page from a previous room must not
+    // paint, error, or clear the loading flag of the room now on screen.
+    const visit = visitRef.current
     setLoadingOlder(true)
     const oldest = messages[0]
     try {
@@ -720,7 +739,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
 
       // A room/channel switch while this page was in flight: the effect already
       // reset the window, so prepending would leak the old room's rows.
-      if (channelIdRef.current !== channelId || subChannelIdRef.current !== subChannelId) return
+      if (visitRef.current !== visit || channelIdRef.current !== channelId || subChannelIdRef.current !== subChannelId) return
 
       const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
       setMessages(prev => {
@@ -731,12 +750,15 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
       scheduleCacheWriteRef.current()
     } catch (err) {
       console.error('Error loading older messages:', err)
+      if (visitRef.current !== visit) return
       // The already-rendered window stays usable; only an empty list gets the
       // retry banner.
       if (messagesRef.current.length === 0) setError(toError(err))
       else setStale(true)
     } finally {
-      setLoadingOlder(false)
+      // Only the visit that started the page may clear its loading flag; the
+      // room effect resets it for everyone else.
+      if (visitRef.current === visit) setLoadingOlder(false)
     }
   }, [channelId, loadingOlder, hasMore, messages])
 
@@ -750,6 +772,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
   // cancellation.
   const jumpToMessage = useCallback(async (messageId: string): Promise<'found' | 'missing' | 'error' | 'cancelled'> => {
     if (!channelId) return 'missing'
+    // The visit this jump belongs to: A → B → A must not let A's first jump
+    // prepend (or fail) into the revisit, even though the ids match again.
+    const visit = visitRef.current
     if (messagesRef.current.some(m => m.id === messageId)) return 'found'
     // Cursor from the oldest real (non-pending) row: optimistic bubbles sort
     // by client-clock created_at, and a clock skewed early could otherwise
@@ -776,8 +801,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         if (error) throw error
         // The user may have switched channels or rooms while this page was in
         // flight: the effect already reset the window for the new one, so
-        // prepending would leak the old room's rows into it.
-        if (channelIdRef.current !== channelId || subChannelIdRef.current !== subChannelId) return 'cancelled'
+        // prepending would leak the old room's rows into it. The visit token
+        // also catches A → B → A, where the ids alone match again.
+        if (visitRef.current !== visit || channelIdRef.current !== channelId || subChannelIdRef.current !== subChannelId) return 'cancelled'
         const older = (data || []).map(formatMessage).filter((m): m is Message => m !== null).reverse()
         if (older.length === 0) return 'missing'
         setMessages(prev => {
@@ -796,6 +822,9 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
         cursorId = oldestLoaded.id
         if ((data || []).length < PAGE_SIZE) return 'missing'
       } catch (err) {
+        // A failure from a visit that has ended belongs to the room the player
+        // left; reporting it would show this room an error it never caused.
+        if (visitRef.current !== visit) return 'cancelled'
         console.error('Error jumping to message:', err)
         return 'error'
       }
@@ -816,7 +845,10 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     }
   }, [])
 
-  const sendMessage = useCallback(async (payload: MessageSendPayload) => {
+  const sendMessage = useCallback(async (
+    payload: MessageSendPayload,
+    options?: { clientRequestId?: string },
+  ): Promise<MessageSendResult | undefined> => {
     if (!channelId || !user) return
     if (payload.content.length > MAX_MESSAGE_LENGTH) throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters).`)
     // The room this send targets. Stamped on the optimistic row and the stored
@@ -854,7 +886,7 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     // late-landing first attempt replays to the same row instead of
     // double-posting (#404). Same full-identity bar as the pending guard.
     const errored = messagesRef.current.find(m => sameMessagePayload(m) && Boolean(m.error))
-    const clientRequestId = errored?.client_request_id ?? crypto.randomUUID()
+    const clientRequestId = options?.clientRequestId ?? errored?.client_request_id ?? crypto.randomUUID()
 
     const optimisticMsg: Message = {
       id: clientRequestId, // temporary ID
@@ -912,11 +944,14 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     } else if (data && data.length > 0) {
       applyRpcResult(clientRequestId, data)
       scheduleCacheWriteRef.current()
-    } else {
-      // No error but no returned id: the insert isn't confirmed. Flag it so the
-      // user can retry; client_request_id keeps the retry idempotent.
-      setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: isOfflineNow() ? OFFLINE_SEND_ERROR : 'Message was not confirmed. Tap retry to resend.' } : m))
+      return { status: 'sent', clientRequestId }
     }
+    // No error but no returned id: the insert isn't confirmed. Flag the bubble so
+    // it offers Retry (client_request_id keeps the retry idempotent). When the
+    // player already left, the row was reset too, so the composer gets the
+    // unconfirmed result and keeps the draft instead of silently losing it.
+    setMessages(prev => prev.map(m => m.client_request_id === clientRequestId ? { ...m, error: isOfflineNow() ? OFFLINE_SEND_ERROR : 'Message was not confirmed. Tap retry to resend.' } : m))
+    return { status: 'unconfirmed', clientRequestId }
   }, [channelId, subChannelId, user])
 
   const sendDiceRoll = useCallback(async (notation: string, replyToId?: string, warning?: string, dc?: number | null) => {
@@ -1158,5 +1193,5 @@ export function useMessages(channelId: string | undefined, subChannelId: string 
     }
   }, [])
 
-  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, toggleReaction, removePendingMessage, retryMessage, stale, cachedAt }
+  return { messages, reactions, loading, error, hasMore, loadingOlder, loadOlder, refresh, retrying, jumpToMessage, sendMessage, sendDiceRoll, editMessage, deleteMessage, addReaction, removeReaction, toggleReaction, removePendingMessage, retryMessage, stale, cachedAt, loadedScope }
 }

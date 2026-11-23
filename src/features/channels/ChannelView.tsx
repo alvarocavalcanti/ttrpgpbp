@@ -129,11 +129,11 @@ export function ChannelView() {
   }, [id, subId])
 
   const { channel, members, loading: channelLoading, error, isGM, myMemberInfo, lastReadAt, boundaryRevision, markRead, waitForReads: waitForMainReads, refetch, refreshMembers, gmOnlyResourcesUrl, hasPassword } = useChannel(id, handleChannelRead, canMarkRead, !subId)
-  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage, stale: messagesStale, cachedAt: messagesCachedAt } = useMessages(id, subId ?? null, handleMessagesLoaded)
+  const { messages, reactions, loading: messagesLoading, error: messagesError, hasMore, loadingOlder, loadOlder, sendMessage, editMessage, deleteMessage, sendDiceRoll, toggleReaction, retryMessage, removePendingMessage, refresh: refreshMessages, retrying: messagesRetrying, jumpToMessage, stale: messagesStale, cachedAt: messagesCachedAt, loadedScope = surfaceKey } = useMessages(id, subId ?? null, handleMessagesLoaded)
   const { npcs, refetch: refetchNpcs } = useChannelNpcs(id)
   const { alertActive, alertCount, catchUpError, retryCatchUp, dismissAlert, triggerXCard } = useSafetyCardEvents(id, isGM)
   const { favoriteIds, favoriteMessages, toggleFavorite, patchFavoriteMessage, loading: favoritesLoading, error: favoritesError, refetch: refetchFavorites } = useMessageFavorites(id, true, subId ?? null)
-  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, confirmed: roomsConfirmed, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
+  const { subChannels, archivedRooms, roomMembers, loading: roomsLoading, error: roomsError, confirmed: roomsConfirmed, confirmations: roomsConfirmations, create: createRoom, rename: renameRoom, setArchived: setRoomArchived, setCapabilities: setRoomCapabilities, setVisibility: setRoomVisibility, addMember: addRoomMember, removeMember: removeRoomMember, remove: removeRoom, patchRoomStatus, refetch: refetchRooms } = useSubChannels(id)
   // Pending applications (#674): the GM Tools badge below, and the queue inside
   // ChannelSettings. Both are GM-only, so a non-GM never spends a query on it
   // (the hook skips a falsy channel id).
@@ -223,13 +223,16 @@ export function ChannelView() {
   // single shared panel instance talking to whichever composer is mounted.
   const composerRef = useRef<MessageComposerHandle>(null)
 
-  // A reply target and a search highlight both belong to the room they were
-  // picked in; the channel subtree now survives a room switch (#765), so they
-  // have to be dropped explicitly instead of by unmount.
-  useEffect(() => {
+  // A reply target and a search highlight belong to the room they were picked
+  // in. Clearing them in an effect would leave one render with the previous
+  // room's target exposed; adjusting state during render makes React drop that
+  // render and re-render immediately (#765 review).
+  const [surfaceKeyState, setSurfaceKeyState] = useState(surfaceKey)
+  if (surfaceKeyState !== surfaceKey) {
+    setSurfaceKeyState(surfaceKey)
     setReplyTo(null)
     setHighlightMessageId(null)
-  }, [id, subId])
+  }
 
   // Clear highlight after a few seconds
   useEffect(() => {
@@ -286,19 +289,21 @@ export function ChannelView() {
   // or failed room fetch must not redirect — the room may exist. Archived rooms
   // stay readable, so they are not treated as unknown.
   const unknownRoomHandledRef = useRef<string | null>(null)
-  // Rooms this client created. The list learns about a new room from the
-  // realtime echo, which can land after the route already points at it; a
-  // missing id there is not proof the room is gone (#765).
-  const createdRoomIdsRef = useRef<Set<string>>(new Set())
+  // Rooms this client created, with the confirmation count at creation. The
+  // list learns about a new room from the realtime echo or the post-create
+  // refresh, which can land after the route already points at it; a missing id
+  // there is not proof the room is gone (#765).
+  const createdRoomIdsRef = useRef<Map<string, number>>(new Map())
   useEffect(() => {
-    // Drop every exemption the list has since confirmed — not only the room on
-    // screen. Creating a room and returning to Main before its row lands would
-    // otherwise exempt that id for the rest of the session, and a later stale
-    // link to it would skip the redirect below (#765).
-    const known = new Set([...subChannels, ...archivedRooms].map(r => r.id))
-    for (const id of [...createdRoomIdsRef.current]) {
-      if (known.has(id)) createdRoomIdsRef.current.delete(id)
+    // An exemption lives only until a room-list fetch that STARTED after the
+    // creation confirms (or refutes) it. Dropping it as soon as the id appears
+    // would also drop it while the post-create refresh is still pending, and
+    // keeping it forever would let a room deleted elsewhere bypass the redirect
+    // below (#765 review).
+    for (const [id, confirmationAtCreation] of [...createdRoomIdsRef.current]) {
+      if (roomsConfirmations > confirmationAtCreation) createdRoomIdsRef.current.delete(id)
     }
+    const known = new Set([...subChannels, ...archivedRooms].map(r => r.id))
     // Back in Main: forget which dead room was already handled, so following
     // the same stale link again is caught instead of showing an empty room
     // (the subtree no longer remounts, #765).
@@ -315,7 +320,7 @@ export function ChannelView() {
     unknownRoomHandledRef.current = subId
     addToast("That room no longer exists. You're back in Main.", 'error')
     navigate(`/channel/${id}`, { replace: true })
-  }, [subId, roomsLoading, roomsError, roomsConfirmed, subChannels, archivedRooms, addToast, navigate, id])
+  }, [subId, roomsLoading, roomsError, roomsConfirmed, roomsConfirmations, subChannels, archivedRooms, addToast, navigate, id])
 
   // Jump targets (search results, quoted replies) may sit outside the loaded
   // latest-50 window: load history pages until the target is rendered, then
@@ -832,7 +837,10 @@ export function ChannelView() {
                 </div>
               ))}
             </div>
-          ) : messagesLoading ? (
+          ) : messagesLoading || loadedScope !== surfaceKey ? (
+            // The rows still in state can belong to the room the player just
+            // left (#765 review): paint the skeleton until this visit's window
+            // is the one on screen.
             <MessageSkeletons />
           ) : (
           <MessageList
@@ -1160,7 +1168,7 @@ export function ChannelView() {
           onRetryMembers={refreshMembers}
           onCreate={createRoom}
           onCreated={(roomId) => {
-            createdRoomIdsRef.current.add(roomId)
+            createdRoomIdsRef.current.set(roomId, roomsConfirmations)
             setShowCreateRoom(false)
             // The room list does not add the new row locally, and the creating
             // client must not wait for a realtime echo now that the route

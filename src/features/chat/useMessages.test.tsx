@@ -516,7 +516,7 @@ describe('useMessages', () => {
 
     // First submit stays in flight (the rpc promise is unresolved until the
     // end of the test); the optimistic pending bubble renders on its own act.
-    let first: Promise<void> = Promise.resolve()
+    let first: Promise<unknown> = Promise.resolve()
     await act(async () => {
       first = result.current.sendMessage({ content: 'hi', type: 'regular' })
     })
@@ -2086,8 +2086,136 @@ describe('useMessages rooms (#621)', () => {
     expect(result.current.messages.map(m => m.id)).toEqual(['x-mine'])
   })
 
-  it('rolls in the room on screen after an in-place room switch (#765)', async () => {
+  it('reports an unconfirmed send instead of resolving as success (#765 review)', async () => {
     mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
+    mockChannels()
+    // No error, no row id: the insert may or may not have landed.
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any)
+
+    const { result } = renderHook(() => useMessages('c1', null))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    let outcome: any
+    await act(async () => {
+      outcome = await result.current.sendMessage({ content: 'hi', type: 'regular' })
+    })
+
+    // The composer keeps the draft on this result and replays the id on a resend.
+    expect(outcome.status).toBe('unconfirmed')
+    expect(typeof outcome.clientRequestId).toBe('string')
+  })
+
+  it('keeps an older-page failure out of the room that opened meanwhile (#765 review)', async () => {
+    const rows = Array.from({ length: 50 }, (_, i) =>
+      baseMessage({ id: `m${i}`, sub_channel_id: 'room-1', created_at: `2023-01-01T00:00:${String(i).padStart(2, '0')}.000Z` }))
+    let resolvePage: (value: unknown) => void = () => {}
+    const limit = vi.fn()
+      .mockResolvedValueOnce({ data: rows, error: null })
+      .mockImplementationOnce(() => new Promise(resolve => { resolvePage = resolve }))
+      .mockResolvedValue({ data: [], error: null })
+    const order = makeOrder(limit)
+    const tail: any = { or: () => tail, order }
+    const holder = { eq: () => tail, is: () => tail }
+    mockFrom({ fetchBuilder: () => ({ eq: () => holder }) })
+    mockChannels()
+
+    const { result, rerender } = renderHook(
+      ({ sub }: { sub: string | null }) => useMessages('c1', sub),
+      { initialProps: { sub: 'room-1' as string | null } },
+    )
+    await waitFor(() => expect(result.current.hasMore).toBe(true))
+
+    // The page is requested in room-1 and settles after room-2 opened.
+    let older: Promise<void> = Promise.resolve()
+    act(() => { older = result.current.loadOlder() })
+    rerender({ sub: 'room-2' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      resolvePage({ data: null, error: new Error('boom') })
+      await older
+    })
+
+    // room-2 was never loading older, so it must not show room-1's failure.
+    expect(result.current.error).toBeNull()
+    expect(result.current.loadingOlder).toBe(false)
+    expect(result.current.messages).toHaveLength(0)
+  })
+
+  it('cancels a jump whose visit ended, even when the room comes back (#765 review)', async () => {
+    let resolvePage: (value: unknown) => void = () => {}
+    const jumpLimit = vi.fn(() => new Promise(resolve => { resolvePage = resolve }))
+    const jumpTail: any = { order: makeOrder(jumpLimit) }
+    // Only the jump uses `.or(...)`; the room effects fetch without it.
+    const order = makeOrder(vi.fn().mockResolvedValue({ data: [baseMessage({ id: 'held', sub_channel_id: 'room-1' })], error: null }))
+    const tail: any = { or: () => jumpTail, order }
+    const holder = { eq: () => tail, is: () => tail }
+    mockFrom({ fetchBuilder: () => ({ eq: () => holder }) })
+    mockChannels()
+
+    const { result, rerender } = renderHook(
+      ({ sub }: { sub: string | null }) => useMessages('c1', sub),
+      { initialProps: { sub: 'room-1' as string | null } },
+    )
+    await waitFor(() => expect(result.current.messages).toHaveLength(1))
+
+    let jump: Promise<string> = Promise.resolve('')
+    act(() => { jump = result.current.jumpToMessage('target') })
+    rerender({ sub: 'room-2' })
+    rerender({ sub: 'room-1' })
+
+    let outcome = ''
+    await act(async () => {
+      resolvePage({ data: [baseMessage({ id: 'older', sub_channel_id: 'room-1' })], error: null })
+      outcome = await jump
+    })
+
+    expect(outcome).toBe('cancelled')
+    expect(result.current.messages.map(m => m.id)).not.toContain('older')
+  })
+
+  it('drops a catch-up page that lands after its room closed (#765 review)', async () => {
+    let resolveCatchUp: (value: unknown) => void = () => {}
+    let limitCalls = 0
+    const limit = vi.fn().mockImplementation(() => {
+      limitCalls += 1
+      if (limitCalls === 1) {
+        return Promise.resolve({ data: [baseMessage({ id: 'held', sub_channel_id: 'room-1' })], error: null })
+      }
+      if (limitCalls === 2) {
+        return new Promise(resolve => { resolveCatchUp = resolve })
+      }
+      return Promise.resolve({ data: [], error: null })
+    })
+    const order = makeOrder(limit)
+    const tail: any = { gt: () => tail, or: () => tail, order }
+    const holder = { eq: () => tail, is: () => tail }
+    mockFrom({ fetchBuilder: () => ({ eq: () => holder }) })
+    const { emitStatus } = mockChannels()
+
+    const { result, rerender } = renderHook(
+      ({ sub }: { sub: string | null }) => useMessages('c1', sub),
+      { initialProps: { sub: 'room-1' as string | null } },
+    )
+    await waitFor(() => expect(result.current.messages).toHaveLength(1))
+
+    // Reconnect catch-up starts in room-1.
+    act(() => { emitStatus('SUBSCRIBED') })
+
+    rerender({ sub: 'room-2' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      resolveCatchUp({ data: [baseMessage({ id: 'late', sub_channel_id: 'room-1' })], error: null })
+      await Promise.resolve()
+    })
+
+    // room-1's late page must not paint into room-2.
+    expect(result.current.messages).toHaveLength(0)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('rolls in the room on screen after an in-place room switch (#765)', async () => {    mockFrom({ fetchBuilder: () => ({ eq: () => roomTail({ order: makeOrder(vi.fn().mockResolvedValue({ data: [], error: null })) }) }) })
     mockChannels()
     vi.mocked(supabase.rpc).mockResolvedValue({ data: [{ message_id: 'r9' }], error: null } as any)
 

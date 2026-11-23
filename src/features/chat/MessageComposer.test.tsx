@@ -2320,6 +2320,113 @@ describe('MessageComposer room switch safety (#765)', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
   })
 
+  it('closes the NPC portrait picker when the room changes', () => {
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.click(screen.getByLabelText('Choose NPC portrait'))
+    expect(screen.getByRole('dialog', { name: 'Choose NPC Portrait' })).toBeInTheDocument()
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    expect(screen.queryByRole('dialog', { name: 'Choose NPC Portrait' })).not.toBeInTheDocument()
+  })
+
+  it('tracks pending sends per draft across a round trip', async () => {
+    const pending: Array<() => void> = []
+    const onSend = vi.fn(() => new Promise<void>(resolve => { pending.push(resolve) }))
+    const send = () => screen.getByRole('button', { name: 'Send' })
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />
+    )
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'main text' } })
+    fireEvent.click(send())
+    expect(send()).toBeDisabled()
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={false} members={members} onSendMessage={onSend} />)
+    fireEvent.change(textarea, { target: { value: 'room text' } })
+    fireEvent.click(send())
+    expect(send()).toBeDisabled()
+
+    // The room send settles first: it frees only its own draft.
+    await act(async () => { pending[1]() })
+    fireEvent.change(textarea, { target: { value: 'room again' } })
+    expect(send()).toBeEnabled()
+
+    // Back in Main, its original send is still pending.
+    rerender(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />)
+    expect(send()).toBeDisabled()
+
+    await act(async () => { pending[0]() })
+    fireEvent.change(textarea, { target: { value: 'main again' } })
+    expect(send()).toBeEnabled()
+  })
+
+  it('ignores a Cmd+Enter submit while the draft already has a send in flight', async () => {
+    const pending: Array<() => void> = []
+    const onSend = vi.fn(() => new Promise<void>(resolve => { pending.push(resolve) }))
+
+    render(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />)
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'hello' } })
+
+    fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
+    fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
+
+    expect(onSend).toHaveBeenCalledTimes(1)
+    await act(async () => { pending[0]() })
+  })
+
+  it('keeps the draft when the send is unconfirmed and replays its request id', async () => {
+    const onSend = vi.fn()
+      .mockResolvedValueOnce({ status: 'unconfirmed', clientRequestId: 'rid-1' })
+      .mockResolvedValueOnce({ status: 'sent', clientRequestId: 'rid-1' })
+
+    render(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />)
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'hello' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    // Nothing on screen can offer Retry, so the text stays and the player is told.
+    expect(await screen.findByText('Message was not confirmed. Check the room before resending.')).toBeInTheDocument()
+    expect(textarea).toHaveValue('hello')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2))
+    // The resend replays the same request id: a write that landed without
+    // returning a row cannot post twice.
+    expect(onSend).toHaveBeenLastCalledWith(expect.anything(), { clientRequestId: 'rid-1' })
+  })
+
+  it('discards a portrait uploaded in an earlier visit to the same room', async () => {
+    let finishUpload: (url: string) => void = () => {}
+    mockUploadImage.mockImplementation(() => new Promise(resolve => { finishUpload = resolve }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    fireEvent.change(screen.getByLabelText('Upload NPC portrait'), {
+      target: { files: [new File(['data'], 'king.png', { type: 'image/png' })] },
+    })
+
+    // Leave and come back: the draft key matches again, the composition does not.
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+    rerender(<MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />)
+    await act(async () => { finishUpload('https://supabase/images/c1/npc/u.jpg') })
+
+    fireEvent.click(screen.getByLabelText('NPC Mode'))
+    expect(screen.getByAltText('NPC portrait preview')).not.toHaveAttribute(
+      'src',
+      'https://supabase/images/c1/npc/u.jpg',
+    )
+  })
+
   it('drops scene mode when the room changes', () => {
     const { rerender } = render(
       <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />

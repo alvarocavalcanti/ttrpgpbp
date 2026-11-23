@@ -367,6 +367,29 @@ describe('useSubChannels', () => {
       expect(result.current.confirmed).toBe(true)
     })
 
+    it('keeps the known rooms while a refetch is in flight (#765 review)', async () => {
+      vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
+      const first = mockList([room({ id: 'r1', name: 'OOC' })])
+      // Second fetch never resolves during the assertion: that is the window
+      // where the old code blanked the strip.
+      const pendingOrder = vi.fn().mockImplementation(() => new Promise(() => {}))
+      const second = { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ order: pendingOrder }) }) }
+      vi.mocked(supabase.from)
+        .mockImplementationOnce((() => ({ select: first.select })) as never)
+        .mockImplementation((() => ({ select: second.select })) as never)
+
+      const { result } = renderHook(() => useSubChannels('c1'))
+      await waitFor(() => expect(result.current.subChannels).toHaveLength(1))
+      expect(result.current.confirmations).toBe(1)
+
+      act(() => { result.current.refetch() })
+
+      // Revalidating, not blanking: the tab strip survives a slow (or failed)
+      // refresh, which is what the post-create refresh relies on.
+      expect(result.current.subChannels).toHaveLength(1)
+      expect(result.current.loading).toBe(false)
+    })
+
     it('persists rooms and invites after a successful fetch', async () => {
       vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1' } } as never)
       const list = mockList([room({ id: 'r1', name: 'Live OOC' })])
