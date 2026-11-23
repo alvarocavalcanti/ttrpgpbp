@@ -39,6 +39,10 @@ export function useSubChannels(channelId: string | undefined) {
   // caller must not treat a missing id as "no longer exists" until then
   // (issue #825).
   const [confirmed, setConfirmed] = useState(false)
+  // Monotonic count of successful room-list fetches. Callers holding a
+  // just-created room id can tell whether a fetch that STARTED after the
+  // creation has since confirmed the list (#765 review).
+  const [confirmations, setConfirmations] = useState(0)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
   // The debounced writer may only persist a list this scope has actually
   // loaded. Without it, a slow cache read plus a failed fetch would overwrite a
@@ -47,6 +51,10 @@ export function useSubChannels(channelId: string | undefined) {
   // True while the private-room invite map for the room list on screen is still
   // loading; the debounced writer must not save a mismatched audience.
   const invitesPendingRef = useRef(false)
+  // The channel whose rooms are already in state. A refetch for the same
+  // channel revalidates in place instead of blanking the strip, so a failed
+  // refresh cannot cost the player every tab they had (#765 review).
+  const loadedChannelRef = useRef<string | null>(null)
 
   // Invited user ids per private room (#621 Phase 3).
   const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
@@ -56,11 +64,17 @@ export function useSubChannels(channelId: string | undefined) {
   useEffect(() => {
     let mounted = true
     // Drop a previous channel's rooms on route change (this hook stays mounted).
-    setRooms([])
+    // A refetch of the same channel keeps them: the strip only blanks when the
+    // channel really changed.
+    const sameChannel = loadedChannelRef.current === (channelId ?? null)
+    loadedChannelRef.current = channelId ?? null
+    if (!sameChannel) {
+      setRooms([])
+      setLoading(true)
+    }
     canPersistRef.current = false
     setError(null)
     setConfirmed(false)
-    setLoading(true)
 
     if (!channelId || !user?.id) {
       setLoading(false)
@@ -120,6 +134,7 @@ export function useSubChannels(channelId: string | undefined) {
         invitesPendingRef.current = parsed.length > 0
         setRooms(parsed)
         setConfirmed(true)
+        setConfirmations(n => n + 1)
 
         // Invited members per room (only meaningful for 'private').
         const ids = parsed.map(r => r.id)
@@ -355,5 +370,5 @@ export function useSubChannels(channelId: string | undefined) {
   const subChannels = rooms.filter(r => !r.is_archived)
   const archivedRooms = rooms.filter(r => r.is_archived)
 
-  return { subChannels, archivedRooms, roomMembers, loading, error, confirmed, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
+  return { subChannels, archivedRooms, roomMembers, loading, error, confirmed, confirmations, create, rename, setArchived, setCapabilities, setVisibility, addMember, removeMember, remove, patchRoomStatus, refetch }
 }

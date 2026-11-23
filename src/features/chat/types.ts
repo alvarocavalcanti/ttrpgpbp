@@ -36,6 +36,14 @@ export interface MessageSendPayload {
   sub_channel_id?: string | null
 }
 
+// What sendMessage reports back to the composer. `unconfirmed` means the write
+// produced no row id (so nothing can render a Retry bubble); the draft must be
+// kept, and a resend replays the same client_request_id.
+export interface MessageSendResult {
+  status: 'sent' | 'unconfirmed'
+  clientRequestId: string
+}
+
 // A channel member with optional per-ability modifiers (keyed by e.g. STR).
 export interface Member {
   user_id: string

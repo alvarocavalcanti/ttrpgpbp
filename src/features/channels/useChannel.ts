@@ -107,6 +107,10 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
     // #412: history-first read-mark. Every path (mount-time, live INSERT,
     // visibility reconnect) routes through here, so one gate covers all.
     if (canMarkRead && !canMarkRead()) return
+    // The surface this read belongs to. A queued write must not run after the
+    // player changed surface, or the RPC would use the new room's p_mark_main
+    // while the notification still belongs to the old room.
+    const surface = { markMain: markMainRef.current, onRead }
     readWriteChainRef.current = readWriteChainRef.current
       .then(async () => {
         // Re-validate at execution time: the channel may have switched while
@@ -114,12 +118,29 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         // may have closed in between (#412).
         if (myMemberIdRef.current !== memberId) return
         if (canMarkRead && !canMarkRead()) return
-        const { error } = await supabase.rpc('mark_channel_read', { p_channel_id: channelId, p_mark_main: markMainRef.current })
+        // The destination surface schedules its own read once its history
+        // loads, so dropping this one loses nothing.
+        if (callbacksRef.current.onRead !== surface.onRead || markMainRef.current !== surface.markMain) return
+        const { error } = await supabase.rpc('mark_channel_read', { p_channel_id: channelId, p_mark_main: surface.markMain })
         if (error) console.error('Failed to update last_read_at', error)
-        else onRead?.(live)
+        else surface.onRead?.(live)
       })
       .catch(() => {})
   }, [onRead, canMarkRead])
+
+  // The room-scoped read callback changes on a room switch, while the channel
+  // subscription and the visibility handler outlive it (the subtree no longer
+  // remounts, #765). Route those paths through refs, updated at commit rather
+  // than during render: a router transition can hold the render, and a live
+  // INSERT in that window must still report the room the player is on.
+  const callbacksRef = useRef({ markRead, onRead })
+  useEffect(() => {
+    // The refs follow the committed surface: React Router holds a room-switch
+    // render in a transition, and a live INSERT in that window must still
+    // report the room the player is actually looking at.
+    // oxlint-disable-next-line -- refs must follow the committed surface, not a render a router transition can hold
+    callbacksRef.current = { markRead, onRead }
+  }, [markRead, onRead])
 
   const refetch = () => setRefetchTrigger(prev => prev + 1)
 
@@ -325,7 +346,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
           myMemberIdRef.current = myMember.id
           // Blocked members keep the header readable nowhere, including offline.
           if (myMember.is_blocked) void deleteChannelSnapshots(activeUserId, activeChannelId)
-          if (document.visibilityState === 'visible') markRead(false)
+          if (document.visibilityState === 'visible') callbacksRef.current.markRead(false)
         }
       } catch (err) {
         console.error('Error fetching channel data:', err)
@@ -379,7 +400,7 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
         filter: `channel_id=eq.${channelId}`
       }, () => {
         if (!mountedRef.current || document.visibilityState !== 'visible' || !myMemberIdRef.current) return
-        markRead(true)
+        callbacksRef.current.markRead(true)
       })
       .on('postgres_changes', {
         // '*' so joins (INSERT) and kicks/leaves (DELETE) propagate. A kicked
@@ -446,6 +467,17 @@ export function useChannel(channelId: string | undefined, onRead?: (live?: boole
       void supabase.removeChannel(realtimeChannel)
     }
   }, [channelId, user?.id, refetchTrigger, readBaseline])
+
+  // Main reads main_last_read_at and a room reads last_read_at, so the boundary
+  // belongs to the surface on screen. It used to be re-captured by a remount on
+  // every room switch; now that this hook survives the switch (#765), re-anchor
+  // it from whatever roster is in hand — including a hydrated one, whose first
+  // network fetch may still land and replace it.
+  useEffect(() => {
+    const me = membersRef.current.find(m => m.user_id === user?.id)
+    if (!me) return
+    setLastReadAt(readBaseline(me))
+  }, [markMain, readBaseline, user?.id])
 
   // Persist the header snapshot whenever what we would render changes (initial
   // fetch, realtime rename, roster refresh). Debounced so a burst of member
