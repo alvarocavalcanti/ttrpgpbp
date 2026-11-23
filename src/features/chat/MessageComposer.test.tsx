@@ -2157,3 +2157,119 @@ describe('MessageComposer room capabilities (#621 Phase 2)', () => {
     })
   })
 })
+
+describe('MessageComposer room switch safety (#765)', () => {
+  const members: any[] = [
+    { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } }
+  ]
+
+  beforeEach(() => {
+    mockUploadImage.mockReset()
+    mockAddToast.mockReset()
+    localStorage.clear()
+    vi.mocked(useImageUpload).mockReturnValue({
+      uploadEnabled: true,
+      settingsLoading: false,
+      uploading: false,
+      uploadImage: mockUploadImage,
+    })
+    // Non-matching viewport so the options render inline, not in a BottomSheet.
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any
+  })
+
+  it('leaves an upload out of the room the player switched to', async () => {
+    let finishUpload: (url: string) => void = () => {}
+    mockUploadImage.mockImplementation(() => new Promise(resolve => { finishUpload = resolve }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.change(screen.getByLabelText('Upload Image'), {
+      target: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+    await act(async () => { finishUpload('https://supabase/images/c1/message/u.jpg') })
+
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('')
+    expect(mockAddToast).not.toHaveBeenCalled()
+  })
+
+  it('leaves a dropped upload out of the room the player switched to', async () => {
+    let finishUpload: (url: string) => void = () => {}
+    mockUploadImage.mockImplementation(() => new Promise(resolve => { finishUpload = resolve }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.drop(screen.getByTestId('composer-dropzone'), {
+      dataTransfer: { files: [new File(['data'], 'map.png', { type: 'image/png' })] },
+    })
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+    await act(async () => { finishUpload('https://supabase/images/c1/message/u.jpg') })
+
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('')
+  })
+
+  it('keeps the new room draft when an earlier send resolves', async () => {
+    let finishSend: () => void = () => {}
+    const onSend = vi.fn(() => new Promise<void>(resolve => { finishSend = resolve }))
+    localStorage.setItem('composer_draft_c1_room-b', 'room draft')
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'main text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={false} members={members} onSendMessage={onSend} />)
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('room draft')
+
+    await act(async () => { finishSend() })
+
+    // The sent room's draft is gone; the room on screen keeps its text.
+    expect(screen.getByRole('combobox', { name: 'Message' })).toHaveValue('room draft')
+    expect(localStorage.getItem('composer_draft_c1')).toBeNull()
+    expect(localStorage.getItem('composer_draft_c1_room-b')).toBe('room draft')
+  })
+
+  it('drops scene mode when the room changes', () => {
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByLabelText('Scene Description'))
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByLabelText('Edit Scene')).toBeInTheDocument()
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    expect(screen.queryByLabelText('Edit Scene')).not.toBeInTheDocument()
+  })
+
+  it('drops a queued whisper when the room changes', () => {
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
+    )
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    expect(screen.getByLabelText('Edit Whisper: Hero')).toBeInTheDocument()
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={true} members={members} onSendMessage={vi.fn()} />)
+
+    expect(screen.queryByLabelText('Edit Whisper: Hero')).not.toBeInTheDocument()
+  })
+})

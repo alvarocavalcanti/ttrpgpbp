@@ -91,10 +91,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     contentRef.current = content
   }, [content])
 
+  // The draft the composer currently owns. Async work started in one room (an
+  // upload, a send) compares against it so it can never write into the room the
+  // player has since switched to (#765).
+  const draftKeyRef = useRef(draftKey)
+
   useEffect(() => {
     // Restore: bring this channel's draft into the composer. From this point
     // the content that "belongs" to this key is the saved draft (or empty) —
     // the ref is re-stamped so a mid-switch unmount persists the right value.
+    draftKeyRef.current = draftKey
     if (draftKey) {
       const saved = safeGetItem(draftKey)
       contentRef.current = saved ?? ''
@@ -150,6 +156,22 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
     if (!capabilities.allow_whispers) setWhisperTo('')
   }, [capabilities.allow_scenes, capabilities.allow_npc, capabilities.allow_whispers])
+
+  // Compose modes belong to one draft. The composer now survives a room switch
+  // (#765), so clear them on a key change instead of relying on a remount: a
+  // whisper target or scene mode picked in Main must never leak into a room.
+  useEffect(() => {
+    setIsScene(false)
+    setEmphasizeLast(true)
+    setIsNpc(false)
+    setNpcName('')
+    setNpcAvatarUrl(null)
+    setNpcSuggestionsDismissed(false)
+    setWhisperTo('')
+    setMentionState(null)
+    setError(null)
+    setImageError(null)
+  }, [draftKey])
   const dragDepth = useRef(0)
   const [isExpanded, setIsExpanded] = useState(false)
   const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null)
@@ -380,16 +402,19 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    const origin = draftKeyRef.current
     setImageError(null)
     try {
       // ~1200px keeps maps/handouts legible; storage cost stays tiny after the
       // JPEG re-encode.
       const publicUrl = await uploadImage(file, 'message', 1200)
-      if (publicUrl) {
-        insertImagePaths([publicUrl])
-        addToast('Image uploaded', 'success')
-      }
+      // The player can switch rooms mid-upload: the image belongs to the draft
+      // it was picked in, never to the one now on screen (#765).
+      if (!publicUrl || draftKeyRef.current !== origin) return
+      insertImagePaths([publicUrl])
+      addToast('Image uploaded', 'success')
     } catch (err) {
+      if (draftKeyRef.current !== origin) return
       setImageError(err instanceof Error ? err.message : 'Failed to upload image.')
     }
   }
@@ -425,6 +450,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     setIsDragging(false)
     const files = Array.from(e.dataTransfer?.files ?? [])
     if (!files.length) return
+    const origin = draftKeyRef.current
     setImageError(null)
     const images = files.filter(f => f.type.startsWith('image/'))
     const rejected = files.length - images.length
@@ -438,6 +464,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         failed += 1
       }
     }
+    // A room switch mid-upload drops the batch: it belongs to the draft it was
+    // dropped on, not to the one now on screen (#765).
+    if (draftKeyRef.current !== origin) return
     // Successful files still insert; failures/rejections report inline. Both
     // can happen in one batch, so report them together.
     if (paths.length) insertImagePaths(paths)
@@ -470,6 +499,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
     setIsSubmitting(true)
     setError(null)
+    // The draft this send belongs to: a slow send can resolve after the player
+    // switched rooms, and its cleanup must never blank the new room's draft
+    // (#765).
+    const origin = draftKeyRef.current
     try {
       const { content: mentionContent } = linkifyMentions(content, members, { allMentionEnabled: isGM })
 
@@ -486,8 +519,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       if (replyTo) payload.reply_to = replyTo.id
 
       await onSendMessage(payload)
+      // The sent draft is gone even if the player moved on; the room now on
+      // screen keeps its own text. Only cleanup for the same room may touch the
+      // editor.
+      if (origin) safeRemoveItem(origin)
+      if (draftKeyRef.current !== origin) return
       setContent('')
-      if (draftKey) safeRemoveItem(draftKey)
       setIsScene(false)
       setEmphasizeLast(true)
       setIsNpc(false)
@@ -498,7 +535,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       onCancelReply?.()
     } catch (err) {
       console.error('Failed to send message:', err)
-      setError('Failed to send message. Please try again.')
+      if (draftKeyRef.current === origin) setError('Failed to send message. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
