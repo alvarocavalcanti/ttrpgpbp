@@ -148,8 +148,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const currentDraftKey = draftKey ?? ''
   const isSubmitting = Boolean(pendingSends[currentDraftKey])
   // An unconfirmed send (no row id came back) keeps the draft; remembering its
-  // request id lets the resend replay instead of posting twice.
-  const unconfirmedRef = useRef<{ key: string; content: string; clientRequestId: string } | null>(null)
+  // request id per draft lets the resend replay instead of posting twice. The
+  // fingerprint is the exact payload that was sent: changing the recipient (or
+  // type, reply, NPC) while keeping the text is a different message.
+  const unconfirmedSendsRef = useRef<Map<string, { fingerprint: string; clientRequestId: string }>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -556,24 +558,34 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       if (replyTo) payload.reply_to = replyTo.id
 
       // A resend after an unconfirmed send replays the same request id, so a
-      // write that landed without returning a row cannot post twice.
-      const remembered = unconfirmedRef.current
-      const replayId = remembered && remembered.key === draftSlot && remembered.content === sentContent
-        ? remembered.clientRequestId
-        : undefined
+      // write that landed without returning a row cannot post twice. The whole
+      // outgoing payload has to match: a different recipient with the same text
+      // is a different message.
+      const fingerprint = JSON.stringify([
+        payload.content,
+        payload.type,
+        payload.whisper_to ?? null,
+        payload.reply_to ?? null,
+        payload.npc_name ?? null,
+        payload.npc_avatar_url ?? null,
+        payload.emphasize_last_paragraph ?? null,
+      ])
+      const remembered = unconfirmedSendsRef.current.get(draftSlot)
+      const replayId = remembered?.fingerprint === fingerprint ? remembered.clientRequestId : undefined
       const result = replayId
         ? await onSendMessage(payload, { clientRequestId: replayId })
         : await onSendMessage(payload)
       if (result?.status === 'unconfirmed') {
         // Nothing on screen can offer Retry (the row may belong to a room the
         // player left), so keep the draft and say so instead of clearing it.
-        unconfirmedRef.current = { key: draftSlot, content: sentContent, clientRequestId: result.clientRequestId }
+        unconfirmedSendsRef.current.set(draftSlot, { fingerprint, clientRequestId: result.clientRequestId })
         if (draftKeyRef.current === origin && contentRef.current === sentContent) {
           setError('Message was not confirmed. Check the room before resending.')
         }
         return
       }
-      unconfirmedRef.current = null
+      // Only this draft's replay id is settled by this send.
+      unconfirmedSendsRef.current.delete(draftSlot)
       // Remove the stored draft only while it still holds the text that was
       // sent. The player can return to this room and edit before a slow send
       // resolves; that newer draft must survive (#765 review).

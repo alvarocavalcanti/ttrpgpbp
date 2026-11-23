@@ -2402,6 +2402,59 @@ describe('MessageComposer room switch safety (#765)', () => {
     expect(onSend).toHaveBeenLastCalledWith(expect.anything(), { clientRequestId: 'rid-1' })
   })
 
+  it('does not replay an unconfirmed request id for a different recipient', async () => {
+    const whisperMembers = [
+      { id: 'm1', user_id: 'u1', character_name: 'Hero', profile: { display_name: 'P1' } },
+      { id: 'm2', user_id: 'u2', character_name: 'Sidekick', profile: { display_name: 'P2' } },
+    ] as any[]
+    const onSend = vi.fn()
+      .mockResolvedValueOnce({ status: 'unconfirmed', clientRequestId: 'rid-a' })
+      .mockResolvedValueOnce({ status: 'sent', clientRequestId: 'rid-b' })
+
+    render(<MessageComposer channelId="c1" isGM={true} members={whisperMembers} onSendMessage={onSend} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Message' }), { target: { value: 'psst' } })
+    fireEvent.click(screen.getByLabelText('Toggle options'))
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Hero/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByText('Message was not confirmed. Check the room before resending.')
+
+    // Same text, different recipient: a fresh request, not a replay of A's.
+    fireEvent.click(screen.getByRole('button', { name: /Whisper/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Sidekick/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2))
+    expect(onSend.mock.calls[1]).toHaveLength(1)
+  })
+
+  it('keeps an unconfirmed id while another draft sends successfully', async () => {
+    const results: Array<'unconfirmed' | 'sent'> = ['unconfirmed', 'sent', 'sent']
+    let call = 0
+    const onSend = vi.fn((_payload: unknown, _options?: { clientRequestId?: string }) =>
+      Promise.resolve({ status: results[call++], clientRequestId: `rid-${call}` }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />
+    )
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'main text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByText('Message was not confirmed. Check the room before resending.')
+
+    // A successful send in another room must not settle Main's retry id.
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={false} members={members} onSendMessage={onSend} />)
+    fireEvent.change(textarea, { target: { value: 'room text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2))
+
+    // Back in Main, the resend still replays Main's own request id.
+    rerender(<MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(3))
+    expect(onSend.mock.calls[2][1]).toEqual({ clientRequestId: 'rid-1' })
+  })
+
   it('discards a portrait uploaded in an earlier visit to the same room', async () => {
     let finishUpload: (url: string) => void = () => {}
     mockUploadImage.mockImplementation(() => new Promise(resolve => { finishUpload = resolve }))
