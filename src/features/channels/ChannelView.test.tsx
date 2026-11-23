@@ -3992,6 +3992,50 @@ describe('ChannelView rooms (#621)', () => {
     await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/channel/c1'))
   })
 
+  it('drops the creation exemption once the room appears in the list (#765)', async () => {
+    const create = vi.fn().mockResolvedValue('r2')
+    let roomList: ReturnType<typeof room>[] = []
+    vi.mocked(useSubChannels).mockImplementation(() => ({
+      subChannels: roomList, archivedRooms: [], loading: false, error: null, confirmed: true,
+      create, rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any))
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
+      members: [], loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'gm1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/channel/c1']}>
+          <Link to="/channel/c1">main</Link>
+          <Link to="/channel/c1/sub/r2">stale room link</Link>
+          <Routes>
+            <Route path="/channel/:id" element={<ChannelView />} />
+            <Route path="/channel/:id/sub/:subId" element={<ChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    )
+
+    // Create the room: the route moves to it before its row is in the list.
+    fireEvent.click(screen.getByRole('button', { name: 'Add room' }))
+    fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'OOC' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+    await waitFor(() => expect(vi.mocked(useMessages)).toHaveBeenLastCalledWith('c1', 'r2', expect.any(Function)))
+
+    // The row arrives while Main is on screen; the exemption must not outlive it.
+    roomList = [room({ id: 'r2', name: 'OOC' })]
+    fireEvent.click(screen.getByText('main'))
+    expect(screen.getByText('Goblin Cave')).toBeInTheDocument()
+
+    // The room is deleted later: the stale link is a dead link again.
+    roomList = []
+    fireEvent.click(screen.getByText('stale room link'))
+
+    expect(await screen.findByText("That room no longer exists. You're back in Main.")).toBeInTheDocument()
+  })
+
   it('drops the reply target when the room changes (#765)', () => {
     vi.mocked(useSubChannels).mockReturnValue({
       subChannels: [room()], archivedRooms: [], loading: false, error: null,

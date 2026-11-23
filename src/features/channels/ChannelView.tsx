@@ -291,6 +291,14 @@ export function ChannelView() {
   // missing id there is not proof the room is gone (#765).
   const createdRoomIdsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
+    // Drop every exemption the list has since confirmed — not only the room on
+    // screen. Creating a room and returning to Main before its row lands would
+    // otherwise exempt that id for the rest of the session, and a later stale
+    // link to it would skip the redirect below (#765).
+    const known = new Set([...subChannels, ...archivedRooms].map(r => r.id))
+    for (const id of [...createdRoomIdsRef.current]) {
+      if (known.has(id)) createdRoomIdsRef.current.delete(id)
+    }
     // Back in Main: forget which dead room was already handled, so following
     // the same stale link again is caught instead of showing an empty room
     // (the subtree no longer remounts, #765).
@@ -301,10 +309,7 @@ export function ChannelView() {
     // A cached room list (confirmed === false) cannot prove a room is gone —
     // it may simply predate the room (issue #825).
     if (roomsLoading || roomsError || roomsConfirmed === false) return
-    if (subChannels.some(r => r.id === subId) || archivedRooms.some(r => r.id === subId)) {
-      createdRoomIdsRef.current.delete(subId)
-      return
-    }
+    if (known.has(subId)) return
     if (createdRoomIdsRef.current.has(subId)) return
     if (unknownRoomHandledRef.current === subId) return
     unknownRoomHandledRef.current = subId

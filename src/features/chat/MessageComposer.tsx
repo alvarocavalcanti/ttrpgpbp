@@ -137,7 +137,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [activeNpcIndex, setActiveNpcIndex] = useState(0)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [whisperTo, setWhisperTo] = useState<string>('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  // A send belongs to the draft it started in. The composer survives a room
+  // switch (#765), so a pending Main send must neither keep the new room's Send
+  // button disabled nor clear a send that room started.
+  const [submittingDraft, setSubmittingDraft] = useState<{ key: string | null } | null>(null)
+  const isSubmitting = submittingDraft !== null && submittingDraft.key === (draftKey ?? null)
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -502,14 +506,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       return
     }
 
-    setIsSubmitting(true)
-    setError(null)
     // The draft this send belongs to: a slow send can resolve after the player
     // switched rooms, and its cleanup must never blank the new room's draft
     // (#765). The sent text is the revision that may be cleared — coming back
     // to this room and typing something new must survive it.
     const origin = draftKeyRef.current
     const sentContent = content
+    setSubmittingDraft({ key: origin })
+    setError(null)
     try {
       const { content: mentionContent } = linkifyMentions(content, members, { allMentionEnabled: isGM })
 
@@ -544,7 +548,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       console.error('Failed to send message:', err)
       if (draftKeyRef.current === origin) setError('Failed to send message. Please try again.')
     } finally {
-      setIsSubmitting(false)
+      // Only clear the pending state this send owns; a later send in another
+      // room keeps its own.
+      setSubmittingDraft(prev => (prev && prev.key === origin ? null : prev))
     }
   }
 

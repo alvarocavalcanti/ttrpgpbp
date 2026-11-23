@@ -2292,6 +2292,34 @@ describe('MessageComposer room switch safety (#765)', () => {
     expect(localStorage.getItem('composer_draft_c1')).toBe('main text edited')
   })
 
+  it('does not let a Main send in flight hold the new room disabled', async () => {
+    const pending: Array<() => void> = []
+    const onSend = vi.fn(() => new Promise<void>(resolve => { pending.push(resolve) }))
+
+    const { rerender } = render(
+      <MessageComposer channelId="c1" isGM={false} members={members} onSendMessage={onSend} />
+    )
+    const textarea = screen.getByRole('combobox', { name: 'Message' })
+    fireEvent.change(textarea, { target: { value: 'main text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+
+    rerender(<MessageComposer channelId="c1" subChannelId="room-b" isGM={false} members={members} onSendMessage={onSend} />)
+    fireEvent.change(textarea, { target: { value: 'room text' } })
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+
+    // A send started here stays pending even after the Main one settles.
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+
+    await act(async () => { pending[0]() })
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+
+    await act(async () => { pending[1]() })
+    fireEvent.change(textarea, { target: { value: 'next' } })
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+  })
+
   it('drops scene mode when the room changes', () => {
     const { rerender } = render(
       <MessageComposer channelId="c1" isGM={true} members={members} onSendMessage={vi.fn()} />
