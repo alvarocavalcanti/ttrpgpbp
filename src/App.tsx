@@ -139,6 +139,20 @@ export function RouteErrorBoundary({ children }: { children: ReactNode }) {
   return <ErrorBoundary key={boundaryKey} resetKey={pathname}>{children}</ErrorBoundary>
 }
 
+// Is this ?q value a write of ours whose navigation has not rendered yet? A
+// lagging write leaves the location entry untouched, so it still carries the
+// key seen when the write was issued. Back/forward always lands on a different
+// entry, even one whose ?q equals the value the write replaced — treating that
+// as lag would block every later external change behind a write the router
+// skipped.
+export function isUnrenderedOwnWrite(
+  qParam: string,
+  pending: { value: string; from: string; key: string } | null,
+  locationKey: string,
+): boolean {
+  return pending !== null && pending.key === locationKey && qParam === pending.from
+}
+
 function AppNav() {
   const { user, signOut } = useAuth()
   const { isDark, toggleTheme } = useTheme()
@@ -197,7 +211,7 @@ function AppNav() {
   // A router navigation commits asynchronously, so for a render or two the URL
   // still reports the previous value after we already moved `knownQRef` on.
   // Tracking the pair tells that lag apart from a real external change.
-  const pendingQRef = useRef<{ value: string; from: string } | null>(null)
+  const pendingQRef = useRef<{ value: string; from: string; key: string } | null>(null)
 
   // One effect, so an external ?q always wins over a write. Adoption comes
   // first and returns: rewriting the box restarts the debounce, dropping the
@@ -213,34 +227,32 @@ function AppNav() {
     // The URL caught up with our own write: the request is settled.
     if (pendingQRef.current !== null && qParam === pendingQRef.current.value) pendingQRef.current = null
     if (qParam !== knownQRef.current) {
-      // The URL still holding the value our write replaced is that write not
-      // having rendered yet, not an external change. Acting on it readopted the
-      // abandoned text: a player who cleared the box (or typed past it) while
-      // the write was in flight saw the old query come back and the URL keep
-      // it. Ignore only that lag; any other value means the router moved on
-      // (Back/forward, deep link), which must adopt as it always has — an
-      // unrendered write can be skipped entirely and must not block it.
-      if (pendingQRef.current !== null) {
-        if (qParam === pendingQRef.current.from) return
-        pendingQRef.current = null
-      }
+      // The URL still holding the value our write replaced, with no Back or
+      // forward behind it, is that write not having rendered yet — not an
+      // external change. Acting on it readopted the abandoned text: a player
+      // who cleared the box (or typed past it) while the write was in flight
+      // saw the old query come back and the URL keep it.
+      if (isUnrenderedOwnWrite(qParam, pendingQRef.current, location.key)) return
+      pendingQRef.current = null
       knownQRef.current = qParam
       setSearchInput(qParam)
       return
     }
     if (location.pathname !== ROUTES.home) return
     if (debouncedSearch !== searchInput) return
+    // The URL already holds the settled text: nothing to write. Skipping it
+    // matters because a write mints a new location key, which re-runs this
+    // effect — writing the same ?q would loop.
+    if (qParam === debouncedSearch) return
     knownQRef.current = debouncedSearch
-    // Only a write that changes ?q leaves the URL behind us; a same-value
-    // re-assert settles immediately and must not mask a later external change.
-    pendingQRef.current = qParam === debouncedSearch ? null : { value: debouncedSearch, from: qParam }
+    pendingQRef.current = { value: debouncedSearch, from: qParam, key: location.key }
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
       if (debouncedSearch) next.set('q', debouncedSearch)
       else next.delete('q')
       return next
     }, { replace: true })
-  }, [qParam, debouncedSearch, searchInput, location.pathname, setSearchParams])
+  }, [qParam, debouncedSearch, searchInput, location.pathname, location.key, setSearchParams])
 
   // The Discover tab has its own search box (#674), and the header's My Games
   // search cannot affect it — a second, inert search box on that screen would
