@@ -255,10 +255,29 @@ export function useChannels() {
     // last visible message). Both schedule one throttled refetch, filtered
     // client-side to my channels. A DELETE carries no channel id (replica
     // identity is the key), and messages are soft-deleted anyway.
+    //
+    // Room access (#768) arrives the same way. An invite grant or revocation
+    // touches the channel row (the invites table stays off the realtime
+    // publication: its DELETE events bypass RLS), and a whole-room audience
+    // flip also touches the channel row, because a viewer who just lost access
+    // no longer passes sub_channels' policy and never receives that UPDATE.
+    // Room rows themselves cover renames and archiving. All of it goes through
+    // the same throttle, so a burst (create a private room + invite) costs one
+    // refetch.
     const lobbyChannel = supabase
       .channel('lobby-unread')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
         const channelId = (payload.new as { channel_id?: string } | null)?.channel_id
+        if (channelId && myChannelIdsRef.current.has(channelId)) scheduleUnreadRefresh()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sub_channels' }, (payload) => {
+        // DELETE (or an update that hides the room) carries the id in `old`.
+        const roomChannelId = (payload.new as { channel_id?: string } | null)?.channel_id
+          ?? (payload.old as { channel_id?: string } | null)?.channel_id
+        if (roomChannelId && myChannelIdsRef.current.has(roomChannelId)) scheduleUnreadRefresh()
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'channels' }, (payload) => {
+        const channelId = (payload.new as { id?: string } | null)?.id
         if (channelId && myChannelIdsRef.current.has(channelId)) scheduleUnreadRefresh()
       })
     const stopLobbyUnread = subscribeWithRetry(lobbyChannel, 'lobby-unread')
@@ -270,6 +289,10 @@ export function useChannels() {
       mounted = false
       stopRealtimeStatus()
       stopLobbyUnread()
+      // Release the channel instance, not just the socket subscription: a
+      // remount would otherwise leave the old topic registered on the client,
+      // mirroring useSubChannels/useSubChannelUnread.
+      void supabase.removeChannel(lobbyChannel)
       if (unreadRefreshTimer) clearTimeout(unreadRefreshTimer)
       if (retryTimer) clearTimeout(retryTimer)
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
