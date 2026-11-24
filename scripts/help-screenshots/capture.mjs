@@ -206,6 +206,10 @@ await page.click('[aria-label^="Toggle sidebar menu"]')
 await page.waitForTimeout(400)
 await page.getByText('Rooms').last().click()
 await page.waitForTimeout(1200)
+// Expand the first room (#775) so the shot shows both an open row with its
+// controls and the collapsed summary rows below it.
+await page.getByRole('button', { name: /^OOC/ }).click()
+await page.waitForTimeout(400)
 await page.screenshot({ path: `${OUT}/rooms.png` })
 console.log('rooms done')
 await closeSheets()

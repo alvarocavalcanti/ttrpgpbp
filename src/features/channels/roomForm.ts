@@ -27,6 +27,27 @@ export function friendlyRoomError(err: unknown): string {
   return msg
 }
 
+// Collapsed room row (#775): audience and enabled features on one line, so the
+// manager is readable without expanding every row.
+export function formatRoomAudience(
+  // The row column is a plain string; the RPC only ever writes the three values.
+  visibility: string | null | undefined,
+  invitedCount: number,
+): string {
+  if (visibility === 'gm') return 'Only the GM'
+  if (visibility === 'private') {
+    if (invitedCount === 0) return 'Invited players (none)'
+    return invitedCount === 1 ? '1 invited player' : `${invitedCount} invited players`
+  }
+  return 'Everyone'
+}
+
+export function formatRoomFeatures(room: Partial<RoomCapabilities>): string {
+  const enabled = CAPABILITY_FLAGS.filter(flag => room[flag.key] ?? true).map(flag => flag.label)
+  if (enabled.length === 0) return 'No extra features'
+  return enabled.join(', ')
+}
+
 // The creation toast names who can see the room (#774). It must never claim
 // "everyone" for a restricted room — the old hardcoded string was the bug.
 export function roomCreatedMessage(visibility: RoomVisibility, invitedCount: number): string {

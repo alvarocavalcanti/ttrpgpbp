@@ -3614,6 +3614,30 @@ describe('ChannelView rooms (#621)', () => {
     expect(screen.queryByRole('dialog', { name: 'Create room' })).not.toBeInTheDocument()
   })
 
+  it('opens a room straight from the manager (#775)', () => {
+    vi.mocked(useSubChannels).mockReturnValue({
+      subChannels: [room({ id: 'r1' })], archivedRooms: [], loading: false, error: null,
+      create: vi.fn(), rename: vi.fn(), setArchived: vi.fn(), remove: vi.fn(), refetch: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave', gm_id: 'gm1', is_archived: false },
+      members: [{ user_id: 'gm1', character_name: 'GM', is_blocked: false }],
+      loading: false, error: null, isGM: true,
+      myMemberInfo: { id: 'm1', user_id: 'gm1' }, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+    } as any)
+
+    renderAt('/channel/c1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage rooms' }))
+    fireEvent.click(screen.getByRole('button', { name: /^OOC/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open OOC' }))
+
+    // The manager closes and the channel switches room behind it (#765 means
+    // the subtree does not remount, so a lingering dialog would sit on top).
+    expect(screen.queryByRole('dialog', { name: 'Manage rooms' })).not.toBeInTheDocument()
+    expect(vi.mocked(useMessages)).toHaveBeenLastCalledWith('c1', 'r1', expect.any(Function))
+  })
+
   it('creates a private room in one RPC and lands in it', async () => {
     const create = vi.fn().mockResolvedValue('r2')
     // The rooms list resolves from the hook on every render, so the created
