@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import App from './App'
+import App, { isUnrenderedOwnWrite } from './App'
 import { supabase } from './lib/supabase'
 import { trackEvent } from './lib/analytics'
 import { setTextSize } from './hooks/useTextSize'
@@ -401,6 +401,9 @@ describe('App', () => {
     await waitFor(() => {
       expect(window.location.search).not.toContain('q=')
       expect(window.location.search).toContain('foo=bar')
+      // The clear must survive the earlier write committing after it: the box
+      // is never repopulated with the abandoned query (main CI flake, #843).
+      expect(input).toHaveValue('')
     }, { timeout: 2000 })
 
     window.history.replaceState({}, '', '/')
@@ -1273,5 +1276,28 @@ describe('App floating banner host (#620)', () => {
     const host = banner.closest('[data-testid="app-banner-host"]')
     expect(host).not.toBeNull()
     expect(host!.className).toContain('fixed')
+  })
+})
+
+describe('lobby ?q write lag', () => {
+  // The router commits a write asynchronously, so the URL can briefly report
+  // the value our write replaced. That lag must be ignored — but only that.
+  it('ignores a write that has not rendered yet: same entry, replaced value', () => {
+    expect(isUnrenderedOwnWrite('', { value: 'dragon', from: '', key: 'k1' }, 'k1')).toBe(true)
+  })
+
+  it('adopts a Back to a different entry holding that same value', () => {
+    // The case an unrendered write can be skipped for: Back lands on another
+    // entry whose ?q equals the value the write replaced. Its key differs, so
+    // it is the player navigating and must be adopted.
+    expect(isUnrenderedOwnWrite('', { value: 'dragon', from: '', key: 'k1' }, 'k2')).toBe(false)
+  })
+
+  it('adopts a value the pending write did not replace', () => {
+    expect(isUnrenderedOwnWrite('orc', { value: 'dragon', from: '', key: 'k1' }, 'k1')).toBe(false)
+  })
+
+  it('adopts when no write is pending', () => {
+    expect(isUnrenderedOwnWrite('', null, 'k1')).toBe(false)
   })
 })

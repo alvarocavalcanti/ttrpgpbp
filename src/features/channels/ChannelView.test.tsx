@@ -113,6 +113,11 @@ beforeEach(() => {
     refetch: vi.fn(),
     decide: vi.fn(),
   } as any)
+  // ChannelView reads this on every render. Set it here rather than relying on
+  // a value left behind by an earlier describe: `vi.restoreAllMocks` in one
+  // block wipes it for every block after it, and a filtered run never sets it
+  // at all.
+  vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage: vi.fn().mockResolvedValue(null) } as any)
 })
 
 describe('ChannelView search functionality', () => {
