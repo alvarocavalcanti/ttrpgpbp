@@ -193,11 +193,11 @@ function AppNav() {
   // navigation. The URL is the source of truth; this ref tells our own writes
   // apart from an external change (back/forward, a deep link).
   const knownQRef = useRef(qParam)
-  // The value our last write asked the URL to hold. A router navigation commits
-  // asynchronously, so for a render or two the URL still reports the previous
-  // value after we already moved `knownQRef` on. Tracking the request tells
-  // that lag apart from a real external change.
-  const pendingQRef = useRef<string | null>(null)
+  // The value our last write asked the URL to hold, and the value it replaced.
+  // A router navigation commits asynchronously, so for a render or two the URL
+  // still reports the previous value after we already moved `knownQRef` on.
+  // Tracking the pair tells that lag apart from a real external change.
+  const pendingQRef = useRef<{ value: string; from: string } | null>(null)
 
   // One effect, so an external ?q always wins over a write. Adoption comes
   // first and returns: rewriting the box restarts the debounce, dropping the
@@ -211,13 +211,19 @@ function AppNav() {
   // only `q` so unrelated params survive.
   useEffect(() => {
     // The URL caught up with our own write: the request is settled.
-    if (pendingQRef.current !== null && qParam === pendingQRef.current) pendingQRef.current = null
+    if (pendingQRef.current !== null && qParam === pendingQRef.current.value) pendingQRef.current = null
     if (qParam !== knownQRef.current) {
-      // The URL is still behind a write of ours, not an external change. Acting
-      // on it readopted the abandoned text: a player who cleared the box (or
-      // typed past it) while the write was in flight saw the old query come
-      // back and the URL keep it. Ignore the lag and let the write land.
-      if (pendingQRef.current !== null) return
+      // The URL still holding the value our write replaced is that write not
+      // having rendered yet, not an external change. Acting on it readopted the
+      // abandoned text: a player who cleared the box (or typed past it) while
+      // the write was in flight saw the old query come back and the URL keep
+      // it. Ignore only that lag; any other value means the router moved on
+      // (Back/forward, deep link), which must adopt as it always has — an
+      // unrendered write can be skipped entirely and must not block it.
+      if (pendingQRef.current !== null) {
+        if (qParam === pendingQRef.current.from) return
+        pendingQRef.current = null
+      }
       knownQRef.current = qParam
       setSearchInput(qParam)
       return
@@ -227,7 +233,7 @@ function AppNav() {
     knownQRef.current = debouncedSearch
     // Only a write that changes ?q leaves the URL behind us; a same-value
     // re-assert settles immediately and must not mask a later external change.
-    pendingQRef.current = qParam === debouncedSearch ? null : debouncedSearch
+    pendingQRef.current = qParam === debouncedSearch ? null : { value: debouncedSearch, from: qParam }
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
       if (debouncedSearch) next.set('q', debouncedSearch)
