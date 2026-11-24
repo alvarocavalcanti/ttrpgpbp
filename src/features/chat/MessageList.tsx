@@ -164,18 +164,26 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   useEffect(() => {
     const list = listRef.current
     const firstId = messages[0]?.id
-    const lastId = messages[messages.length - 1]?.id
+    const lastMessage = messages[messages.length - 1]
+    const lastId = lastMessage?.id
     const grew = messages.length > prevLenRef.current
     const initialLoad = prevLenRef.current === 0 && messages.length > 0
     const prepended = grew && firstIdRef.current !== undefined && firstId !== firstIdRef.current
     const appended = grew && lastId !== undefined && lastId !== lastIdRef.current
+    // The viewer's own optimistic row (#809). A history reader is never yanked
+    // by anyone else's message (#338), but their own send would otherwise land
+    // below the fold — failed bubble and Retry included.
+    // shortcut: only a growing append is caught; resending an errored roll
+    // replaces its row in place (same length), so it is not brought into view.
+    // Upgrade if that path reports the same off-screen failure.
+    const ownPendingAppended = appended && Boolean(lastMessage.pending) && lastMessage.sender_id === user?.id
     prevLenRef.current = messages.length
     firstIdRef.current = firstId
     lastIdRef.current = lastId
 
-    if (highlightMessageId) return
+    if (highlightMessageId && !ownPendingAppended) return
 
-    if (pendingBoundaryAnchorRef.current && newMessagesDividerRef.current) {
+    if (!ownPendingAppended && pendingBoundaryAnchorRef.current && newMessagesDividerRef.current) {
       pendingBoundaryAnchorRef.current = false
       scrollToUnread()
       if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
@@ -187,12 +195,20 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       list.scrollTop = scrollInfoRef.current.top + addedHeight
     } else if (initialLoad) {
       scrollToUnread()
-    } else if (appended && atBottomRef.current && list) {
+    } else if (appended && (atBottomRef.current || ownPendingAppended) && list) {
       list.scrollTop = list.scrollHeight
+      // Stay pinned so the failed bubble's growth keeps its Retry in view, and
+      // drop the unread anchors so a resize cannot drag the view back up.
+      if (ownPendingAppended) {
+        atBottomRef.current = true
+        dividerAnchorRef.current = false
+        pendingBoundaryAnchorRef.current = false
+        anchoredDividerRef.current = null
+      }
     }
 
     if (list) scrollInfoRef.current = { height: list.scrollHeight, top: list.scrollTop }
-  }, [messages, highlightMessageId, scrollToUnread])
+  }, [messages, highlightMessageId, scrollToUnread, user?.id])
 
   // A jump to a highlighted message owns the scroll position (search results,
   // quoted replies): drop the anchors so a later resize cannot yank the view

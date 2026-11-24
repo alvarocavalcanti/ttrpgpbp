@@ -63,7 +63,7 @@ GMs can type **`@all`** to mention every player in the channel at once.
 
 The message composer **saves your text automatically** as a draft for each channel. If you close the app or lose connection, your text will still be there when you return. On a computer, opening a channel or switching rooms leaves the cursor waiting in the message box, so you can type straight away; on a phone the keyboard still waits for a tap.
 
-If a message or dice roll fails to send because of a network drop, it will appear as **Pending** and then give you **Retry** and **Remove** options. Clicking Retry is safe and guaranteed not to send a duplicate.
+If a message or dice roll fails to send because of a network drop, it will appear as **Pending** and then give you **Retry** and **Remove** options. Clicking Retry is safe and guaranteed not to send a duplicate. Sending or rolling while you are reading older messages brings your new post into view at the bottom of the chat, so a failure never leaves you looking at the message you clicked with no sign of what happened.
 
 ## Favorites
 
