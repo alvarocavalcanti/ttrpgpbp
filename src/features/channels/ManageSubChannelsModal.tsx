@@ -109,7 +109,9 @@ export function ManageSubChannelsModal({
       await onSetArchived(room.id, archived)
       addToast(archived ? `Room ${room.name ?? ''} archived.` : `Room ${room.name ?? ''} restored.`, 'success')
       setActionError(null)
-      if (archived) setExpandedId(null)
+      // Only close the row the request belongs to: the GM may have opened
+      // another room while this one was archiving.
+      if (archived) setExpandedId(current => (current === room.id ? null : current))
     } catch (err) {
       setActionError(friendlyRoomError(err))
     } finally {
@@ -161,7 +163,7 @@ export function ManageSubChannelsModal({
       addToast(`Room ${room.name ?? ''} deleted.`, 'success')
       setActionError(null)
       setDeletingId(null)
-      setExpandedId(null)
+      setExpandedId(current => (current === room.id ? null : current))
     } catch (err) {
       setActionError(friendlyRoomError(err))
       setDeletingId(null)
@@ -270,7 +272,7 @@ export function ManageSubChannelsModal({
                               <button
                                 type="button"
                                 onClick={() => handleRename(room)}
-                                disabled={busy}
+                                disabled={listingBusy}
                                 className="min-h-11 px-3 text-sm font-medium text-primary-600 hover:underline disabled:opacity-50 dark:text-primary-400"
                               >
                                 Save
@@ -334,7 +336,7 @@ export function ManageSubChannelsModal({
                                 <button
                                   type="button"
                                   onClick={handleDelete}
-                                  disabled={busy}
+                                  disabled={listingBusy}
                                   className="min-h-11 rounded-md bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-500"
                                 >
                                   Delete room

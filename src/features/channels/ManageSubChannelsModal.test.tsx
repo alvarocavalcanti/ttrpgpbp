@@ -266,6 +266,61 @@ describe('ManageSubChannelsModal', () => {
     pending.resolve()
   })
 
+  it('leaves another room open when an archive finishes (#775)', async () => {
+    const pending = deferred()
+    const h = renderModal({
+      subChannels: [room({ id: 'r1', name: 'OOC' }), room({ id: 'r2', name: 'Dice' })],
+      onSetArchived: vi.fn().mockReturnValue(pending.promise),
+    })
+    expandRow('OOC')
+    fireEvent.click(screen.getByRole('button', { name: 'Archive OOC' }))
+    await waitFor(() => expect(h.onSetArchived).toHaveBeenCalledTimes(1))
+
+    // The GM switches rows while OOC's archive is still in flight.
+    expandRow('Dice')
+    pending.resolve()
+
+    // Only the archived row closes; the row the GM opened stays open.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Dice' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Rename OOC' })).not.toBeInTheDocument()
+  })
+
+  it('keeps Save disabled while another room request is pending (#775)', async () => {
+    const pending = deferred()
+    const h = renderModal({
+      subChannels: [room({ id: 'r1', name: 'OOC' })],
+      archivedRooms: [room({ id: 'r2', name: 'Old', is_archived: true })],
+      onSetArchived: vi.fn().mockReturnValue(pending.promise),
+    })
+    expandRow('OOC')
+    fireEvent.click(screen.getByRole('button', { name: 'Rename OOC' }))
+    fireEvent.change(screen.getByLabelText('Room name'), { target: { value: 'Chatter' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Old' }))
+    await waitFor(() => expect(h.onSetArchived).toHaveBeenCalledTimes(1))
+
+    // The guarded handler would drop the rename, so the control must look off.
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    pending.resolve()
+  })
+
+  it('keeps the delete confirmation disabled while another room request is pending (#775)', async () => {
+    const pending = deferred()
+    const h = renderModal({
+      subChannels: [room({ id: 'r1', name: 'OOC' })],
+      archivedRooms: [room({ id: 'r2', name: 'Old', is_archived: true })],
+      onSetArchived: vi.fn().mockReturnValue(pending.promise),
+    })
+    expandRow('OOC')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete OOC' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Old' }))
+    await waitFor(() => expect(h.onSetArchived).toHaveBeenCalledTimes(1))
+
+    expect(screen.getByRole('button', { name: 'Delete room' })).toBeDisabled()
+    pending.resolve()
+  })
+
   it('toggles a capability flag, sending only the changed flag', async () => {
     const h = renderModal({
       subChannels: [room({ id: 'r1', name: 'OOC', allow_dice: true, allow_scenes: false })],

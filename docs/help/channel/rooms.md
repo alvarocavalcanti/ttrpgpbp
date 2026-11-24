@@ -26,7 +26,7 @@ The **gear** beside **+ Room**, and **GM Tools → Rooms**, open the room manage
 - **Rename** a room
 - **Archive** a room — it leaves the room bar but stays readable, and frees a slot for a new one
 - **Restore** an archived room
-- **Delete** a room and its messages (it asks first, in the same window)
+- **Delete** an empty room — it asks first, in the same window; a room that still has messages can't be deleted, so archive it instead
 - **Choose who can see it** — Everyone, Only the GM, or Invited players
 - **Turn features on or off** for that room — dice, Scenes, NPC posts, and whispers
 
