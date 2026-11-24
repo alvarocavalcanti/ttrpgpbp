@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **The Lobby updates the moment a room opens up or closes for you** — when a GM invites you to a private room, or takes a room away from you, your Lobby now shows that game's newest visible message, moves it to its new place in the list, and updates its unread count right away, without waiting for a new message or reopening the app.
 - **Your own rolls and messages always land in view** — rolling dice from an older message, or sending while scrolled up in the history, now takes you to your new post at the bottom of the chat. If it fails, its message and **Retry** and **Remove** buttons are right in front of you instead of hidden below the fold.
 - **Lobby search no longer gets stuck** — clearing the search box right after typing now removes the search for good, instead of the old words jumping back into the box and staying in the address bar.
 

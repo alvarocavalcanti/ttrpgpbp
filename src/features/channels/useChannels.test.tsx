@@ -14,6 +14,7 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
     rpc: vi.fn(),
+    removeChannel: vi.fn(),
     // Lobby unread subscription (issue #338): a resubscribing realtime channel.
     channel: vi.fn(() => {
       const chain: any = {
@@ -77,6 +78,40 @@ const mockLobbyRpcQueue = (unreadPayloads: any[][]) => {
     return Promise.resolve({ data, error: null })
   }) as any)
 }
+
+// Every Lobby fetch reads both per-viewer RPCs; serve one snapshot per fetch so
+// a refetch is distinguishable from the initial load. The previews call is the
+// second one in a fetch, so it advances the cursor.
+const mockLobbyRpcSnapshots = (snapshots: { unread: any[], previews: any[] }[]) => {
+  let fetch = 0
+  vi.mocked(supabase.rpc).mockImplementation(((name: string) => {
+    const snapshot = snapshots[Math.min(fetch, snapshots.length - 1)]
+    if (name === 'get_user_channel_previews') {
+      fetch += 1
+      return Promise.resolve({ data: snapshot.previews, error: null })
+    }
+    return Promise.resolve({ data: snapshot.unread, error: null })
+  }) as any)
+}
+
+// Room-access live updates arrive on several tables (#768); capture one handler
+// per table so each case can fire exactly the event it cares about.
+const mockLobbyEventHandlers = (tables: string[]) => {
+  const handlers: Record<string, (payload: any) => void> = {}
+  const channelMock: any = {
+    on: (_event: any, filter: any, cb: any) => {
+      if (tables.includes(filter.table)) handlers[filter.table] = cb
+      return channelMock
+    },
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn().mockResolvedValue(undefined),
+  }
+  vi.mocked(supabase.channel).mockImplementation(() => channelMock as any)
+  return handlers
+}
+
+const previewsFetches = () =>
+  vi.mocked(supabase.rpc).mock.calls.filter(call => call[0] === 'get_user_channel_previews').length
 
 describe('useChannels', () => {
   beforeEach(async () => {
@@ -726,6 +761,198 @@ describe('useChannels', () => {
     expect(result.current.myChannels[0].unread_count).toBe(2)
     expect(result.current.myChannels[0].last_message_preview).toBeNull()
     expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it('refreshes preview, ordering and unread when a GM grants room access (#768)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    // A grant touches the channel row: the invites table is deliberately not
+    // published (its DELETE events bypass RLS).
+    const handlers = mockLobbyEventHandlers(['channels'])
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([
+          { id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'Has a hidden room', created_at: '2023-01-01T00:00:00Z' } },
+          { id: 'member-2', channel_id: 'c2', user_id: 'user-1', channel: { id: 'c2', name: 'Other', created_at: '2023-01-01T00:00:00Z' } },
+        ]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcSnapshots([
+      {
+        unread: [{ channel_id: 'c1', unread_count: 1 }, { channel_id: 'c2', unread_count: 0 }],
+        previews: [
+          { channel_id: 'c1', last_message_at: '2026-01-01T00:00:00Z', last_message_preview: 'GM: main-old' },
+          { channel_id: 'c2', last_message_at: '2026-02-01T00:00:00Z', last_message_preview: 'Someone: hi' },
+        ],
+      },
+      {
+        unread: [{ channel_id: 'c1', unread_count: 2 }, { channel_id: 'c2', unread_count: 0 }],
+        previews: [
+          { channel_id: 'c1', last_message_at: '2026-03-01T00:00:00Z', last_message_preview: 'Secret · GM: newly visible' },
+          { channel_id: 'c2', last_message_at: '2026-02-01T00:00:00Z', last_message_preview: 'Someone: hi' },
+        ],
+      },
+    ])
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.myChannels.map(c => c.id)).toEqual(['c2', 'c1']))
+    expect(result.current.myChannels[1].unread_count).toBe(1)
+    expect(result.current.myChannels[1].last_message_preview).toBe('GM: main-old')
+
+    await act(async () => {
+      handlers.channels?.({ eventType: 'UPDATE', new: { id: 'c1' }, old: {} })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+
+    await waitFor(() => expect(result.current.myChannels.map(c => c.id)).toEqual(['c1', 'c2']))
+    expect(result.current.myChannels[0].last_message_preview).toBe('Secret · GM: newly visible')
+    expect(result.current.myChannels[0].unread_count).toBe(2)
+  })
+
+  it('falls back to the remaining visible message and the empty state when access is revoked (#768)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const handlers = mockLobbyEventHandlers(['channels'])
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([
+          { id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'Falls back to main', created_at: '2023-01-01T00:00:00Z' } },
+          { id: 'member-2', channel_id: 'c2', user_id: 'user-1', channel: { id: 'c2', name: 'Visible elsewhere', created_at: '2023-01-01T00:00:00Z' } },
+          { id: 'member-3', channel_id: 'c3', user_id: 'user-1', channel: { id: 'c3', name: 'Only the hidden room', created_at: '2023-01-01T00:00:00Z' } },
+        ]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcSnapshots([
+      {
+        unread: [
+          { channel_id: 'c1', unread_count: 2 },
+          { channel_id: 'c2', unread_count: 0 },
+          { channel_id: 'c3', unread_count: 1 },
+        ],
+        previews: [
+          { channel_id: 'c1', last_message_at: '2026-03-01T00:00:00Z', last_message_preview: 'Secret · GM: only here' },
+          { channel_id: 'c2', last_message_at: '2026-02-01T00:00:00Z', last_message_preview: 'Someone: elsewhere' },
+          { channel_id: 'c3', last_message_at: '2026-01-20T00:00:00Z', last_message_preview: 'Secret · GM: hidden' },
+        ],
+      },
+      {
+        unread: [
+          { channel_id: 'c1', unread_count: 1 },
+          { channel_id: 'c2', unread_count: 0 },
+          { channel_id: 'c3', unread_count: 0 },
+        ],
+        previews: [
+          { channel_id: 'c1', last_message_at: '2026-01-01T00:00:00Z', last_message_preview: 'GM: main-old' },
+          { channel_id: 'c2', last_message_at: '2026-02-01T00:00:00Z', last_message_preview: 'Someone: elsewhere' },
+        ],
+      },
+    ])
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.myChannels.map(c => c.id)).toEqual(['c1', 'c2', 'c3']))
+
+    // A revocation touches the channel row, so the affected member hears it
+    // without the invites table (whose DELETE events bypass RLS) being published.
+    await act(async () => {
+      handlers.channels?.({ eventType: 'UPDATE', new: { id: 'c1' }, old: {} })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+
+    await waitFor(() => expect(result.current.myChannels.map(c => c.id)).toEqual(['c2', 'c1', 'c3']))
+    expect(result.current.myChannels[1].last_message_preview).toBe('GM: main-old')
+    expect(result.current.myChannels[1].unread_count).toBe(1)
+    expect(result.current.myChannels[2].last_message_preview).toBeNull()
+    expect(result.current.myChannels[2].unread_count).toBe(0)
+  })
+
+  it('refreshes when a room audience changes, including the deleted record (#768)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const handlers = mockLobbyEventHandlers(['sub_channels'])
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([
+          { id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'My Channel' } },
+        ]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs()
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    let before = previewsFetches()
+
+    await act(async () => {
+      handlers.sub_channels?.({ eventType: 'UPDATE', new: { id: 'room-1', channel_id: 'c1', visibility: 'private' }, old: {} })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+    expect(previewsFetches()).toBe(before + 1)
+
+    // Deleting a room (or a payload realtime reduced to its old record) carries
+    // the channel id in `old` only.
+    before = previewsFetches()
+    await act(async () => {
+      handlers.sub_channels?.({ eventType: 'DELETE', new: {}, old: { id: 'room-1', channel_id: 'c1' } })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+    expect(previewsFetches()).toBe(before + 1)
+  })
+
+  it('refreshes on a channel-row touch only for channels I belong to (#768)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const handlers = mockLobbyEventHandlers(['channels'])
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([
+          { id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'My Channel' } },
+        ]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs()
+
+    const { result } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const before = previewsFetches()
+
+    await act(async () => {
+      handlers.channels?.({ eventType: 'UPDATE', new: { id: 'not-mine' }, old: {} })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+    expect(previewsFetches()).toBe(before)
+
+    await act(async () => {
+      handlers.channels?.({ eventType: 'UPDATE', new: { id: 'c1' }, old: {} })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+    expect(previewsFetches()).toBe(before + 1)
+  })
+
+  it('releases the lobby realtime channel and stops refreshing on unmount (#768)', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' }, loading: false } as any)
+    const handlers = mockLobbyEventHandlers(['channels'])
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'channel_members') {
+        return createChain({ data: fillRows([
+          { id: 'member-1', channel_id: 'c1', user_id: 'user-1', channel: { id: 'c1', name: 'My Channel' } },
+        ]), error: null }) as any
+      }
+      return {} as any
+    })
+    mockLobbyRpcs()
+
+    const { result, unmount } = renderHook(() => useChannels())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const before = previewsFetches()
+
+    unmount()
+    expect(supabase.removeChannel).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      handlers.channels?.({ eventType: 'UPDATE', new: { id: 'c1' }, old: {} })
+    })
+    await act(async () => { await new Promise(res => setTimeout(res, 2100)) })
+    expect(previewsFetches()).toBe(before)
   })
 
   describe('offline cache (#825)', () => {
