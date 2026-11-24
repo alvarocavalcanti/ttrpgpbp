@@ -69,6 +69,11 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
   const contentRef = useRef<HTMLDivElement>(null)
   const newMessagesDividerRef = useRef<HTMLDivElement>(null)
   const atBottomRef = useRef(true)
+  // True after the viewer's own send pinned the bottom (#809). The queued
+  // scroll event from that write can recompute atBottomRef from a still-growing
+  // failure bubble and drop the pin, so the resize correction honors this too.
+  // A real gesture (or a highlighted jump) clears it.
+  const ownSendPinRef = useRef(false)
   // True while the view is anchored to the "New messages" divider. Late-loading
   // images grow content under the smooth scroll's stale target and drift the
   // divider off-screen; while anchored, the ResizeObserver re-centers it with a
@@ -172,11 +177,15 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     const appended = grew && lastId !== undefined && lastId !== lastIdRef.current
     // The viewer's own optimistic row (#809). A history reader is never yanked
     // by anyone else's message (#338), but their own send would otherwise land
-    // below the fold — failed bubble and Retry included.
+    // below the fold — failed bubble and Retry included. Rows are sorted by
+    // created_at, so the own row can sit before a newer one in the same commit:
+    // inspect every row the append added, not just the tail.
     // shortcut: only a growing append is caught; resending an errored roll
     // replaces its row in place (same length), so it is not brought into view.
     // Upgrade if that path reports the same off-screen failure.
-    const ownPendingAppended = appended && Boolean(lastMessage.pending) && lastMessage.sender_id === user?.id
+    const ownPendingAppended = appended && messages
+      .slice(prevLenRef.current)
+      .some(m => Boolean(m.pending) && m.sender_id === user?.id)
     prevLenRef.current = messages.length
     firstIdRef.current = firstId
     lastIdRef.current = lastId
@@ -201,6 +210,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       // drop the unread anchors so a resize cannot drag the view back up.
       if (ownPendingAppended) {
         atBottomRef.current = true
+        ownSendPinRef.current = true
         dividerAnchorRef.current = false
         pendingBoundaryAnchorRef.current = false
         anchoredDividerRef.current = null
@@ -217,6 +227,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     if (!highlightMessageId) return
     dividerAnchorRef.current = false
     pendingBoundaryAnchorRef.current = false
+    ownSendPinRef.current = false
     userTookOverRef.current = true
   }, [highlightMessageId])
 
@@ -280,6 +291,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
     const releaseAnchors = () => {
       dividerAnchorRef.current = false
       pendingBoundaryAnchorRef.current = false
+      ownSendPinRef.current = false
       userTookOverRef.current = true
     }
     const onGestureStart = () => {
@@ -374,7 +386,7 @@ export function MessageList({ messages, isGM, onEdit, onDelete, onRollDice, high
       // A scroll gesture just started: let it take over before re-anchoring, so
       // a resize cannot snap the view back before the gesture lands.
       if (gestureActiveRef.current) return
-      if (atBottomRef.current) {
+      if (atBottomRef.current || ownSendPinRef.current) {
         // Setting scrollTop does not resize the content wrapper, so this cannot
         // loop back into the observer.
         list.scrollTop = list.scrollHeight - list.clientHeight
