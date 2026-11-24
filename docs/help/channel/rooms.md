@@ -20,12 +20,13 @@ The **GM** creates rooms from the **+ Room** chip in the room bar. The bar is th
 
 The room and its invited players are saved together, so if the server refuses the room nothing half-built is left behind, and the confirmation says who can see it — "Visible to 3 invited players", never "everyone" for a private room.
 
-The **gear** beside **+ Room**, and **GM Tools → Rooms**, open the room manager. From there the GM can:
+The **gear** beside **+ Room**, and **GM Tools → Rooms**, open the room manager. Every room is a single summary line — its name, who can see it, and which features are on — so the whole list is easy to scan. Tap a room to open its controls in place; only one room opens at a time. From there the GM can:
 
+- **Open** a room — jump straight into it
 - **Rename** a room
 - **Archive** a room — it leaves the room bar but stays readable, and frees a slot for a new one
 - **Restore** an archived room
-- **Delete** a room and its messages
+- **Delete** a room and its messages (it asks first, in the same window)
 - **Choose who can see it** — Everyone, Only the GM, or Invited players
 - **Turn features on or off** for that room — dice, Scenes, NPC posts, and whispers
 

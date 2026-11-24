@@ -1197,6 +1197,12 @@ export function ChannelView() {
           members={inviteCandidates}
           roomMembers={roomMembers}
           onRemove={removeRoom}
+          onOpenRoom={(roomId) => {
+            // Close first: the channel subtree no longer remounts on a room
+            // switch (#765), so an open manager would sit over the new room.
+            setShowManageRooms(false)
+            navigate(channelRoomPath(channel.id, roomId))
+          }}
           onRetry={refetchRooms}
         />
       )}
