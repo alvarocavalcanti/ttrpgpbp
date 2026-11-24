@@ -401,6 +401,9 @@ describe('App', () => {
     await waitFor(() => {
       expect(window.location.search).not.toContain('q=')
       expect(window.location.search).toContain('foo=bar')
+      // The clear must survive the earlier write committing after it: the box
+      // is never repopulated with the abandoned query (main CI flake, #843).
+      expect(input).toHaveValue('')
     }, { timeout: 2000 })
 
     window.history.replaceState({}, '', '/')

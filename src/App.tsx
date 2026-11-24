@@ -193,6 +193,11 @@ function AppNav() {
   // navigation. The URL is the source of truth; this ref tells our own writes
   // apart from an external change (back/forward, a deep link).
   const knownQRef = useRef(qParam)
+  // The value our last write asked the URL to hold. A router navigation commits
+  // asynchronously, so for a render or two the URL still reports the previous
+  // value after we already moved `knownQRef` on. Tracking the request tells
+  // that lag apart from a real external change.
+  const pendingQRef = useRef<string | null>(null)
 
   // One effect, so an external ?q always wins over a write. Adoption comes
   // first and returns: rewriting the box restarts the debounce, dropping the
@@ -205,7 +210,14 @@ function AppNav() {
   // effect used to wipe before their screens read them. Even on the lobby, edit
   // only `q` so unrelated params survive.
   useEffect(() => {
+    // The URL caught up with our own write: the request is settled.
+    if (pendingQRef.current !== null && qParam === pendingQRef.current) pendingQRef.current = null
     if (qParam !== knownQRef.current) {
+      // The URL is still behind a write of ours, not an external change. Acting
+      // on it readopted the abandoned text: a player who cleared the box (or
+      // typed past it) while the write was in flight saw the old query come
+      // back and the URL keep it. Ignore the lag and let the write land.
+      if (pendingQRef.current !== null) return
       knownQRef.current = qParam
       setSearchInput(qParam)
       return
@@ -213,6 +225,9 @@ function AppNav() {
     if (location.pathname !== ROUTES.home) return
     if (debouncedSearch !== searchInput) return
     knownQRef.current = debouncedSearch
+    // Only a write that changes ?q leaves the URL behind us; a same-value
+    // re-assert settles immediately and must not mask a later external change.
+    pendingQRef.current = qParam === debouncedSearch ? null : debouncedSearch
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
       if (debouncedSearch) next.set('q', debouncedSearch)
