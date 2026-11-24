@@ -997,6 +997,206 @@ describe('MessageList scroll anchoring', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
   })
 
+  it('scrolls to the viewer\u2019s own pending send while they are reading history (#809)', () => {
+    scrollHeight = 1000
+    const { container, rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1100
+    rerender(
+      <MessageList
+        messages={[...base(), { id: 'cr-1', content: 'Rolling `1d20`', type: 'dice_roll', sender_id: 'u1', pending: true, created_at: '2023-01-01T10:10:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    // The player's own send is a deliberate exception to "never yank": the row
+    // otherwise lands below the fold, taking its failure and Retry with it.
+    expect(list.scrollTop).toBe(1100)
+
+    // The failure notice grows the bubble; the restored bottom pin keeps the
+    // Retry control on screen.
+    scrollHeight = 1180
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+    expect(list.scrollTop).toBe(1180)
+  })
+
+  it('scrolls when the viewer\u2019s own pending row lands alongside a newer one (#809)', () => {
+    // Rows are sorted by created_at, so the viewer's own row is not
+    // necessarily the tail of the batch that brings it in.
+    scrollHeight = 1000
+    const { container, rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1150
+    rerender(
+      <MessageList
+        messages={[
+          ...base(),
+          { id: 'cr-5', content: 'Rolling `1d20`', type: 'dice_roll', sender_id: 'u1', pending: true, created_at: '2023-01-01T10:10:00Z' },
+          { id: 'm9', content: 'later post', type: 'regular', sender_id: 'other', created_at: '2023-01-01T10:11:00Z' },
+        ]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(list.scrollTop).toBe(1150)
+  })
+
+  it('keeps the own-send pin when the failure grows before the queued scroll event (#809)', () => {
+    scrollHeight = 1000
+    const { container, rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1100
+    rerender(
+      <MessageList
+        messages={[...base(), { id: 'cr-6', content: 'Rolling `1d20`', type: 'dice_roll', sender_id: 'u1', pending: true, created_at: '2023-01-01T10:10:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+    expect(list.scrollTop).toBe(1100)
+
+    // The failed bubble grows before the browser runs the scroll event queued
+    // by that write, so the event sees the old offset against the new height.
+    scrollHeight = 1160
+    fireEvent.scroll(list)
+
+    scrollHeight = 1240
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+    expect(list.scrollTop).toBe(1240)
+  })
+
+  it('stops the own-send pin once the reader scrolls again (#809)', () => {
+    scrollHeight = 1000
+    const { container, rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1100
+    rerender(
+      <MessageList
+        messages={[...base(), { id: 'cr-7', content: 'my message', type: 'regular', sender_id: 'u1', pending: true, created_at: '2023-01-01T10:10:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+    expect(list.scrollTop).toBe(1100)
+
+    // A wheel gesture takes the view back; late content must not re-pin it.
+    fireEvent.wheel(list)
+    list.scrollTop = 400
+    fireEvent.scroll(list)
+
+    scrollHeight = 1160
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+    expect(list.scrollTop).toBe(400)
+  })
+
+  it('keeps the reader\u2019s place when another player\u2019s message is appended (#809)', () => {
+    scrollHeight = 1000
+    const { container, rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1100
+    rerender(
+      <MessageList
+        messages={[...base(), { id: 'cr-2', content: 'Rolling `1d20`', type: 'dice_roll', sender_id: 'other', pending: true, created_at: '2023-01-01T10:10:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(list.scrollTop).toBe(300)
+  })
+
+  it('drops the unread anchor when the viewer\u2019s own send takes them to the bottom (#809)', () => {
+    scrollHeight = 1000
+    const msgs: any[] = [
+      { id: 'm1', content: 'Old', created_at: '2023-01-01T10:00:00Z', sender_id: 'other' },
+      { id: 'm2', content: 'Unread', created_at: '2023-01-01T15:00:00Z', sender_id: 'other' },
+    ]
+    const { container, rerender } = render(
+      <MessageList messages={msgs} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} lastReadAt="2023-01-01T12:00:00Z" />
+    )
+    const list = container.firstChild as HTMLElement
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    scrollHeight = 1200
+    rerender(
+      <MessageList
+        messages={[...msgs, { id: 'cr-3', content: 'my roll', type: 'dice_roll', sender_id: 'u1', pending: true, created_at: '2023-01-01T16:00:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        lastReadAt="2023-01-01T12:00:00Z"
+      />
+    )
+
+    expect(list.scrollTop).toBe(1200)
+
+    // Late content growth must not drag the view back to the unread divider the
+    // player has already scrolled past.
+    scrollHeight = 1400
+    const observers = (globalThis as any).__resizeObservers
+    observers[observers.length - 1].trigger()
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled()
+    expect(list.scrollTop).toBe(1400)
+  })
+
+  it('scrolls to the viewer\u2019s own send even while a highlighted jump is active (#809)', () => {
+    scrollHeight = 1000
+    const { container, rerender } = render(
+      <MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} highlightMessageId="m1" />
+    )
+    const list = container.firstChild as HTMLElement
+    list.scrollTop = 300
+    fireEvent.scroll(list)
+
+    scrollHeight = 1100
+    rerender(
+      <MessageList
+        messages={[...base(), { id: 'cr-4', content: 'my message', type: 'regular', sender_id: 'u1', pending: true, created_at: '2023-01-01T10:10:00Z' }]}
+        isGM={false}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        highlightMessageId="m1"
+      />
+    )
+
+    expect(list.scrollTop).toBe(1100)
+  })
+
   it('releases the keyboard guard when the window loses focus (#338)', () => {
     scrollHeight = 1000
     const { container } = render(<MessageList messages={base()} isGM={false} onEdit={vi.fn()} onDelete={vi.fn()} />)

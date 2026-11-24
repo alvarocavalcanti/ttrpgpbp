@@ -4207,3 +4207,155 @@ describe('ChannelView offline reading (#825)', () => {
     expect(screen.getByText('Saved Channel')).toBeInTheDocument()
   })
 })
+
+describe('ChannelView own send while scrolled up (#809)', () => {
+  let scrollTop = 0
+  let scrollHeight = 1000
+
+  beforeEach(() => {
+    scrollTop = 0
+    scrollHeight = 1000
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    // The timeline's own scroll metrics: MessageList reads these on the
+    // role="log" container to decide whether the viewer is at the bottom.
+    Object.defineProperty(window.HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    })
+    Object.defineProperty(window.HTMLElement.prototype, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (v: number) => { scrollTop = v },
+    })
+    vi.mocked(usePushNotifications).mockReturnValue({ preferences: { badge_enabled: true } } as any)
+    vi.mocked(useSafetyCardEvents).mockReturnValue({
+      alertActive: false, alertCount: 0, catchUpError: false, retryCatchUp: vi.fn(), dismissAlert: vi.fn(), triggerXCard: vi.fn(),
+    } as any)
+    vi.mocked(useChannel).mockReturnValue({
+      channel: { id: 'c1', name: 'Goblin Cave' },
+      members: [{ id: 'm1', user_id: 'user1', is_active_player: true, character_name: 'Hero' }],
+      loading: false, error: null, isGM: false,
+      myMemberInfo: { id: 'm1', user_id: 'user1' },
+      lastReadAt: null, gmOnlyResourcesUrl: null, refetch: vi.fn(),
+      waitForReads: vi.fn().mockResolvedValue(undefined),
+    } as any)
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set<string>(), favoriteMessages: [], isFavorite: () => false,
+      toggleFavorite: vi.fn(), patchFavoriteMessage: vi.fn(), loading: false, error: null, refetch: vi.fn(),
+    } as any)
+    vi.mocked(useMarkMessageUnread).mockReturnValue({ markUnreadMessage: vi.fn().mockResolvedValue(null) } as any)
+  })
+
+  afterEach(() => {
+    delete (window.HTMLElement.prototype as any).scrollHeight
+    delete (window.HTMLElement.prototype as any).scrollTop
+  })
+
+  const failedOwnRoll = {
+    id: 'cr-9',
+    content: 'Rolling `1d20`',
+    type: 'dice_roll',
+    sender_id: 'user1',
+    whisper_to: null,
+    pending: true,
+    error: 'Roll was not confirmed. Tap retry to reroll.',
+    roll_dc: null,
+    roll_success: null,
+    created_at: '2026-10-05T10:05:00Z',
+  }
+
+  const messagesWith = (rows: any[], retryMessage = vi.fn()) => ({
+    messages: rows, reactions: {}, loading: false, error: null, hasMore: false, loadingOlder: false, retrying: false,
+    sendMessage: vi.fn(), editMessage: vi.fn(), deleteMessage: vi.fn(), sendDiceRoll: vi.fn(),
+    addReaction: vi.fn(), removeReaction: vi.fn(), toggleReaction: vi.fn(),
+    retryMessage, removePendingMessage: vi.fn(),
+    refresh: vi.fn().mockResolvedValue(undefined), loadOlder: vi.fn(), jumpToMessage: vi.fn().mockResolvedValue('found'),
+  } as any)
+
+  const view = () => (
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/channel/c1']}>
+        <Routes>
+          <Route path="/channel/:id" element={<ChannelView />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
+  )
+
+  const scrollUp = () => {
+    const list = screen.getByRole('log')
+    list.scrollTop = 200
+    fireEvent.scroll(list)
+    return list
+  }
+
+  it('brings a failed send into view in the unfiltered timeline', () => {
+    const retryMessage = vi.fn()
+    const pub = { id: 'pub', content: 'public post', type: 'regular', sender_id: 'user2', whisper_to: null, created_at: '2026-10-05T10:00:00Z' }
+    vi.mocked(useMessages).mockReturnValue(messagesWith([pub], retryMessage))
+
+    const { rerender } = render(view())
+    const list = scrollUp()
+
+    vi.mocked(useMessages).mockReturnValue(messagesWith([pub, failedOwnRoll], retryMessage))
+    scrollHeight = 1150
+    rerender(view())
+
+    // The append lands below the fold; #809 brings it — and its failure — into
+    // view instead of leaving the player looking at the source message.
+    expect(list.scrollTop).toBe(1150)
+    expect(screen.getByText(/Failed to send:/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retryMessage).toHaveBeenCalledWith('cr-9')
+  })
+
+  it('brings a failed send into view in the Favorites view', () => {
+    const retryMessage = vi.fn()
+    const pub = { id: 'pub', content: 'public post', type: 'regular', sender_id: 'user2', whisper_to: null, created_at: '2026-10-05T10:00:00Z' }
+    const fav = { id: 'fav', content: 'saved post', type: 'regular', sender_id: 'user1', whisper_to: null, created_at: '2026-10-05T10:01:00Z' }
+    vi.mocked(useMessageFavorites).mockReturnValue({
+      favoriteIds: new Set(['fav']), favoriteMessages: [], isFavorite: () => true,
+      toggleFavorite: vi.fn(), patchFavoriteMessage: vi.fn(), loading: false, error: null, refetch: vi.fn(),
+    } as any)
+    vi.mocked(useMessages).mockReturnValue(messagesWith([pub, fav], retryMessage))
+
+    const { rerender } = render(view())
+    fireEvent.click(screen.getByRole('button', { name: 'Show favorites only' }))
+    const list = scrollUp()
+
+    vi.mocked(useMessages).mockReturnValue(messagesWith([pub, fav, failedOwnRoll], retryMessage))
+    scrollHeight = 1150
+    rerender(view())
+
+    // The append lands below the fold; #809 brings it — and its failure — into
+    // view instead of leaving the player looking at the source message.
+    expect(list.scrollTop).toBe(1150)
+    expect(screen.getByText(/Failed to send:/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retryMessage).toHaveBeenCalledWith('cr-9')
+    expect(screen.queryByText('public post')).not.toBeInTheDocument()
+  })
+
+  it('brings a failed send into view in the Whispers view', () => {
+    const retryMessage = vi.fn()
+    const pub = { id: 'pub', content: 'public post', type: 'regular', sender_id: 'user2', whisper_to: null, created_at: '2026-10-05T10:00:00Z' }
+    const whisper = { id: 'wh', content: 'my whisper', type: 'regular', sender_id: 'user1', whisper_to: 'user2', created_at: '2026-10-05T10:01:00Z' }
+    vi.mocked(useMessages).mockReturnValue(messagesWith([pub, whisper], retryMessage))
+
+    const { rerender } = render(view())
+    fireEvent.click(screen.getByRole('button', { name: 'Show whispers only' }))
+    const list = scrollUp()
+
+    vi.mocked(useMessages).mockReturnValue(messagesWith([pub, whisper, failedOwnRoll], retryMessage))
+    scrollHeight = 1150
+    rerender(view())
+
+    // The append lands below the fold; #809 brings it — and its failure — into
+    // view instead of leaving the player looking at the source message.
+    expect(list.scrollTop).toBe(1150)
+    expect(screen.getByText(/Failed to send:/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retryMessage).toHaveBeenCalledWith('cr-9')
+    expect(screen.queryByText('public post')).not.toBeInTheDocument()
+  })
+})

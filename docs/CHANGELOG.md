@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-24
+
+### Fixed
+
+- **Your own rolls and messages always land in view** — rolling dice from an older message, or sending while scrolled up in the history, now takes you to your new post at the bottom of the chat. If it fails, its message and **Retry** and **Remove** buttons are right in front of you instead of hidden below the fold.
+
 ## 2026-11-23
 
 ### Fixed
