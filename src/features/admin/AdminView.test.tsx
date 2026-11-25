@@ -1814,6 +1814,11 @@ describe('console state (#788)', () => {
     expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Listed' })).toHaveAttribute('aria-pressed', 'true')
 
+    // Record every URL the entry takes, not just the last one: a stale write
+    // that is corrected a moment later still overwrites the history entry.
+    const seen: string[] = []
+    const unsubscribe = router.subscribe(state => { seen.push(state.location.search) })
+
     // The address bar moves to another console view while the component stays
     // mounted — what Back/Forward between two /admin entries does.
     await act(async () => { await router.navigate('/admin?tab=reports') })
@@ -1823,10 +1828,35 @@ describe('console state (#788)', () => {
     await waitFor(() =>
       expect(screen.queryByRole('group', { name: 'Filter channels by listing' })).toBeNull(),
     )
+    unsubscribe()
     expect(router.state.location.search).toBe('?tab=reports')
+    expect(seen).not.toContain('?tab=channels&listing=listed&cSort=name&cDir=asc')
   })
 
-  it('hands the console state to the channel view from a report too', async () => {    let channelState: unknown = null
+  it('still mirrors a change after a URL with nothing to adopt', async () => {
+    // A query string that touches no tracked state must not leave the guard
+    // armed and swallow the next real write.
+    let currentSearch = ''
+    function SearchProbe() {
+      currentSearch = useLocation().search
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/admin?utm_source=newsletter']}>
+        <Routes>
+          <Route path="/admin" element={<><AdminView /><SearchProbe /></>} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    openChannelsTab()
+    await waitFor(() => expect(currentSearch).toBe('?tab=channels'))
+  })
+
+  it('hands the console state to the channel view from a report too', async () => {
+    let channelState: unknown = null
     function ChannelProbe() {
       channelState = useLocation().state
       return <div>channel stub</div>

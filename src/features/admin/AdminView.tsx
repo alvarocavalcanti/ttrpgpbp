@@ -228,6 +228,10 @@ export function AdminView() {
   // URLs, or a link from elsewhere. The mirror below must not overwrite it
   // with the state it has not caught up with.
   const appliedSearchRef = useRef<string>(searchParams.toString())
+  // Set while an adopted URL's state updates are still pending. The mirror must
+  // sit out that render: its state is the previous view's, and writing it would
+  // overwrite the history entry we just adopted.
+  const adoptingRef = useRef(false)
   // Stable writer so both the deep-link consumer and the mirror agree on what
   // this view last wrote.
   const writeParams = useCallback((params: URLSearchParams) => {
@@ -265,22 +269,53 @@ export function AdminView() {
     const current = searchParams.toString()
     if (current === appliedSearchRef.current) return
     appliedSearchRef.current = current
-    setTab(oneOf(TAB_PARAM_VALUES, searchParams.get('tab'), 'users'))
-    setSearch(searchParams.get('q') ?? '')
-    setFilter(oneOf(USER_FILTERS, searchParams.get('status'), 'all'))
-    setActiveOnly(searchParams.get('active') === '1')
-    setChannelListingFilter(oneOf(LISTING_FILTERS, searchParams.get('listing'), 'all'))
-    const user = sortFromParams(searchParams, 'u', USER_SORT_KEYS, 'display_name', 'asc')
-    const channel = sortFromParams(searchParams, 'c', CHANNEL_SORT_KEYS, 'last_message_at', 'desc')
-    const archived = sortFromParams(searchParams, 'a', ARCHIVED_SORT_KEYS, 'name', 'asc')
-    setUserSort(user.key, user.dir)
-    setChannelSort(channel.key, channel.dir)
-    setArchivedSort(archived.key, archived.dir)
-  }, [searchParams, setUserSort, setChannelSort, setArchivedSort])
+    const nextTab = oneOf(TAB_PARAM_VALUES, searchParams.get('tab'), 'users')
+    const nextSearch = searchParams.get('q') ?? ''
+    const nextFilter = oneOf(USER_FILTERS, searchParams.get('status'), 'all')
+    const nextActiveOnly = searchParams.get('active') === '1'
+    const nextListing = oneOf(LISTING_FILTERS, searchParams.get('listing'), 'all')
+    // A URL that differs only in params this view does not track (a deep link's
+    // ?user=, a stray utm) has nothing to adopt.
+    const changed =
+      nextTab !== tab ||
+      nextSearch !== search ||
+      nextFilter !== filter ||
+      nextActiveOnly !== activeOnly ||
+      nextListing !== channelListingFilter ||
+      userSortState.key !== userSort.sortKey || userSortState.dir !== userSort.sortDir ||
+      channelSortState.key !== channelSort.sortKey || channelSortState.dir !== channelSort.sortDir ||
+      archivedSortState.key !== archivedSort.sortKey || archivedSortState.dir !== archivedSort.sortDir
+    if (!changed) return
+    // Armed before the updates land: the mirror must sit out the render that
+    // still carries the previous view's state. `changed` guarantees the next
+    // render reaches the mirror, which clears it.
+    adoptingRef.current = true
+    setTab(nextTab)
+    setSearch(nextSearch)
+    setFilter(nextFilter)
+    setActiveOnly(nextActiveOnly)
+    setChannelListingFilter(nextListing)
+    setUserSort(userSortState.key, userSortState.dir)
+    setChannelSort(channelSortState.key, channelSortState.dir)
+    setArchivedSort(archivedSortState.key, archivedSortState.dir)
+  }, [
+    searchParams, tab, search, filter, activeOnly, channelListingFilter,
+    userSortState.key, userSortState.dir, userSort.sortKey, userSort.sortDir,
+    channelSortState.key, channelSortState.dir, channelSort.sortKey, channelSort.sortDir,
+    archivedSortState.key, archivedSortState.dir, archivedSort.sortKey, archivedSort.sortDir,
+    setUserSort, setChannelSort, setArchivedSort,
+  ])
 
   // Mirror the list state into the URL. Defaults are omitted so a plain visit
   // stays at /admin, and the deep link's ?user= is preserved until consumed.
   useEffect(() => {
+    // Sit out the render that follows an adoption: this render still carries
+    // the previous view's state, and writing it would overwrite the entry we
+    // just adopted. The next render has the adopted values and mirrors them.
+    if (adoptingRef.current) {
+      adoptingRef.current = false
+      return
+    }
     // An external URL change is applied by the effect above first.
     if (searchParams.toString() !== appliedSearchRef.current) return
     const next = new URLSearchParams()
