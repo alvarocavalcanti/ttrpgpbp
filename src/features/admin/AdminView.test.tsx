@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom'
 import { AdminView } from './AdminView'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
@@ -1804,8 +1804,29 @@ describe('console state (#788)', () => {
     expect(channelState).toEqual({ adminSearch: '?tab=channels' })
   })
 
-  it('hands the console state to the channel view from a report too', async () => {
-    let channelState: unknown = null
+  it('adopts a console URL that changed under it, like browser Back', async () => {
+    const router = createMemoryRouter(
+      [{ path: '/admin', element: <AdminView /> }],
+      { initialEntries: ['/admin?tab=channels&listing=listed&cSort=name&cDir=asc'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Listed' })).toHaveAttribute('aria-pressed', 'true')
+
+    // The address bar moves to another console view while the component stays
+    // mounted — what Back/Forward between two /admin entries does.
+    await act(async () => { await router.navigate('/admin?tab=reports') })
+
+    // The Reports tab is adopted instead of the retained Channels view, and the
+    // mirror effect must not rewrite the new entry with the stale state.
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: 'Filter channels by listing' })).toBeNull(),
+    )
+    expect(router.state.location.search).toBe('?tab=reports')
+  })
+
+  it('hands the console state to the channel view from a report too', async () => {    let channelState: unknown = null
     function ChannelProbe() {
       channelState = useLocation().state
       return <div>channel stub</div>

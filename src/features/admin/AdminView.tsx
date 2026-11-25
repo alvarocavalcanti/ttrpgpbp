@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
@@ -103,6 +103,12 @@ function useSort<T>(data: T[], initialKey: keyof T, initialDir: SortDir = 'asc')
     }
   }
 
+  // Stable: the URL-sync effect applies a URL's sort without re-subscribing.
+  const setSort = useCallback((key: keyof T, dir: SortDir) => {
+    setSortKey(key)
+    setSortDir(dir)
+  }, [])
+
   const sorted = [...data].sort((a, b) => {
     const av = a[sortKey]
     const bv = b[sortKey]
@@ -116,7 +122,7 @@ function useSort<T>(data: T[], initialKey: keyof T, initialDir: SortDir = 'asc')
     return sortDir === 'asc' ? cmp : -cmp
   })
 
-  return { sorted, sortKey, sortDir, handleSort }
+  return { sorted, sortKey, sortDir, handleSort, setSort }
 }
 
 function SortHeader<T>({ label, sortKey, activeKey, sortDir, onSort }: {
@@ -204,6 +210,31 @@ export function AdminView() {
   // broken/late RPC degrades only this tab, never the whole console.
   const { archivedChannels, loading: archivedLoading, error: archivedError, refetch: refetchArchived } = useAdminArchivedChannels(isServerAdmin)
 
+  // #788: sort state restores from the URL alongside the tab and filters.
+  // Channels default to most-recently-active instead of name ascending.
+  const userSortState = sortFromParams(searchParams, 'u', USER_SORT_KEYS, 'display_name', 'asc')
+  const channelSortState = sortFromParams(searchParams, 'c', CHANNEL_SORT_KEYS, 'last_message_at', 'desc')
+  const archivedSortState = sortFromParams(searchParams, 'a', ARCHIVED_SORT_KEYS, 'name', 'asc')
+
+  const userSort = useSort(users, userSortState.key, userSortState.dir)
+  const channelSort = useSort(channels, channelSortState.key, channelSortState.dir)
+  const archivedSort = useSort(archivedChannels, archivedSortState.key, archivedSortState.dir)
+  const { setSort: setUserSort } = userSort
+  const { setSort: setChannelSort } = channelSort
+  const { setSort: setArchivedSort } = archivedSort
+
+  // The URL this view last read or wrote. Any other value in the address bar
+  // is a change we have not applied yet: a browser Back between two console
+  // URLs, or a link from elsewhere. The mirror below must not overwrite it
+  // with the state it has not caught up with.
+  const appliedSearchRef = useRef<string>(searchParams.toString())
+  // Stable writer so both the deep-link consumer and the mirror agree on what
+  // this view last wrote.
+  const writeParams = useCallback((params: URLSearchParams) => {
+    appliedSearchRef.current = params.toString()
+    setSearchParams(params, { replace: true })
+  }, [setSearchParams])
+
   useEffect(() => {
     // A failed load leaves users empty: don't consume the link or cry
     // not-found over what was never fetched.
@@ -215,7 +246,7 @@ export function AdminView() {
     // user key goes, so the rest of the restored console state stays put.
     const remainingParams = new URLSearchParams(searchParams)
     remainingParams.delete('user')
-    setSearchParams(remainingParams, { replace: true })
+    writeParams(remainingParams)
     const found = users.find(u => u.id === deepLinkedUserId)
     if (found) {
       setTab('users')
@@ -225,21 +256,33 @@ export function AdminView() {
       // instead of silently swallowing the link.
       addToast('That user could not be found. They may have deleted their account.', 'error')
     }
-  }, [loading, error, deepLinkedUserId, users, detailUser, searchParams, setSearchParams, addToast])
+  }, [loading, error, deepLinkedUserId, users, detailUser, searchParams, writeParams, addToast])
 
-  // #788: sort state restores from the URL alongside the tab and filters.
-  // Channels default to most-recently-active instead of name ascending.
-  const userSortState = sortFromParams(searchParams, 'u', USER_SORT_KEYS, 'display_name', 'asc')
-  const channelSortState = sortFromParams(searchParams, 'c', CHANNEL_SORT_KEYS, 'last_message_at', 'desc')
-  const archivedSortState = sortFromParams(searchParams, 'a', ARCHIVED_SORT_KEYS, 'name', 'asc')
-
-  const userSort = useSort(users, userSortState.key, userSortState.dir)
-  const channelSort = useSort(channels, channelSortState.key, channelSortState.dir)
-  const archivedSort = useSort(archivedChannels, archivedSortState.key, archivedSortState.dir)
+  // Adopt the URL when it changed under us. Without this, navigating between
+  // two /admin URLs would keep the previous tab, and the mirror would then
+  // rewrite the new entry with that stale state.
+  useEffect(() => {
+    const current = searchParams.toString()
+    if (current === appliedSearchRef.current) return
+    appliedSearchRef.current = current
+    setTab(oneOf(TAB_PARAM_VALUES, searchParams.get('tab'), 'users'))
+    setSearch(searchParams.get('q') ?? '')
+    setFilter(oneOf(USER_FILTERS, searchParams.get('status'), 'all'))
+    setActiveOnly(searchParams.get('active') === '1')
+    setChannelListingFilter(oneOf(LISTING_FILTERS, searchParams.get('listing'), 'all'))
+    const user = sortFromParams(searchParams, 'u', USER_SORT_KEYS, 'display_name', 'asc')
+    const channel = sortFromParams(searchParams, 'c', CHANNEL_SORT_KEYS, 'last_message_at', 'desc')
+    const archived = sortFromParams(searchParams, 'a', ARCHIVED_SORT_KEYS, 'name', 'asc')
+    setUserSort(user.key, user.dir)
+    setChannelSort(channel.key, channel.dir)
+    setArchivedSort(archived.key, archived.dir)
+  }, [searchParams, setUserSort, setChannelSort, setArchivedSort])
 
   // Mirror the list state into the URL. Defaults are omitted so a plain visit
   // stays at /admin, and the deep link's ?user= is preserved until consumed.
   useEffect(() => {
+    // An external URL change is applied by the effect above first.
+    if (searchParams.toString() !== appliedSearchRef.current) return
     const next = new URLSearchParams()
     if (tab !== 'users') next.set('tab', tab)
     if (search) next.set('q', search)
@@ -261,14 +304,14 @@ export function AdminView() {
     const linkedUser = searchParams.get('user')
     if (linkedUser) next.set('user', linkedUser)
     if (next.toString() !== searchParams.toString()) {
-      setSearchParams(next, { replace: true })
+      writeParams(next)
     }
   }, [
     tab, search, filter, activeOnly, channelListingFilter,
     userSort.sortKey, userSort.sortDir,
     channelSort.sortKey, channelSort.sortDir,
     archivedSort.sortKey, archivedSort.sortDir,
-    searchParams, setSearchParams,
+    searchParams, writeParams,
   ])
 
   useEffect(() => {
