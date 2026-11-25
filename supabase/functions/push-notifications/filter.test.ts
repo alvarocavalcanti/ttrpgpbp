@@ -380,6 +380,23 @@ describe('resolvePushTargets', () => {
       expect(result.url).toBe('/messages')
     })
 
+    it('routes polls to targets with a Poll title', () => {
+      const result = resolvePushTargets({
+        kind: 'admin_message',
+        admin_type: 'poll',
+        subject: 'Community feedback',
+        content: 'Tell us how it is going.',
+        sender_id: 'u1',
+        sender_name: 'Alv',
+        admin_target_user_ids: ['u1', 'u2']
+      }, MEMBERS)
+
+      expect(result.targetUserIds).toEqual(['u2'])
+      expect(result.title).toBe('Poll: Community feedback')
+      expect(result.body).toBe('Tell us how it is going.')
+      expect(result.url).toBe('/messages')
+    })
+
     it('routes admin DMs to the non-sender participant', () => {
       const result = resolvePushTargets({
         kind: 'admin_message',

@@ -133,6 +133,158 @@ export type Database = {
           },
         ]
       }
+      admin_poll_answers: {
+        Row: {
+          id: string
+          question_id: string
+          response_id: string
+          selected_options: number[]
+          text_answer: string | null
+        }
+        Insert: {
+          id?: string
+          question_id: string
+          response_id: string
+          selected_options?: number[]
+          text_answer?: string | null
+        }
+        Update: {
+          id?: string
+          question_id?: string
+          response_id?: string
+          selected_options?: number[]
+          text_answer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_poll_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "admin_poll_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_poll_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "admin_poll_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_poll_questions: {
+        Row: {
+          id: string
+          is_required: boolean
+          options: Json
+          position: number
+          prompt: string
+          question_type: string
+          thread_id: string
+        }
+        Insert: {
+          id?: string
+          is_required?: boolean
+          options?: Json
+          position: number
+          prompt: string
+          question_type: string
+          thread_id: string
+        }
+        Update: {
+          id?: string
+          is_required?: boolean
+          options?: Json
+          position?: number
+          prompt?: string
+          question_type?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_poll_questions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "admin_polls"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      admin_poll_responses: {
+        Row: {
+          id: string
+          submitted_at: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          submitted_at?: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          submitted_at?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_poll_responses_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "admin_polls"
+            referencedColumns: ["thread_id"]
+          },
+          {
+            foreignKeyName: "admin_poll_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_polls: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          description: string | null
+          thread_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          description?: string | null
+          thread_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          description?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_polls_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_polls_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: true
+            referencedRelation: "admin_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_thread_reads: {
         Row: {
           last_read_at: string
@@ -1691,8 +1843,18 @@ export type Database = {
         Args: { p_sub_channel_id: string }
         Returns: boolean
       }
+      close_admin_poll: { Args: { p_thread_id: string }; Returns: string }
       confirm_age: { Args: never; Returns: undefined }
       confirm_terms: { Args: { p_version: string }; Returns: undefined }
+      create_admin_poll: {
+        Args: {
+          p_audience: Database["public"]["Enums"]["admin_thread_audience"]
+          p_description: string
+          p_questions: Json
+          p_subject: string
+        }
+        Returns: string
+      }
       create_channel: {
         Args: {
           p_application_prompt?: string
@@ -1732,6 +1894,7 @@ export type Database = {
         Returns: undefined
       }
       escape_markdown: { Args: { p_text: string }; Returns: string }
+      get_admin_poll_report: { Args: { p_thread_id: string }; Returns: Json }
       get_admin_unread_count: { Args: { p_user_id: string }; Returns: number }
       get_admin_unread_totals: {
         Args: { p_user_ids: string[] }
@@ -2042,6 +2205,10 @@ export type Database = {
         Args: { p_sub_channel_id: string; p_visibility: string }
         Returns: undefined
       }
+      submit_admin_poll_response: {
+        Args: { p_answers: Json; p_thread_id: string }
+        Returns: string
+      }
       update_channel_settings: {
         Args: {
           p_application_prompt?: string
@@ -2091,7 +2258,7 @@ export type Database = {
     }
     Enums: {
       admin_thread_audience: "all_users" | "gms"
-      admin_thread_type: "announcement" | "dm" | "system"
+      admin_thread_type: "announcement" | "dm" | "system" | "poll"
       channel_join_mode: "invite" | "approval"
       join_request_status: "pending" | "approved" | "rejected" | "withdrawn"
     }
@@ -2225,7 +2392,7 @@ export const Constants = {
   public: {
     Enums: {
       admin_thread_audience: ["all_users", "gms"],
-      admin_thread_type: ["announcement", "dm", "system"],
+      admin_thread_type: ["announcement", "dm", "system", "poll"],
       channel_join_mode: ["invite", "approval"],
       join_request_status: ["pending", "approved", "rejected", "withdrawn"],
     },

@@ -8,6 +8,10 @@ import {
   SearchMessageRowSchema,
   AdminThreadRowSchema,
   AdminMessageRowSchema,
+  AdminPollRowSchema,
+  AdminPollQuestionRowSchema,
+  AdminPollResponseRowSchema,
+  AdminPollReportSchema,
   ProfileRowSchema,
   RpcCountSchema,
   RpcBooleanSchema,
@@ -99,6 +103,38 @@ describe('search, admin and profile schemas', () => {
     const profile = { id: 'u1', display_name: 'A', avatar_url: null, created_at: '2026-01-01T00:00:00Z', is_suspended: false }
     expect(parseRow(ProfileRowSchema, profile)).toMatchObject({ id: 'u1' })
     expect(parseRow(ProfileRowSchema, { ...profile, is_suspended: 'no' })).toBeNull()
+  })
+
+  it('validates poll rows', () => {
+    const poll = { thread_id: 't1', description: null, closed_at: null, created_at: '2026-01-01T00:00:00Z' }
+    expect(parseRow(AdminPollRowSchema, poll)).toMatchObject({ thread_id: 't1' })
+
+    const question = {
+      id: 'q1', thread_id: 't1', position: 0, prompt: 'Pick one',
+      question_type: 'single_choice', is_required: true, options: ['A', 'B']
+    }
+    expect(parseRow(AdminPollQuestionRowSchema, question)).toMatchObject({ id: 'q1' })
+    expect(parseRow(AdminPollQuestionRowSchema, { ...question, question_type: 'essay' })).toBeNull()
+
+    const response = {
+      id: 'r1', thread_id: 't1', user_id: 'u1', submitted_at: '2026-01-01T00:00:00Z',
+      admin_poll_answers: [{ question_id: 'q1', selected_options: [1], text_answer: null }]
+    }
+    expect(parseRow(AdminPollResponseRowSchema, response)).toMatchObject({ id: 'r1' })
+    expect(parseRow(AdminPollResponseRowSchema, { ...response, admin_poll_answers: [{ question_id: 5 }] })).toBeNull()
+  })
+
+  it('validates a poll report', () => {
+    const report = {
+      thread_id: 't1', closed_at: null, views: 3, replies: 2,
+      questions: [{
+        question_id: 'q1', position: 0, prompt: 'Pick one', question_type: 'single_choice',
+        is_required: true, options: ['A', 'B'], total_answers: 2,
+        option_counts: [1, 1], text_answers: null,
+      }],
+    }
+    expect(parseRow(AdminPollReportSchema, report)).toMatchObject({ thread_id: 't1' })
+    expect(parseRow(AdminPollReportSchema, { ...report, replies: '2' })).toBeNull()
   })
 })
 

@@ -36,6 +36,7 @@ function mockHookReturn(overrides: Record<string, unknown> = {}) {
   vi.mocked(useAdminThreads).mockReturnValue({
     threads: [], loading: false, hasMore: false, loadMore: vi.fn(),
     refetch: vi.fn(), error: null, createThread: vi.fn(), deleteThread: vi.fn(),
+    createPoll: vi.fn(),
     ...overrides
   } as any)
 }
@@ -475,5 +476,180 @@ describe('ThreadList non-admin and interaction', () => {
     expect(screen.getByText('System messages')).toBeInTheDocument()
     expect(screen.queryByText('All users')).not.toBeInTheDocument()
     expect(screen.queryByText('GMs')).not.toBeInTheDocument()
+  })
+
+  it('renders a poll row with its audience chip and subject', () => {
+    mockHookReturn({
+      threads: [{
+        ...mockThread,
+        id: 't-poll', type: 'poll', subject: 'Community feedback', audience: 'all_users',
+      }],
+    })
+    render(<ThreadList onSelectThread={vi.fn()} />)
+
+    expect(screen.getByText('Poll')).toBeInTheDocument()
+    expect(screen.getByText('Community feedback')).toBeInTheDocument()
+    expect(screen.getByText('All users')).toBeInTheDocument()
+  })
+})
+
+describe('NewThreadModal poll composer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockHookReturn()
+    mockRecipients()
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
+  })
+
+  function openPollComposer() {
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'poll' } })
+  }
+
+  it('publishes a poll with its subject, audience and questions', async () => {
+    const createPoll = vi.fn().mockResolvedValue({ ...mockThread, type: 'poll', subject: 'Feedback' })
+    mockHookReturn({ createPoll })
+    const onSelectThread = vi.fn()
+
+    render(<ThreadList onSelectThread={onSelectThread} />)
+    fireEvent.click(screen.getByText('New'))
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'poll' } })
+    fireEvent.change(screen.getByLabelText('Audience'), { target: { value: 'all_users' } })
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Feedback' } })
+    fireEvent.change(screen.getByLabelText('Description (optional)'), { target: { value: '  Tell us more  ' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Pick one' } })
+    fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'A' } })
+    fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'B' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publish Poll' }))
+
+    await waitFor(() => {
+      expect(createPoll).toHaveBeenCalledWith({
+        subject: 'Feedback',
+        description: 'Tell us more',
+        audience: 'all_users',
+        questions: [{
+          prompt: 'Pick one', question_type: 'single_choice', is_required: true, options: ['A', 'B'],
+        }],
+      })
+    })
+    expect(onSelectThread).toHaveBeenCalled()
+  })
+
+  it('adds, reorders and removes questions', () => {
+    openPollComposer()
+
+    // A single question cannot be removed or moved up.
+    expect(screen.getByRole('button', { name: 'Remove question 1' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move question 1 up' })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'First' } })
+    fireEvent.click(screen.getByText('+ Add question'))
+    expect(screen.getAllByLabelText('Prompt')).toHaveLength(2)
+    fireEvent.change(screen.getAllByLabelText('Prompt')[1], { target: { value: 'Second' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move question 2 up' }))
+    expect((screen.getAllByLabelText('Prompt')[0] as HTMLInputElement).value).toBe('Second')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove question 1' }))
+    expect(screen.getAllByLabelText('Prompt')).toHaveLength(1)
+    expect((screen.getByLabelText('Prompt') as HTMLInputElement).value).toBe('First')
+  })
+
+  it('adds and removes options within the 2 to 5 limit', () => {
+    openPollComposer()
+
+    expect(screen.queryByRole('button', { name: 'Remove option 1 of question 1' })).toBeDisabled()
+    fireEvent.click(screen.getByText('+ Add option'))
+    expect(screen.getByLabelText('Option 3')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('+ Add option'))
+    fireEvent.click(screen.getByText('+ Add option'))
+    expect(screen.getAllByLabelText(/^Option \d$/)).toHaveLength(5)
+    expect(screen.queryByText('+ Add option')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove option 5 of question 1' }))
+    expect(screen.getAllByLabelText(/^Option \d$/)).toHaveLength(4)
+  })
+
+  it('hides the option inputs for an open short text question', () => {
+    openPollComposer()
+
+    fireEvent.change(screen.getByLabelText('Question type'), { target: { value: 'short_text' } })
+    expect(screen.queryByLabelText('Option 1')).not.toBeInTheDocument()
+  })
+
+  it('sends a question marked optional as not required', async () => {
+    const createPoll = vi.fn().mockResolvedValue({ ...mockThread, type: 'poll' })
+    mockHookReturn({ createPoll })
+    openPollComposer()
+
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Feedback' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Pick one' } })
+    fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'A' } })
+    fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'B' } })
+    fireEvent.click(screen.getByLabelText('Required'))
+    fireEvent.click(screen.getByRole('button', { name: 'Publish Poll' }))
+
+    await waitFor(() => {
+      expect(createPoll).toHaveBeenCalledWith(expect.objectContaining({
+        questions: [expect.objectContaining({ is_required: false })],
+      }))
+    })
+  })
+
+  it('refuses a whitespace-only subject without calling the RPC', async () => {
+    const createPoll = vi.fn()
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    mockHookReturn({ createPoll })
+    openPollComposer()
+
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: '   ' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Pick one' } })
+    fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'A' } })
+    fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'B' } })
+    fireEvent.submit(screen.getByRole('button', { name: 'Publish Poll' }).closest('form') as HTMLFormElement)
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith('A subject is required (100 characters max).', 'error')
+    })
+    expect(createPoll).not.toHaveBeenCalled()
+  })
+
+  it('refuses blank option labels without calling the RPC', async () => {
+    const createPoll = vi.fn()
+    const addToast = vi.fn()
+    vi.mocked(useToast).mockReturnValue({ addToast, removeToast: vi.fn() } as any)
+    mockHookReturn({ createPoll })
+    openPollComposer()
+
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Feedback' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Pick one' } })
+    fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: '  ' } })
+    fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'B' } })
+    fireEvent.submit(screen.getByRole('button', { name: 'Publish Poll' }).closest('form') as HTMLFormElement)
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith(
+        'Every question needs a prompt, and choice questions need 2 to 5 labelled options.',
+        'error',
+      )
+    })
+    expect(createPoll).not.toHaveBeenCalled()
+  })
+
+  it('keeps the composer open when publishing fails', async () => {
+    const createPoll = vi.fn().mockResolvedValue(null)
+    mockHookReturn({ createPoll })
+    openPollComposer()
+
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Feedback' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Pick one' } })
+    fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'A' } })
+    fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'B' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publish Poll' }))
+
+    await waitFor(() => expect(createPoll).toHaveBeenCalled())
+    expect(screen.getByText('New Message')).toBeInTheDocument()
   })
 })

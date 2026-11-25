@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 2026-11-25
 
+### Added
+
+- **Polls in Messages** — the server administrator can now ask the community a set of questions instead of a one-way announcement. A poll goes to **GMs only** or **all users**, has a subject and an optional note, and holds one or more questions: pick one answer, pick several, or write a short reply, each marked required or optional. You answer once, the poll closes when the admin says so, and your answers stay on screen afterwards. The admin sees how many people opened the poll, how many answered, and the totals for each question — never who said what.
+
 ### Changed
 
 - **The Server Admin console remembers where you were** — the games table now opens with the most recently active game first (games nobody has posted in yet sit at the bottom), and opening a game for a safety review and coming back returns you to the same tab, the same filters, the same search, and the same column order instead of jumping back to the top of the console. <!-- admin-only -->

@@ -23,6 +23,10 @@ vi.mock('./useAdminThreads', () => ({
   useAdminThreadActions: vi.fn()
 }))
 
+vi.mock('./PollThreadDetail', () => ({
+  PollThreadDetail: ({ thread }: { thread: { id: string } }) => <div>Poll detail {thread.id}</div>,
+}))
+
 const mockThread: Thread = {
   id: 'thread-1',
   type: 'announcement',
@@ -394,5 +398,11 @@ describe('ThreadDetail', () => {
     vi.mocked(useAdminMessages).mockReturnValue({ messages: [mockMessage], loading: false } as any)
     const { container } = render(<ThreadDetail thread={mockThread} onBack={vi.fn()} />)
     expect(container.querySelector('.prose')!.className).not.toContain('prose-p:my-1')
+  })
+
+  it('delegates a poll thread to the poll detail view', () => {
+    const pollThread: Thread = { ...mockThread, id: 'thread-poll', type: 'poll' }
+    render(<ThreadDetail thread={pollThread} onBack={vi.fn()} />)
+    expect(screen.getByText('Poll detail thread-poll')).toBeInTheDocument()
   })
 })

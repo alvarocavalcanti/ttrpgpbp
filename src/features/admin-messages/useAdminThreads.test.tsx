@@ -531,4 +531,102 @@ describe('useAdminThreads mutations', () => {
     expect(ok).toBe(false)
     expect(document.body.textContent).toContain("Couldn't delete the conversation")
   })
+
+  it('publishes a poll through the RPC and returns the parsed thread', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 't-poll', error: null } as any)
+    const pollRow = {
+      id: 't-poll', type: 'poll', subject: 'Feedback', gm_id: null, audience: 'all_users',
+      created_by: 'u1', last_message_at: '2026-08-01T00:00:00Z',
+      created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z',
+      creator: [{ display_name: 'Admin', avatar_url: null }], gm: null, admin_thread_reads: []
+    }
+    mockFrom({ fullSingle: { data: pollRow, error: null } })
+
+    const { result } = renderHook(() => useAdminThreadActions(), { wrapper: toastWrapper })
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createPoll({
+        subject: 'Feedback',
+        description: null,
+        audience: 'all_users',
+        questions: [{ prompt: 'Pick', question_type: 'single_choice', is_required: true, options: ['A', 'B'] }],
+      })
+    })
+
+    expect(created.id).toBe('t-poll')
+    expect(created.type).toBe('poll')
+    expect(supabase.rpc).toHaveBeenCalledWith('create_admin_poll', {
+      p_subject: 'Feedback',
+      p_audience: 'all_users',
+      p_description: '',
+      p_questions: [{ prompt: 'Pick', question_type: 'single_choice', is_required: true, options: ['A', 'B'] }],
+    })
+  })
+
+  it('toasts and returns null when publishing a poll fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: { message: 'Not authorized' } } as any)
+    const mocks = mockFrom()
+
+    const { result } = renderHook(() => useAdminThreadActions(), { wrapper: toastWrapper })
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createPoll({
+        subject: 'Feedback', description: null, audience: 'gms', questions: [],
+      })
+    })
+
+    expect(created).toBeNull()
+    expect(mocks.threadInsert).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain("Couldn't publish the poll")
+  })
+
+  it("returns 'committed' when a published poll's row cannot be read back", async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 't-poll', error: null } as any)
+    mockFrom({ fullSingle: { data: null, error: null } })
+
+    const { result } = renderHook(() => useAdminThreadActions(), { wrapper: toastWrapper })
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createPoll({
+        subject: 'Feedback', description: null, audience: 'gms', questions: [],
+      })
+    })
+
+    expect(created).toBe('committed')
+  })
+
+  it('reports a poll whose row fails validation as committed', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 't-poll', error: null } as any)
+    mockFrom({ fullSingle: { data: { nope: true }, error: null } })
+
+    const { result } = renderHook(() => useAdminThreadActions(), { wrapper: toastWrapper })
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createPoll({
+        subject: 'Feedback', description: null, audience: 'gms', questions: [],
+      })
+    })
+
+    expect(created).toBe('committed')
+  })
+
+  it('refuses to publish a poll without a signed-in user', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any)
+    const { result } = renderHook(() => useAdminThreadActions(), { wrapper: toastWrapper })
+
+    let created: any
+    await act(async () => {
+      created = await result.current.createPoll({
+        subject: 'Feedback', description: null, audience: 'gms', questions: [],
+      })
+    })
+
+    expect(created).toBeNull()
+    expect(supabase.rpc).not.toHaveBeenCalledWith('create_admin_poll', expect.anything())
+    expect(document.body.textContent).toContain('You need to be signed in.')
+  })
 })

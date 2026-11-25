@@ -64,6 +64,7 @@ const RAW_TOKEN_ALLOWLIST = [
   'components/ThemeToggle.tsx',
   'contexts/ToastContext.tsx',
   'features/admin-messages/AdminMessagesView.tsx',
+  'features/admin-messages/PollThreadDetail.tsx',
   'features/admin-messages/ThreadDetail.tsx',
   'features/admin-messages/ThreadList.tsx',
   'features/auth/AboutPage.tsx',
