@@ -1550,6 +1550,8 @@ export type Database = {
       admin_list_channel_members: {
         Args: { p_channel_id: string }
         Returns: {
+          avatar_url: string
+          character_avatar_url: string
           character_name: string
           display_name: string
           is_active_player: boolean
@@ -1571,9 +1573,12 @@ export type Database = {
           id: string
           is_deleted: boolean
           npc_name: string
+          sender_avatar_url: string
+          sender_character_avatar_url: string
           sender_character_name: string
           sender_display_name: string
           sender_id: string
+          sub_channel_name: string
           type: string
           whisper_to: string
         }[]

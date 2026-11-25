@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom'
 import { useToast } from '../../contexts/ToastContext'
 import { useAppSetting } from '../../hooks/useAppSetting'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
@@ -18,6 +18,49 @@ type UserFilter = 'all' | 'active' | 'inactive' | 'suspended'
 // #674: a channel is listed, private, or in the taken-down state (an admin removed its listing,
 // which is what the marker distinguishes from an ordinary private one).
 type ChannelListingFilter = 'all' | 'listed' | 'private'
+
+// #788: the console's list state lives in the URL, so opening a channel and
+// coming back (the in-app link or the browser's Back button) restores the same
+// tab, filters, search and sort. Only non-default values are written, which
+// keeps a plain visit at a bare /admin.
+const ADMIN_TABS: { id: Tab; label: string }[] = [
+  { id: 'users', label: 'Users' },
+  { id: 'channels', label: 'Channels' },
+  { id: 'archived', label: 'Archived' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'settings', label: 'Settings' },
+]
+const TAB_PARAM_VALUES: Tab[] = ADMIN_TABS.map(t => t.id)
+const USER_FILTERS: UserFilter[] = ['all', 'active', 'inactive', 'suspended']
+const LISTING_FILTERS: ChannelListingFilter[] = ['all', 'listed', 'private']
+const USER_SORT_KEYS = ['display_name', 'channel_count', 'created_at'] as const
+const CHANNEL_SORT_KEYS = ['name', 'game_system', 'gm_display_name', 'member_count', 'join_mode', 'created_at', 'last_message_at'] as const
+const ARCHIVED_SORT_KEYS = ['name', 'game_system', 'gm_display_name', 'member_count', 'created_at', 'last_message_at'] as const
+
+function isSortDir(value: string | null): value is SortDir {
+  return value === 'asc' || value === 'desc'
+}
+
+// Reads "<prefix>Sort"/"<prefix>Dir" from the URL, falling back when the value
+// is absent or not a column this table actually sorts on.
+function sortFromParams<K extends string>(
+  params: URLSearchParams,
+  prefix: string,
+  allowed: readonly K[],
+  fallbackKey: K,
+  fallbackDir: SortDir,
+): { key: K; dir: SortDir } {
+  const key = params.get(`${prefix}Sort`)
+  const dir = params.get(`${prefix}Dir`)
+  return {
+    key: key && (allowed as readonly string[]).includes(key) ? (key as K) : fallbackKey,
+    dir: isSortDir(dir) ? dir : fallbackDir,
+  }
+}
+
+function oneOf<T extends string>(values: readonly T[], value: string | null, fallback: T): T {
+  return value && (values as readonly string[]).includes(value) ? (value as T) : fallback
+}
 
 const INACTIVE_DAYS = 30
 
@@ -63,11 +106,13 @@ function useSort<T>(data: T[], initialKey: keyof T, initialDir: SortDir = 'asc')
   const sorted = [...data].sort((a, b) => {
     const av = a[sortKey]
     const bv = b[sortKey]
-    let cmp = 0
-    if (av === null || av === undefined) cmp = 1
-    else if (bv === null || bv === undefined) cmp = -1
-    else if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv
-    else cmp = String(av).localeCompare(String(bv), undefined, { numeric: true })
+    // #788: missing values always sink, in both directions. "Most recent
+    // first" must not put never-active channels on top.
+    if (av === null || av === undefined) return bv === null || bv === undefined ? 0 : 1
+    if (bv === null || bv === undefined) return -1
+    const cmp = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av).localeCompare(String(bv), undefined, { numeric: true })
     return sortDir === 'asc' ? cmp : -cmp
   })
 
@@ -114,8 +159,11 @@ function isActiveChannel(c: AdminChannel): boolean {
 
 export function AdminView() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { addToast } = useToast()
-  const [tab, setTab] = useState<Tab>('users')
+  // #788: initial list state comes from the URL (see TAB_PARAM_VALUES above).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(() => oneOf(TAB_PARAM_VALUES, searchParams.get('tab'), 'users'))
   const [channelLimit, setChannelLimit] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const { value: maxChannels, loading: settingsLoading } = useAppSetting<number>('max_channels_per_user', 10)
@@ -130,11 +178,11 @@ export function AdminView() {
   const [suspendReport, setSuspendReport] = useState<AdminAbuseReport | null>(null)
   const [viewedMessage, setViewedMessage] = useState<AdminMessageDetail | null>(null)
   const [viewMessageLoading, setViewMessageLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<UserFilter>('all')
-  const [activeOnly, setActiveOnly] = useState(false)
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
+  const [filter, setFilter] = useState<UserFilter>(() => oneOf(USER_FILTERS, searchParams.get('status'), 'all'))
+  const [activeOnly, setActiveOnly] = useState(() => searchParams.get('active') === '1')
   // #674: All / Listed / Private, mirroring the users-tab status filter.
-  const [channelListingFilter, setChannelListingFilter] = useState<ChannelListingFilter>('all')
+  const [channelListingFilter, setChannelListingFilter] = useState<ChannelListingFilter>(() => oneOf(LISTING_FILTERS, searchParams.get('listing'), 'all'))
   // One prompt serves both the channels tab and a listing report: the target is
   // whichever channel is being taken down.
   const [takedownTarget, setTakedownTarget] = useState<{ id: string; name: string } | null>(null)
@@ -143,7 +191,6 @@ export function AdminView() {
   const [channelActionPending, setChannelActionPending] = useState(false)
   // ?user=<id> deep link from system alerts (#562 P1): opens that user's
   // detail modal once the list is loaded.
-  const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkedUserId = searchParams.get('user')
   // The replace navigation that consumes the link lands a few renders after
   // the modal opens; without this guard, closing the modal in between would
@@ -164,8 +211,11 @@ export function AdminView() {
     if (consumedDeepLink.current === deepLinkedUserId) return
     consumedDeepLink.current = deepLinkedUserId
     // Consume the link on first sight: closing the modal must never reopen
-    // it, even while the replace navigation below is still in flight.
-    setSearchParams({}, { replace: true })
+    // it, even while the replace navigation below is still in flight. Only the
+    // user key goes, so the rest of the restored console state stays put.
+    const remainingParams = new URLSearchParams(searchParams)
+    remainingParams.delete('user')
+    setSearchParams(remainingParams, { replace: true })
     const found = users.find(u => u.id === deepLinkedUserId)
     if (found) {
       setTab('users')
@@ -175,11 +225,51 @@ export function AdminView() {
       // instead of silently swallowing the link.
       addToast('That user could not be found. They may have deleted their account.', 'error')
     }
-  }, [loading, error, deepLinkedUserId, users, detailUser, setSearchParams, addToast])
+  }, [loading, error, deepLinkedUserId, users, detailUser, searchParams, setSearchParams, addToast])
 
-  const userSort = useSort(users, 'display_name')
-  const channelSort = useSort(channels, 'name')
-  const archivedSort = useSort(archivedChannels, 'name')
+  // #788: sort state restores from the URL alongside the tab and filters.
+  // Channels default to most-recently-active instead of name ascending.
+  const userSortState = sortFromParams(searchParams, 'u', USER_SORT_KEYS, 'display_name', 'asc')
+  const channelSortState = sortFromParams(searchParams, 'c', CHANNEL_SORT_KEYS, 'last_message_at', 'desc')
+  const archivedSortState = sortFromParams(searchParams, 'a', ARCHIVED_SORT_KEYS, 'name', 'asc')
+
+  const userSort = useSort(users, userSortState.key, userSortState.dir)
+  const channelSort = useSort(channels, channelSortState.key, channelSortState.dir)
+  const archivedSort = useSort(archivedChannels, archivedSortState.key, archivedSortState.dir)
+
+  // Mirror the list state into the URL. Defaults are omitted so a plain visit
+  // stays at /admin, and the deep link's ?user= is preserved until consumed.
+  useEffect(() => {
+    const next = new URLSearchParams()
+    if (tab !== 'users') next.set('tab', tab)
+    if (search) next.set('q', search)
+    if (filter !== 'all') next.set('status', filter)
+    if (activeOnly) next.set('active', '1')
+    if (channelListingFilter !== 'all') next.set('listing', channelListingFilter)
+    if (userSort.sortKey !== 'display_name' || userSort.sortDir !== 'asc') {
+      next.set('uSort', String(userSort.sortKey))
+      next.set('uDir', userSort.sortDir)
+    }
+    if (channelSort.sortKey !== 'last_message_at' || channelSort.sortDir !== 'desc') {
+      next.set('cSort', String(channelSort.sortKey))
+      next.set('cDir', channelSort.sortDir)
+    }
+    if (archivedSort.sortKey !== 'name' || archivedSort.sortDir !== 'asc') {
+      next.set('aSort', String(archivedSort.sortKey))
+      next.set('aDir', archivedSort.sortDir)
+    }
+    const linkedUser = searchParams.get('user')
+    if (linkedUser) next.set('user', linkedUser)
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true })
+    }
+  }, [
+    tab, search, filter, activeOnly, channelListingFilter,
+    userSort.sortKey, userSort.sortDir,
+    channelSort.sortKey, channelSort.sortDir,
+    archivedSort.sortKey, archivedSort.sortDir,
+    searchParams, setSearchParams,
+  ])
 
   useEffect(() => {
     if (adminLoading) return
@@ -369,14 +459,6 @@ export function AdminView() {
     }
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'users', label: 'Users' },
-    { id: 'channels', label: 'Channels' },
-    { id: 'archived', label: 'Archived' },
-    { id: 'reports', label: 'Reports' },
-    { id: 'settings', label: 'Settings' },
-  ]
-
   // Opt-in email export (#466): copy each consenting user's address onto the
   // clipboard for bulk sending. Only users with both an opt-in flag AND an
   // address qualify.
@@ -488,7 +570,7 @@ export function AdminView() {
 
       <div className="mb-6 border-b border-surface-200 dark:border-surface-700">
         <nav className="-mb-px flex space-x-6" aria-label="Admin sections">
-          {tabs.map(t => (
+          {ADMIN_TABS.map(t => (
             <button
               key={t.id}
               type="button"
@@ -671,7 +753,7 @@ export function AdminView() {
                     <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
                       {visibleChannels.map(channel => (
                         <tr key={channel.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100"><Link to={`/admin/channels/${channel.id}`} aria-label={`Open ${channel.name} read-only`} className="text-primary-600 dark:text-primary-400 hover:underline">{channel.name}</Link></td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-900 dark:text-surface-100"><Link to={`/admin/channels/${channel.id}`} state={{ adminSearch: location.search }} aria-label={`Open ${channel.name} read-only`} className="text-primary-600 dark:text-primary-400 hover:underline">{channel.name}</Link></td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">{channel.game_system || 'none'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                             {channel.gm_id === null ? (
@@ -870,6 +952,7 @@ export function AdminView() {
                                 <>
                                   <Link
                                     to={`/admin/channels/${report.channel_id}`}
+                                    state={{ adminSearch: location.search }}
                                     className="inline-flex min-h-11 items-center px-2 py-1 border border-surface-300 dark:border-surface-600 rounded-md bg-white dark:bg-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                   >
                                     View channel
