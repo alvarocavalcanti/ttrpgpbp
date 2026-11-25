@@ -501,4 +501,78 @@ describe('AdminChannelView', () => {
 
     expect(screen.queryByText(/Players \(/)).toBeNull()
   })
+
+  describe('#788 admin view improvements', () => {
+    it('collapses the listing block by default so the messages keep the viewport', async () => {
+      vi.mocked(useAdminChannelMessages).mockReturnValue(
+        baseHook({ channel: { ...baseChannel, pending_request_count: 2 } }) as any,
+      )
+
+      renderView()
+
+      const summary = (await screen.findByText('Listing')).closest('summary')!
+      const details = summary.closest('details')!
+      expect(details).not.toHaveAttribute('open')
+      expect(summary).toHaveTextContent('Listed')
+      expect(summary).toHaveTextContent('2 pending')
+
+      fireEvent.click(summary)
+      expect(details).toHaveAttribute('open')
+      expect(screen.getByText('A weekly Shadowdark game.')).toBeInTheDocument()
+    })
+
+    it('labels a room message with its room and leaves Main unlabelled', async () => {
+      vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+        messages: [
+          baseMessage({ id: 'm1', content: 'Main line', sub_channel_name: null }),
+          baseMessage({ id: 'm2', content: 'Room line', sub_channel_name: 'OOC' }),
+        ],
+      }) as any)
+
+      renderView()
+      await screen.findByText('Room line')
+
+      expect(screen.getByText('Room: OOC')).toBeInTheDocument()
+      expect(screen.queryAllByText(/^Room: /)).toHaveLength(1)
+    })
+
+    it('renders the character portrait, then the account picture, then the initial', async () => {
+      vi.mocked(useAdminChannelMessages).mockReturnValue(baseHook({
+        members: [
+          { user_id: 'u1', display_name: 'Alice', character_name: 'Alicia', character_avatar_url: 'https://example.com/portrait.png', avatar_url: 'https://example.com/account.png', is_blocked: false, is_active_player: false },
+          { user_id: 'u2', display_name: 'Bob', character_name: 'Bobby', character_avatar_url: null, avatar_url: 'https://example.com/bob.png', is_blocked: false, is_active_player: false },
+          { user_id: 'u3', display_name: 'Mal', character_name: 'Mallory', character_avatar_url: null, avatar_url: null, is_blocked: false, is_active_player: false },
+        ],
+        messages: [baseMessage({ sender_character_avatar_url: 'https://example.com/message.png' })],
+      }) as any)
+
+      const { container } = renderView()
+      await screen.findByText('Alicia')
+
+      // DAMP literals: one avatar per roster row plus one per message row.
+      const avatarSources = Array.from(container.querySelectorAll('img')).map(img => img.getAttribute('src'))
+      expect(avatarSources).toContain('https://example.com/portrait.png')
+      expect(avatarSources).toContain('https://example.com/bob.png')
+      expect(avatarSources).toContain('https://example.com/message.png')
+      // No portrait and no account picture: the initial stands in.
+      const roster = screen.getAllByRole('listitem')
+      expect(roster[2]).toHaveTextContent('M')
+      expect(roster[2].querySelector('img')).toBeNull()
+    })
+
+    it('returns to the console view the admin left via the back link', async () => {
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/admin/channels/c1', state: { adminSearch: '?tab=channels&active=1' } }]}
+        >
+          <Routes>
+            <Route path="/admin/channels/:id" element={<AdminChannelView />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      expect(await screen.findByRole('link', { name: 'Back to admin' }))
+        .toHaveAttribute('href', '/admin?tab=channels&active=1')
+    })
+  })
 })

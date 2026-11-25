@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-25
+
+### Changed
+
+- **The Server Admin console remembers where you were** — the games table now opens with the most recently active game first (games nobody has posted in yet sit at the bottom), and opening a game for a safety review and coming back returns you to the same tab, the same filters, the same search, and the same column order instead of jumping back to the top of the console. <!-- admin-only -->
+- **A channel's read-only review view shows who is speaking** — each message now carries the poster's character portrait for that game, falling back to their account picture and then their initial, and the player list shows the same pictures. Messages posted in a room are marked with that room's name, and the game's listing details fold away by default so the conversation fills the screen. <!-- admin-only -->
+
 ## 2026-11-24
 
 ### Changed

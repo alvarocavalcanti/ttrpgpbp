@@ -12,6 +12,12 @@ export const AdminChannelMessageRowSchema = z.object({
   sender_id: z.string().nullable(),
   sender_display_name: z.string().nullable(),
   sender_character_name: z.string().nullable(),
+  // #788: the per-channel portrait (#743) and the account picture, so the
+  // read-only view can render the same fallback chain as the app.
+  sender_character_avatar_url: z.string().nullish(),
+  sender_avatar_url: z.string().nullish(),
+  // NULL = the channel's Main timeline; a room message carries its name.
+  sub_channel_name: z.string().nullish(),
   content: z.string(),
   type: z.string(),
   is_deleted: z.boolean(),
@@ -29,6 +35,10 @@ export const AdminChannelMemberRowSchema = z.object({
   user_id: z.string(),
   display_name: z.string().nullable(),
   character_name: z.string(),
+  // #788: same fallback chain as the app (character portrait → account
+  // picture → initial). Both are optional: the RPC returns NULL when unset.
+  character_avatar_url: z.string().nullish(),
+  avatar_url: z.string().nullish(),
   is_blocked: z.boolean(),
   is_active_player: z.boolean(),
 })

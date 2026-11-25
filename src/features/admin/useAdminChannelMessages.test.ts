@@ -369,6 +369,39 @@ describe('useAdminChannelMessages', () => {
     expect(result.current.membersError).toBe(false)
   })
 
+  it('keeps the portrait, account picture, and room name on each row (#788)', async () => {
+    const rows = [
+      makeRow('m1', '2026-09-18T12:00:00Z', {
+        sender_character_avatar_url: 'c1/character/a.jpg',
+        sender_avatar_url: 'u1/profile/b.jpg',
+        sub_channel_name: 'OOC',
+      }),
+      makeRow('m2', '2026-09-18T12:01:00Z', {
+        sender_character_avatar_url: null,
+        sender_avatar_url: null,
+        sub_channel_name: null,
+      }),
+    ]
+    pagedMessagesRpc([rows], [], [
+      makeMember({ user_id: 'u1', character_avatar_url: 'c1/character/a.jpg', avatar_url: 'u1/profile/b.jpg' }),
+    ])
+
+    const { result } = renderHook(() => useAdminChannelMessages('c1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await waitFor(() => expect(result.current.membersLoading).toBe(false))
+
+    // The fetch is newest-first, so the list displays oldest-first.
+    expect(result.current.messages[1].sub_channel_name).toBe('OOC')
+    expect(result.current.messages[1].sender_character_avatar_url).toBe('c1/character/a.jpg')
+    expect(result.current.messages[1].sender_avatar_url).toBe('u1/profile/b.jpg')
+    // Main messages carry no room, and a sender without a portrait keeps nulls
+    // so the view falls back to the initial.
+    expect(result.current.messages[0].sub_channel_name).toBeNull()
+    expect(result.current.messages[0].sender_character_avatar_url).toBeNull()
+    expect(result.current.members[0].character_avatar_url).toBe('c1/character/a.jpg')
+    expect(result.current.members[0].avatar_url).toBe('u1/profile/b.jpg')
+  })
+
   it('flags a roster error when the members RPC fails', async () => {
     vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
       if (fn === 'admin_list_channels') return Promise.resolve({ data: [], error: null })

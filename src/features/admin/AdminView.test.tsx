@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom'
 import { AdminView } from './AdminView'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/useAuth'
@@ -1187,6 +1187,27 @@ describe('AdminView', () => {
     })
     expect(currentSearch).toBe('')
   })
+
+  it('does not carry a consumed ?user= into later console writes', async () => {
+    const router = createMemoryRouter(
+      [{ path: '/admin', element: <AdminView /> }],
+      { initialEntries: ['/admin?tab=reports&user=u1'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    await screen.findByRole('dialog', { name: 'Alice' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    expect(router.state.location.search).not.toContain('user=')
+
+    // A later write rebuilds the query from scratch; the consumed link must not
+    // ride along, or a reload would reopen the modal.
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Channels' })
+    )
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=channels'))
+  })
 })
 
   describe('listing surface (#674)', () => {
@@ -1699,5 +1720,181 @@ describe('AdminView copy opted-in emails', () => {
     await waitFor(() => {
       expect(addToast).toHaveBeenCalledWith('Failed to load the reported message.', 'error')
     })
+  })
+})
+
+describe('console state (#788)', () => {
+  // This block sits outside the main describe whose beforeEach supplies the
+  // auth and app-setting mocks.
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAppSetting).mockImplementation((key: string, fallback: any) => {
+      const map: Record<string, unknown> = {
+        max_channels_per_user: 10,
+        image_uploading_enabled: false,
+        image_max_size_mb: 5,
+        image_retention_days: 0,
+      }
+      return { value: map[key] ?? fallback, loading: false, error: null, refresh: vi.fn() }
+    })
+    vi.mocked(useAuth).mockReturnValue(adminUser as any)
+    defaultRpc()
+  })
+
+  const openChannelsTab = () =>
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Channels' })
+    )
+
+  it('opens the channels table most-recently-active first, never-active last', async () => {
+    // DAMP literals: names sort against the recency order, so a name-ascending
+    // default would show Alpha first.
+    vi.mocked(supabase.rpc).mockImplementation(((fn: string) => {
+      if (fn === 'is_server_admin') return Promise.resolve({ data: true, error: null })
+      if (fn === 'admin_list_users') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_list_channels') return Promise.resolve({
+        data: [
+          { ...channels[0], id: 'c1', name: 'Alpha', last_message_at: null },
+          { ...channels[0], id: 'c2', name: 'Zulu', last_message_at: '2026-02-01T00:00:00Z' },
+          { ...channels[0], id: 'c3', name: 'Mike', last_message_at: '2026-03-01T00:00:00Z' },
+        ],
+        error: null,
+      })
+      if (fn === 'admin_list_abuse_reports') return Promise.resolve({ data: [], error: null })
+      if (fn === 'admin_get_image_storage_bytes') return Promise.resolve({ data: 0, error: null })
+      if (fn === 'admin_list_archived_channels') return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: null, error: null })
+    }) as any)
+
+    render(<MemoryRouter><AdminView /></MemoryRouter>)
+    await screen.findByText('Total Channels')
+    openChannelsTab()
+    await screen.findByText('Mike')
+
+    const names = screen.getAllByRole('link', { name: /^Open .* read-only$/ })
+      .map(link => link.textContent)
+    expect(names).toEqual(['Mike', 'Zulu', 'Alpha'])
+    expect(screen.getByRole('columnheader', { name: /Last Active/ })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('restores the tab, filters, and sort from the URL', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin?tab=channels&listing=listed&cSort=name&cDir=asc']}>
+        <AdminView />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
+    // Channels tab, not Users.
+    expect(screen.queryByLabelText('Search users')).not.toBeInTheDocument()
+    const listingFilter = screen.getByRole('group', { name: 'Filter channels by listing' })
+    expect(within(listingFilter).getByRole('button', { name: 'Listed' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('writes the console state to the URL and hands it to the channel view', async () => {
+    let currentSearch = ''
+    let channelState: unknown = null
+    function ConsoleProbe() {
+      currentSearch = useLocation().search
+      return null
+    }
+    function ChannelProbe() {
+      channelState = useLocation().state
+      return <div>channel stub</div>
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <Routes>
+          <Route path="/admin" element={<><AdminView /><ConsoleProbe /></>} />
+          <Route path="/admin/channels/:id" element={<ChannelProbe />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Alice')
+    openChannelsTab()
+    await screen.findByText('Curse of Strahd')
+
+    // The Channels tab is now part of the console's own URL.
+    await waitFor(() => expect(currentSearch).toBe('?tab=channels'))
+
+    fireEvent.click(screen.getByRole('link', { name: 'Open Curse of Strahd read-only' }))
+    expect(await screen.findByText('channel stub')).toBeInTheDocument()
+    expect(channelState).toEqual({ adminSearch: '?tab=channels' })
+  })
+
+  it('adopts a console URL that changed under it, like browser Back', async () => {
+    const router = createMemoryRouter(
+      [{ path: '/admin', element: <AdminView /> }],
+      { initialEntries: ['/admin?tab=channels&listing=listed&cSort=name&cDir=asc'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByText('Curse of Strahd')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Listed' })).toHaveAttribute('aria-pressed', 'true')
+
+    // Record every URL the entry takes, not just the last one: a stale write
+    // that is corrected a moment later still overwrites the history entry.
+    const seen: string[] = []
+    const unsubscribe = router.subscribe(state => { seen.push(state.location.search) })
+
+    // The address bar moves to another console view while the component stays
+    // mounted — what Back/Forward between two /admin entries does.
+    await act(async () => { await router.navigate('/admin?tab=reports') })
+
+    // The Reports tab is adopted instead of the retained Channels view, and the
+    // mirror effect must not rewrite the new entry with the stale state.
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: 'Filter channels by listing' })).toBeNull(),
+    )
+    unsubscribe()
+    expect(router.state.location.search).toBe('?tab=reports')
+    expect(seen).not.toContain('?tab=channels&listing=listed&cSort=name&cDir=asc')
+  })
+
+  it('strips a URL with nothing to track and still mirrors the next change', async () => {
+    // Reached by navigating WHILE mounted, not by a mount that already carries
+    // the param: the mount path initializes the applied marker and never runs
+    // the "nothing to adopt" branch.
+    const router = createMemoryRouter(
+      [{ path: '/admin', element: <AdminView /> }],
+      { initialEntries: ['/admin'] },
+    )
+    render(<RouterProvider router={router} />)
+    await screen.findByText('Alice')
+
+    await act(async () => { await router.navigate('/admin?utm_source=newsletter') })
+
+    // The mirror writes only tracked state, so the untracked parameter goes. If
+    // the guard were left armed here, this write would be skipped.
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+
+    openChannelsTab()
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=channels'))
+  })
+
+  it('hands the console state to the channel view from a report too', async () => {
+    let channelState: unknown = null
+    function ChannelProbe() {
+      channelState = useLocation().state
+      return <div>channel stub</div>
+    }
+
+    // A listing report (no message) — that variant offers "View channel".
+    reportsRpc([makeReport({ id: 'r1', message_id: null })])
+    render(
+      <MemoryRouter initialEntries={['/admin?tab=reports']}>
+        <Routes>
+          <Route path="/admin" element={<AdminView />} />
+          <Route path="/admin/channels/:id" element={<ChannelProbe />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(await screen.findByRole('link', { name: 'View channel' }))
+    expect(await screen.findByText('channel stub')).toBeInTheDocument()
+    expect(channelState).toEqual({ adminSearch: '?tab=reports' })
   })
 })

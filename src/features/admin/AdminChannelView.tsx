@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { LinkifiedText } from '../../components/LinkifiedText'
 import { Markdown } from '../../components/Markdown'
@@ -35,12 +35,49 @@ function senderLabel(message: AdminChannelMessage): string {
   return message.sender_display_name || message.sender_character_name || 'Unknown'
 }
 
+// #788: the admin view renders its own message list (not MessageItem), so it
+// needs its own avatar. Same fallback chain as the app: per-channel character
+// portrait (#743) → account picture → initial. SignedImg exchanges the private
+// bucket path for a signed URL, which the widened images_select policy now
+// allows for a server admin who is not a channel member.
+function AdminAvatar({ characterAvatarUrl, accountAvatarUrl, label, size }: {
+  characterAvatarUrl?: string | null
+  accountAvatarUrl?: string | null
+  label: string
+  size: 'sm' | 'md'
+}) {
+  const src = characterAvatarUrl || accountAvatarUrl || ''
+  const className = size === 'sm' ? 'h-6 w-6' : 'h-8 w-8'
+  if (src) {
+    return (
+      <SignedImg
+        src={src}
+        alt=""
+        referrerPolicy="no-referrer"
+        className={`${className} rounded-full object-cover shrink-0`}
+      />
+    )
+  }
+  return (
+    // A div, not a span: the roster rows use the first span for the character
+    // name, and this fallback must stay out of that lookup.
+    <div aria-hidden="true" className={`${className} rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-500 dark:text-primary-400 font-medium shrink-0`}>
+      {label.trim()[0]?.toUpperCase() || '?'}
+    </div>
+  )
+}
+
 // Read-only channel view for the server admin console (issue #550). No
 // composer, no edit/delete/reaction/reply/report affordances: admins are not
 // channel members, so even a hand-crafted write would fail RLS, and the UI
 // offers no path to attempt one.
 export function AdminChannelView() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  // #788: returning to the console must land on the view the admin left
+  // (tab, filters, sort). The list passes its query string through router
+  // state so this route's own URL stays the plain channel path.
+  const backToAdmin = `/admin${(location.state as { adminSearch?: string } | null)?.adminSearch ?? ''}`
   const { isServerAdmin, loading: adminLoading } = useIsServerAdmin()
   // Non-admins issue no RPC: without a channel id the hook stays idle.
   const { messages, loading, error, hasMore, loadingOlder, loadOlder, refetch, channel, channelLoading, channelError, channelMissing, refetchChannel, members, membersLoading, membersError, refetchMembers } =
@@ -116,7 +153,7 @@ export function AdminChannelView() {
       <div className="p-8 text-center">
         <p className="text-sm text-red-700 dark:text-red-300 mb-4">Couldn't load this channel.</p>
         <button type="button" onClick={() => refetchChannel()} className="font-semibold text-primary-600 dark:text-primary-400 hover:underline">Retry</button>
-        <div className="mt-4"><Link to="/admin" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">Back to admin</Link></div>
+        <div className="mt-4"><Link to={backToAdmin} className="text-sm text-primary-600 dark:text-primary-400 hover:underline">Back to admin</Link></div>
       </div>
     )
   }
@@ -126,7 +163,7 @@ export function AdminChannelView() {
       <div className="p-8 text-center">
         <p className="text-surface-900 dark:text-surface-100 font-medium mb-2">Channel not found.</p>
         <p className="text-sm text-surface-500 mb-4">It may have been deleted or archived.</p>
-        <Link to="/admin" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">Back to admin</Link>
+        <Link to={backToAdmin} className="text-sm text-primary-600 dark:text-primary-400 hover:underline">Back to admin</Link>
       </div>
     )
   }
@@ -135,7 +172,7 @@ export function AdminChannelView() {
     <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden bg-white dark:bg-surface-800">
       <div className="p-4 border-b border-surface-200 dark:border-surface-700">
         <div className="flex items-center gap-3">
-          <Link to="/admin" aria-label="Back to admin" className="p-2 -ml-2 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-full">
+          <Link to={backToAdmin} aria-label="Back to admin" className="p-2 -ml-2 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-full">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </Link>
           <div className="flex-1 min-w-0">
@@ -147,10 +184,13 @@ export function AdminChannelView() {
           Read-only admin view. You can review messages here, but you can't send any.
         </div>
         {/* #674: the listing behind a listing report. Without the copy an admin
-            would have to join the channel to judge the report. */}
+            would have to join the channel to judge the report. #788: collapsed
+            by default, like the roster below — a long description used to push
+            the messages out of the viewport, and the messages are why the admin
+            opened the channel. */}
         {channel.join_mode === 'approval' || channel.listing_takedown_at ? (
-          <div className="mt-3 rounded border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3">
-            <div className="flex items-center gap-2">
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer inline-flex items-center gap-2 font-medium text-surface-700 dark:text-surface-300 hover:text-surface-900 dark:hover:text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded">
               <span className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-400">
                 Listing
               </span>
@@ -158,22 +198,24 @@ export function AdminChannelView() {
               <span className="text-xs text-surface-500 dark:text-surface-400">
                 {channel.pending_request_count} pending
               </span>
+            </summary>
+            <div className="mt-2 rounded border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3">
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">Description</dt>
+                  <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">
+                    {channel.description ? <LinkifiedText text={channel.description} /> : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">What the GM expects</dt>
+                  <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">
+                    {channel.constraints ? <LinkifiedText text={channel.constraints} /> : '—'}
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <dl className="mt-2 space-y-2 text-sm">
-              <div>
-                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">Description</dt>
-                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">
-                  {channel.description ? <LinkifiedText text={channel.description} /> : '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">What the GM expects</dt>
-                <dd className="whitespace-pre-wrap text-surface-700 dark:text-surface-300">
-                  {channel.constraints ? <LinkifiedText text={channel.constraints} /> : '—'}
-                </dd>
-              </div>
-            </dl>
-          </div>
+          </details>
         ) : null}
         {/* Channel roster (issue #556): collapsed by default so the messages
         keep the viewport; the count comes from the channel header so it is
@@ -197,6 +239,12 @@ export function AdminChannelView() {
               <ul className="space-y-1.5">
                 {orderedMembers.map(member => (
                   <li key={member.user_id} className="flex items-center gap-2 min-w-0">
+                    <AdminAvatar
+                      characterAvatarUrl={member.character_avatar_url}
+                      accountAvatarUrl={member.avatar_url}
+                      label={member.character_name || member.display_name || '?'}
+                      size="sm"
+                    />
                     <span className="font-medium text-surface-900 dark:text-surface-100 truncate">{member.character_name}</span>
                     {member.display_name && member.display_name !== member.character_name && (
                       <span className="text-surface-500 truncate">{member.display_name}</span>
@@ -240,10 +288,24 @@ export function AdminChannelView() {
         ) : (
           messages.map(msg => (
             <div key={msg.id} className="flex gap-3">
-              <div className="flex flex-col w-full min-w-0 max-w-[85%] items-start">
+              <div className="shrink-0 pt-0.5">
+                <AdminAvatar
+                  characterAvatarUrl={msg.sender_character_avatar_url}
+                  accountAvatarUrl={msg.sender_avatar_url}
+                  label={senderLabel(msg)}
+                  size="md"
+                />
+              </div>
+              <div className="flex flex-col flex-1 min-w-0 max-w-[85%] items-start">
                 <div className="flex items-baseline gap-2 mb-1 flex-wrap">
                   <span className="text-sm font-medium text-surface-900 dark:text-surface-100">{senderLabel(msg)}</span>
                   <span className="text-xs text-surface-500">{formatTimestamp(msg.created_at)}</span>
+                  {/* #788: which room the message came from. Main messages have
+                      no room, and the read-only view merges every room into one
+                      timeline, so the label is the only clue. */}
+                  {msg.sub_channel_name && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">Room: {msg.sub_channel_name}</span>
+                  )}
                   {msg.type !== 'regular' && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">{msg.type}</span>
                   )}
