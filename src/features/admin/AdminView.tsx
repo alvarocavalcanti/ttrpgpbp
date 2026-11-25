@@ -337,7 +337,10 @@ export function AdminView() {
       next.set('aDir', archivedSort.sortDir)
     }
     const linkedUser = searchParams.get('user')
-    if (linkedUser) next.set('user', linkedUser)
+    // A link already consumed by the effect above must not ride along in later
+    // writes: the address bar would keep ?user=, and a reload would reopen the
+    // modal (the consumed marker resets on mount).
+    if (linkedUser && consumedDeepLink.current !== linkedUser) next.set('user', linkedUser)
     if (next.toString() !== searchParams.toString()) {
       writeParams(next)
     }

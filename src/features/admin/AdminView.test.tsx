@@ -1187,6 +1187,27 @@ describe('AdminView', () => {
     })
     expect(currentSearch).toBe('')
   })
+
+  it('does not carry a consumed ?user= into later console writes', async () => {
+    const router = createMemoryRouter(
+      [{ path: '/admin', element: <AdminView /> }],
+      { initialEntries: ['/admin?tab=reports&user=u1'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    await screen.findByRole('dialog', { name: 'Alice' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    expect(router.state.location.search).not.toContain('user=')
+
+    // A later write rebuilds the query from scratch; the consumed link must not
+    // ride along, or a reload would reopen the modal.
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Admin sections' })).getByRole('button', { name: 'Channels' })
+    )
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=channels'))
+  })
 })
 
   describe('listing surface (#674)', () => {
@@ -1833,26 +1854,25 @@ describe('console state (#788)', () => {
     expect(seen).not.toContain('?tab=channels&listing=listed&cSort=name&cDir=asc')
   })
 
-  it('still mirrors a change after a URL with nothing to adopt', async () => {
-    // A query string that touches no tracked state must not leave the guard
-    // armed and swallow the next real write.
-    let currentSearch = ''
-    function SearchProbe() {
-      currentSearch = useLocation().search
-      return null
-    }
-
-    render(
-      <MemoryRouter initialEntries={['/admin?utm_source=newsletter']}>
-        <Routes>
-          <Route path="/admin" element={<><AdminView /><SearchProbe /></>} />
-        </Routes>
-      </MemoryRouter>
+  it('strips a URL with nothing to track and still mirrors the next change', async () => {
+    // Reached by navigating WHILE mounted, not by a mount that already carries
+    // the param: the mount path initializes the applied marker and never runs
+    // the "nothing to adopt" branch.
+    const router = createMemoryRouter(
+      [{ path: '/admin', element: <AdminView /> }],
+      { initialEntries: ['/admin'] },
     )
-
+    render(<RouterProvider router={router} />)
     await screen.findByText('Alice')
+
+    await act(async () => { await router.navigate('/admin?utm_source=newsletter') })
+
+    // The mirror writes only tracked state, so the untracked parameter goes. If
+    // the guard were left armed here, this write would be skipped.
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+
     openChannelsTab()
-    await waitFor(() => expect(currentSearch).toBe('?tab=channels'))
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=channels'))
   })
 
   it('hands the console state to the channel view from a report too', async () => {
