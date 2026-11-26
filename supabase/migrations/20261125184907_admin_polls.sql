@@ -386,8 +386,10 @@ SET search_path = public
 AS $$
 DECLARE
   v_thread_id uuid;
-  v_subject text := btrim(COALESCE(p_subject, ''));
-  v_description text := NULLIF(btrim(COALESCE(p_description, '')), '');
+  -- One trim rule for every poll text field: btrim's default character set is
+  -- spaces only, so a tab-only subject, prompt or label would read as "filled".
+  v_subject text := regexp_replace(COALESCE(p_subject, ''), '^\s+|\s+$', '', 'g');
+  v_description text := NULLIF(regexp_replace(COALESCE(p_description, ''), '^\s+|\s+$', '', 'g'), '');
   v_question jsonb;
   v_options jsonb;
   v_option text;
@@ -425,7 +427,7 @@ BEGIN
       RAISE EXCEPTION 'Invalid question.';
     END IF;
 
-    v_prompt := btrim(COALESCE(v_question->>'prompt', ''));
+    v_prompt := regexp_replace(COALESCE(v_question->>'prompt', ''), '^\s+|\s+$', '', 'g');
     IF char_length(v_prompt) NOT BETWEEN 1 AND 300 THEN
       RAISE EXCEPTION 'A question prompt is required (300 characters max).';
     END IF;
@@ -455,8 +457,11 @@ BEGIN
       ) THEN
         RAISE EXCEPTION 'Each option needs a label (150 characters max).';
       END IF;
-      FOR v_option IN SELECT o.value FROM jsonb_array_elements_text(v_options) AS o(value) LOOP
-        IF char_length(btrim(v_option)) NOT BETWEEN 1 AND 150 THEN
+      FOR v_option IN
+        SELECT regexp_replace(o.value, '^\s+|\s+$', '', 'g')
+        FROM jsonb_array_elements_text(v_options) AS o(value)
+      LOOP
+        IF char_length(v_option) NOT BETWEEN 1 AND 150 THEN
           RAISE EXCEPTION 'Each option needs a label (150 characters max).';
         END IF;
       END LOOP;
@@ -476,7 +481,7 @@ BEGIN
     IF v_type = 'short_text' THEN
       v_labels := '[]'::jsonb;
     ELSE
-      SELECT jsonb_agg(to_jsonb(btrim(o.value)) ORDER BY o.idx)
+      SELECT jsonb_agg(to_jsonb(regexp_replace(o.value, '^\s+|\s+$', '', 'g')) ORDER BY o.idx)
       INTO v_labels
       FROM jsonb_array_elements_text(v_options) WITH ORDINALITY AS o(value, idx);
     END IF;
@@ -486,7 +491,7 @@ BEGIN
     VALUES (
       v_thread_id,
       v_position,
-      btrim(v_question->>'prompt'),
+      regexp_replace(v_question->>'prompt', '^\s+|\s+$', '', 'g'),
       v_type,
       COALESCE((v_question->'is_required')::boolean, true),
       v_labels
@@ -562,6 +567,19 @@ BEGIN
   -- check and the response insert (the close then waits and re-reads closed_at).
   SELECT * INTO v_poll FROM public.admin_polls WHERE thread_id = p_thread_id FOR UPDATE;
   IF NOT FOUND THEN
+    RAISE EXCEPTION 'Poll not found.';
+  END IF;
+
+  -- Re-check eligibility now the locks are held: a suspension can commit while
+  -- this call waits, and the response must not be stored for an ineligible user.
+  IF NOT (
+    is_server_admin()
+    OR (
+      v_thread.audience = 'all_users'
+      AND NOT is_suspended(auth.uid())
+    )
+    OR (v_thread.audience = 'gms' AND is_active_gm(auth.uid()))
+  ) THEN
     RAISE EXCEPTION 'Poll not found.';
   END IF;
 
@@ -803,7 +821,9 @@ BEGIN
   ) seen;
 
   -- Replies use the same population as views (the author excluded), so the
-  -- completion rate can never exceed 100%.
+  -- completion rate can never exceed 100%. The per-question results below apply
+  -- the same rule, so an author who answers their own poll is not counted where
+  -- the reply total does not count them.
   SELECT count(*)::integer INTO v_replies
   FROM public.admin_poll_responses
   WHERE thread_id = p_thread_id
@@ -820,7 +840,9 @@ BEGIN
       'total_answers', (
         SELECT count(*)
         FROM public.admin_poll_answers a
+        JOIN public.admin_poll_responses r ON r.id = a.response_id
         WHERE a.question_id = q.id
+          AND r.user_id <> v_thread.created_by
           AND (
             NULLIF(regexp_replace(COALESCE(a.text_answer, ''), '^\s+|\s+$', '', 'g'), '') IS NOT NULL
             OR cardinality(a.selected_options) > 0
@@ -834,7 +856,9 @@ BEGIN
             SELECT i AS idx, (
               SELECT count(*)
               FROM public.admin_poll_answers a
+              JOIN public.admin_poll_responses r ON r.id = a.response_id
               WHERE a.question_id = q.id
+                AND r.user_id <> v_thread.created_by
                 AND i = ANY (a.selected_options)
             ) AS cnt
             FROM generate_series(0, jsonb_array_length(q.options) - 1) AS i
@@ -850,6 +874,7 @@ BEGIN
             FROM public.admin_poll_answers a
             JOIN public.admin_poll_responses r ON r.id = a.response_id
             WHERE a.question_id = q.id
+              AND r.user_id <> v_thread.created_by
               AND NULLIF(regexp_replace(COALESCE(a.text_answer, ''), '^\s+|\s+$', '', 'g'), '') IS NOT NULL
           ) txt
         )

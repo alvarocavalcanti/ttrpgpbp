@@ -10,7 +10,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(79);
+SELECT plan(88);
 
 -- ===== Fixture =====
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -98,6 +98,11 @@ SELECT throws_ok(
   $$SELECT create_admin_poll('Subject', 'all_users', NULL, '[{"prompt":"Q","question_type":"single_choice","is_required":true,"options":["ok",null]}]'::jsonb)$$,
   'P0001', 'Each option needs a label (150 characters max).',
   'a JSON null option label is refused'
+);
+SELECT throws_ok(
+  $$SELECT create_admin_poll('Subject', 'all_users', NULL, '[{"prompt":"Q","question_type":"single_choice","is_required":true,"options":["ok","\t"]}]'::jsonb)$$,
+  'P0001', 'Each option needs a label (150 characters max).',
+  'a tab-only option label is refused'
 );
 RESET ROLE;
 
@@ -658,6 +663,72 @@ SELECT is(
   'the admin cannot read raw answers through the browser (report RPC only)'
 );
 RESET ROLE;
+
+-- ===== 11. Author responses and whitespace normalization in the composer =====
+-- The author of p4 answers their own poll; the report's per-question results
+-- must exclude them, just as views and replies already do.
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000000008241');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $$SELECT submit_admin_poll_response(
+      (SELECT thread_id FROM poll_ids WHERE name = 'p4'),
+      jsonb_build_array(jsonb_build_object(
+        'question_id', (SELECT id FROM admin_poll_questions WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p4') AND position = 0),
+        'text_answer', 'Admin note')))$$,
+  'the poll author can answer their own poll'
+);
+RESET ROLE;
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000000008241');
+SET LOCAL ROLE authenticated;
+SELECT is(
+  (get_admin_poll_report((SELECT thread_id FROM poll_ids WHERE name = 'p4'))->>'replies')::integer,
+  1,
+  'the report excludes the author from the reply count'
+);
+SELECT is(
+  (get_admin_poll_report((SELECT thread_id FROM poll_ids WHERE name = 'p4'))->'questions'->0->>'total_answers')::integer,
+  1,
+  'the per-question total excludes the author'
+);
+SELECT is(
+  (get_admin_poll_report((SELECT thread_id FROM poll_ids WHERE name = 'p4'))->'questions'->0->'text_answers'),
+  '["Trimmed"]'::jsonb,
+  'the text answers exclude the author'
+);
+RESET ROLE;
+
+-- Published last so the extra all-users thread cannot shift the count
+-- assertions in sections 4 and 8.
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000000008241');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $$INSERT INTO poll_ids (name, thread_id)
+    SELECT 'p5', create_admin_poll(
+      E'\t  Padded  \n',
+      'all_users',
+      NULL,
+      '[{"prompt":"\t Which one? \n","question_type":"single_choice","is_required":true,"options":["\t Main \n","Rooms\t"]}]'::jsonb
+    )$$,
+  'a poll with whitespace-padded text is published'
+);
+RESET ROLE;
+
+SELECT is(
+  (SELECT subject FROM admin_threads WHERE id = (SELECT thread_id FROM poll_ids WHERE name = 'p5')),
+  'Padded',
+  'the subject is trimmed of tabs and newlines'
+);
+SELECT is(
+  (SELECT jsonb_agg(prompt ORDER BY position) FROM admin_poll_questions WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p5')),
+  '["Which one?"]'::jsonb,
+  'the question prompt is trimmed of tabs and newlines'
+);
+SELECT is(
+  (SELECT options FROM admin_poll_questions WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p5')),
+  '["Main", "Rooms"]'::jsonb,
+  'option labels are trimmed of tabs and newlines before storage'
+);
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -116,6 +116,76 @@ describe('PollThreadDetail', () => {
     expect(refetch).toHaveBeenCalled()
   })
 
+  it('shows an unavailable state instead of an empty form when the poll is gone', () => {
+    mockPoll({ poll: null })
+
+    render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
+
+    expect(screen.getByText('This poll is no longer available.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit Response' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Open')).not.toBeInTheDocument()
+  })
+
+  it('does not render the response form when the poll failed to load', () => {
+    mockPoll({ poll: null, error: new Error('boom') })
+
+    render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
+
+    expect(screen.getByText("Couldn't load the poll.")).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit Response' })).not.toBeInTheDocument()
+  })
+
+  it('locks the answers while saving and keeps the draft when the save fails', async () => {
+    let resolveSave: (ok: boolean) => void = () => {}
+    const submitResponse = vi.fn(() => new Promise<boolean>(resolve => { resolveSave = resolve }))
+    mockPoll({ submitResponse })
+
+    render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Main'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Response' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Rooms')).toBeDisabled())
+
+    resolveSave(false)
+    await waitFor(() => expect(screen.getByLabelText('Rooms')).not.toBeDisabled())
+    expect(screen.getByLabelText('Main')).toBeChecked()
+  })
+
+  it('counts code points, so 500 emoji are within the limit and submitted whole', async () => {
+    const submitResponse = vi.fn().mockResolvedValue(true)
+    mockPoll({ questions: [questions[1]], submitResponse })
+    const value = '😀'.repeat(500)
+
+    render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Anything else?'), { target: { value } })
+
+    expect(screen.getByText('500/500')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Response' }))
+
+    await waitFor(() => expect(submitResponse).toHaveBeenCalledWith([
+      { question_id: 'q2', selected_options: [], text_answer: value },
+    ]))
+  })
+
+  it('keeps an over-limit answer without truncating it and refuses to submit', async () => {
+    const submitResponse = vi.fn()
+    mockPoll({ questions: [questions[1]], submitResponse })
+    const value = '😀'.repeat(501)
+
+    render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
+    const textarea = screen.getByLabelText('Anything else?')
+    fireEvent.change(textarea, { target: { value } })
+
+    expect(screen.getByText('501/500')).toBeInTheDocument()
+    expect(screen.getByText('At most 500 characters.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Response' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Text answers are limited to 500 characters.')
+    expect(submitResponse).not.toHaveBeenCalled()
+    expect(textarea).toHaveValue(value)
+  })
+
   it('refuses to submit while a required question is unanswered', async () => {
     render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
 
@@ -144,7 +214,7 @@ describe('PollThreadDetail', () => {
     fireEvent.click(screen.getByLabelText('Rooms'))
     const textarea = screen.getByLabelText('Anything else?')
     fireEvent.change(textarea, { target: { value: '  Great work  ' } })
-    expect(screen.getByText('14/500')).toBeInTheDocument()
+    expect(screen.getByText('10/500')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Submit Response' }))
 
@@ -240,6 +310,17 @@ describe('PollThreadDetail', () => {
     fireEvent.click(screen.getByText('Retry'))
     expect(refetch).toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Submit Response' })).toBeInTheDocument()
+  })
+
+  it('shows loading instead of Retry while the report refetch is pending', () => {
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
+    mockPoll({ reportError: new Error('boom'), loading: true })
+
+    render(<PollThreadDetail thread={mockThread} onBack={vi.fn()} />)
+
+    expect(screen.getByText("Couldn't load the poll report.")).toBeInTheDocument()
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(screen.queryByText('Retry')).not.toBeInTheDocument()
   })
 
   it('shows the aggregated admin report with counts and percentages', () => {

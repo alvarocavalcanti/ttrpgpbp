@@ -7,6 +7,10 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 const TEXT_ANSWER_MAX = 500
 
+// PostgreSQL's char_length counts characters (code points); JS .length counts
+// UTF-16 units, so an emoji would be two here and one in the database.
+const answerLength = (value: string) => [...value].length
+
 function percentage(count: number, total: number): number {
   if (total <= 0) return 0
   return Math.min(100, Math.round((count / total) * 100))
@@ -128,6 +132,11 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
       const text = (textAnswers[question.id] ?? '').trim()
       const selected = question.question_type === 'short_text' ? [] : (choices[question.id] ?? [])
 
+      if (question.question_type === 'short_text' && answerLength(text) > TEXT_ANSWER_MAX) {
+        setFormError('Text answers are limited to 500 characters.')
+        return
+      }
+
       if (question.is_required) {
         const missing = question.question_type === 'short_text' ? !text : selected.length === 0
         if (missing) {
@@ -188,12 +197,14 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{thread.subject || 'Poll'}</h2>
           <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <span>Poll · {audienceLabel}</span>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[0.6875rem] font-medium ${closed ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' : 'bg-green-50 dark:bg-green-900/40 text-green-700 dark:text-green-300'}`}>
-              {closed ? 'Closed' : 'Open'}
-            </span>
+            {poll && (
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[0.6875rem] font-medium ${closed ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' : 'bg-green-50 dark:bg-green-900/40 text-green-700 dark:text-green-300'}`}>
+                {closed ? 'Closed' : 'Open'}
+              </span>
+            )}
           </div>
         </div>
-        {isServerAdmin && !closed && (
+        {isServerAdmin && poll && !closed && (
           <button type="button" onClick={() => setConfirmAction('close')} className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700">
             Close Poll
           </button>
@@ -219,6 +230,12 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
           </div>
         )}
 
+        {!loading && !poll && !error && (
+          <div role="status" className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+            This poll is no longer available.
+          </div>
+        )}
+
         {poll?.description && (
           <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{poll.description}</p>
         )}
@@ -226,7 +243,9 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
         {isServerAdmin && reportError && (
           <div className="p-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 flex justify-between items-center">
             <span>Couldn't load the poll report.</span>
-            <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>
+            {loading
+              ? <span className="text-xs">Loading…</span>
+              : <button type="button" onClick={() => refetch()} className="font-semibold hover:underline">Retry</button>}
           </div>
         )}
 
@@ -267,16 +286,19 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
             })}
           </section>
         ) : (
-          !loading || questions.length > 0 ? (
+          poll && (!loading || questions.length > 0) ? (
             <form onSubmit={handleSubmit} className="space-y-5">
               {questions.map((question, index) => {
                 const groupName = `poll-question-${question.id}`
                 const text = textAnswers[question.id] ?? ''
                 const selected = choices[question.id] ?? []
+                // The limit is on the answer the server stores, which is trimmed
+                // of surrounding whitespace, so the counter matches it.
+                const count = answerLength(text.trim())
                 return (
                   <fieldset
                     key={question.id}
-                    disabled={closed}
+                    disabled={closed || submitting}
                     className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 min-w-0"
                   >
                     <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -292,7 +314,6 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
                         <textarea
                           id={`${groupName}-text`}
                           value={text}
-                          maxLength={TEXT_ANSWER_MAX}
                           onChange={e => {
                             setFormError(null)
                             setTextAnswers(prev => ({ ...prev, [question.id]: e.target.value }))
@@ -300,9 +321,12 @@ export function PollThreadDetail({ thread, onBack }: { thread: Thread, onBack: (
                           rows={3}
                           className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
                         />
-                        <div className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
-                          {text.length}/{TEXT_ANSWER_MAX}
+                        <div className={`mt-1 text-right text-xs ${count > TEXT_ANSWER_MAX ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {count}/{TEXT_ANSWER_MAX}
                         </div>
+                        {count > TEXT_ANSWER_MAX && (
+                          <p className="mt-1 text-xs text-red-600 dark:text-red-400">At most {TEXT_ANSWER_MAX} characters.</p>
+                        )}
                       </div>
                     ) : (
                       <div className="mt-2 space-y-2">

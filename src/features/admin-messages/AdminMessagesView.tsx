@@ -38,7 +38,7 @@ export function AdminMessagesView() {
 
       <div className={`md:flex-1 w-full flex flex-col min-h-0 ${selectedThread ? 'flex-1' : 'hidden md:flex items-center justify-center bg-gray-50 dark:bg-gray-900'}`}>
         {selectedThread ? (
-          <ThreadDetail thread={selectedThread} onBack={() => setSelectedThread(null)} />
+          <ThreadDetail thread={selectedThread} onBack={() => setSelectedThread(current => (current?.id === selectedThread.id ? null : current))} />
         ) : (
           <div className="text-gray-500 dark:text-gray-400">Select a message thread</div>
         )}
