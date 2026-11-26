@@ -72,7 +72,7 @@ Boundaries: code/commits/PRs written normal.
 
   3. **Set `workdir` to the worktree path** for all subsequent commands.
 
-  4. **Work, commit, push, open PR.** Report the PR link. **Never** monitor CI unless the request asks for it (token expensive): the monitor-only and take-it-to-merge modes below are the exceptions.
+  4. **Work, commit, push, open PR.** Before opening the PR, run the `reviewer` subagent against the diff (`git diff origin/main...HEAD` plus uncommitted work) and fix its valid findings. It encodes the CodeRabbit-anticipation checklist in [.opencode/agents/reviewer.md](.opencode/agents/reviewer.md) — cheap to fix locally, expensive to re-litigate in review. Report the PR link. **Never** monitor CI unless the request asks for it (token expensive): the monitor-only and take-it-to-merge modes below are the exceptions.
 
   5. **Stop, or take it to merge — the request decides.** Pick the mode from what the user asked for. It is per request, not per session, and it never carries over: the next request starts in the default unless it says otherwise. If the ask is ambiguous ("ship it", "get this in"), ask which mode before acting — merging is irreversible and the default is to wait.
 
@@ -118,6 +118,8 @@ The request is the permission. Do not stop to ask before each step.
    A bare `--force-with-lease` trusts the local tracking ref, which a background fetch may already have moved. If the lease fails, fetch, re-read the new head, and incorporate it before retrying.
 2. **Monitor** — watch checks and review bots until they settle. A failing check gets its real cause fixed; never `--no-verify`.
 3. **AAR** — "assess, address and reply" (trigger: "AAR <PR comment link>"): read every review comment (CodeRabbit, Copilot, human), fix what is valid, and reply in each thread with the fix commit or the reason for the no-op. Fixing a finding you believe is wrong just to clear it is worse than replying why it is wrong.
+
+   Then harvest: any CodeRabbit finding the `reviewer` checklist did not anticipate gets one line added to [.opencode/agents/reviewer.md](.opencode/agents/reviewer.md) in the same PR. If a checklist item caught it, leave the checklist alone — growing it for findings it already covers makes it noisy and useless.
 4. **Every new head needs its own review.** A fix commit, a rebase, or a force-push all change the head SHA, and a review of the previous SHA does not cover the new one. After any of them, get a review of the new head: CodeRabbit's check run for that SHA says "Review completed", or a Copilot review whose commit matches it. "Rate limited" and "Review in progress" do not count.
 5. **Merge** — `gh pr merge <n> --squash --match-head-commit <sha>`, where `<sha>` is the head that passed the gates. A push that lands between validation and merge then fails instead of merging work no one reviewed. Merge only once `mergeStateStatus` is `CLEAN`, no check is failing, no comment is unanswered, **and the head SHA has a completed review**.
 6. **Verify the merge** — report the `push` runs for this PR's squash-merge commit (`gh pr view <n> --json mergeCommit`), not simply the latest run per workflow: another PR may have landed first. Expect `CI`, `Apply Migrations`, and the deploy.
