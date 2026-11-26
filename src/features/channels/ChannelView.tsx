@@ -140,7 +140,7 @@ export function ChannelView() {
   const { requests: pendingJoinRequests, refetch: refetchJoinRequests } = usePendingJoinRequests(isGM ? id : undefined)
   const { counts: roomUnread, markRoomRead, markMainRead, refetch: refetchRoomUnread, waitForReads: waitForRoomReads } = useSubChannelUnread(id, subId ?? null, canMarkRead)
   const [showManageRooms, setShowManageRooms] = useState(false)
-  // Create is its own dialog (#774): + Room opens this, the gear opens the
+  // Create is its own dialog (#774): the Add room button opens this, the gear opens the
   // manager, and the manager no longer creates.
   const [showCreateRoom, setShowCreateRoom] = useState(false)
   // Active room and its capability flags (#621 Phase 2). Main (no room) and an

@@ -33,7 +33,7 @@ The **NPCs** sidebar item opens the NPC roster for the channel. From there the G
 
 ## Rooms
 
-The **Rooms** sidebar item opens the room manager. Every room shows a summary line — its name, audience and the features turned on — and expands in place, one at a time, to reveal **Open**, **Rename**, **Archive**, **Delete**, the audience choice (**Everyone**, **Only the GM**, or **Invited players**) and the per-room dice, Scenes, NPC posts, and whispers toggles. Archived rooms sit in their own section at the bottom, where they can be restored. The manager does not create rooms — the **+ Room** chip in the room bar does, in one dialog where the name, features and audience (and the players, for an invited-players room) are all chosen at once. A channel holds up to 10 active rooms. See [Rooms](/help/rooms) for the full guide.
+The **Rooms** sidebar item opens the room manager. Every room shows a summary line — its name, audience and the features turned on — and expands in place, one at a time, to reveal **Open**, **Rename**, **Archive**, **Delete**, the audience choice (**Everyone**, **Only the GM**, or **Invited players**) and the per-room dice, Scenes, NPC posts, and whispers toggles. Archived rooms sit in their own section at the bottom, where they can be restored. The manager does not create rooms — the plus-and-door **Add room** button in the room bar does, in one dialog where the name, features and audience (and the players, for an invited-players room) are all chosen at once. A channel holds up to 10 active rooms. See [Rooms](/help/rooms) for the full guide.
 
 ## Campaign notes
 
