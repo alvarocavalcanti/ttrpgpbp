@@ -9,9 +9,9 @@ Every channel starts with **Main**, the original conversation. Rooms sit beside 
 
 ## Creating and managing rooms
 
-The **GM** creates rooms from the **Add room** button in the room bar. The bar is there for the GM from the first visit, even before the first room exists, so **Add room** is always one tap away. A channel can hold up to **10 active rooms**. (**GM Tools → Rooms** opens the manager, not the create dialog.)
+The **GM** creates rooms from the **Add room** button — the small plus beside a door at the right end of the room bar, next to the gear. The bar is there for the GM from the first visit, even before the first room exists, so that button is always one tap away. A channel can hold up to **10 active rooms**. (**GM Tools → Rooms** opens the manager, not the create dialog.)
 
-**Add room** opens one dialog with everything the room needs:
+Tapping the plus-and-door button opens one dialog with everything the room needs:
 
 - **Name** — up to 40 characters ("Main" is reserved)
 - **Features** — Dice, Scenes, NPCs and whispers, all on by default
@@ -20,7 +20,7 @@ The **GM** creates rooms from the **Add room** button in the room bar. The bar i
 
 The room and its invited players are saved together, so if the server refuses the room nothing half-built is left behind, and the confirmation says who can see it — "Visible to 3 invited players", never "everyone" for a private room.
 
-The **gear** beside **Add room**, and **GM Tools → Rooms**, open the room manager. Every room is a single summary line — its name, who can see it, and which features are on — so the whole list is easy to scan. Tap a room to open its controls in place; only one room opens at a time. From there the GM can:
+The **gear** beside the plus-and-door button, and **GM Tools → Rooms**, open the room manager. Every room is a single summary line — its name, who can see it, and which features are on — so the whole list is easy to scan. Tap a room to open its controls in place; only one room opens at a time. From there the GM can:
 
 - **Open** a room — jump straight into it
 - **Rename** a room
@@ -30,7 +30,7 @@ The **gear** beside **Add room**, and **GM Tools → Rooms**, open the room mana
 - **Choose who can see it** — Everyone, Only the GM, or Invited players
 - **Turn features on or off** for that room — dice, Scenes, NPC posts, and whispers
 
-The manager does not create rooms; **Add room** does.
+The manager does not create rooms; the plus-and-door button does.
 
 ## Who can see a room
 

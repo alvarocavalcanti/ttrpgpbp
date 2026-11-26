@@ -215,7 +215,7 @@ export function ManageSubChannelsModal({
           <>
             {!error && subChannels.length === 0 && (
               <p className="text-sm text-surface-500 dark:text-surface-400 py-2">
-                No rooms yet. Use Add room in the room bar to make one — a place for out-of-character chat, dice, or a scene.
+                No rooms yet. Close this window and tap the plus-and-door button in the room bar to make one — a place for out-of-character chat, dice, or a scene.
               </p>
             )}
 
