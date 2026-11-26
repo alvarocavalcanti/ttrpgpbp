@@ -51,7 +51,7 @@ export function CreateRoomModal({
   useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   // Focus the name field only AFTER useFocusTrap has captured the element that
-  // opened the dialog (the + Room chip). `autoFocus` would run during commit,
+  // opened the dialog (the Add room button). `autoFocus` would run during commit,
   // before the trap's effect, so Escape would have nobody to restore focus to.
   useEffect(() => {
     nameInputRef.current?.focus({ preventScroll: true })

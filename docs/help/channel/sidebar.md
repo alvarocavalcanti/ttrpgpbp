@@ -29,7 +29,7 @@ The sidebar groups items by who uses them:
 
 **GM Tools** — GM only:
 
-- **Rooms** — manage your rooms in the manager (expand a room to open it, rename, archive, delete, and choose who can see it and which features are on), or use **+ Room** in the room bar to create one — see [Rooms](/help/rooms)
+- **Rooms** — manage your rooms in the manager (expand a room to open it, rename, archive, delete, and choose who can see it and which features are on), or use **Add room** in the room bar to create one — see [Rooms](/help/rooms)
 - **NPCs** — manage the channel's NPC roster
 - **Active Player** — name whose turn it is (or set a single player from their **⋯** menu in the member list)
 - **Settings** — configure the channel itself

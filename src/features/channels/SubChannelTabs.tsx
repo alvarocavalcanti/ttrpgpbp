@@ -21,12 +21,14 @@ const TAB_BASE =
   'flex-shrink-0 inline-flex items-center min-h-9 px-3 rounded-full text-sm font-medium whitespace-nowrap transition-colors'
 const TAB_ACTIVE = 'bg-primary-600 text-white'
 const TAB_IDLE = 'text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
+// A filled background keeps these two controls apart from the room tabs they
+// scroll beside (#845), the same way the header's menu button stands out.
 const ICON_BUTTON =
-  'flex-shrink-0 inline-flex items-center justify-center min-h-11 min-w-11 rounded-full text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700'
+  'flex-shrink-0 inline-flex items-center justify-center min-h-11 min-w-11 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors'
 
 // The room bar (#621). Players see nothing until a channel has at least one
 // room, so legacy channels are pixel-identical for them; the GM always gets the
-// bar so the "+ Room" create entry point exists before the first room (#774).
+// bar so the "Add room" entry point exists before the first room (#774).
 // Main is the existing `/channel/:id` timeline; rooms are
 // `/channel/:id/sub/:subId`.
 export function SubChannelTabs({
@@ -146,11 +148,16 @@ export function SubChannelTabs({
             type="button"
             onClick={onCreate}
             aria-label="Add room"
-            className={`${ICON_BUTTON} w-auto px-3 text-sm font-medium`}
+            title="Add room"
+            className={ICON_BUTTON}
           >
-            + Room
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true" data-testid="add-room-icon">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 4h7v16h-7V4z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12h.01" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h6M6 9v6" />
+            </svg>
           </button>
-          <button type="button" onClick={onManage} aria-label="Manage rooms" className={ICON_BUTTON}>
+          <button type="button" onClick={onManage} aria-label="Manage rooms" title="Manage rooms" className={ICON_BUTTON}>
             <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
