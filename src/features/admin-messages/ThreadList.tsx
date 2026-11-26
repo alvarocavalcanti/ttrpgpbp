@@ -5,6 +5,8 @@ import { useAdminThreads, type CreateThreadInput } from './useAdminThreads'
 import type { CreatePollInput, PollQuestionDraft, PollQuestionType } from './types'
 import { useMessageRecipients } from './useMessageRecipients'
 import { Avatar } from '../../components/Avatar'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { useToast } from '../../contexts/ToastContext'
 
@@ -192,8 +194,29 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, creat
   const [gmId, setGmId] = useState('')
   const [questions, setQuestions] = useState<PollQuestionDraft[]>([newPollQuestion()])
   const [submitting, setSubmitting] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const { addToast } = useToast()
   const { recipients, loading: recipientsLoading, error: recipientsError, refetch: refetchRecipients } = useMessageRecipients(isServerAdmin)
+
+  // Picking a type or audience alone is not lost work; typed subject/body,
+  // poll questions, or a chosen recipient is.
+  const isDirty = subject.trim() !== ''
+    || content !== (initialContent ?? '')
+    || gmId !== ''
+    || questions.length > 1
+    || questions.some(q => q.prompt.trim() !== '' || q.options.some(option => option.trim() !== ''))
+
+  // Escape, backdrop, the × and Cancel all land here, so a long draft is not
+  // lost by an accidental dismissal.
+  const requestClose = () => {
+    if (submitting) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+  }
+  useEscapeToClose(requestClose)
 
   const updateQuestion = (key: string, patch: Partial<PollQuestionDraft>) => {
     setQuestions(prev => prev.map(q => (q.key === key ? { ...q, ...patch } : q)))
@@ -306,12 +329,13 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, creat
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full overflow-hidden ${type === 'poll' ? 'max-w-lg' : 'max-w-md'}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div data-testid="new-thread-backdrop" className="fixed inset-0 bg-black/50" aria-hidden="true" onClick={requestClose} />
+      <div className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full overflow-hidden ${type === 'poll' ? 'max-w-lg' : 'max-w-md'}`}>
         <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[90vh]">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">New Message</h3>
-            <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-500">&times;</button>
+            <button type="button" onClick={requestClose} aria-label="Close" className="text-gray-400 hover:text-gray-500">&times;</button>
           </div>
           
           <div className="p-4 overflow-y-auto space-y-4">
@@ -523,7 +547,7 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, creat
           </div>
           
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 dark:text-gray-300">Cancel</button>
+            <button type="button" onClick={requestClose} className="px-4 py-2 text-gray-600 dark:text-gray-300">Cancel</button>
             <button
               type="submit"
               disabled={submitting || (type === 'dm' && isServerAdmin && (!!recipientsError || !gmId))}
@@ -536,6 +560,19 @@ function NewThreadModal({ onClose, onCreated, isServerAdmin, createThread, creat
           </div>
         </form>
       </div>
+
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Discard message?"
+          description="Your draft will be lost."
+          confirmLabel="Discard"
+          onConfirm={() => {
+            setConfirmDiscard(false)
+            onClose()
+          }}
+          onClose={() => setConfirmDiscard(false)}
+        />
+      )}
     </div>
   )
 }

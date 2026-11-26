@@ -25,5 +25,6 @@ Only the GM can open this tab or read these notes. Players never see the tab.
 - A note can be up to **4,000 characters**.
 - Everyone who can see a note gets it live, without refreshing.
 - You can edit or delete your own notes at any time. You cannot change a note's audience after writing it — add a new note on the right tab instead.
+- Closing the window with an unsaved note, or switching tabs in the middle of an edit, asks before discarding it.
 - In an archived campaign, notes stay readable but the writing controls are disabled.
 - When you use **Download My Data**, the notes you wrote are included in the export.

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CreateChannelModal } from './CreateChannelModal'
@@ -319,6 +319,73 @@ describe('CreateChannelModal', () => {
         passwordSalt: undefined,
       })
       expect(mockTrackEvent).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('dirty-state discard guard (#850)', () => {
+    const discardDialog = () => screen.queryByRole('dialog', { name: 'Discard changes?' })
+
+    it('closes a clean form in one action with no confirm', () => {
+      renderModal()
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(mockOnClose).toHaveBeenCalledTimes(1)
+      expect(discardDialog()).not.toBeInTheDocument()
+    })
+
+    it('asks before discarding a typed draft', () => {
+      renderModal()
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(discardDialog()).toBeInTheDocument()
+      expect(mockOnClose).not.toHaveBeenCalled()
+    })
+
+    it('guards Escape and backdrop too', () => {
+      renderModal()
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(discardDialog()).toBeInTheDocument()
+      // Cancel the confirm, then try the backdrop.
+      fireEvent.click(within(discardDialog()!).getByRole('button', { name: 'Cancel' }))
+      expect(discardDialog()).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('create-channel-backdrop'))
+      expect(discardDialog()).toBeInTheDocument()
+      expect(mockOnClose).not.toHaveBeenCalled()
+    })
+
+    it('keeps the draft when the discard confirm is cancelled', () => {
+      renderModal()
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      fireEvent.click(within(discardDialog()!).getByRole('button', { name: 'Cancel' }))
+
+      expect(discardDialog()).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Channel Name')).toHaveValue('New Game')
+      expect(mockOnClose).not.toHaveBeenCalled()
+    })
+
+    it('Escape closes the confirm before the form (shared escape stack)', () => {
+      renderModal()
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(discardDialog()).toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(discardDialog()).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Channel Name')).toHaveValue('New Game')
+      expect(mockOnClose).not.toHaveBeenCalled()
+    })
+
+    it('discards and closes on confirm', () => {
+      renderModal()
+      fireEvent.change(screen.getByLabelText('Channel Name'), { target: { value: 'New Game' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
   })
 })

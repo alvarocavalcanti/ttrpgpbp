@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Closing a form with unsaved text now asks first** — creating a game, editing your character, writing campaign notes, drafting a message to the server administrator, or applying to a public game no longer throws your typing away when you tap outside, press Escape, or close the window. You're asked to confirm before anything is discarded, and backing out keeps everything you typed. The same goes for switching note tabs in the middle of editing an existing note. Forms you haven't touched still close in one tap.
 - **Adding a room is an icon now** *(for GMs)* — the room bar's **Add room** control is a plus beside a door instead of the **+ Room** text, so it no longer looks like one of your room tabs, and it sits beside the gear at the same size. Both buttons now have their own shaded background, so you can tell them apart from the rooms at a glance.
 
 ## 2026-11-25

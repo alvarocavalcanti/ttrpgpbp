@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { hashPassword } from '../../lib/crypto'
 import { GAME_SYSTEM_OPTIONS } from '../../game-systems'
 import { MAX_CHANNELS_PER_USER, MAX_CHANNEL_NAME_LENGTH, MAX_LISTING_TEXT_LENGTH, MAX_APPLICATION_PROMPT_LENGTH } from '../../constants'
@@ -19,7 +20,6 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const { user, profile } = useAuth()
   const { isServerAdmin } = useIsServerAdmin()
   const dialogRef = useRef<HTMLDivElement>(null)
-  useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   const navigate = useNavigate()
   const { value: maxChannels } = useAppSetting<number>('max_channels_per_user', MAX_CHANNELS_PER_USER)
@@ -35,9 +35,43 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   const [description, setDescription] = useState('')
   const [constraints, setConstraints] = useState('')
   const [applicationPrompt, setApplicationPrompt] = useState('')
+
+  // Everything starts at a known baseline, so any typed text or changed field
+  // makes the form dirty and dismissal asks before discarding (#850).
+  const [initial] = useState(() => ({
+    name: '',
+    gameSystem: 'none',
+    password: '',
+    characterName: profile?.display_name || '',
+    joinMode: 'invite' as const,
+    description: '',
+    constraints: '',
+    applicationPrompt: '',
+  }))
+  const isDirty = name !== initial.name
+    || gameSystem !== initial.gameSystem
+    || password !== initial.password
+    || characterName !== initial.characterName
+    || joinMode !== initial.joinMode
+    || description !== initial.description
+    || constraints !== initial.constraints
+    || applicationPrompt !== initial.applicationPrompt
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+
+  // Every close path (Escape, backdrop, Cancel) goes through the guard, so an
+  // accidental dismissal cannot lose the draft.
+  const requestClose = () => {
+    if (isSubmitting) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+  }
+  useEscapeToClose(requestClose)
 
   const { countMyChannels, createChannel } = useCreateChannel()
   const isListed = joinMode === 'approval'
@@ -107,7 +141,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
   return (
     <div ref={dialogRef} className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+        <div data-testid="create-channel-backdrop" className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={requestClose}></div>
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
@@ -328,7 +362,7 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   disabled={isSubmitting}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm transition-colors"
                 >
@@ -339,6 +373,19 @@ export function CreateChannelModal({ onClose }: CreateChannelModalProps) {
           </div>
         </div>
       </div>
+
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Discard changes?"
+          description="Your channel setup will be lost."
+          confirmLabel="Discard"
+          onConfirm={() => {
+            setConfirmDiscard(false)
+            onClose()
+          }}
+          onClose={() => setConfirmDiscard(false)}
+        />
+      )}
     </div>
   )
 }

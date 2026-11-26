@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BottomSheet } from '../../components/BottomSheet'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { LinkifiedText } from '../../components/LinkifiedText'
 import { ReportPromptSheet } from '../../components/ReportPromptSheet'
 import { useToast } from '../../contexts/ToastContext'
@@ -46,6 +47,20 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
   const [answer, setAnswer] = useState('')
   const [reportOpen, setReportOpen] = useState(false)
   const [reportBusy, setReportBusy] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const isDirty = characterName.trim() !== '' || answer.trim() !== ''
+
+  // The sheet's Escape, backdrop and close button all land here, so a typed
+  // application is never lost by an accidental tap. The /game/:id page has no
+  // close path, so requestClose is inert without onClose.
+  const requestClose = () => {
+    if (!onClose || busy) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+  }
 
   // One listing_open per opened card. Depends on the id (not the fetched row) so
   // a refetch does not re-fire it.
@@ -59,6 +74,9 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
     if (!name) return
     try {
       await apply(name, answer.trim())
+      // Sent: drop the draft so a later close is not mistaken for losing it.
+      setCharacterName('')
+      setAnswer('')
       trackEvent('listing_apply_submit', { game_system: gameSystem ?? 'none' })
       addToast('Application sent')
     } catch (err) {
@@ -292,9 +310,21 @@ export function PublicListingDetail({ channelId, gameSystem, onClose }: PublicLi
 
   if (onClose) {
     return (
-      <BottomSheet title={detail?.name ?? 'Game listing'} onClose={onClose}>
+      <BottomSheet title={detail?.name ?? 'Game listing'} onClose={requestClose}>
         {content}
         {reportSheet}
+        {confirmDiscard && (
+          <ConfirmDialog
+            title="Discard application?"
+            description="Your character name and answer will be lost."
+            confirmLabel="Discard"
+            onConfirm={() => {
+              setConfirmDiscard(false)
+              onClose()
+            }}
+            onClose={() => setConfirmDiscard(false)}
+          />
+        )}
       </BottomSheet>
     )
   }

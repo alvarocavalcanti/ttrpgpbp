@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CampaignNotesModal } from './CampaignNotesModal'
 import { useChannelNotes } from './useChannelNotes'
@@ -207,5 +207,119 @@ describe('CampaignNotesModal', () => {
   it('uses the character name for an author', () => {
     renderModal()
     expect(screen.getByText('Aria')).toBeInTheDocument()
+  })
+
+  describe('dirty-state discard guard (#850)', () => {
+    const closeDiscard = () => screen.queryByRole('dialog', { name: 'Discard changes?' })
+    const tabDiscard = () => screen.queryByRole('dialog', { name: 'Discard this edit?' })
+
+    it('closes a clean modal in one action with no confirm', () => {
+      const onClose = vi.fn()
+      renderModal({ onClose })
+      fireEvent.click(screen.getByRole('button', { name: 'Close notes' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(closeDiscard()).not.toBeInTheDocument()
+    })
+
+    it('asks before discarding an unsaved new note', () => {
+      const onClose = vi.fn()
+      renderModal({ onClose })
+      fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'a clue' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close notes' }))
+
+      expect(closeDiscard()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('guards Escape and the backdrop too', () => {
+      const onClose = vi.fn()
+      renderModal({ onClose })
+      fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'a clue' } })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(closeDiscard()).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(closeDiscard()).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('notes-backdrop'))
+      expect(closeDiscard()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('keeps the draft when the close confirm is cancelled, closes on discard', () => {
+      const onClose = vi.fn()
+      renderModal({ onClose })
+      fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'a clue' } })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close notes' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.getByLabelText('New note')).toHaveValue('a clue')
+      expect(onClose).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close notes' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('asks before a tab switch abandons a changed inline edit', () => {
+      renderModal()
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+      fireEvent.change(screen.getByLabelText('Edit note'), { target: { value: 'changed' } })
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Character Notes' }))
+
+      expect(tabDiscard()).toBeInTheDocument()
+      fireEvent.click(within(tabDiscard()!).getByRole('button', { name: 'Cancel' }))
+      expect(tabDiscard()).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Party Notes' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByLabelText('Edit note')).toHaveValue('changed')
+    })
+
+    it('switches tabs and drops the edit on discard', () => {
+      renderModal()
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+      fireEvent.change(screen.getByLabelText('Edit note'), { target: { value: 'changed' } })
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Character Notes' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+      expect(screen.getByRole('tab', { name: 'Character Notes' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.queryByLabelText('Edit note')).not.toBeInTheDocument()
+    })
+
+    it('switches tabs in one action when the edit is untouched', () => {
+      renderModal()
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Character Notes' }))
+
+      expect(tabDiscard()).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Character Notes' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('keeps per-scope drafts across tab switches without a confirm', () => {
+      renderModal()
+      fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'party draft' } })
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Character Notes' }))
+      expect(tabDiscard()).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Character Notes' })).toHaveAttribute('aria-selected', 'true')
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Party Notes' }))
+      expect(screen.getByLabelText('New note')).toHaveValue('party draft')
+    })
+
+    it('keeps a guarded arrow-key switch on the current tab', () => {
+      renderModal()
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+      fireEvent.change(screen.getByLabelText('Edit note'), { target: { value: 'changed' } })
+
+      const partyTab = screen.getByRole('tab', { name: 'Party Notes' })
+      fireEvent.keyDown(partyTab, { key: 'ArrowRight' })
+
+      expect(tabDiscard()).toBeInTheDocument()
+      expect(partyTab).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByLabelText('Edit note')).toHaveValue('changed')
+    })
   })
 })
