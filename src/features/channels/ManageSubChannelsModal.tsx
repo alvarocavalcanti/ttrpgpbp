@@ -30,7 +30,7 @@ interface ManageSubChannelsModalProps {
 }
 
 // GM-only room manager (#621). Rename, archive/restore, delete, and the
-// per-room toggles; creation lives in its own dialog behind + Room (#774, D9).
+// per-room toggles; creation lives in its own dialog behind Add room (#774, D9).
 // All writes are server-owned RPCs; this modal only collects input and surfaces
 // their errors.
 //
@@ -215,7 +215,7 @@ export function ManageSubChannelsModal({
           <>
             {!error && subChannels.length === 0 && (
               <p className="text-sm text-surface-500 dark:text-surface-400 py-2">
-                No rooms yet. Use + Room in the room bar to make one — a place for out-of-character chat, dice, or a scene.
+                No rooms yet. Close this window and tap the plus-and-door button in the room bar to make one — a place for out-of-character chat, dice, or a scene.
               </p>
             )}
 

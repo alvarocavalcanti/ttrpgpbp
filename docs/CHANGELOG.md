@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-26
+
+### Changed
+
+- **Adding a room is an icon now** *(for GMs)* — the room bar's **Add room** control is a plus beside a door instead of the **+ Room** text, so it no longer looks like one of your room tabs, and it sits beside the gear at the same size. Both buttons now have their own shaded background, so you can tell them apart from the rooms at a glance.
+
 ## 2026-11-25
 
 ### Added

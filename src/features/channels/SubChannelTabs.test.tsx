@@ -99,7 +99,25 @@ describe('SubChannelTabs', () => {
     expect(screen.getByRole('button', { name: 'Manage rooms' })).toBeInTheDocument()
   })
 
-  it('opens create from + Room and the manager from the gear', () => {
+  it('renders Add room as an icon, not a room-tab-like label (#845)', () => {
+    renderTabs({ subChannels: [room()], isGM: true })
+
+    expect(screen.queryByText('+ Room')).not.toBeInTheDocument()
+    expect(screen.getByTestId('add-room-icon')).toBeInTheDocument()
+  })
+
+  it('gives both GM buttons a background so they stand apart from the tabs (#845)', () => {
+    renderTabs({ subChannels: [room()], isGM: true })
+
+    for (const name of ['Add room', 'Manage rooms']) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toHaveClass('bg-surface-100')
+      expect(button).toHaveClass('dark:bg-surface-800')
+      expect(button).toHaveClass('hover:bg-surface-200')
+    }
+  })
+
+  it('opens create from Add room and the manager from the gear', () => {
     const onCreate = vi.fn()
     const onManage = vi.fn()
     renderTabs({ subChannels: [room()], isGM: true, onCreate, onManage })
