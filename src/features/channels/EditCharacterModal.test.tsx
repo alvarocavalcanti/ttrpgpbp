@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EditCharacterModal } from './EditCharacterModal'
 import { useCharacterAvatar } from './useCharacterAvatar'
@@ -339,5 +339,101 @@ describe('EditCharacterModal', () => {
 
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled())
     expect(Object.keys(mockUpdate.mock.calls[0][0])).not.toContain('character_avatar_url')
+  })
+
+  describe('dirty-state discard guard (#850)', () => {
+    const discardDialog = () => screen.queryByRole('dialog', { name: 'Discard changes?' })
+
+    function renderDialog(onClose = vi.fn()) {
+      return render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={onClose} onUpdate={vi.fn()} />)
+    }
+
+    it('closes a clean dialog in one action with no confirm', () => {
+      const onClose = vi.fn()
+      renderDialog(onClose)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(discardDialog()).not.toBeInTheDocument()
+    })
+
+    it('asks before discarding an edited character sheet', () => {
+      const onClose = vi.fn()
+      renderDialog(onClose)
+
+      fireEvent.change(screen.getByLabelText('Character Name'), { target: { value: 'Heroine' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(discardDialog()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('guards Escape and the backdrop', () => {
+      const onClose = vi.fn()
+      renderDialog(onClose)
+
+      fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'a secret' } })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(discardDialog()).toBeInTheDocument()
+      fireEvent.click(within(discardDialog()!).getByRole('button', { name: 'Cancel' }))
+      expect(discardDialog()).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('edit-character-backdrop'))
+      expect(discardDialog()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('keeps the edit when the confirm is cancelled, discards it on confirm', () => {
+      const onClose = vi.fn()
+      renderDialog(onClose)
+
+      fireEvent.change(screen.getByLabelText('Character Name'), { target: { value: 'Heroine' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      fireEvent.click(within(discardDialog()!).getByRole('button', { name: 'Cancel' }))
+
+      expect(discardDialog()).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Character Name')).toHaveValue('Heroine')
+      expect(onClose).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('guards attribute modifier edits', () => {
+      const onClose = vi.fn()
+      render(<EditCharacterModal member={{ ...mockMember, attributes: { STR: 1 } }} gameSystem="shadowdark" onClose={onClose} onUpdate={vi.fn()} />)
+
+      const strength = screen.getByLabelText('STR')
+      fireEvent.change(strength, { target: { value: '2' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(discardDialog()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('guards and discards on the bottom-sheet variant', () => {
+      const onClose = vi.fn()
+      render(<EditCharacterModal member={mockMember} gameSystem="none" onClose={onClose} onUpdate={vi.fn()} asSheet />)
+
+      fireEvent.change(screen.getByLabelText('Character Name'), { target: { value: 'Heroine' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+
+      expect(discardDialog()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('treats the untouched portrait as clean: uploads persist immediately', () => {
+      const onClose = vi.fn()
+      render(<EditCharacterModal member={{ ...mockMember, character_avatar_url: 'https://example.com/hero.png' }} gameSystem="none" onClose={onClose} onUpdate={vi.fn()} />)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(discardDialog()).not.toBeInTheDocument()
+    })
   })
 })

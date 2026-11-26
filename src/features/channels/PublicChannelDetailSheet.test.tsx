@@ -408,4 +408,100 @@ describe('PublicChannelDetailSheet', () => {
       expect(addToast).toHaveBeenCalledWith('Public game link copied!', 'success')
     })
   })
+
+  describe('dirty-state discard guard (#850)', () => {
+    const discardDialog = () => screen.queryByRole('dialog', { name: 'Discard application?' })
+
+    function renderWithClose() {
+      const onClose = vi.fn()
+      const utils = render(
+        <MemoryRouter>
+          <PublicChannelDetailSheet channelId="c1" gameSystem="shadowdark" onClose={onClose} />
+        </MemoryRouter>,
+      )
+      // The sheet's own backdrop is the direct aria-hidden child of the dialog
+      // root; scoping to it avoids matching a ConfirmDialog's backdrop.
+      const backdrop = () =>
+        utils.container.querySelector('[role="dialog"] > [aria-hidden="true"]') as HTMLElement
+      return { onClose, backdrop }
+    }
+
+    it('closes a clean application sheet in one action', () => {
+      const { onClose, backdrop } = renderWithClose()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(discardDialog()).not.toBeInTheDocument()
+
+      fireEvent.click(backdrop())
+      expect(onClose).toHaveBeenCalledTimes(2)
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(onClose).toHaveBeenCalledTimes(3)
+    })
+
+    it('asks before discarding a typed application', () => {
+      const { onClose } = renderWithClose()
+
+      fireEvent.change(screen.getByLabelText('Your answer'), { target: { value: 'I would love to play.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+
+      expect(discardDialog()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('guards Escape and the backdrop too', () => {
+      const { onClose, backdrop } = renderWithClose()
+
+      fireEvent.change(screen.getByLabelText('Character name'), { target: { value: 'Aria' } })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(discardDialog()).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(discardDialog()).not.toBeInTheDocument()
+
+      fireEvent.click(backdrop())
+      expect(discardDialog()).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('keeps the application when the confirm is cancelled, closes on discard', () => {
+      const { onClose } = renderWithClose()
+
+      fireEvent.change(screen.getByLabelText('Your answer'), { target: { value: 'I would love to play.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.getByLabelText('Your answer')).toHaveValue('I would love to play.')
+      expect(onClose).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('treats an empty apply form as clean', () => {
+      const { onClose } = renderWithClose()
+
+      fireEvent.change(screen.getByLabelText('Your answer'), { target: { value: '   ' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(discardDialog()).not.toBeInTheDocument()
+    })
+
+    it('does not demand a discard prompt after the application was sent', async () => {
+      const { onClose } = renderWithClose()
+
+      fireEvent.change(screen.getByLabelText('Character name'), { target: { value: 'Aria' } })
+      fireEvent.change(screen.getByLabelText('Your answer'), { target: { value: 'I would love to play.' } })
+      fireEvent.submit(screen.getByRole('button', { name: 'Apply to join' }).closest('form')!)
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Apply to join' })).toBeEnabled())
+      fireEvent.click(screen.getByRole('button', { name: 'Close options' }))
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(discardDialog()).not.toBeInTheDocument()
+    })
+  })
 })

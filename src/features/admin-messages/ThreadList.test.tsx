@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ThreadList, BUG_REPORT_TEMPLATE } from './ThreadList'
 import { useAdminThreads } from './useAdminThreads'
@@ -651,5 +651,102 @@ describe('NewThreadModal poll composer', () => {
 
     await waitFor(() => expect(createPoll).toHaveBeenCalled())
     expect(screen.getByText('New Message')).toBeInTheDocument()
+  })
+})
+
+describe('NewThreadModal dirty-state discard guard (#850)', () => {
+  const discardDialog = () => screen.queryByRole('dialog', { name: 'Discard message?' })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockHookReturn()
+    mockRecipients()
+    vi.mocked(useIsServerAdmin).mockReturnValue({ isServerAdmin: true, loading: false })
+    vi.mocked(useToast).mockReturnValue({ addToast: vi.fn(), removeToast: vi.fn() } as any)
+  })
+
+  function openComposer() {
+    render(<ThreadList onSelectThread={vi.fn()} />)
+    fireEvent.click(screen.getByText('New'))
+  }
+
+  it('closes a clean composer on Cancel with no confirm', () => {
+    openComposer()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(discardDialog()).not.toBeInTheDocument()
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+  })
+
+  it('closes a clean composer on Escape (new path)', () => {
+    openComposer()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+  })
+
+  it('closes a clean composer on the backdrop (new path)', () => {
+    openComposer()
+    fireEvent.click(screen.getByTestId('new-thread-backdrop'))
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+  })
+
+  it('asks before discarding a typed announcement', () => {
+    openComposer()
+
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Downtime tonight' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(discardDialog()).toBeInTheDocument()
+    expect(screen.getByText('New Message')).toBeInTheDocument()
+  })
+
+  it('keeps the draft when the confirm is cancelled, discards it on confirm', () => {
+    openComposer()
+
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'long body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(discardDialog()).toBeInTheDocument()
+
+    fireEvent.click(within(discardDialog()!).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByLabelText('Message')).toHaveValue('long body')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
+  })
+
+  it('guards Escape and the backdrop while a draft exists', () => {
+    openComposer()
+
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Downtime tonight' } })
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(discardDialog()).toBeInTheDocument()
+    fireEvent.click(within(discardDialog()!).getByRole('button', { name: 'Cancel' }))
+    expect(discardDialog()).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('new-thread-backdrop'))
+    expect(discardDialog()).toBeInTheDocument()
+    expect(screen.getByText('New Message')).toBeInTheDocument()
+  })
+
+  it('guards a typed poll question', () => {
+    openComposer()
+
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'poll' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Which night?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(discardDialog()).toBeInTheDocument()
+  })
+
+  it('treats an untouched pre-filled bug report as a clean baseline', () => {
+    render(<ThreadList onSelectThread={vi.fn()} composeRequest={1} />)
+
+    // The template arrives as initialContent, not as a user draft.
+    expect(screen.getByLabelText('Message')).toHaveValue(BUG_REPORT_TEMPLATE)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(discardDialog()).not.toBeInTheDocument()
+    expect(screen.queryByText('New Message')).not.toBeInTheDocument()
   })
 })

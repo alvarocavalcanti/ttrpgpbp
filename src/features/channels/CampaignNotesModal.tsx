@@ -51,7 +51,6 @@ export function CampaignNotesModal({
   onClose,
 }: CampaignNotesModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   const { notes, loading, error, refetch, createNote, updateNote, deleteNote } = useChannelNotes(channelId)
 
@@ -68,6 +67,8 @@ export function CampaignNotesModal({
   const [pendingDelete, setPendingDelete] = useState<ChannelNote | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [pendingScope, setPendingScope] = useState<NoteScope | null>(null)
 
   const memberNames = useMemo(
     () => new Map(members.map(m => [m.user_id, m.character_name])),
@@ -80,10 +81,43 @@ export function CampaignNotesModal({
   const visibleNotes = notes.filter(note => note.scope === activeScope)
   const draft = drafts[activeScope]
 
-  const selectScope = (scope: NoteScope) => {
+  // An inline edit counts as dirty only once its body differs from the stored
+  // note. If the note vanished (realtime delete) the fallback compares the body
+  // to itself, so a dead edit never blocks navigation.
+  const editingOriginal = editing
+    ? notes.find(note => note.id === editing.id)?.body ?? editing.body
+    : null
+  const editingDirty = editing !== null && editing.body !== editingOriginal
+  // Per-scope new-note drafts survive tab switches (see applyScope), so only
+  // the inline edit and the composer drafts guard a close.
+  const isDirty = Object.values(drafts).some(value => value.trim() !== '') || editingDirty
+
+  const requestClose = () => {
+    if (saving) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+  }
+  useEscapeToClose(requestClose)
+
+  // Switching scopes keeps an untouched edit: nothing typed is lost, so the
+  // switch stays one action. A changed body asks first.
+  const applyScope = (scope: NoteScope) => {
     setActiveScope(scope)
     setEditing(null)
     setActionError(null)
+    document.getElementById(`notes-tab-${scope}`)?.focus()
+  }
+
+  const selectScope = (scope: NoteScope) => {
+    if (scope === activeScope) return
+    if (editingDirty) {
+      setPendingScope(scope)
+      return
+    }
+    applyScope(scope)
   }
 
   const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -95,9 +129,8 @@ export function CampaignNotesModal({
     else if (event.key === 'End') next = visibleTabs.length - 1
     else return
     event.preventDefault()
-    const scope = visibleTabs[next].scope
-    selectScope(scope)
-    document.getElementById(`notes-tab-${scope}`)?.focus()
+    // applyScope moves focus; a guarded switch leaves it on the current tab.
+    selectScope(visibleTabs[next].scope)
   }
 
   const handleCreate = async () => {
@@ -138,9 +171,10 @@ export function CampaignNotesModal({
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Campaign Notes">
       <div className="flex min-h-full items-center justify-center p-4">
         <div
+          data-testid="notes-backdrop"
           className="fixed inset-0 bg-surface-600 bg-opacity-75 dark:bg-surface-900 dark:bg-opacity-80"
           aria-hidden="true"
-          onClick={onClose}
+          onClick={requestClose}
         ></div>
         <div
           ref={dialogRef}
@@ -150,7 +184,7 @@ export function CampaignNotesModal({
             <h3 className="text-lg font-bold text-surface-900 dark:text-surface-100">Campaign Notes</h3>
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               aria-label="Close notes"
               className="rounded-md p-1 text-surface-400 hover:text-surface-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-surface-400 dark:hover:text-surface-300"
             >
@@ -351,6 +385,33 @@ export function CampaignNotesModal({
               confirmLabel="Delete note"
               onConfirm={handleDelete}
               onClose={() => setPendingDelete(null)}
+            />
+          )}
+
+          {confirmDiscard && (
+            <ConfirmDialog
+              title="Discard changes?"
+              description="Your unsaved notes will be lost."
+              confirmLabel="Discard"
+              onConfirm={() => {
+                setConfirmDiscard(false)
+                onClose()
+              }}
+              onClose={() => setConfirmDiscard(false)}
+            />
+          )}
+
+          {pendingScope && (
+            <ConfirmDialog
+              title="Discard this edit?"
+              description="Your changes to this note will be lost."
+              confirmLabel="Discard"
+              onConfirm={() => {
+                const scope = pendingScope
+                setPendingScope(null)
+                applyScope(scope)
+              }}
+              onClose={() => setPendingScope(null)}
             />
           )}
         </div>

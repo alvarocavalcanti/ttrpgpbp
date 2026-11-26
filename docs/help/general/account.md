@@ -28,6 +28,8 @@ Each channel has its own **character name** (max 20 characters) and **portrait**
 
 Your portrait replaces your account picture for that game only — in the messages, the member list, the active-player picker and the mention list. If you have no portrait, your account picture is used instead, and failing that the first letter of your character name. Uploads need the server admin to have turned image uploads on. **Remove** clears the portrait and puts your account picture back.
 
+Closing **Edit Character** with unsaved changes — tapping outside, pressing Escape, or **Cancel** — asks before discarding them.
+
 ## Character sheet
 
 You can link an optional **character sheet URL** (up to 500 characters) per user per channel.

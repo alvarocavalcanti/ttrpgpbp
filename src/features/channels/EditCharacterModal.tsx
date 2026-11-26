@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { Database } from '../../types/database'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useCharacter } from './useCharacter'
 import { useCharacterAvatar } from './useCharacterAvatar'
 import { getSystemAttributes, clampModifier, isValidModifierInput, getModifierLimits, getModifierSectionCopy, sanitizeModifierValue } from '../../game-systems'
@@ -31,7 +32,6 @@ interface EditCharacterModalProps {
 export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPortraitUpdate, asSheet = false }: EditCharacterModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  useEscapeToClose(onClose)
   useFocusTrap(dialogRef)
   const { updateCharacter } = useCharacter()
   const { uploadEnabled, settingsLoading, uploading, uploadPortrait, removePortrait } =
@@ -56,8 +56,33 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPo
     }
     return out
   })
+  // The same object the inputs started from. Compared against to derive dirty
+  // state; the portrait is excluded because upload/remove persists immediately.
+  const [initial] = useState(() => ({
+    characterName: member.character_name,
+    characterSheetUrl: member.character_sheet_url || '',
+    characterNotes: member.character_notes || '',
+    attributes: attributeInputs,
+  }))
+  const isDirty = characterName !== initial.characterName
+    || characterSheetUrl !== initial.characterSheetUrl
+    || characterNotes !== initial.characterNotes
+    || systemAttributes.some(attr => attributeInputs[attr] !== initial.attributes[attr])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+
+  // Every close path (Escape, backdrop, Cancel, sheet) goes through the guard,
+  // so an accidental dismissal cannot lose the draft.
+  const requestClose = () => {
+    if (isSubmitting) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+  }
+  useEscapeToClose(requestClose)
 
   // Out-of-range input blocks save and flags the field/subtitle in red.
   const isOutOfRange = (value: string) => {
@@ -279,7 +304,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPo
               <div className="mt-5 sm:mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   disabled={isSubmitting}
                   className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm transition-colors"
                 >
@@ -296,10 +321,24 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPo
             </form>
   )
 
+  const confirmDialog = confirmDiscard && (
+    <ConfirmDialog
+      title="Discard changes?"
+      description="Your character edits will be lost."
+      confirmLabel="Discard"
+      onConfirm={() => {
+        setConfirmDiscard(false)
+        onClose()
+      }}
+      onClose={() => setConfirmDiscard(false)}
+    />
+  )
+
   if (asSheet) {
     return (
-      <BottomSheet title="Edit Character" onClose={onClose}>
+      <BottomSheet title="Edit Character" onClose={requestClose}>
         {form}
+        {confirmDialog}
       </BottomSheet>
     )
   }
@@ -307,7 +346,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPo
   return (
     <div ref={dialogRef} className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+        <div data-testid="edit-character-backdrop" className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true" onClick={requestClose}></div>
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
@@ -320,6 +359,7 @@ export function EditCharacterModal({ member, gameSystem, onClose, onUpdate, onPo
           </div>
         </div>
       </div>
+      {confirmDialog}
     </div>
   )
 }

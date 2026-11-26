@@ -32,6 +32,8 @@ Listed games are **application-only** — there's no instant join, and every app
 2. Enter your **character name** (up to 20 characters) and answer the GM's question if they asked one.
 3. The GM reviews it and **approves** or **rejects** it.
 
+Closing the application with something typed in — by tapping outside, pressing Escape, or the close button — asks before discarding it, so a long answer is never lost by an accidental tap.
+
 While it's pending, the listing shows *Your application is waiting for the GM to review it* with a **Withdraw application** button, in case you change your mind. Once the GM decides, a notice appears at the top of the lobby: **You're in — (game)** with a button straight into the channel, or that the game declined. Either one has a **Dismiss** button, and it stays until you clear it. You'll also get a notification if you have them turned on.
 
 ## Reporting a listing
@@ -52,6 +54,8 @@ Choose how the channel starts with the **List this game publicly** switch:
 - **On** — the game appears in Discover and on the public directory, with the **Description** and **What you expect** you write there, plus an optional question applicants answer. You approve or reject every application.
 
 Until you turn the switch on, the description, expectations and application question are greyed out — they are kept, so you can switch back and forth without losing them.
+
+Closing this window with something typed in — tapping outside, pressing Escape, or **Cancel** — asks before discarding it.
 
 You can move a channel between the two later from **Channel Settings → Listing**.
 
