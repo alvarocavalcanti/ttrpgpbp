@@ -5,6 +5,24 @@ permissions:
   - action: edit
     resource: "*"
     effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "git diff*"
+    effect: allow
+  - action: shell
+    resource: "git log*"
+    effect: allow
+  - action: shell
+    resource: "git show*"
+    effect: allow
+  - action: shell
+    resource: "git status*"
+    effect: allow
 ---
 
 # CodeRabbit-anticipation review
@@ -62,5 +80,6 @@ For every `await` continuation (fetch, RPC, Supabase query, realtime handler, up
 - `sessionStorage`/`localStorage` failures are best-effort and never block auth.
 - 320px layout: no wrap-induced shift; reserve height for the loading→loaded dimension change.
 - URL mirror effects must not rewrite a consumed deep-link param or stale state back into history.
+- An agent or config file that claims read-only denies the write-capable actions (edit, shell, subagent) at the permission level, not just in its description; a shell allow-list stays read-only.
 
 End with the total findings by severity and which checklist sections were clean.
