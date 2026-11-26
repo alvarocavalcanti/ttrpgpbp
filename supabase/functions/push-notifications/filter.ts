@@ -31,8 +31,8 @@ export interface PushEvent {
   sub_channel_id?: string | null
   // turn events
   user_id?: string
-  // admin_message events (announcements / admin DMs / system alerts)
-  admin_type?: 'announcement' | 'dm' | 'system'
+  // admin_message events (announcements / polls / admin DMs / system alerts)
+  admin_type?: 'announcement' | 'poll' | 'dm' | 'system'
   subject?: string
   admin_target_user_ids?: string[]
   // join request events (#674): the applicant, and the outcome for a decision.
@@ -154,9 +154,11 @@ export function resolvePushTargets(event: PushEvent, members: PushMember[]): Pus
     // System alerts carry no human sender; the thread subject is the title.
     const title = event.admin_type === 'announcement' && event.subject
       ? `Announcement: ${event.subject}`
-      : event.admin_type === 'system'
-        ? (event.subject ?? 'System alert')
-        : `New message from ${senderName}`
+      : event.admin_type === 'poll' && event.subject
+        ? `Poll: ${event.subject}`
+        : event.admin_type === 'system'
+          ? (event.subject ?? 'System alert')
+          : `New message from ${senderName}`
     return {
       targetUserIds: targets,
       title,

@@ -5,6 +5,7 @@ import type { Thread } from './types'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../../contexts/ToastContext'
 import { AdminThreadRowSchema, normalizeProfileRef, parseRow } from '../validation/rowSchemas'
+import type { CreatePollInput } from './types'
 
 const PAGE_SIZE = 50
 
@@ -155,7 +156,42 @@ export function useAdminThreadActions() {
     return true
   }, [addToast])
 
-  return { createThread, deleteThread }
+  // Polls are published by one SECURITY DEFINER RPC (thread + questions +
+  // intro message + author read marker in one transaction), then fetched back
+  // through the same validated row shape the list uses.
+  const createPoll = useCallback(async (input: CreatePollInput): Promise<Thread | 'committed' | null> => {
+    if (!user?.id) {
+      addToast('You need to be signed in.', 'error')
+      return null
+    }
+
+    const { data: threadId, error } = await supabase.rpc('create_admin_poll', {
+      p_subject: input.subject,
+      p_audience: input.audience,
+      p_description: input.description ?? '',
+      p_questions: input.questions,
+    })
+    if (error || !threadId) {
+      addToast("Couldn't publish the poll. Please try again.", 'error')
+      return null
+    }
+
+    const { data: fullRow } = await supabase.from('admin_threads')
+      .select(`
+        *,
+        creator:profiles!admin_threads_created_by_fkey(display_name, avatar_url),
+        gm:profiles!admin_threads_gm_id_fkey(display_name, avatar_url),
+        admin_thread_reads!left(last_read_at)
+      `)
+      .eq('id', threadId)
+      .single()
+    // The poll exists; if its row can't be read back — or fails validation —
+    // the list's realtime refresh shows it, so this is committed, not failed.
+    if (!fullRow) return 'committed'
+    return formatThread(fullRow as Record<string, unknown>) ?? 'committed'
+  }, [user?.id, addToast])
+
+  return { createThread, deleteThread, createPoll }
 }
 
 // Cursor pagination over (last_message_at, id) so the thread list keeps
@@ -284,7 +320,7 @@ export function useAdminThreads() {
   // loadMore doesn't wipe the older threads the user fetched.
   const refetch = useCallback(() => void fetchFirstPage(false), [fetchFirstPage])
 
-  const { createThread, deleteThread } = useAdminThreadActions()
+  const { createThread, deleteThread, createPoll } = useAdminThreadActions()
 
-  return { threads, loading, hasMore, loadMore, refetch, error, createThread, deleteThread }
+  return { threads, loading, hasMore, loadMore, refetch, error, createThread, deleteThread, createPoll }
 }

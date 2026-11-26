@@ -115,6 +115,53 @@ export const AdminMessageRowSchema = z.looseObject({
   sender: JoinedProfileRefSchema.nullish(),
 })
 
+export const AdminPollRowSchema = z.looseObject({
+  thread_id: z.string(),
+  description: z.string().nullish(),
+  closed_at: z.string().nullish(),
+  created_at: z.string().nullish(),
+})
+
+export const AdminPollQuestionRowSchema = z.looseObject({
+  id: z.string(),
+  thread_id: z.string(),
+  position: z.number(),
+  prompt: z.string(),
+  question_type: z.enum(['short_text', 'single_choice', 'multi_choice']),
+  is_required: z.boolean(),
+  options: z.array(z.string()).nullish(),
+})
+
+export const AdminPollResponseRowSchema = z.looseObject({
+  id: z.string(),
+  thread_id: z.string(),
+  user_id: z.string(),
+  submitted_at: z.string().nullish(),
+  admin_poll_answers: z.array(z.looseObject({
+    question_id: z.string(),
+    selected_options: z.array(z.number()).nullish(),
+    text_answer: z.string().nullish(),
+  })).nullish(),
+})
+
+export const AdminPollReportSchema = z.looseObject({
+  thread_id: z.string(),
+  closed_at: z.string().nullish(),
+  views: z.number(),
+  replies: z.number(),
+  questions: z.array(z.looseObject({
+    question_id: z.string(),
+    position: z.number(),
+    prompt: z.string(),
+    question_type: z.enum(['short_text', 'single_choice', 'multi_choice']),
+    is_required: z.boolean(),
+    options: z.array(z.string()).nullish(),
+    total_answers: z.number(),
+    option_counts: z.array(z.number()).nullish(),
+    text_answers: z.array(z.string()).nullish(),
+  })),
+})
+
 // Rooms (sub-channels) and their per-room unread, #621.
 export const SubChannelRowSchema = z.looseObject({
   id: z.string(),

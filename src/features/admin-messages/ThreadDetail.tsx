@@ -7,8 +7,20 @@ import { Markdown } from '../../components/Markdown'
 import { useAuth } from '../auth/useAuth'
 import { useIsServerAdmin } from '../../hooks/useIsServerAdmin'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { PollThreadDetail } from './PollThreadDetail'
 
 export function ThreadDetail({ thread, onBack }: { thread: Thread, onBack: () => void }) {
+  // Branch before mounting the message hooks: opening a poll must not fetch
+  // admin_messages, hold a realtime channel, or mark the thread read twice.
+  if (thread.type === 'poll') {
+    // Keyed by thread: each poll gets a fresh draft-answer state and no pending
+    // submission from another poll can clear it.
+    return <PollThreadDetail key={thread.id} thread={thread} onBack={onBack} />
+  }
+  return <MessageThreadDetail thread={thread} onBack={onBack} />
+}
+
+function MessageThreadDetail({ thread, onBack }: { thread: Thread, onBack: () => void }) {
   const { messages, loading, hasMore, loadMore, refetch, error, sendReply, deleteMessage } = useAdminMessages(thread.id)
   const { deleteThread } = useAdminThreadActions()
   const { user } = useAuth()

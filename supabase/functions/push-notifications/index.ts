@@ -233,7 +233,7 @@ async function buildAdminMessageEvent(
   }
 
   let adminTargetUserIds: string[] = []
-  if (thread.type === "announcement") {
+  if (thread.type === "announcement" || thread.type === "poll") {
     if (thread.audience === "all_users") {
       // Every non-suspended user. resolveAnnouncementTargets only reads
       // (id, is_suspended); profile rows are trusted server-side.
@@ -249,11 +249,16 @@ async function buildAdminMessageEvent(
       }
       adminTargetUserIds = resolveAnnouncementTargets("all_users", profiles ?? [], [])
     } else {
-      const { data: gms } = await serviceClient
+      const { data: gms, error: gmsError } = await serviceClient
         .from("channels")
         .select("gm_id")
-        .neq("gm_id", null)
+        .not("gm_id", "is", null)
         .eq("is_archived", false)
+      // A failed channel lookup must throw, not resolve to "no GMs", which would
+      // silently drop the push for every GM audience.
+      if (gmsError) {
+        throw new HttpError(500, `Announcement recipient lookup failed: ${gmsError.message}`)
+      }
       const gmIds = [...new Set((gms ?? []).map(r => r.gm_id))]
       // Suspended GMs can no longer read their channels (is_active_gm parity).
       // A failed lookup must throw: verifying with []. would treat every GM as
