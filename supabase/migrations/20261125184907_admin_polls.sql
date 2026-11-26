@@ -625,7 +625,9 @@ BEGIN
       RAISE EXCEPTION 'Invalid answers.';
     END IF;
 
-    v_text := NULLIF(btrim(COALESCE(v_answer->>'text_answer', '')), '');
+    -- btrim's default character set is spaces only, so a tab-only answer
+    -- would survive it; strip every whitespace character instead.
+    v_text := NULLIF(regexp_replace(COALESCE(v_answer->>'text_answer', ''), '^\s+|\s+$', '', 'g'), '');
     IF v_text IS NOT NULL AND char_length(v_text) > 500 THEN
       RAISE EXCEPTION 'Text answers are limited to 500 characters.';
     END IF;
@@ -700,7 +702,7 @@ BEGIN
     FROM jsonb_array_elements(p_answers) AS a(entry)
     WHERE (a.entry->>'question_id')::uuid = v_question.id;
 
-    v_text := NULLIF(btrim(COALESCE(v_answer->>'text_answer', '')), '');
+    v_text := NULLIF(regexp_replace(COALESCE(v_answer->>'text_answer', ''), '^\s+|\s+$', '', 'g'), '');
     v_selected := '{}';
     IF v_answer IS NOT NULL AND jsonb_typeof(v_answer->'selected_options') = 'array' THEN
       SELECT COALESCE(array_agg((s.entry)::text::integer ORDER BY (s.entry)::text::integer), '{}')
@@ -820,7 +822,7 @@ BEGIN
         FROM public.admin_poll_answers a
         WHERE a.question_id = q.id
           AND (
-            NULLIF(btrim(COALESCE(a.text_answer, '')), '') IS NOT NULL
+            NULLIF(regexp_replace(COALESCE(a.text_answer, ''), '^\s+|\s+$', '', 'g'), '') IS NOT NULL
             OR cardinality(a.selected_options) > 0
           )
       ),
@@ -848,7 +850,7 @@ BEGIN
             FROM public.admin_poll_answers a
             JOIN public.admin_poll_responses r ON r.id = a.response_id
             WHERE a.question_id = q.id
-              AND NULLIF(btrim(COALESCE(a.text_answer, '')), '') IS NOT NULL
+              AND NULLIF(regexp_replace(COALESCE(a.text_answer, ''), '^\s+|\s+$', '', 'g'), '') IS NOT NULL
           ) txt
         )
       END

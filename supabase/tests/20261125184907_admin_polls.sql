@@ -10,7 +10,7 @@
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(74);
+SELECT plan(79);
 
 -- ===== Fixture =====
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -438,6 +438,64 @@ SELECT throws_ok(
   'a second submission is refused'
 );
 RESET ROLE;
+
+-- ===== 6b. Whitespace-only text answers =====
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000000008241');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $$INSERT INTO poll_ids (name, thread_id)
+    SELECT 'p4', create_admin_poll(
+      'Whitespace',
+      'all_users',
+      NULL,
+      '[
+        {"prompt":"Required","question_type":"short_text","is_required":true},
+        {"prompt":"Optional","question_type":"short_text","is_required":false}
+      ]'::jsonb
+    )$$,
+  'the admin can publish a poll with required and optional text questions'
+);
+RESET ROLE;
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000000008244');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $$SELECT submit_admin_poll_response(
+      (SELECT thread_id FROM poll_ids WHERE name = 'p4'),
+      jsonb_build_array(jsonb_build_object(
+        'question_id', (SELECT id FROM admin_poll_questions WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p4') AND position = 0),
+        'text_answer', E'\t\n')))$$,
+  'P0001', 'Please answer all required questions.',
+  'a tab-only required text answer is refused'
+);
+SELECT lives_ok(
+  $$SELECT submit_admin_poll_response(
+      (SELECT thread_id FROM poll_ids WHERE name = 'p4'),
+      jsonb_build_array(
+        jsonb_build_object(
+          'question_id', (SELECT id FROM admin_poll_questions WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p4') AND position = 0),
+          'text_answer', E'\t  Trimmed  \n'),
+        jsonb_build_object(
+          'question_id', (SELECT id FROM admin_poll_questions WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p4') AND position = 1),
+          'text_answer', E'\t')))$$,
+  'whitespace-padded text answers are accepted'
+);
+RESET ROLE;
+
+SELECT is(
+  (SELECT text_answer FROM admin_poll_answers
+    WHERE question_id = (SELECT id FROM admin_poll_questions
+      WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p4') AND position = 0)),
+  'Trimmed',
+  'tabs and newlines are trimmed from the stored answer'
+);
+SELECT is(
+  (SELECT count(*) FROM admin_poll_answers
+    WHERE question_id = (SELECT id FROM admin_poll_questions
+      WHERE thread_id = (SELECT thread_id FROM poll_ids WHERE name = 'p4') AND position = 1)),
+  0::bigint,
+  'a tab-only optional answer is stored as no answer at all'
+);
 
 -- ===== 7. At least one answer overall =====
 SELECT pg_temp.act_as('00000000-0000-0000-0000-000000008241');
